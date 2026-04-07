@@ -1,28 +1,201 @@
-export function cn(...classes: (string | boolean | undefined | null)[]): string {
+// src/lib/utils.ts
+
+export function cn(...classes: (string | boolean | undefined | null)[]) {
   return classes.filter(Boolean).join(' ');
 }
 
-export function calculateNights(startDate: string, endDate: string): number {
+export function calculateNights(startDate?: string, endDate?: string) {
   if (!startDate || !endDate) return 0;
   const start = new Date(startDate);
   const end = new Date(endDate);
-  const diff = Math.ceil((end.getTime() - start.getTime()) / 86400000);
-  return Math.max(0, diff);
+  const diff = end.getTime() - start.getTime();
+  return Math.max(0, Math.ceil(diff / 86400000));
 }
 
-export function getTotalBeds(roomType: string, numberOfRooms: number): number {
-  const bedsPerRoom = roomType === 'EZ' ? 1 : roomType === 'DZ' ? 2 : 3;
-  return bedsPerRoom * (numberOfRooms || 1);
+export function formatDate(input?: string, lang: 'de' | 'en' = 'en') {
+  if (!input) return '';
+  const d = new Date(input);
+  return d.toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-GB', {
+    day: '2-digit',
+    month: 'short',
+  });
 }
 
-export function getEmployeeStatus(checkIn: string, checkOut: string): string {
+export function formatCurrency(amount: number) {
+  return '€' + amount.toLocaleString('de-DE', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+}
+
+export function getBedsPerRoom(roomType?: string) {
+  if (roomType === 'EZ') return 1;
+  if (roomType === 'TZ') return 3;
+  return 2;
+}
+
+export function getTotalBeds(roomType?: string, numberOfRooms?: number) {
+  return getBedsPerRoom(roomType) * Math.max(1, numberOfRooms || 1);
+}
+
+export function getNightsBetween(startDate?: string, endDate?: string) {
+  if (!startDate || !endDate) return [];
+  const out: string[] = [];
+  const current = new Date(startDate);
+  const end = new Date(endDate);
+
+  while (current < end) {
+    out.push(current.toISOString().split('T')[0]);
+    current.setDate(current.getDate() + 1);
+  }
+
+  return out;
+}
+
+export function getEmployeeStatus(checkIn?: string, checkOut?: string): '' | 'active' | 'ending-soon' | 'completed' | 'upcoming' {
   if (!checkIn || !checkOut) return '';
-  const today = new Date().toISOString().split('T')[0];
-  if (today >= checkIn && today <= checkOut) return 'active';
-  if (today < checkIn) return 'upcoming';
-  return 'completed';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const ci = new Date(checkIn);
+  const co = new Date(checkOut);
+
+  if (today < ci) return 'upcoming';
+  if (today > co) return 'completed';
+
+  const daysLeft = Math.ceil((co.getTime() - today.getTime()) / 86400000);
+  if (daysLeft <= 3) return 'ending-soon';
+  return 'active';
 }
 
-export function formatCurrency(amount: number): string {
-  return '€' + amount.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+export function getDurationTotal(duration: any) {
+  const nights = calculateNights(duration.startDate, duration.endDate);
+  const rooms = Math.max(1, duration.numberOfRooms || 1);
+  const base = Number(duration.pricePerNightPerRoom || 0);
+  const useManual = !!duration.useManualPrices;
+  const nightlyPrices = duration.nightlyPrices || {};
+
+  let subtotal = 0;
+
+  if (useManual && duration.startDate && duration.endDate) {
+    const nightsList = getNightsBetween(duration.startDate, duration.endDate);
+    subtotal = nightsList.reduce((sum, night) => sum + Number(nightlyPrices[night] ?? base) * rooms, 0);
+  } else {
+    subtotal = nights * base * rooms;
+  }
+
+  let discount = 0;
+  if (duration.hasDiscount) {
+    if ((duration.discountType || 'percentage') === 'fixed') {
+      discount = Number(duration.discountValue || 0);
+    } else {
+      discount = subtotal * (Number(duration.discountValue || 0) / 100);
+    }
+  }
+
+  return Math.max(0, subtotal - discount);
+}
+
+export function getMonthOverlapNights(startDate?: string, endDate?: string, year?: number, month?: number) {
+  if (!startDate || !endDate || year === undefined || month === undefined) return 0;
+
+  const bookingStart = new Date(startDate);
+  const bookingEnd = new Date(endDate);
+  const monthStart = new Date(year, month, 1);
+  const monthEndExclusive = new Date(year, month + 1, 1);
+
+  const start = bookingStart > monthStart ? bookingStart : monthStart;
+  const end = bookingEnd < monthEndExclusive ? bookingEnd : monthEndExclusive;
+
+  return Math.max(0, Math.ceil((end.getTime() - start.getTime()) / 86400000));
+}
+
+export function getDurationCostForMonth(duration: any, year: number, month: number) {
+  const overlapNights = getMonthOverlapNights(duration.startDate, duration.endDate, year, month);
+  if (overlapNights === 0) return 0;
+
+  const totalNights = calculateNights(duration.startDate, duration.endDate);
+  const totalCost = getDurationTotal(duration);
+  if (totalNights === 0) return 0;
+
+  return (totalCost / totalNights) * overlapNights;
+}
+
+export function durationTouchesMonth(duration: any, year: number, month: number) {
+  return getMonthOverlapNights(duration.startDate, duration.endDate, year, month) > 0;
+}
+
+export function getDurationSummary(duration: any, lang: 'de' | 'en' = 'en') {
+  const rooms = duration.numberOfRooms || 1;
+  const roomType = duration.roomType || 'DZ';
+  const nights = calculateNights(duration.startDate, duration.endDate);
+  const start = formatDate(duration.startDate, lang);
+  const end = formatDate(duration.endDate, lang);
+  return `${rooms}×${roomType} ${start} – ${end} ${nights}n`;
+}
+
+export function getDurationGapInfo(duration: any) {
+  const start = duration.startDate;
+  const end = duration.endDate;
+  const employees = duration.employees || [];
+  const totalBeds = getTotalBeds(duration.roomType, duration.numberOfRooms);
+
+  const gaps: Array<{
+    slotIndex: number;
+    availableFrom: string;
+    availableTo: string;
+    type: 'start' | 'end' | 'full';
+  }> = [];
+
+  for (let i = 0; i < totalBeds; i++) {
+    const emp = employees[i];
+
+    if (!emp) {
+      if (start && end) {
+        gaps.push({
+          slotIndex: i,
+          availableFrom: start,
+          availableTo: end,
+          type: 'full',
+        });
+      }
+      continue;
+    }
+
+    if (start && emp.checkIn && emp.checkIn > start) {
+      gaps.push({
+        slotIndex: i,
+        availableFrom: start,
+        availableTo: emp.checkIn,
+        type: 'start',
+      });
+    }
+
+    if (end && emp.checkOut && emp.checkOut < end) {
+      gaps.push({
+        slotIndex: i,
+        availableFrom: emp.checkOut,
+        availableTo: end,
+        type: 'end',
+      });
+    }
+  }
+
+  return gaps;
+}
+
+export function calcFreeBeds(duration: any) {
+  return getDurationGapInfo(duration).length;
+}
+
+export function calcHotelFreeBeds(hotel: any) {
+  return (hotel.durations || []).reduce((sum: number, d: any) => sum + calcFreeBeds(d), 0);
+}
+
+export function calcHotelTotalNights(hotel: any) {
+  return (hotel.durations || []).reduce((sum: number, d: any) => sum + calculateNights(d.startDate, d.endDate), 0);
+}
+
+export function calcHotelTotalCost(hotel: any) {
+  return (hotel.durations || []).reduce((sum: number, d: any) => sum + getDurationTotal(d), 0);
 }
