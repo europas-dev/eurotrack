@@ -1,19 +1,18 @@
-
 // src/lib/utils.ts
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-// Tailwind class merger - THIS WAS MISSING!
+/**
+ * Merge Tailwind CSS classes
+ */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Add any other utility functions you had below...
-
-// src/utils.ts
-import { RoomType, Employee, Duration } from './types';
-
-// Date utilities
+/**
+ * Format ISO date to DD Mon format
+ * @example "2026-04-15" → "15 Apr"
+ */
 export function formatDate(isoDate: string): string {
   const date = new Date(isoDate);
   const day = String(date.getDate()).padStart(2, '0');
@@ -22,53 +21,102 @@ export function formatDate(isoDate: string): string {
   return `${day} ${month}`;
 }
 
+/**
+ * Calculate number of nights between two dates
+ */
 export function calculateNights(start: string, end: string): number {
   const startDate = new Date(start);
   const endDate = new Date(end);
-  return Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  const nights = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  return Math.max(0, nights);
 }
 
-export function getRoomCapacity(roomType: RoomType): number {
-  return { EZ: 1, DZ: 2, TZ: 3 }[roomType];
+/**
+ * Get room capacity for room type
+ */
+export function getRoomCapacity(roomType: 'EZ' | 'DZ' | 'TZ'): number {
+  const capacities = { EZ: 1, DZ: 2, TZ: 3 };
+  return capacities[roomType] || 1;
 }
 
-// Employee status
-export function getEmployeeStatus(checkIn: string, checkOut: string, today: string) {
-  const current = new Date(today);
+/**
+ * Get total beds for a duration
+ */
+export function getTotalBeds(roomType: 'EZ' | 'DZ' | 'TZ', numberOfRooms: number): number {
+  return getRoomCapacity(roomType) * numberOfRooms;
+}
+
+/**
+ * Get employee status based on dates
+ */
+export function getEmployeeStatus(
+  checkIn: string,
+  checkOut: string,
+  currentDate: string = new Date().toISOString().split('T')[0]
+): 'upcoming' | 'active' | 'ending-soon' | 'completed' {
+  const current = new Date(currentDate);
   const inDate = new Date(checkIn);
   const outDate = new Date(checkOut);
-  
+
   if (current < inDate) return 'upcoming';
   if (current > outDate) return 'completed';
-  
+
   const daysUntilCheckout = Math.ceil((outDate.getTime() - current.getTime()) / (1000 * 60 * 60 * 24));
-  if (daysUntilCheckout <= 5) return 'ending-soon';
-  
+  if (daysUntilCheckout <= 5 && daysUntilCheckout >= 0) return 'ending-soon';
+
   return 'active';
 }
 
-export function hasGap(employee: Employee, durationEnd: string): boolean {
-  return new Date(employee.checkOut) < new Date(durationEnd);
+/**
+ * Get status color classes
+ */
+export function getStatusColor(status: string): string {
+  switch (status) {
+    case 'upcoming':
+      return 'border-blue-500 text-blue-400';
+    case 'active':
+      return 'border-gray-400 text-gray-300';
+    case 'ending-soon':
+      return 'border-red-500 text-red-400';
+    case 'completed':
+      return 'border-green-500 text-green-400';
+    default:
+      return 'border-gray-500 text-gray-300';
+  }
 }
 
-// Duration color
+/**
+ * Check if employee has start gap (late check-in)
+ */
+export function hasStartGap(checkIn: string, durationStart: string): boolean {
+  return new Date(checkIn) > new Date(durationStart);
+}
+
+/**
+ * Check if employee has end gap (early check-out)
+ */
+export function hasEndGap(checkOut: string, durationEnd: string): boolean {
+  return new Date(checkOut) < new Date(durationEnd);
+}
+
+/**
+ * Format currency
+ */
+export function formatCurrency(amount: number): string {
+  return `€${amount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/**
+ * Get duration color based on index
+ */
 export function getDurationColor(index: number): string {
   const colors = ['blue', 'purple', 'pink', 'green', 'yellow', 'red', 'indigo', 'cyan'];
   return colors[index % colors.length];
 }
 
-// Export functions (we'll add Excel, PDF, etc. libraries later)
-export async function exportToExcel(data: any) {
-  // TODO: Implement with xlsx library
-  console.log('Export to Excel:', data);
-}
-
-export async function exportToPDF(data: any) {
-  // TODO: Implement with jspdf library
-  console.log('Export to PDF:', data);
-}
-
-export async function exportToCSV(data: any) {
-  // TODO: Implement CSV export
-  console.log('Export to CSV:', data);
+/**
+ * Get Tailwind border color class
+ */
+export function getDurationBorderColor(index: number): string {
+  return `border-${getDurationColor(index)}-500`;
 }
