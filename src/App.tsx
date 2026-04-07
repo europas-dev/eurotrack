@@ -1,12 +1,13 @@
 // src/App.tsx
 import React, { useEffect, useState } from 'react';
-import { supabase, getCurrentUser } from './lib/supabase';
+import { supabase } from './lib/supabase';
 import Landing from './components/Landing';
 import Auth from './components/Auth';
 import Dashboard from './Dashboard';
-import type { Theme, Language } from './lib/types';
 
 type View = 'landing' | 'auth' | 'dashboard';
+type Theme = 'dark' | 'light';
+type Language = 'de' | 'en';
 
 export default function App() {
   const [view, setView] = useState<View>('landing');
@@ -15,7 +16,6 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>('dark');
   const [lang, setLang] = useState<Language>('en');
 
-  // Check authentication on mount
   useEffect(() => {
     checkAuth();
 
@@ -34,7 +34,7 @@ export default function App() {
 
   async function checkAuth() {
     try {
-      const user = await getCurrentUser();
+      const { data: { user } } = await supabase.auth.getUser();
       setIsAuthenticated(!!user);
       if (user) {
         setView('dashboard');
@@ -53,8 +53,11 @@ export default function App() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#020617] flex items-center justify-center">
-        <div className="text-white text-2xl font-bold">
-          Euro<span className="text-[#EAB308]">Track.</span>
+        <div className="text-center">
+          <div className="text-3xl font-black italic mb-4">
+            Euro<span className="text-[#EAB308]">Track.</span>
+          </div>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
       </div>
     );
