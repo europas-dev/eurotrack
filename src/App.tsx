@@ -1,162 +1,647 @@
+'use client';
+
 import React, { useState, useMemo } from 'react';
-import { Plus, UserPlus, Globe, ChevronDown, Calendar, Bell, Settings, Search } from 'lucide-react';
-import { format, isWithinInterval, parseISO, endOfMonth, startOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
+import { 
+  ChevronDown, 
+  ChevronRight, 
+  Plus, 
+  UserPlus, 
+  ExternalLink,
+  Calendar,
+  DollarSign,
+  Bed
+} from 'lucide-react';
 
-// --- TYPE DEFINITIONS ---
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
 type RoomType = 'EZ' | 'DZ' | 'TZ';
-interface Mitarbeiter { id: string; name: string; checkIn: string; checkOut: string; }
-interface Duration { id: string; start: string; end: string; roomType: RoomType; price: number; discount: number; guests: Mitarbeiter[]; }
-interface Hotel { id: string; name: string; city: string; company: string; web: string; durations: Duration[]; }
 
-export default function App() {
-  const [activeMonth, setActiveMonth] = useState(new Date(2026, 3, 1)); // April 2026
-  const [hotels, setHotels] = useState<Hotel[]>([
-    {
-      id: '1', name: 'Hotel Essen', city: 'Essen', company: 'Siemens', web: 'https://hotel-essen.de',
-      durations: [{
-        id: 'd1', start: '2026-04-06', end: '2026-04-23', roomType: 'DZ', price: 88, discount: 0,
-        guests: [
-          { id: 'g1', name: 'Karim', checkIn: '2026-04-06', checkOut: '2026-04-15' }, // Leaves early
-          { id: 'g2', name: 'Rahim', checkIn: '2026-04-06', checkOut: '2026-04-23' }
-        ]
-      }]
-    }
-  ]);
-
-  // --- GLOBAL LOGIC ---
-  const stats = useMemo(() => {
-    const monthStart = startOfMonth(activeMonth);
-    const monthEnd = endOfMonth(activeMonth);
-    let totalSpend = 0;
-    let freeBeds = 0;
-
-    hotels.forEach(h => {
-      h.durations.forEach(d => {
-        // 1. Calculate Monthly Spend (Only nights within this month)
-        const overlapNights = eachDayOfInterval({ start: parseISO(d.start), end: parseISO(d.end) })
-          .filter(day => isWithinInterval(day, { start: monthStart, end: monthEnd })).length;
-        totalSpend += (overlapNights * d.price);
-
-        // 2. Calculate Free Beds (based on Today)
-        const capacity = d.roomType === 'TZ' ? 3 : d.roomType === 'DZ' ? 2 : 1;
-        const activeGuests = d.guests.filter(g => isWithinInterval(new Date(), { start: parseISO(g.checkIn), end: parseISO(g.checkOut) })).length;
-        freeBeds += Math.max(0, capacity - activeGuests);
-      });
-    });
-    return { totalSpend, freeBeds };
-  }, [hotels, activeMonth]);
-
-  return (
-    <div className="flex h-screen bg-[#020617] text-white font-sans overflow-hidden">
-      {/* LEFT NAVIGATION (Vertical Tabs) */}
-      <aside className="w-64 border-r border-white/5 flex flex-col p-6 bg-[#0F172A]">
-        <div className="text-2xl font-black italic mb-10 text-blue-500">EURO<span className="text-yellow-500">TRACK.</span></div>
-        <nav className="flex-1 space-y-2">
-          {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((m, i) => (
-            <button 
-              key={m} 
-              onClick={() => setActiveMonth(new Date(2026, i, 1))}
-              className={`w-full text-left px-4 py-3 rounded-xl font-bold transition-all ${activeMonth.getMonth() === i ? 'bg-blue-600 shadow-lg shadow-blue-600/20' : 'opacity-40 hover:opacity-100'}`}
-            >
-              {m} 2026
-            </button>
-          ))}
-        </nav>
-      </aside>
-
-      {/* MAIN CONTENT */}
-      <main className="flex-1 flex flex-col">
-        <header className="h-20 border-b border-white/5 px-10 flex justify-between items-center bg-[#0F172A]">
-          <div className="flex gap-10">
-            <div><p className="text-[10px] uppercase opacity-40 font-black">Monthly Spend</p><p className="text-xl font-bold">{stats.totalSpend} €</p></div>
-            <div><p className="text-[10px] uppercase opacity-40 font-black">Available Beds</p><p className="text-xl font-bold text-emerald-400">{stats.totalFreeBeds}</p></div>
-          </div>
-          <div className="flex gap-4"><Calendar /><Bell /><Settings /></div>
-        </header>
-
-        <div className="p-10 overflow-y-auto space-y-6">
-          {/* GROUP BY COMPANY (Siemens) */}
-          <div className="space-y-4">
-            <h2 className="text-xs font-black opacity-30 uppercase tracking-[0.3em]">Siemens AG</h2>
-            {hotels.filter(h => h.company === 'Siemens').map(hotel => (
-              <HotelRow key={hotel.id} hotel={hotel} />
-            ))}
-          </div>
-        </div>
-      </main>
-    </div>
-  );
+interface Employee {
+  id: string;
+  name: string;
+  checkIn: string; // ISO date string
+  checkOut: string; // ISO date string
+  costPerNight: number;
 }
 
-function HotelRow({ hotel }: { hotel: Hotel }) {
-  const [isOpen, setIsOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState(0);
+interface BookingDuration {
+  id: string;
+  startDate: string;
+  endDate: string;
+  roomType: RoomType;
+  employees: (Employee | null)[]; // Array length matches room capacity
+}
+
+interface Hotel {
+  id: string;
+  name: string;
+  city: string;
+  address: string;
+  contact: string;
+  webLink: string;
+  companyTag: string;
+  durations: BookingDuration[];
+}
+
+interface Workspace {
+  hotels: Hotel[];
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+const getRoomCapacity = (roomType: RoomType): number => {
+  const capacities: Record<RoomType, number> = {
+    'EZ': 1,
+    'DZ': 2,
+    'TZ': 3,
+  };
+  return capacities[roomType];
+};
+
+const getMonthDates = (year: number, month: number): { start: string; end: string } => {
+  const start = new Date(year, month, 1);
+  const end = new Date(year, month + 1, 0);
+  return {
+    start: start.toISOString().split('T')[0],
+    end: end.toISOString().split('T')[0],
+  };
+};
+
+const calculateDaysInMonth = (
+  checkIn: string,
+  checkOut: string,
+  monthStart: string,
+  monthEnd: string
+): number => {
+  const start = new Date(Math.max(new Date(checkIn).getTime(), new Date(monthStart).getTime()));
+  const end = new Date(Math.min(new Date(checkOut).getTime(), new Date(monthEnd).getTime()));
+  
+  if (start > end) return 0;
+  
+  const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  return Math.max(0, days);
+};
+
+const getEmployeeStatus = (checkIn: string, checkOut: string, currentDate: string): 
+  'upcoming' | 'active' | 'ending-soon' | 'completed' => {
+  const current = new Date(currentDate);
+  const inDate = new Date(checkIn);
+  const outDate = new Date(checkOut);
+  
+  if (current < inDate) return 'upcoming';
+  if (current > outDate) return 'completed';
+  
+  const daysUntilCheckout = Math.ceil((outDate.getTime() - current.getTime()) / (1000 * 60 * 60 * 24));
+  if (daysUntilCheckout <= 3) return 'ending-soon';
+  
+  return 'active';
+};
+
+const hasGap = (employee: Employee, durationEndDate: string): boolean => {
+  return new Date(employee.checkOut) < new Date(durationEndDate);
+};
+
+// ============================================================================
+// MOCK DATA
+// ============================================================================
+
+const MOCK_DATA: Workspace = {
+  hotels: [
+    {
+      id: 'h1',
+      name: 'Hotel Adlon Berlin',
+      city: 'Berlin',
+      address: 'Unter den Linden 77, 10117 Berlin',
+      contact: '+49 30 2261 0',
+      webLink: 'https://www.hotel-adlon.de',
+      companyTag: 'Siemens',
+      durations: [
+        {
+          id: 'd1',
+          startDate: '2024-04-01',
+          endDate: '2024-04-14',
+          roomType: 'DZ',
+          employees: [
+            {
+              id: 'e1',
+              name: 'Max Müller',
+              checkIn: '2024-04-01',
+              checkOut: '2024-04-10',
+              costPerNight: 120,
+            },
+            {
+              id: 'e2',
+              name: 'Anna Schmidt',
+              checkIn: '2024-04-01',
+              checkOut: '2024-04-14',
+              costPerNight: 120,
+            },
+          ],
+        },
+        {
+          id: 'd2',
+          startDate: '2024-04-15',
+          endDate: '2024-04-30',
+          roomType: 'TZ',
+          employees: [
+            {
+              id: 'e3',
+              name: 'Hans Weber',
+              checkIn: '2024-04-15',
+              checkOut: '2024-04-30',
+              costPerNight: 100,
+            },
+            null,
+            null,
+          ],
+        },
+      ],
+    },
+    {
+      id: 'h2',
+      name: 'Maritim Hotel Munich',
+      city: 'Munich',
+      address: 'Goethestraße 7, 80336 München',
+      contact: '+49 89 5521 70',
+      webLink: 'https://www.maritim.de',
+      companyTag: 'Siemens',
+      durations: [
+        {
+          id: 'd3',
+          startDate: '2024-04-25',
+          endDate: '2024-05-05',
+          roomType: 'EZ',
+          employees: [
+            {
+              id: 'e4',
+              name: 'Lisa Bauer',
+              checkIn: '2024-04-25',
+              checkOut: '2024-05-05',
+              costPerNight: 150,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'h3',
+      name: 'Steigenberger Frankfurt',
+      city: 'Frankfurt',
+      address: 'Am Kaiserplatz, 60311 Frankfurt',
+      contact: '+49 69 2156 0',
+      webLink: 'https://www.steigenberger.com',
+      companyTag: 'Bosch',
+      durations: [
+        {
+          id: 'd4',
+          startDate: '2024-04-01',
+          endDate: '2024-04-30',
+          roomType: 'DZ',
+          employees: [
+            {
+              id: 'e5',
+              name: 'Thomas Klein',
+              checkIn: '2024-04-01',
+              checkOut: '2024-04-30',
+              costPerNight: 130,
+            },
+            {
+              id: 'e6',
+              name: 'Sarah Wagner',
+              checkIn: '2024-04-05',
+              checkOut: '2024-04-20',
+              costPerNight: 130,
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
+export default function EuroTrackApp() {
+  const [workspace] = useState<Workspace>(MOCK_DATA);
+  const [selectedMonth, setSelectedMonth] = useState(3); // April (0-indexed)
+  const [selectedYear] = useState(2024);
+  const [currentDate] = useState('2024-04-08'); // Simulated current date
+  const [expandedHotels, setExpandedHotels] = useState<Set<string>>(new Set());
+  const [groupByCompany, setGroupByCompany] = useState(true);
+
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const { start: monthStart, end: monthEnd } = getMonthDates(selectedYear, selectedMonth);
+
+  // ============================================================================
+  // COMPUTED STATS
+  // ============================================================================
+
+  const stats = useMemo(() => {
+    let totalSpend = 0;
+    let totalBeds = 0;
+    let occupiedBeds = 0;
+
+    workspace.hotels.forEach(hotel => {
+      hotel.durations.forEach(duration => {
+        const capacity = getRoomCapacity(duration.roomType);
+        
+        duration.employees.forEach(employee => {
+          if (employee) {
+            const daysInMonth = calculateDaysInMonth(
+              employee.checkIn,
+              employee.checkOut,
+              monthStart,
+              monthEnd
+            );
+            totalSpend += daysInMonth * employee.costPerNight;
+
+            // Check if employee is active on current date
+            const status = getEmployeeStatus(employee.checkIn, employee.checkOut, currentDate);
+            if (status === 'active' || status === 'ending-soon') {
+              occupiedBeds++;
+            }
+          }
+        });
+
+        // Count total beds for durations that overlap with current date
+        const durationStart = new Date(duration.startDate);
+        const durationEnd = new Date(duration.endDate);
+        const current = new Date(currentDate);
+        
+        if (current >= durationStart && current <= durationEnd) {
+          totalBeds += capacity;
+        }
+      });
+    });
+
+    return {
+      totalSpend,
+      freeBeds: totalBeds - occupiedBeds,
+    };
+  }, [workspace, monthStart, monthEnd, currentDate]);
+
+  // ============================================================================
+  // GROUPED HOTELS
+  // ============================================================================
+
+  const groupedHotels = useMemo(() => {
+    if (!groupByCompany) {
+      return [{ company: 'All Hotels', hotels: workspace.hotels }];
+    }
+
+    const groups: Record<string, Hotel[]> = {};
+    workspace.hotels.forEach(hotel => {
+      if (!groups[hotel.companyTag]) {
+        groups[hotel.companyTag] = [];
+      }
+      groups[hotel.companyTag].push(hotel);
+    });
+
+    return Object.entries(groups).map(([company, hotels]) => ({
+      company,
+      hotels,
+    }));
+  }, [workspace, groupByCompany]);
+
+  // ============================================================================
+  // HANDLERS
+  // ============================================================================
+
+  const toggleHotel = (hotelId: string) => {
+    setExpandedHotels(prev => {
+      const next = new Set(prev);
+      if (next.has(hotelId)) {
+        next.delete(hotelId);
+      } else {
+        next.add(hotelId);
+      }
+      return next;
+    });
+  };
+
+  const handleAddEmployee = (hotelId: string, durationId: string, slotIndex: number) => {
+    alert(`Add employee to Hotel ${hotelId}, Duration ${durationId}, Slot ${slotIndex}`);
+    // Implement modal/form logic here
+  };
+
+  const handleFillGap = (hotelId: string, durationId: string, employeeId: string) => {
+    alert(`Fill gap for Employee ${employeeId} in Hotel ${hotelId}, Duration ${durationId}`);
+    // Implement gap-filling logic here
+  };
+
+  // ============================================================================
+  // RENDER HELPERS
+  // ============================================================================
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'upcoming': return 'bg-blue-500';
+      case 'active': return 'bg-green-500';
+      case 'ending-soon': return 'bg-orange-500';
+      case 'completed': return 'bg-red-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const calculateHotelMonthCost = (hotel: Hotel): number => {
+    let total = 0;
+    hotel.durations.forEach(duration => {
+      duration.employees.forEach(employee => {
+        if (employee) {
+          const days = calculateDaysInMonth(
+            employee.checkIn,
+            employee.checkOut,
+            monthStart,
+            monthEnd
+          );
+          total += days * employee.costPerNight;
+        }
+      });
+    });
+    return total;
+  };
+
+  const renderEmployeeSlot = (
+    employee: Employee | null,
+    duration: BookingDuration,
+    slotIndex: number,
+    hotelId: string
+  ) => {
+    if (!employee) {
+      return (
+        <div
+          className="flex items-center justify-center p-3 bg-gray-800 rounded-lg border-2 border-dashed border-gray-600 hover:border-green-500 transition-all cursor-pointer"
+          onClick={() => handleAddEmployee(hotelId, duration.id, slotIndex)}
+        >
+          <Plus className="w-5 h-5 text-green-500" />
+          <span className="ml-2 text-sm text-gray-400">Add Employee</span>
+        </div>
+      );
+    }
+
+    const status = getEmployeeStatus(employee.checkIn, employee.checkOut, currentDate);
+    const gap = hasGap(employee, duration.endDate);
+    const daysInMonth = calculateDaysInMonth(
+      employee.checkIn,
+      employee.checkOut,
+      monthStart,
+      monthEnd
+    );
+
+    return (
+      <div className={`p-3 rounded-lg border-2 ${getStatusColor(status)} border-opacity-50 bg-gray-800`}>
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-white">{employee.name}</span>
+              {gap && (
+                <button
+                  onClick={() => handleFillGap(hotelId, duration.id, employee.id)}
+                  className="p-1 bg-green-600 hover:bg-green-700 rounded-full transition-colors"
+                  title="Fill gap"
+                >
+                  <UserPlus className="w-4 h-4 text-white" />
+                </button>
+              )}
+            </div>
+            <div className="text-xs text-gray-400 mt-1">
+              {employee.checkIn} → {employee.checkOut}
+            </div>
+            <div className="text-xs text-gray-300 mt-1">
+              €{employee.costPerNight}/night × {daysInMonth} days = €{employee.costPerNight * daysInMonth}
+            </div>
+          </div>
+          <div className={`px-2 py-1 rounded text-xs font-semibold ${getStatusColor(status)}`}>
+            {status.replace('-', ' ').toUpperCase()}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderDuration = (duration: BookingDuration, hotel: Hotel) => {
+    const capacity = getRoomCapacity(duration.roomType);
+    const slots = Array(capacity).fill(null).map((_, i) => duration.employees[i] || null);
+
+    return (
+      <div key={duration.id} className="mb-4 p-4 bg-gray-900 rounded-lg border border-gray-700">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <Calendar className="w-4 h-4 text-blue-400" />
+            <span className="font-medium text-white">
+              {duration.startDate} → {duration.endDate}
+            </span>
+            <span className="px-2 py-1 bg-blue-600 rounded text-xs font-semibold text-white">
+              {duration.roomType}
+            </span>
+            <span className="text-sm text-gray-400">
+              ({capacity} {capacity === 1 ? 'bed' : 'beds'})
+            </span>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {slots.map((employee, index) => (
+            <div key={index}>
+              {renderEmployeeSlot(employee, duration, index, hotel.id)}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderHotel = (hotel: Hotel) => {
+    const isExpanded = expandedHotels.has(hotel.id);
+    const monthlyCost = calculateHotelMonthCost(hotel);
+
+    return (
+      <div key={hotel.id} className="mb-4 bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+        {/* Hotel Header */}
+        <div
+          className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-750 transition-colors"
+          onClick={() => toggleHotel(hotel.id)}
+        >
+          <div className="flex items-center gap-4 flex-1">
+            {isExpanded ? (
+              <ChevronDown className="w-5 h-5 text-gray-400" />
+            ) : (
+              <ChevronRight className="w-5 h-5 text-gray-400" />
+            )}
+            
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-white">{hotel.name}</h3>
+              <p className="text-sm text-gray-400">{hotel.city}</p>
+            </div>
+
+            <div className="flex items-center gap-2 px-3 py-1 bg-purple-600 bg-opacity-20 rounded-full">
+              <span className="text-sm font-medium text-purple-300">{hotel.companyTag}</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-green-400" />
+              <span className="text-lg font-bold text-green-400">
+                €{monthlyCost.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Expanded Content */}
+        {isExpanded && (
+          <div className="p-4 pt-0 border-t border-gray-700">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 p-4 bg-gray-900 rounded-lg">
+              <div>
+                <p className="text-xs text-gray-400 mb-1">Address</p>
+                <p className="text-sm text-white">{hotel.address}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 mb-1">Contact</p>
+                <p className="text-sm text-white">{hotel.contact}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 mb-1">Website</p>
+                <a
+                  href={hotel.webLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                >
+                  Visit Website
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {hotel.durations.map(duration => renderDuration(duration, hotel))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ============================================================================
+  // MAIN RENDER
+  // ============================================================================
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden transition-all">
-      {/* MAIN ROW */}
-      <div className="p-6 flex items-center justify-between cursor-pointer hover:bg-white/[0.02]" onClick={() => setIsOpen(!isOpen)}>
-        <div className="flex gap-6 items-center">
-          <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center font-bold">H</div>
-          <div>
-            <h3 className="text-xl font-bold leading-none">{hotel.name}</h3>
-            <p className="text-xs opacity-40 mt-1">{hotel.city}</p>
+    <div className="min-h-screen bg-gray-950 text-white">
+      {/* Header */}
+      <header className="bg-gray-900 border-b border-gray-800 sticky top-0 z-10">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-white flex items-center gap-2">
+                🚀 EuroTrack
+                <span className="text-sm font-normal text-gray-400">Hotel Logistics</span>
+              </h1>
+            </div>
+
+            {/* Stats */}
+            <div className="flex gap-6">
+              <div className="px-6 py-3 bg-green-600 bg-opacity-20 rounded-lg border border-green-500">
+                <div className="text-xs text-gray-400 mb-1">Total Spend ({monthNames[selectedMonth]})</div>
+                <div className="text-2xl font-bold text-green-400">
+                  €{stats.totalSpend.toLocaleString()}
+                </div>
+              </div>
+              
+              <div className="px-6 py-3 bg-blue-600 bg-opacity-20 rounded-lg border border-blue-500">
+                <div className="text-xs text-gray-400 mb-1">Free Beds (Today)</div>
+                <div className="text-2xl font-bold text-blue-400 flex items-center gap-2">
+                  <Bed className="w-6 h-6" />
+                  {stats.freeBeds}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        <ChevronDown className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </div>
+      </header>
 
-      {isOpen && (
-        <div className="p-8 pt-0 border-t border-white/5 animate-in slide-in-from-top-2">
-          {/* HORIZONTAL DURATION TABS */}
-          <div className="flex gap-2 mb-6 border-b border-white/5 pb-2">
-            {hotel.durations.map((d, i) => (
-              <button key={d.id} onClick={() => setActiveTab(i)} className={`px-4 py-2 rounded-t-lg text-xs font-bold ${activeTab === i ? 'bg-blue-600' : 'opacity-40'}`}>
-                {format(parseISO(d.start), 'dd.MM')} - {format(parseISO(d.end), 'dd.MM')} ({d.roomType})
+      <div className="flex">
+        {/* Sidebar - Month Selector */}
+        <aside className="w-64 bg-gray-900 border-r border-gray-800 min-h-screen p-4 sticky top-[73px] self-start">
+          <h2 className="text-sm font-semibold text-gray-400 mb-4 uppercase tracking-wider">
+            Select Month
+          </h2>
+          <div className="space-y-1">
+            {monthNames.map((month, index) => (
+              <button
+                key={month}
+                onClick={() => setSelectedMonth(index)}
+                className={`w-full text-left px-4 py-3 rounded-lg transition-all ${
+                  selectedMonth === index
+                    ? 'bg-blue-600 text-white font-semibold'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-750'
+                }`}
+              >
+                {month} {selectedYear}
               </button>
             ))}
-            <button className="px-3 opacity-40 hover:opacity-100"><Plus size={16}/></button>
           </div>
 
-          {/* GUEST SLOTS WITH GAP DETECTION */}
-          <div className="grid grid-cols-3 gap-4">
-            {Array.from({ length: hotel.durations[activeTab].roomType === 'TZ' ? 3 : hotel.durations[activeTab].roomType === 'DZ' ? 2 : 1 }).map((_, i) => {
-              const guest = hotel.durations[activeTab].guests[i];
-              const isFullDuration = guest && isSameDay(parseISO(guest.checkOut), parseISO(hotel.durations[activeTab].end));
+          {/* Group Toggle */}
+          <div className="mt-8 pt-6 border-t border-gray-800">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={groupByCompany}
+                onChange={(e) => setGroupByCompany(e.target.checked)}
+                className="w-5 h-5 rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-300">Group by Company</span>
+            </label>
+          </div>
+        </aside>
 
-              return (
-                <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-4 relative min-h-[80px]">
-                  {guest ? (
-                    <>
-                      <div className="flex justify-between items-start">
-                        <span className="font-bold">{guest.name}</span>
-                        {!isFullDuration && (
-                          <div className="group relative">
-                            <UserPlus size={16} className="text-emerald-400 cursor-pointer animate-pulse" />
-                            <span className="absolute bottom-full mb-2 hidden group-hover:block bg-black text-[10px] p-2 rounded whitespace-nowrap">Fill remaining nights?</span>
-                          </div>
-                        )}
-                      </div>
-                      <p className="text-[10px] opacity-40 mt-1">{guest.checkIn} - {guest.checkOut}</p>
-                    </>
-                  ) : (
-                    <div className="h-full flex items-center justify-center opacity-20 border-2 border-dashed border-white/10 rounded-xl">
-                      <Plus size={20} />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+        {/* Main Content */}
+        <main className="flex-1 p-6">
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-white mb-2">
+              {monthNames[selectedMonth]} {selectedYear}
+            </h2>
+            <p className="text-gray-400">
+              Showing bookings for {monthStart} to {monthEnd}
+            </p>
           </div>
-          
-          {/* HOTEL DETAILS DROPDOWN SECTION */}
-          <div className="mt-8 grid grid-cols-4 gap-8 pt-8 border-t border-white/5 text-[10px] font-bold uppercase tracking-widest opacity-40">
-            <div><p>Address</p><p className="text-white normal-case mt-1">{hotel.city}, Germany</p></div>
-            <div><p>Contact</p><p className="text-white normal-case mt-1">Max Mustermann</p></div>
-            <div><p>Web</p><a href={hotel.web} target="_blank" className="text-blue-400 flex items-center gap-1 mt-1 normal-case hover:underline"><Globe size={12}/> Visit Site</a></div>
+
+          {/* Hotel List */}
+          <div className="space-y-6">
+            {groupedHotels.map(group => (
+              <div key={group.company}>
+                {groupByCompany && (
+                  <div className="mb-4 pb-2 border-b-2 border-purple-600">
+                    <h3 className="text-xl font-bold text-purple-400">{group.company}</h3>
+                  </div>
+                )}
+                
+                {group.hotels.map(hotel => renderHotel(hotel))}
+
+                {groupByCompany && (
+                  <div className="mt-2 text-right">
+                    <span className="text-sm text-gray-400">Subtotal: </span>
+                    <span className="text-lg font-bold text-purple-400">
+                      €{group.hotels.reduce((sum, h) => sum + calculateHotelMonthCost(h), 0).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
-        </div>
-      )}
+        </main>
+      </div>
     </div>
   );
 }
