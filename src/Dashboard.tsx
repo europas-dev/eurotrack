@@ -3,7 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { getHotels, signOut } from './lib/supabase';
 import { cn } from './lib/utils';
 import type { Theme, Language } from './lib/types';
-import { Plus, Building2, LogOut } from 'lucide-react';
+import { Plus, Building2 } from 'lucide-react';
+// ADD THESE IMPORTS:
+import Header from './components/Header';
+import Sidebar from './components/Sidebar';
+import { HotelRow } from './components/HotelRow';
 
 interface DashboardProps {
   theme: Theme;
@@ -16,6 +20,10 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang }: Dashboa
   const [hotels, setHotels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedYear, setSelectedYear] = useState(2026);
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     loadHotels();
@@ -45,126 +53,134 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang }: Dashboa
     }
   }
 
+  const handleDeleteHotel = (id: string) => {
+    console.log('Delete hotel:', id);
+  };
+
+  const filteredHotels = hotels.filter(hotel => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      hotel.name?.toLowerCase().includes(query) ||
+      hotel.city?.toLowerCase().includes(query) ||
+      hotel.companyTag?.toLowerCase().includes(query)
+    );
+  });
+
+  const stats = {
+    totalSpend: 0,
+    freeBeds: 0
+  };
+
   return (
-    <div className={cn("min-h-screen", theme === 'dark' ? "bg-[#020617] text-white" : "bg-slate-50 text-slate-900")}>
-      {/* Simple Header */}
-      <header className={cn(
-        "border-b p-6",
-        theme === 'dark' ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200"
-      )}>
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <h1 className="text-2xl font-black">
-            Euro<span className="text-[#EAB308]">Track.</span>
-          </h1>
-          <button
-            onClick={handleSignOut}
-            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg flex items-center gap-2"
-          >
-            <LogOut size={18} />
-            {lang === 'de' ? 'Abmelden' : 'Sign Out'}
-          </button>
-        </div>
-      </header>
+    <div className={cn("min-h-screen flex", theme === 'dark' ? "bg-[#020617]" : "bg-slate-50")}>
+      {/* Sidebar */}
+      <Sidebar
+        theme={theme}
+        lang={lang}
+        selectedYear={selectedYear}
+        setSelectedYear={setSelectedYear}
+        selectedMonth={selectedMonth}
+        setSelectedMonth={setSelectedMonth}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        hotels={hotels}
+      />
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto p-6">
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          <div className={cn(
-            "p-6 rounded-xl border",
-            theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-slate-200"
-          )}>
-            <p className="text-xs text-slate-400 uppercase mb-2">Hotels</p>
-            <p className="text-3xl font-black">{hotels.length}</p>
-          </div>
-          
-          <div className={cn(
-            "p-6 rounded-xl border",
-            theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-slate-200"
-          )}>
-            <p className="text-xs text-slate-400 uppercase mb-2">Free Beds</p>
-            <p className="text-3xl font-black text-green-400">0</p>
-          </div>
-          
-          <div className={cn(
-            "p-6 rounded-xl border",
-            theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-slate-200"
-          )}>
-            <p className="text-xs text-slate-400 uppercase mb-2">Total Cost</p>
-            <p className="text-3xl font-black text-blue-400">€0</p>
-          </div>
-        </div>
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <Header
+          theme={theme}
+          lang={lang}
+          toggleTheme={toggleTheme}
+          setLang={setLang}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onSignOut={handleSignOut}
+        />
 
-        {/* Error State */}
-        {error && (
-          <div className="mb-6 p-6 bg-red-600/10 border border-red-600/20 rounded-xl">
-            <p className="text-red-400 font-bold">Error: {error}</p>
-            <button 
-              onClick={loadHotels}
-              className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
-            >
-              Retry
-            </button>
-          </div>
-        )}
-
-        {/* Loading State */}
-        {loading && (
-          <div className="text-center py-20">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-            <p className="text-slate-400">Loading hotels...</p>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {!loading && !error && hotels.length === 0 && (
-          <div className={cn(
-            "text-center py-20 rounded-2xl border-2 border-dashed",
-            theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-slate-200"
-          )}>
-            <div className={cn(
-              "w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center",
-              theme === 'dark' ? "bg-blue-600/20" : "bg-blue-100"
-            )}>
-              <Building2 size={40} className="text-blue-600" />
+        {/* Stats Bar */}
+        <div className={cn(
+          "px-8 py-4 border-b",
+          theme === 'dark' ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-200"
+        )}>
+          <div className="flex items-center gap-8">
+            <div>
+              <p className={cn("text-xs font-bold uppercase tracking-widest mb-1", 
+                theme === 'dark' ? "text-slate-500" : "text-slate-400")}>
+                {lang === 'de' ? 'Freie Betten' : 'Free Beds'}
+              </p>
+              <p className="text-2xl font-black text-green-400">{stats.freeBeds}</p>
             </div>
-            <h3 className="text-2xl font-bold mb-2">No Hotels Yet</h3>
-            <p className="text-slate-400 mb-8">Start by adding your first hotel</p>
+            <div>
+              <p className={cn("text-xs font-bold uppercase tracking-widest mb-1",
+                theme === 'dark' ? "text-slate-500" : "text-slate-400")}>
+                {lang === 'de' ? 'Gesamtausgaben' : 'Total Spent'}
+              </p>
+              <p className="text-2xl font-black text-blue-400">€{stats.totalSpend.toLocaleString('de-DE')}</p>
+            </div>
+            <div>
+              <p className={cn("text-xs font-bold uppercase tracking-widest mb-1",
+                theme === 'dark' ? "text-slate-500" : "text-slate-400")}>
+                Hotels
+              </p>
+              <p className="text-2xl font-black text-white">{hotels.length}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <main className="flex-1 p-6 overflow-y-auto">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className={cn("text-2xl font-black", theme === 'dark' ? "text-white" : "text-slate-900")}>
+              {selectedMonth === null ? (lang === 'de' ? 'Dashboard' : 'Dashboard') : `${monthNames[selectedMonth]} ${selectedYear}`}
+            </h2>
             <button
-              onClick={() => alert('Add hotel feature coming soon!')}
-              className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl inline-flex items-center gap-2"
+              onClick={() => alert('Add hotel coming soon!')}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl flex items-center gap-2"
             >
               <Plus size={20} />
-              Add First Hotel
+              {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
             </button>
           </div>
-        )}
 
-        {/* Hotels List */}
-        {!loading && hotels.length > 0 && (
-          <div className="space-y-4">
-            {hotels.map((hotel: any) => (
-              <div
-                key={hotel.id}
-                className={cn(
-                  "p-6 rounded-xl border",
-                  theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-slate-200"
-                )}
-              >
-                <h3 className="text-xl font-bold mb-2">{hotel.name}</h3>
-                <p className="text-sm text-slate-400">{hotel.city} • {hotel.companyTag}</p>
+          {loading ? (
+            <div className="text-center py-20">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+              <p className={theme === 'dark' ? "text-slate-400" : "text-slate-600"}>Loading...</p>
+            </div>
+          ) : error ? (
+            <div className="p-6 bg-red-600/10 border border-red-600/20 rounded-xl">
+              <p className="text-red-400 font-bold">Error: {error}</p>
+            </div>
+          ) : filteredHotels.length === 0 ? (
+            <div className={cn("text-center py-20 rounded-2xl border-2 border-dashed",
+              theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-slate-200")}>
+              <div className={cn("w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center",
+                theme === 'dark' ? "bg-blue-600/20" : "bg-blue-100")}>
+                <Building2 size={40} className="text-blue-600" />
               </div>
-            ))}
-          </div>
-        )}
-
-        {/* Debug Info */}
-        <div className="mt-8 p-4 bg-yellow-600/10 border border-yellow-600/20 rounded-lg">
-          <p className="text-xs text-yellow-400 font-mono">
-            ✅ Dashboard loaded | Theme: {theme} | Lang: {lang} | Hotels: {hotels.length}
-          </p>
-        </div>
-      </main>
+              <h3 className={cn("text-2xl font-bold mb-2", theme === 'dark' ? "text-white" : "text-slate-900")}>
+                No Hotels Yet
+              </h3>
+              <p className="text-slate-400 mb-8">Start by adding your first hotel</p>
+              <button
+                onClick={() => alert('Add hotel feature coming soon!')}
+                className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl inline-flex items-center gap-2"
+              >
+                <Plus size={20} />
+                Add First Hotel
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredHotels.map(hotel => (
+                <HotelRow key={hotel.id} entry={hotel} isDarkMode={theme === 'dark'} onDelete={handleDeleteHotel} />
+              ))}
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
