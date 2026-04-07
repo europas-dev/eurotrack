@@ -1,283 +1,237 @@
 // src/components/HotelRow.tsx
-import React, { useState } from 'react';
-import { cn } from '../lib/utils';
-import { 
-  Building2, ChevronDown, MapPin, 
-  Trash2, AlertCircle, Phone, Mail, Globe
+import React, { useState, useRef } from 'react';
+import { cn, calculateNights, getTotalBeds } from '../lib/utils';
+import { updateHotel, deleteHotel, createDuration } from '../lib/supabase';
+import {
+  Building2, ChevronDown, Trash2, Phone, Mail, Globe, MapPin, Plus, Loader2
 } from 'lucide-react';
+import DurationCard from './DurationCard';
 
 interface HotelRowProps {
   entry: any;
   isDarkMode: boolean;
   onDelete: (id: string) => void;
+  onUpdate: (id: string, updated: any) => void;
 }
 
-export function HotelRow({ entry, isDarkMode, onDelete }: HotelRowProps) {
+export function HotelRow({ entry, isDarkMode, onDelete, onUpdate }: HotelRowProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [addingDuration, setAddingDuration] = useState(false);
+  const [localHotel, setLocalHotel] = useState(entry);
+  const saveTimer = useRef<any>(null);
+
+  const dk = isDarkMode;
+
+  // Inline field auto-save (debounced 800ms after typing stops)
+  const handleFieldChange = (field: string, value: string) => {
+    const updated = { ...localHotel, [field]: value };
+    setLocalHotel(updated);
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      try {
+        setSaving(true);
+        await updateHotel(entry.id, updated);
+        onUpdate(entry.id, updated);
+      } catch (e) { console.error(e); }
+      finally { setSaving(false); }
+    }, 800);
+  };
+
+  // Computed stats
+  const totalNights = (localHotel.durations || []).reduce((sum: number, d: any) =>
+    sum + calculateNights(d.startDate || d.start_date || '', d.endDate || d.end_date || ''), 0);
+
+  const totalCost = (localHotel.durations || []).reduce((sum: number, d: any) => {
+    const nights = calculateNights(d.startDate || d.start_date || '', d.endDate || d.end_date || '');
+    return sum + nights * (d.pricePerNightPerRoom || d.price_per_night_per_room || 0) * (d.numberOfRooms || d.number_of_rooms || 1);
+  }, 0);
+
+  const freeBeds = (localHotel.durations || []).reduce((sum: number, d: any) =>
+    sum + (d.employees || []).filter((e: any) => e === null).length, 0);
+
+  const allEmployees = (localHotel.durations || []).flatMap((d: any) =>
+    (d.employees || []).filter((e: any) => e !== null).map((e: any) => e.name));
+
+  const handleAddDuration = async () => {
+    try {
+      setAddingDuration(true);
+      const today = new Date().toISOString().split('T')[0];
+      const nextMonth = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
+      const newDur = await createDuration({
+        hotelId: entry.id,
+        startDate: today,
+        endDate: nextMonth,
+        roomType: 'DZ',
+        numberOfRooms: 1,
+        pricePerNightPerRoom: 0,
+        autoDistribute: true,
+        hasDiscount: false,
+        isPaid: false,
+        employees: [],
+      });
+      const updated = {
+        ...localHotel,
+        durations: [...(localHotel.durations || []), { ...newDur, employees: [] }]
+      };
+      setLocalHotel(updated);
+      onUpdate(entry.id, updated);
+    } catch (e) { console.error(e); }
+    finally { setAddingDuration(false); }
+  };
+
+  const handleDurationUpdate = (durId: string, updatedDur: any) => {
+    const updated = {
+      ...localHotel,
+      durations: localHotel.durations.map((d: any) => d.id === durId ? updatedDur : d)
+    };
+    setLocalHotel(updated);
+    onUpdate(entry.id, updated);
+  };
+
+  const handleDurationDelete = (durId: string) => {
+    const updated = {
+      ...localHotel,
+      durations: localHotel.durations.filter((d: any) => d.id !== durId)
+    };
+    setLocalHotel(updated);
+    onUpdate(entry.id, updated);
+  };
+
+  const inputCls = cn(
+    "w-full px-2 py-1 rounded-lg text-sm outline-none border transition-all bg-transparent",
+    dk ? "border-transparent hover:border-white/10 focus:border-blue-500 text-white placeholder-slate-600"
+       : "border-transparent hover:border-slate-200 focus:border-blue-500 text-slate-900 placeholder-slate-400"
+  );
 
   return (
     <div className={cn(
-      "mb-3 rounded-xl border transition-all duration-300 overflow-hidden",
-      isDarkMode ? "bg-[#0B1224] border-white/5 hover:border-white/10" : "bg-white border-slate-200 hover:border-slate-300"
+      "mb-2 rounded-xl border transition-all duration-200 overflow-hidden",
+      dk ? "bg-[#0B1224] border-white/5 hover:border-white/10" : "bg-white border-slate-200 hover:border-slate-300"
     )}>
-      {/* MAIN ROW */}
-      <div 
-        className="grid grid-cols-12 items-center px-8 py-5 cursor-pointer group hover:bg-white/[0.02] transition-colors"
+      {/* ── HEADER ROW ── */}
+      <div
+        className="grid grid-cols-12 items-center px-6 py-4 cursor-pointer group transition-colors"
         onClick={() => setIsOpen(!isOpen)}
       >
-        {/* Hotel Name & City */}
-        <div className="col-span-2 flex items-center gap-4">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white flex-shrink-0">
-            <Building2 size={20} />
+        {/* Icon + name + city */}
+        <div className="col-span-3 flex items-center gap-3">
+          <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center text-white flex-shrink-0">
+            <Building2 size={18} />
           </div>
-          <div>
-            <h3 className="text-sm font-bold text-white leading-none">{entry.name}</h3>
-            <span className={cn(
-              "text-[9px] font-bold uppercase tracking-widest",
-              isDarkMode ? "text-slate-500" : "text-slate-400"
-            )}>
-              {entry.city}
-            </span>
+          <div className="min-w-0">
+            <p className={cn("text-sm font-bold truncate", dk ? "text-white" : "text-slate-900")}>{localHotel.name}</p>
+            <p className={cn("text-[10px] uppercase tracking-widest truncate", dk ? "text-slate-500" : "text-slate-400")}>
+              <MapPin size={9} className="inline mr-0.5" />{localHotel.city}
+            </p>
           </div>
         </div>
 
-        {/* Company Tag */}
+        {/* Company tag */}
         <div className="col-span-1">
-          <span className={cn(
-            "px-3 py-1.5 rounded-full text-xs font-bold",
-            isDarkMode ? "bg-purple-600/20 text-purple-300 border border-purple-500/30" : "bg-purple-100 text-purple-700"
-          )}>
-            {entry.companyTag}
+          <span className={cn("px-2 py-1 rounded-full text-[10px] font-bold",
+            dk ? "bg-purple-600/20 text-purple-300 border border-purple-500/20" : "bg-purple-100 text-purple-700")}>
+            {localHotel.companyTag}
           </span>
         </div>
 
-        {/* Durations */}
-        <div className="col-span-3 flex flex-wrap gap-2">
-          {entry.durations?.slice(0, 3).map((d: any, i: number) => (
-            <div key={i} className={cn(
-              "px-3 py-1.5 rounded-lg text-[10px] font-bold border",
-              isDarkMode ? "bg-white/5 border-white/10 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-600"
-            )}>
-              {d.start} - {d.end} (⓷ {d.roomType})
-            </div>
-          ))}
-          {entry.durations?.length > 3 && (
-            <div className="px-2 py-1 text-[9px] text-slate-400">
-              +{entry.durations.length - 3} more
-            </div>
-          )}
-        </div>
-
-        {/* Total Nights */}
-        <div className="col-span-1 text-center">
-          <p className="text-sm font-bold text-blue-400">{entry.totalNights || 0}</p>
-          <p className={cn("text-[9px] font-bold uppercase", isDarkMode ? "text-slate-500" : "text-slate-400")}>
-            Nights
+        {/* Durations count */}
+        <div className="col-span-2 text-center">
+          <p className={cn("text-sm font-bold", dk ? "text-slate-300" : "text-slate-700")}>
+            {(localHotel.durations || []).length} <span className={cn("text-[10px] font-normal", dk ? "text-slate-500" : "text-slate-400")}>bookings</span>
           </p>
         </div>
 
-        {/* Free Beds */}
+        {/* Nights */}
         <div className="col-span-1 text-center">
-          <p className="text-sm font-bold text-green-400">{entry.freeBeds || 0}</p>
-          <p className={cn("text-[9px] font-bold uppercase", isDarkMode ? "text-slate-500" : "text-slate-400")}>
-            Free
-          </p>
+          <p className="text-sm font-bold text-blue-400">{totalNights}</p>
+          <p className={cn("text-[9px] uppercase", dk ? "text-slate-600" : "text-slate-400")}>nights</p>
         </div>
 
-        {/* Employees */}
+        {/* Free beds */}
+        <div className="col-span-1 text-center">
+          <p className={cn("text-sm font-bold", freeBeds > 0 ? "text-amber-400" : "text-green-400")}>{freeBeds}</p>
+          <p className={cn("text-[9px] uppercase", dk ? "text-slate-600" : "text-slate-400")}>free</p>
+        </div>
+
+        {/* Employees preview */}
         <div className="col-span-2 flex flex-wrap gap-1">
-          {entry.assignedEmployees?.slice(0, 2).map((name: string, i: number) => (
-            <span key={i} className={cn(
-              "px-2 py-1 rounded text-[9px] font-bold uppercase border",
-              isDarkMode ? "bg-white/5 border-white/10 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-600"
-            )}>
+          {allEmployees.slice(0, 2).map((name: string, i: number) => (
+            <span key={i} className={cn("px-2 py-0.5 rounded text-[9px] font-bold uppercase",
+              dk ? "bg-white/5 text-slate-400" : "bg-slate-100 text-slate-600")}>
               {name}
             </span>
           ))}
-          {entry.assignedEmployees?.length > 2 && (
-            <span className="text-[9px] text-slate-400">+{entry.assignedEmployees.length - 2}</span>
-          )}
+          {allEmployees.length > 2 && <span className="text-[9px] text-slate-500">+{allEmployees.length - 2}</span>}
         </div>
 
-        {/* Total Cost */}
-        <div className="col-span-1 text-right">
-          <p className="text-base font-bold text-white">
-            €{(entry.totalCost || 0).toLocaleString('de-DE')}
+        {/* Cost + actions */}
+        <div className="col-span-2 flex items-center justify-end gap-3">
+          <p className={cn("text-sm font-black", dk ? "text-white" : "text-slate-900")}>
+            €{totalCost.toLocaleString('de-DE', { minimumFractionDigits: 0 })}
           </p>
-        </div>
-
-        {/* Actions */}
-        <div className="col-span-1 flex items-center justify-end gap-2">
-          <button 
-            onClick={(e) => { e.stopPropagation(); setShowDeleteModal(true); }}
-            className={cn(
-              "p-2 rounded-lg transition-all opacity-0 group-hover:opacity-100",
-              isDarkMode ? "hover:bg-red-600/20 text-red-400" : "hover:bg-red-100 text-red-600"
-            )}
-          >
-            <Trash2 size={16} />
+          {saving && <Loader2 size={14} className="animate-spin text-blue-400" />}
+          <button onClick={(e) => { e.stopPropagation(); setShowDeleteModal(true); }}
+            className={cn("p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all",
+              dk ? "hover:bg-red-600/20 text-red-400" : "hover:bg-red-100 text-red-600")}>
+            <Trash2 size={14} />
           </button>
-          <ChevronDown size={18} className={cn(
-            "transition-transform",
-            isDarkMode ? "text-slate-600" : "text-slate-400",
-            isOpen && "rotate-180"
-          )} />
+          <ChevronDown size={16} className={cn("transition-transform flex-shrink-0",
+            dk ? "text-slate-600" : "text-slate-400", isOpen && "rotate-180")} />
         </div>
       </div>
 
-      {/* EXPANDED SECTION */}
+      {/* ── EXPANDED BODY ── */}
       {isOpen && (
-        <div className={cn(
-          "px-8 pb-8 pt-4 border-t space-y-6",
-          isDarkMode ? "border-white/5 bg-white/[0.01]" : "border-slate-200 bg-slate-50/50"
-        )}>
-          {/* Contact Details */}
-          <div className={cn(
-            "grid grid-cols-5 gap-4 p-4 rounded-xl border",
-            isDarkMode ? "bg-white/5 border-white/10" : "bg-white border-slate-200"
-          )}>
-            <div>
-              <label className={cn("text-[9px] font-bold uppercase mb-2 block", isDarkMode ? "text-slate-500" : "text-slate-400")}>
-                Address
-              </label>
-              <input 
-                type="text"
-                defaultValue={entry.address || ''}
-                placeholder="Add address..."
-                className={cn(
-                  "w-full px-2 py-1.5 rounded-lg text-sm outline-none border transition-all",
-                  isDarkMode 
-                    ? "bg-white/5 border-white/10 text-white placeholder-slate-600 focus:border-blue-500"
-                    : "bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500"
-                )}
-              />
-            </div>
-            <div>
-              <label className={cn("text-[9px] font-bold uppercase mb-2 block", isDarkMode ? "text-slate-500" : "text-slate-400")}>
-                <Phone size={12} className="inline mr-1" /> Phone
-              </label>
-              <input 
-                type="text"
-                defaultValue={entry.contact || ''}
-                placeholder="Add phone..."
-                className={cn(
-                  "w-full px-2 py-1.5 rounded-lg text-sm outline-none border transition-all",
-                  isDarkMode 
-                    ? "bg-white/5 border-white/10 text-white placeholder-slate-600 focus:border-blue-500"
-                    : "bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500"
-                )}
-              />
-            </div>
-            <div>
-              <label className={cn("text-[9px] font-bold uppercase mb-2 block", isDarkMode ? "text-slate-500" : "text-slate-400")}>
-                <Mail size={12} className="inline mr-1" /> Email
-              </label>
-              <input 
-                type="email"
-                defaultValue={entry.email || ''}
-                placeholder="Add email..."
-                className={cn(
-                  "w-full px-2 py-1.5 rounded-lg text-sm outline-none border transition-all",
-                  isDarkMode 
-                    ? "bg-white/5 border-white/10 text-white placeholder-slate-600 focus:border-blue-500"
-                    : "bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500"
-                )}
-              />
-            </div>
-            <div>
-              <label className={cn("text-[9px] font-bold uppercase mb-2 block", isDarkMode ? "text-slate-500" : "text-slate-400")}>
-                <Globe size={12} className="inline mr-1" /> Website
-              </label>
-              <input 
-                type="url"
-                defaultValue={entry.webLink || ''}
-                placeholder="Add URL..."
-                className={cn(
-                  "w-full px-2 py-1.5 rounded-lg text-sm outline-none border transition-all",
-                  isDarkMode 
-                    ? "bg-white/5 border-white/10 text-white placeholder-slate-600 focus:border-blue-500"
-                    : "bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500"
-                )}
-              />
-            </div>
-            <div>
-              <label className={cn("text-[9px] font-bold uppercase mb-2 block", isDarkMode ? "text-slate-500" : "text-slate-400")}>
-                City
-              </label>
-              <input 
-                type="text"
-                defaultValue={entry.city || ''}
-                placeholder="Add city..."
-                className={cn(
-                  "w-full px-2 py-1.5 rounded-lg text-sm outline-none border transition-all",
-                  isDarkMode 
-                    ? "bg-white/5 border-white/10 text-white placeholder-slate-600 focus:border-blue-500"
-                    : "bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500"
-                )}
-              />
-            </div>
+        <div className={cn("border-t px-6 pb-6 pt-4 space-y-4",
+          dk ? "border-white/5 bg-white/[0.01]" : "border-slate-100 bg-slate-50/50")}>
+
+          {/* Inline contact fields — Notion style */}
+          <div className={cn("grid grid-cols-5 gap-2 p-3 rounded-xl border",
+            dk ? "bg-white/5 border-white/10" : "bg-white border-slate-200")}>
+            {[
+              { label: 'Address', icon: <MapPin size={10}/>, field: 'address', placeholder: 'Add address…' },
+              { label: 'Phone', icon: <Phone size={10}/>, field: 'contact', placeholder: '+49 30 …' },
+              { label: 'Email', icon: <Mail size={10}/>, field: 'email', placeholder: 'hotel@…' },
+              { label: 'Website', icon: <Globe size={10}/>, field: 'webLink', placeholder: 'https://…' },
+              { label: 'City', icon: null, field: 'city', placeholder: 'City…' },
+            ].map(({ label, icon, field, placeholder }) => (
+              <div key={field}>
+                <label className={cn("text-[9px] font-bold uppercase tracking-widest mb-1 flex items-center gap-1",
+                  dk ? "text-slate-500" : "text-slate-400")}>
+                  {icon}{label}
+                </label>
+                <input
+                  type="text"
+                  defaultValue={localHotel[field] || ''}
+                  placeholder={placeholder}
+                  onClick={e => e.stopPropagation()}
+                  onChange={e => handleFieldChange(field, e.target.value)}
+                  className={inputCls}
+                />
+              </div>
+            ))}
           </div>
 
-          {/* Calendar & Durations would go here */}
-          <div className={cn(
-            "p-4 rounded-lg border text-center",
-            isDarkMode ? "bg-white/5 border-white/10 text-slate-400" : "bg-white border-slate-200 text-slate-600"
-          )}>
-            📅 Calendar & Duration Tabs Coming Soon
+          {/* Duration Cards */}
+          <div className="space-y-3">
+            {(localHotel.durations || []).map((dur: any, i: number) => (
+              <DurationCard
+                key={dur.id}
+                duration={dur}
+                index={i}
+                isDarkMode={isDarkMode}
+                onUpdate={handleDurationUpdate}
+                onDelete={handleDurationDelete}
+              />
+            ))}
           </div>
-        </div>
-      )}
 
-      {/* DELETE MODAL */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className={cn(
-            "p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border",
-            isDarkMode 
-              ? "bg-[#0F172A] border-white/10" 
-              : "bg-white border-slate-200"
-          )}>
-            <div className={cn(
-              "w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4",
-              isDarkMode ? "bg-red-600/20" : "bg-red-100"
-            )}>
-              <AlertCircle size={24} className={isDarkMode ? "text-red-400" : "text-red-600"} />
-            </div>
-            <h3 className={cn(
-              "text-xl font-bold mb-2",
-              isDarkMode ? "text-white" : "text-slate-900"
-            )}>
-              Are you sure?
-            </h3>
-            <p className={cn(
-              "text-sm mb-6",
-              isDarkMode ? "text-slate-400" : "text-slate-600"
-            )}>
-              This hotel will be permanently deleted. This action cannot be undone.
-            </p>
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setShowDeleteModal(false)}
-                className={cn(
-                  "flex-1 py-3 rounded-xl text-sm font-bold transition-all",
-                  isDarkMode
-                    ? "bg-white/5 hover:bg-white/10 text-white"
-                    : "bg-slate-100 hover:bg-slate-200 text-slate-900"
-                )}
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => { onDelete(entry.id); setShowDeleteModal(false); }}
-                className="flex-1 py-3 bg-red-600 hover:bg-red-700 rounded-xl text-white font-bold transition-all"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+          {/* Add Duration */}
+          <button
+            onClick={handleAddDuration}
+            disabled={addingDuration}
+            className={cn(
+              "w-full py-3 rounded-xl border-2 border-dashed text-sm font-bold flex items-center justify-center gap-2 transition-all",
+              dk ? "border-white/10 text-slate-500 hover:border-b
