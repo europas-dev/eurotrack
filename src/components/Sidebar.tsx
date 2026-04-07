@@ -32,18 +32,17 @@ export default function Sidebar({
 
   const years = [2024, 2025, 2026, 2027, 2028, 2029, 2030];
 
-  // Calculate yearly total
-  const yearlyTotal = useMemo(() => {
-    let total = 0;
-    hotels.forEach(hotel => {
-      hotel.durations?.forEach((duration: any) => {
-        const nights = calculateNights(duration.startDate, duration.endDate);
+  // Calculate yearly total - SIMPLE VERSION
+  let yearlyTotal = 0;
+  hotels.forEach(hotel => {
+    if (hotel.durations) {
+      hotel.durations.forEach((duration: any) => {
+        const nights = calculateNights(duration.startDate || '', duration.endDate || '');
         const cost = nights * (duration.pricePerNightPerRoom || 0) * (duration.numberOfRooms || 1);
-        total += cost;
+        yearlyTotal += cost;
       });
-    });
-    return total;
-  }, [hotels]);
+    }
+  });
 
   return (
     <aside className={cn(
