@@ -20,7 +20,8 @@ import {
   Phone,
   Mail,
   MapPin,
-  Zap
+  Zap,
+  ArrowRight
 } from 'lucide-react';
 
 // ============================================================================
@@ -68,6 +69,27 @@ interface Workspace {
 const getRoomCapacity = (roomType: RoomType): number => {
   const capacities: Record<RoomType, number> = { 'EZ': 1, 'DZ': 2, 'TZ': 3 };
   return capacities[roomType];
+};
+
+const formatDate = (isoDate: string): string => {
+  const date = new Date(isoDate);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+const parseDate = (ddmmyyyy: string): string => {
+  const [day, month, year] = ddmmyyyy.split('/');
+  return `${year}-${month}-${day}`;
+};
+
+const toInputDate = (isoDate: string): string => {
+  return isoDate;
+};
+
+const fromInputDate = (inputDate: string): string => {
+  return inputDate;
 };
 
 const getMonthDates = (year: number, month: number): { start: string; end: string } => {
@@ -118,6 +140,41 @@ const generateDurationColor = (index: number): string => {
   return colors[index % colors.length];
 };
 
+const getCalendarMonth = (year: number, month: number) => {
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startingDayOfWeek = firstDay.getDay(); // 0 = Sunday
+  const daysInMonth = lastDay.getDate();
+  
+  const weeks: (number | null)[][] = [];
+  let currentWeek: (number | null)[] = [];
+  
+  // Fill starting empty days (Monday-based)
+  const adjustedStart = startingDayOfWeek === 0 ? 6 : startingDayOfWeek - 1;
+  for (let i = 0; i < adjustedStart; i++) {
+    currentWeek.push(null);
+  }
+  
+  // Fill in the days
+  for (let day = 1; day <= daysInMonth; day++) {
+    currentWeek.push(day);
+    if (currentWeek.length === 7) {
+      weeks.push(currentWeek);
+      currentWeek = [];
+    }
+  }
+  
+  // Fill remaining empty days
+  if (currentWeek.length > 0) {
+    while (currentWeek.length < 7) {
+      currentWeek.push(null);
+    }
+    weeks.push(currentWeek);
+  }
+  
+  return weeks;
+};
+
 // ============================================================================
 // MAIN COMPONENT
 // ============================================================================
@@ -132,6 +189,7 @@ export default function EuroTrackApp() {
   const [showCalendar, setShowCalendar] = useState<Set<string>>(new Set());
   const [selectedCompany, setSelectedCompany] = useState<string>('All');
   const [groupByCompany, setGroupByCompany] = useState(false);
+  const [activeDuration, setActiveDuration] = useState<Record<string, string>>({});
   
   // Inline editing states
   const [editingHotel, setEditingHotel] = useState<string | null>(null);
@@ -140,6 +198,7 @@ export default function EuroTrackApp() {
   const [addingHotel, setAddingHotel] = useState(false);
   const [addingDuration, setAddingDuration] = useState<string | null>(null);
   const [addingEmployee, setAddingEmployee] = useState<{ hotelId: string; durationId: string; slotIndex: number } | null>(null);
+  const [extendingDuration, setExtendingDuration] = useState<string | null>(null);
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -162,10 +221,11 @@ export default function EuroTrackApp() {
         const capacity = getRoomCapacity(duration.roomType);
         const nights = calculateTotalNights(duration.startDate, duration.endDate);
         
+        // FIXED: Calculate total cost based on duration, not employees
+        totalSpend += nights * duration.pricePerNight * capacity;
+
         duration.employees.forEach(employee => {
           if (employee) {
-            totalSpend += nights * duration.pricePerNight;
-
             const status = getEmployeeStatus(employee.checkIn, employee.checkOut, currentDate);
             if (status === 'active' || status === 'ending-soon') {
               occupiedBeds++;
@@ -203,17 +263,20 @@ export default function EuroTrackApp() {
 
     hotel.durations.forEach(duration => {
       const nights = calculateTotalNights(duration.startDate, duration.endDate);
-      allDurations.push(`${duration.startDate.slice(5)} → ${duration.endDate.slice(5)} (${duration.roomType})`);
-      
       const capacity = getRoomCapacity(duration.roomType);
+      
+      // FIXED: Calculate cost based on duration capacity
+      totalCost += nights * duration.pricePerNight * capacity;
+      totalNights += nights;
+      
+      allDurations.push(`${formatDate(duration.startDate)} → ${formatDate(duration.endDate)} (${duration.roomType})`);
+      
       let filledSlots = 0;
 
       duration.employees.forEach(employee => {
         if (employee) {
           filledSlots++;
           employeeTags.add(employee.name);
-          totalNights += nights;
-          totalCost += nights * duration.pricePerNight;
         }
       });
 
@@ -311,8 +374,8 @@ export default function EuroTrackApp() {
 
     const newDuration: BookingDuration = {
       id: `d${Date.now()}`,
-      startDate: formData.get('startDate') as string,
-      endDate: formData.get('endDate') as string,
+      startDate: fromInputDate(formData.get('startDate') as string),
+      endDate: fromInputDate(formData.get('endDate') as string),
       roomType,
       pricePerNight: parseFloat(formData.get('pricePerNight') as string),
       employees: Array(capacity).fill(null),
@@ -327,6 +390,8 @@ export default function EuroTrackApp() {
       )
     }));
 
+    // Set as active duration
+    setActiveDuration(prev => ({ ...prev, [hotelId]: newDuration.id }));
     setAddingDuration(null);
   };
 
@@ -340,7 +405,6 @@ export default function EuroTrackApp() {
             durations: h.durations.map(d => {
               if (d.id === durationId) {
                 const updated = { ...d, [field]: value };
-                // If room type changes, adjust employee array
                 if (field === 'roomType') {
                   const newCapacity = getRoomCapacity(value as RoomType);
                   const currentEmployees = d.employees.slice(0, newCapacity);
@@ -360,10 +424,25 @@ export default function EuroTrackApp() {
     }));
   };
 
-  const handleApplyPriceToAll = (hotelId: string, durationId: string, price: number) => {
-    if (confirm(`Apply €${price}/night to all employees in this duration?`)) {
-      // Price is already at duration level, this is just for confirmation
-      alert(`Price €${price}/night is set for this duration`);
+  const handleExtendDuration = (hotelId: string, durationId: string, newEndDate: string) => {
+    handleUpdateDuration(hotelId, durationId, 'endDate', newEndDate);
+    setExtendingDuration(null);
+  };
+
+  const handleApplyPriceToAllDurations = (hotelId: string, price: number) => {
+    if (confirm(`Apply €${price}/night to all durations in this hotel?`)) {
+      setWorkspace(prev => ({
+        ...prev,
+        hotels: prev.hotels.map(h => {
+          if (h.id === hotelId) {
+            return {
+              ...h,
+              durations: h.durations.map(d => ({ ...d, pricePerNight: price }))
+            };
+          }
+          return h;
+        })
+      }));
     }
   };
 
@@ -397,8 +476,8 @@ export default function EuroTrackApp() {
     const newEmployee: Employee = {
       id: `e${Date.now()}`,
       name: formData.get('name') as string,
-      checkIn: formData.get('checkIn') as string,
-      checkOut: formData.get('checkOut') as string,
+      checkIn: fromInputDate(formData.get('checkIn') as string),
+      checkOut: fromInputDate(formData.get('checkOut') as string),
     };
 
     setWorkspace(prev => ({
@@ -422,6 +501,26 @@ export default function EuroTrackApp() {
     }));
 
     setAddingEmployee(null);
+  };
+
+  const handleFillGap = (hotelId: string, durationId: string, afterEmployee: Employee, slotIndex: number) => {
+    const hotel = workspace.hotels.find(h => h.id === hotelId);
+    const duration = hotel?.durations.find(d => d.id === durationId);
+    
+    if (!duration) return;
+
+    // Find an empty slot in the same duration
+    const emptySlot = duration.employees.findIndex((e, idx) => e === null && idx !== slotIndex);
+    
+    if (emptySlot !== -1) {
+      setAddingEmployee({ 
+        hotelId, 
+        durationId, 
+        slotIndex: emptySlot 
+      });
+    } else {
+      alert('No available slots in this duration to fill the gap.');
+    }
   };
 
   const handleUpdateEmployee = (
@@ -521,6 +620,10 @@ export default function EuroTrackApp() {
     });
   };
 
+  const setActiveTab = (hotelId: string, durationId: string) => {
+    setActiveDuration(prev => ({ ...prev, [hotelId]: durationId }));
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'upcoming': return 'bg-blue-500';
@@ -536,55 +639,82 @@ export default function EuroTrackApp() {
   // ============================================================================
 
   const renderCalendarView = (hotel: Hotel) => {
-    const daysInMonth = 31;
-    const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+    const weeks = getCalendarMonth(selectedYear, selectedMonth);
+    const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    const isDayInDuration = (day: number | null, duration: BookingDuration): boolean => {
+      if (!day) return false;
+      const checkDate = new Date(selectedYear, selectedMonth, day);
+      const startDate = new Date(duration.startDate);
+      const endDate = new Date(duration.endDate);
+      return checkDate >= startDate && checkDate <= endDate;
+    };
 
     return (
-      <div className="mt-4 p-4 bg-gray-900 rounded-lg border border-gray-700 overflow-x-auto">
-        <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+      <div className="mt-4 p-4 bg-gray-900 rounded-lg border border-gray-700">
+        <h4 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
           <Calendar className="w-4 h-4" />
           Calendar View - {monthNames[selectedMonth]} {selectedYear}
         </h4>
         
-        <div className="min-w-max">
-          <div className="flex gap-1 mb-2">
-            <div className="w-32 text-xs font-semibold text-gray-400 py-2">Duration</div>
-            {days.map(day => (
-              <div key={day} className="w-8 text-xs text-center text-gray-400 py-2">
-                {day}
-              </div>
-            ))}
-          </div>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr>
+                {weekDays.map(day => (
+                  <th key={day} className="p-2 text-xs font-semibold text-gray-400 border border-gray-700">
+                    {day}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {weeks.map((week, weekIdx) => (
+                <tr key={weekIdx}>
+                  {week.map((day, dayIdx) => {
+                    const activeDurations = hotel.durations.filter(d => isDayInDuration(day, d));
+                    
+                    return (
+                      <td 
+                        key={dayIdx} 
+                        className={`border border-gray-700 p-1 h-20 align-top ${
+                          day ? 'bg-gray-800' : 'bg-gray-900'
+                        }`}
+                      >
+                        {day && (
+                          <>
+                            <div className="text-xs text-gray-400 mb-1">{day}</div>
+                            <div className="space-y-1">
+                              {activeDurations.map((duration, idx) => (
+                                <div
+                                  key={duration.id}
+                                  className={`text-xs px-1 py-0.5 rounded ${generateDurationColor(hotel.durations.indexOf(duration))} bg-opacity-70 text-white font-semibold`}
+                                  title={`${duration.roomType} - €${duration.pricePerNight}/night`}
+                                >
+                                  €{duration.pricePerNight}
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-          {hotel.durations.map((duration, index) => {
-            const startDay = new Date(duration.startDate).getDate();
-            const endDay = new Date(duration.endDate).getDate();
-            const colorClass = generateDurationColor(index);
-
-            return (
-              <div key={duration.id} className="flex gap-1 mb-1">
-                <div className="w-32 text-xs text-gray-300 py-2 truncate">
-                  {duration.roomType} - €{duration.pricePerNight}/n
-                </div>
-                {days.map(day => {
-                  const isInRange = day >= startDay && day <= endDay;
-                  return (
-                    <div
-                      key={day}
-                      className={`w-8 h-8 flex items-center justify-center text-xs rounded ${
-                        isInRange 
-                          ? `${colorClass} text-white font-semibold` 
-                          : 'bg-gray-800 text-gray-600'
-                      }`}
-                      title={isInRange ? `€${duration.pricePerNight}` : ''}
-                    >
-                      {isInRange ? duration.pricePerNight : ''}
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
+        <div className="mt-4 flex flex-wrap gap-3">
+          {hotel.durations.map((duration, index) => (
+            <div key={duration.id} className="flex items-center gap-2">
+              <div className={`w-4 h-4 rounded ${generateDurationColor(index)}`}></div>
+              <span className="text-xs text-gray-300">
+                {duration.roomType} - €{duration.pricePerNight}/night
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -618,24 +748,30 @@ export default function EuroTrackApp() {
               className="w-full px-2 py-1 text-sm bg-gray-900 border border-gray-700 rounded text-white"
             />
             <div className="grid grid-cols-2 gap-2">
-              <input
-                type="date"
-                name="checkIn"
-                defaultValue={duration.startDate}
-                required
-                min={duration.startDate}
-                max={duration.endDate}
-                className="px-2 py-1 text-xs bg-gray-900 border border-gray-700 rounded text-white"
-              />
-              <input
-                type="date"
-                name="checkOut"
-                defaultValue={duration.endDate}
-                required
-                min={duration.startDate}
-                max={duration.endDate}
-                className="px-2 py-1 text-xs bg-gray-900 border border-gray-700 rounded text-white"
-              />
+              <div>
+                <label className="text-xs text-gray-400">Check-In</label>
+                <input
+                  type="date"
+                  name="checkIn"
+                  defaultValue={toInputDate(duration.startDate)}
+                  required
+                  min={toInputDate(duration.startDate)}
+                  max={toInputDate(duration.endDate)}
+                  className="w-full px-2 py-1 text-xs bg-gray-900 border border-gray-700 rounded text-white"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400">Check-Out</label>
+                <input
+                  type="date"
+                  name="checkOut"
+                  defaultValue={toInputDate(duration.endDate)}
+                  required
+                  min={toInputDate(duration.startDate)}
+                  max={toInputDate(duration.endDate)}
+                  className="w-full px-2 py-1 text-xs bg-gray-900 border border-gray-700 rounded text-white"
+                />
+              </div>
             </div>
             <div className="flex gap-2">
               <button type="submit" className="flex-1 px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs text-white">
@@ -671,7 +807,6 @@ export default function EuroTrackApp() {
     const status = getEmployeeStatus(employee.checkIn, employee.checkOut, currentDate);
     const gap = hasGap(employee, duration.endDate);
     const nights = calculateTotalNights(employee.checkIn, employee.checkOut);
-    const totalCost = nights * duration.pricePerNight;
 
     if (isEditing) {
       return (
@@ -684,22 +819,28 @@ export default function EuroTrackApp() {
               className="w-full px-2 py-1 text-sm bg-gray-900 border border-gray-700 rounded text-white font-semibold"
             />
             <div className="grid grid-cols-2 gap-2">
-              <input
-                type="date"
-                value={employee.checkIn}
-                onChange={(e) => handleUpdateEmployee(hotelId, duration.id, slotIndex, 'checkIn', e.target.value)}
-                min={duration.startDate}
-                max={duration.endDate}
-                className="px-2 py-1 text-xs bg-gray-900 border border-gray-700 rounded text-white"
-              />
-              <input
-                type="date"
-                value={employee.checkOut}
-                onChange={(e) => handleUpdateEmployee(hotelId, duration.id, slotIndex, 'checkOut', e.target.value)}
-                min={duration.startDate}
-                max={duration.endDate}
-                className="px-2 py-1 text-xs bg-gray-900 border border-gray-700 rounded text-white"
-              />
+              <div>
+                <label className="text-xs text-gray-400">Check-In</label>
+                <input
+                  type="date"
+                  value={toInputDate(employee.checkIn)}
+                  onChange={(e) => handleUpdateEmployee(hotelId, duration.id, slotIndex, 'checkIn', fromInputDate(e.target.value))}
+                  min={toInputDate(duration.startDate)}
+                  max={toInputDate(duration.endDate)}
+                  className="w-full px-2 py-1 text-xs bg-gray-900 border border-gray-700 rounded text-white"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400">Check-Out</label>
+                <input
+                  type="date"
+                  value={toInputDate(employee.checkOut)}
+                  onChange={(e) => handleUpdateEmployee(hotelId, duration.id, slotIndex, 'checkOut', fromInputDate(e.target.value))}
+                  min={toInputDate(duration.startDate)}
+                  max={toInputDate(duration.endDate)}
+                  className="w-full px-2 py-1 text-xs bg-gray-900 border border-gray-700 rounded text-white"
+                />
+              </div>
             </div>
             <div className="flex gap-2">
               <button 
@@ -721,16 +862,16 @@ export default function EuroTrackApp() {
     }
 
     return (
-      <div className={`p-3 rounded border-2 bg-gray-800 ${getStatusColor(status)} bg-opacity-10 border-opacity-50 group`}>
+      <div className={`p-3 rounded border-2 bg-gray-800 ${getStatusColor(status)} bg-opacity-10 border-opacity-50 group relative`}>
         <div className="flex items-start justify-between mb-2">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <span className="font-semibold text-white">{employee.name}</span>
               {gap && (
                 <button
-                  onClick={() => handleAddEmployee(hotelId, duration.id, slotIndex)}
+                  onClick={() => handleFillGap(hotelId, duration.id, employee, slotIndex)}
                   className="p-1 bg-green-600 hover:bg-green-700 rounded-full transition-colors"
-                  title="Fill gap"
+                  title="Fill gap - add new employee after checkout"
                 >
                   <UserPlus className="w-3 h-3 text-white" />
                 </button>
@@ -753,24 +894,20 @@ export default function EuroTrackApp() {
         <div className="space-y-1 text-xs text-gray-400">
           <div className="flex items-center gap-1">
             <Calendar className="w-3 h-3" />
-            <span>{employee.checkIn} → {employee.checkOut}</span>
+            <span>{formatDate(employee.checkIn)} → {formatDate(employee.checkOut)}</span>
           </div>
           
           <div className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
             <span>{nights} nights</span>
           </div>
-
-          <div className="flex items-center gap-1 text-green-400 font-semibold">
-            <DollarSign className="w-3 h-3" />
-            <span>€{duration.pricePerNight} × {nights} = €{totalCost}</span>
-          </div>
         </div>
 
         {gap && (
           <div className="mt-2 pt-2 border-t border-gray-700">
-            <p className="text-xs text-yellow-400">
-              Gap: {employee.checkOut} → {duration.endDate}
+            <p className="text-xs text-yellow-400 flex items-center gap-1">
+              <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
+              Gap: {formatDate(employee.checkOut)} → {formatDate(duration.endDate)}
             </p>
           </div>
         )}
@@ -782,51 +919,67 @@ export default function EuroTrackApp() {
     const capacity = getRoomCapacity(duration.roomType);
     const slots = Array(capacity).fill(null).map((_, i) => duration.employees[i] || null);
     const nights = calculateTotalNights(duration.startDate, duration.endDate);
-    const totalCost = duration.employees.reduce((sum, emp) => {
-      if (emp) {
-        const empNights = calculateTotalNights(emp.checkIn, emp.checkOut);
-        return sum + (empNights * duration.pricePerNight);
-      }
-      return sum;
-    }, 0);
+    
+    // FIXED: Calculate total cost based on capacity, not filled employees
+    const totalCost = nights * duration.pricePerNight * capacity;
 
     const isEditing = editingDuration === duration.id;
+    const isExtending = extendingDuration === duration.id;
 
     return (
       <div key={duration.id} className="p-4 bg-gray-900 rounded-lg border border-gray-700">
-        {isEditing ? (
-          <div className="mb-4 p-3 bg-gray-800 rounded border border-blue-500">
-            <div className="grid grid-cols-5 gap-3">
-              <input
-                type="date"
-                value={duration.startDate}
-                onChange={(e) => handleUpdateDuration(hotel.id, duration.id, 'startDate', e.target.value)}
-                className="px-2 py-1 text-sm bg-gray-900 border border-gray-700 rounded text-white"
-              />
-              <input
-                type="date"
-                value={duration.endDate}
-                onChange={(e) => handleUpdateDuration(hotel.id, duration.id, 'endDate', e.target.value)}
-                className="px-2 py-1 text-sm bg-gray-900 border border-gray-700 rounded text-white"
-              />
-              <select
-                value={duration.roomType}
-                onChange={(e) => handleUpdateDuration(hotel.id, duration.id, 'roomType', e.target.value)}
-                className="px-2 py-1 text-sm bg-gray-900 border border-gray-700 rounded text-white"
-              >
-                <option value="EZ">EZ (1 bed)</option>
-                <option value="DZ">DZ (2 beds)</option>
-                <option value="TZ">TZ (3 beds)</option>
-              </select>
-              <input
-                type="number"
-                value={duration.pricePerNight}
-                onChange={(e) => handleUpdateDuration(hotel.id, duration.id, 'pricePerNight', parseFloat(e.target.value))}
-                className="px-2 py-1 text-sm bg-gray-900 border border-gray-700 rounded text-white"
-                min="0"
-                step="0.01"
-              />
-              <div className="flex gap-1">
+        {/* Duration Card */}
+        <div className="mb-4 p-4 bg-gray-800 rounded-lg border border-gray-600">
+          {isEditing ? (
+            <div className="grid grid-cols-6 gap-3">
+              <div>
+                <label className="text-xs text-gray-400">Booking Start</label>
+                <input
+                  type="date"
+                  value={toInputDate(duration.startDate)}
+                  onChange={(e) => handleUpdateDuration(hotel.id, duration.id, 'startDate', fromInputDate(e.target.value))}
+                  className="w-full px-2 py-1 text-sm bg-gray-900 border border-gray-700 rounded text-white"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400">Booking End</label>
+                <input
+                  type="date"
+                  value={toInputDate(duration.endDate)}
+                  onChange={(e) => handleUpdateDuration(hotel.id, duration.id, 'endDate', fromInputDate(e.target.value))}
+                  className="w-full px-2 py-1 text-sm bg-gray-900 border border-gray-700 rounded text-white"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400">Room Type</label>
+                <select
+                  value={duration.roomType}
+                  onChange={(e) => handleUpdateDuration(hotel.id, duration.id, 'roomType', e.target.value)}
+                  className="w-full px-2 py-1 text-sm bg-gray-900 border border-gray-700 rounded text-white"
+                >
+                  <option value="EZ">EZ (1 bed)</option>
+                  <option value="DZ">DZ (2 beds)</option>
+                  <option value="TZ">TZ (3 beds)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-gray-400">€/Night</label>
+                <input
+                  type="number"
+                  value={duration.pricePerNight}
+                  onChange={(e) => handleUpdateDuration(hotel.id, duration.id, 'pricePerNight', parseFloat(e.target.value))}
+                  className="w-full px-2 py-1 text-sm bg-gray-900 border border-gray-700 rounded text-white"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400">Total Cost</label>
+                <div className="px-2 py-1 text-sm font-bold text-green-400">
+                  €{totalCost.toFixed(2)}
+                </div>
+              </div>
+              <div className="flex gap-1 items-end">
                 <button
                   onClick={() => setEditingDuration(null)}
                   className="flex-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs text-white"
@@ -841,46 +994,63 @@ export default function EuroTrackApp() {
                 </button>
               </div>
             </div>
-          </div>
-        ) : (
-          <div className="mb-4 flex items-center justify-between group">
-            <div className="flex items-center gap-4 flex-1">
-              <div className={`w-3 h-12 rounded ${generateDurationColor(index)}`}></div>
-              
-              <div className="grid grid-cols-5 gap-4 flex-1">
+          ) : (
+            <div className="flex items-center justify-between group">
+              <div className="grid grid-cols-6 gap-4 flex-1">
                 <div>
-                  <div className="text-xs text-gray-400">Booking Dates</div>
-                  <div className="text-sm font-semibold text-white">
-                    {duration.startDate} → {duration.endDate}
-                  </div>
+                  <div className="text-xs text-gray-400 mb-1">Booking Start</div>
+                  <div className="text-sm font-semibold text-white">{formatDate(duration.startDate)}</div>
                 </div>
                 
                 <div>
-                  <div className="text-xs text-gray-400">Total Nights</div>
-                  <div className="text-sm font-semibold text-white">{nights}</div>
+                  <div className="text-xs text-gray-400 mb-1">Booking End</div>
+                  <div className="text-sm font-semibold text-white">{formatDate(duration.endDate)}</div>
+                  {isExtending ? (
+                    <div className="mt-1">
+                      <input
+                        type="date"
+                        defaultValue={toInputDate(duration.endDate)}
+                        onChange={(e) => handleExtendDuration(hotel.id, duration.id, fromInputDate(e.target.value))}
+                        className="px-2 py-1 text-xs bg-gray-900 border border-gray-700 rounded text-white"
+                      />
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setExtendingDuration(duration.id)}
+                      className="mt-1 text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                    >
+                      <ArrowRight className="w-3 h-3" />
+                      Extend
+                    </button>
+                  )}
                 </div>
 
                 <div>
-                  <div className="text-xs text-gray-400">Room Type</div>
+                  <div className="text-xs text-gray-400 mb-1">Room Type</div>
                   <div className="text-sm font-semibold text-white">{duration.roomType} ({capacity} beds)</div>
                 </div>
 
                 <div>
-                  <div className="text-xs text-gray-400">Price/Night</div>
+                  <div className="text-xs text-gray-400 mb-1">Nightly Price</div>
                   <div className="text-sm font-semibold text-green-400">€{duration.pricePerNight}</div>
                 </div>
 
                 <div>
-                  <div className="text-xs text-gray-400">Duration Cost</div>
-                  <div className="text-sm font-semibold text-green-400">€{totalCost}</div>
+                  <div className="text-xs text-gray-400 mb-1">Total Nights</div>
+                  <div className="text-sm font-semibold text-white">{nights}</div>
+                </div>
+
+                <div>
+                  <div className="text-xs text-gray-400 mb-1">Duration Cost</div>
+                  <div className="text-sm font-bold text-green-400">€{totalCost.toFixed(2)}</div>
                 </div>
               </div>
 
-              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity ml-4">
                 <button
-                  onClick={() => handleApplyPriceToAll(hotel.id, duration.id, duration.pricePerNight)}
+                  onClick={() => handleApplyPriceToAllDurations(hotel.id, duration.pricePerNight)}
                   className="p-2 bg-purple-600 bg-opacity-20 hover:bg-opacity-40 rounded transition-colors"
-                  title="Price already applied"
+                  title="Apply this price to all durations"
                 >
                   <Zap className="w-4 h-4 text-purple-400" />
                 </button>
@@ -892,9 +1062,10 @@ export default function EuroTrackApp() {
                 </button>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
         
+        {/* Employee List */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {slots.map((employee, index) => (
             <div key={index}>
@@ -913,9 +1084,12 @@ export default function EuroTrackApp() {
     const stats = getHotelStats(hotel);
     const isEditing = editingHotel === hotel.id;
 
+    const activeTab = activeDuration[hotel.id] || hotel.durations[0]?.id;
+    const activeDurationData = hotel.durations.find(d => d.id === activeTab);
+
     return (
       <div key={hotel.id} className="mb-3 bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-        {/* Hotel Main Row - Clean Notion Style */}
+        {/* Hotel Main Row */}
         {isEditing ? (
           <div className="p-4 bg-gray-850 border-b border-gray-700">
             <div className="grid grid-cols-6 gap-3">
@@ -985,8 +1159,8 @@ export default function EuroTrackApp() {
 
               <div>
                 <div className="text-xs text-gray-400">Durations</div>
-                <div className="text-sm text-white font-medium">
-                  {stats.allDurations.length > 0 ? stats.allDurations.join(', ') : 'None'}
+                <div className="text-xs text-white font-medium">
+                  {stats.allDurations.length > 0 ? `${stats.allDurations.length} bookings` : 'None'}
                 </div>
               </div>
 
@@ -996,7 +1170,7 @@ export default function EuroTrackApp() {
               </div>
 
               <div>
-                <div className="text-xs text-gray-400">Employees / Free Beds</div>
+                <div className="text-xs text-gray-400">Employees / Free</div>
                 <div className="text-sm text-white font-medium">
                   {stats.employeeTags.length} / <span className="text-green-400">{stats.freeBeds}</span>
                 </div>
@@ -1005,7 +1179,7 @@ export default function EuroTrackApp() {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-xs text-gray-400">Total Cost</div>
-                  <div className="text-sm text-green-400 font-bold">€{stats.totalCost.toLocaleString()}</div>
+                  <div className="text-sm text-green-400 font-bold">€{stats.totalCost.toFixed(2)}</div>
                 </div>
                 
                 <button
@@ -1019,10 +1193,10 @@ export default function EuroTrackApp() {
           </div>
         )}
 
-        {/* Expanded Content - Breakdown */}
+        {/* Expanded Content */}
         {isExpanded && (
           <div className="p-4 bg-gray-850 border-t border-gray-700">
-            {/* Contact Details - Collapsible */}
+            {/* Contact Details */}
             <div className="mb-4">
               <button
                 onClick={() => toggleContact(hotel.id)}
@@ -1122,25 +1296,28 @@ export default function EuroTrackApp() {
 
             {isCalendarVisible && renderCalendarView(hotel)}
 
-            {/* Duration Tabs */}
+            {/* Duration Tabs - FIXED: Horizontal Tabs */}
             <div className="mb-4">
-              <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-2">
+              <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-2 border-b border-gray-700">
                 {hotel.durations.map((duration, index) => (
-                  <div
+                  <button
                     key={duration.id}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-colors ${
-                      generateDurationColor(index)
-                    } bg-opacity-20 border-2 border-opacity-50 hover:bg-opacity-30`}
+                    onClick={() => setActiveTab(hotel.id, duration.id)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-t-lg transition-all whitespace-nowrap ${
+                      activeTab === duration.id
+                        ? `${generateDurationColor(index)} bg-opacity-30 border-b-2 border-opacity-100 font-semibold`
+                        : 'bg-gray-800 hover:bg-gray-750'
+                    }`}
                   >
                     <div className={`w-2 h-2 rounded-full ${generateDurationColor(index)}`}></div>
-                    <span className="text-sm font-medium text-white whitespace-nowrap">
-                      {duration.startDate.slice(5)} → {duration.endDate.slice(5)} ({duration.roomType})
+                    <span className="text-sm text-white">
+                      {formatDate(duration.startDate)} - {formatDate(duration.endDate)} ({duration.roomType})
                     </span>
-                  </div>
+                  </button>
                 ))}
                 
                 {addingDuration === hotel.id ? (
-                  <form onSubmit={(e) => handleSaveNewDuration(e, hotel.id)} className="flex items-center gap-2">
+                  <form onSubmit={(e) => handleSaveNewDuration(e, hotel.id)} className="flex items-center gap-2 px-2">
                     <input
                       type="date"
                       name="startDate"
@@ -1185,7 +1362,7 @@ export default function EuroTrackApp() {
                 ) : (
                   <button
                     onClick={() => handleAddDuration(hotel.id)}
-                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors text-white text-sm flex items-center gap-2 whitespace-nowrap"
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-t-lg transition-colors text-white text-sm flex items-center gap-2 whitespace-nowrap"
                   >
                     <Plus className="w-4 h-4" />
                     Add Duration
@@ -1194,10 +1371,14 @@ export default function EuroTrackApp() {
               </div>
             </div>
 
-            {/* Duration Cards */}
+            {/* Show Only Active Duration */}
             <div className="space-y-3">
-              {hotel.durations.length > 0 ? (
-                hotel.durations.map((duration, index) => renderDuration(duration, hotel, index))
+              {activeDurationData ? (
+                renderDuration(
+                  activeDurationData, 
+                  hotel, 
+                  hotel.durations.indexOf(activeDurationData)
+                )
               ) : (
                 <div className="text-center py-8 bg-gray-900 rounded-lg border border-dashed border-gray-700">
                   <Calendar className="w-10 h-10 text-gray-600 mx-auto mb-2" />
@@ -1230,20 +1411,18 @@ export default function EuroTrackApp() {
               </h1>
             </div>
 
-            {/* Stats */}
+            {/* Global Stats - FIXED: Show Total Cost and Free Beds */}
             <div className="flex gap-4">
-              <div className="px-5 py-3 bg-purple-600 bg-opacity-20 rounded-lg border border-purple-500">
-                <div className="text-xs text-gray-400 mb-1">Hotels</div>
-                <div className="text-2xl font-bold text-purple-400">{stats.totalHotels}</div>
-              </div>
-
               <div className="px-5 py-3 bg-green-600 bg-opacity-20 rounded-lg border border-green-500">
-                <div className="text-xs text-gray-400 mb-1">Total Spend</div>
-                <div className="text-2xl font-bold text-green-400">€{stats.totalSpend.toLocaleString()}</div>
+                <div className="text-xs text-gray-400 mb-1">Total Cost</div>
+                <div className="text-2xl font-bold text-green-400">€{stats.totalSpend.toFixed(2)}</div>
               </div>
               
               <div className="px-5 py-3 bg-blue-600 bg-opacity-20 rounded-lg border border-blue-500">
-                <div className="text-xs text-gray-400 mb-1">Free Beds</div>
+                <div className="text-xs text-gray-400 mb-1 flex items-center gap-1">
+                  <Bed className="w-4 h-4" />
+                  Free Beds
+                </div>
                 <div className="text-2xl font-bold text-blue-400">{stats.freeBeds}</div>
               </div>
             </div>
@@ -1251,7 +1430,7 @@ export default function EuroTrackApp() {
         </div>
       </header>
 
-      {/* Company Tabs (Horizontal) */}
+      {/* Company Tabs */}
       {groupByCompany && (
         <div className="bg-gray-900 border-b border-gray-800 sticky top-[73px] z-10">
           <div className="container mx-auto px-6">
