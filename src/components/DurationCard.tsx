@@ -1,369 +1,341 @@
-// src/components/DurationCard.tsx
-import React, { useState, useRef } from 'react';
-import { cn, calculateNights } from '../lib/utils';
-import { updateDuration, deleteDuration } from '../lib/supabase';
-import { Trash2, ChevronDown, Loader2, Tag } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { CalendarDays, Loader2, Tag, Trash2 } from 'lucide-react';
+import { cn, calculateNights, getDurationGapInfo, getDurationTotal, getNightsBetween, getTotalBeds } from '../lib/utils';
+import { deleteDuration, updateDuration } from '../lib/supabase';
 import EmployeeSlot from './EmployeeSlot';
 
 interface DurationCardProps {
   duration: any;
-  index: number;
   isDarkMode: boolean;
+  lang?: 'de' | 'en';
   onUpdate: (id: string, updated: any) => void;
   onDelete: (id: string) => void;
 }
 
 export default function DurationCard({
   duration,
-  index,
   isDarkMode,
+  lang = 'en',
   onUpdate,
   onDelete,
 }: DurationCardProps) {
-  const [local, setLocal] = useState(duration);
-  const [open, setOpen] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const saveTimer = useRef<any>(null);
   const dk = isDarkMode;
+  const [local, setLocal] = useState(duration);
+  const [saving, setSaving] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(true);
+  const saveTimer = useRef<any>(null);
 
-  const accentColors = ['blue', 'violet', 'pink', 'emerald', 'amber', 'cyan', 'rose', 'indigo'];
-  const accent = accentColors[index % accentColors.length];
+  useEffect(() => {
+    setLocal(duration);
+  }, [duration]);
 
-  const startDate = local.startDate || local.start_date || '';
-  const endDate = local.endDate || local.end_date || '';
-  const nights = calculateNights(startDate, endDate);
-  const rooms = local.numberOfRooms || local.number_of_rooms || 1;
-  const roomType = local.roomType || local.room_type || 'DZ';
-  const pricePerNight = local.pricePerNightPerRoom || local.price_per_night_per_room || 0;
-  const isPaid = local.isPaid || local.is_paid || false;
-  const hasDiscount = local.hasDiscount || local.has_discount || false;
-  const discountType = local.discountType || local.discount_type || 'percentage';
-  const discountValue = local.discountValue || local.discount_value || 0;
+  const totalBeds = getTotalBeds(local.roomType, local.numberOfRooms);
+  const nights = calculateNights(local.startDate, local.endDate);
+  const nightlyPrices = local.nightlyPrices || {};
+  const allNights = useMemo(() => getNightsBetween(local.startDate, local.endDate), [local.startDate, local.endDate]);
+  const gaps = getDurationGapInfo(local);
+  const total = getDurationTotal(local);
 
-  const bedsPerRoom = roomType === 'EZ' ? 1 : roomType === 'DZ' ? 2 : 3;
-  const totalBeds = bedsPerRoom * rooms;
+  const inputCls = cn(
+    'px-3 py-2 rounded-lg text-sm outline-none border transition-all',
+    dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
+  );
 
-  let subtotal = nights * pricePerNight * rooms;
-  let discount = 0;
-  if (hasDiscount) {
-    discount =
-      discountType === 'percentage'
-        ? subtotal * (discountValue / 100)
-        : discountValue;
-  }
-  const total = Math.max(0, subtotal - discount);
-
-  const save = (updated: any) => {
+  function queueSave(next: any) {
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try {
         setSaving(true);
-        await updateDuration(duration.id, {
-          startDate: updated.startDate || updated.start_date,
-          endDate: updated.endDate || updated.end_date,
-          roomType: updated.roomType || updated.room_type,
-          numberOfRooms: updated.numberOfRooms || updated.number_of_rooms,
-          pricePerNightPerRoom:
-            updated.pricePerNightPerRoom || updated.price_per_night_per_room,
-          hasDiscount: updated.hasDiscount || updated.has_discount,
-          discountType: updated.discountType || updated.discount_type,
-          discountValue: updated.discountValue || updated.discount_value,
-          isPaid: updated.isPaid || updated.is_paid,
-          bookingId: updated.bookingId || updated.booking_id,
-        });
-        onUpdate(duration.id, updated);
+        await updateDuration(local.id, next);
+        onUpdate(local.id, next);
       } catch (e) {
         console.error(e);
       } finally {
         setSaving(false);
       }
-    }, 600);
-  };
+    }, 500);
+  }
 
-  const set = (field: string, value: any) => {
-    const updated = { ...local, [field]: value };
-    setLocal(updated);
-    save(updated);
-  };
+  function patch(changes: any) {
+    const next = { ...local, ...changes };
+    setLocal(next);
+    queueSave(next);
+  }
 
-  const handleDelete = async () => {
+  function onEmployeeUpdated(slotIndex: number, employee: any | null) {
+    const employees = [...(local.employees || [])];
+    while (employees.length < totalBeds) employees.push(null);
+    employees[slotIndex] = employee;
+    const next = { ...local, employees };
+    setLocal(next);
+    onUpdate(local.id, next);
+  }
+
+  async function handleDelete() {
     try {
-      await deleteDuration(duration.id);
-      onDelete(duration.id);
+      await deleteDuration(local.id);
+      onDelete(local.id);
     } catch (e) {
       console.error(e);
     }
-  };
-
-  const handleEmployeeUpdate = (slotIndex: number, emp: any) => {
-    const employees = [...(local.employees || Array(totalBeds).fill(null))];
-    while (employees.length < totalBeds) employees.push(null);
-    employees[slotIndex] = emp;
-    const updated = { ...local, employees };
-    setLocal(updated);
-    onUpdate(duration.id, updated);
-  };
-
-  const fieldCls = cn(
-    'px-2 py-1 rounded-lg text-sm outline-none border transition-all bg-transparent',
-    dk
-      ? 'border-transparent hover:border-white/10 focus:border-blue-500 text-white placeholder-slate-600'
-      : 'border-transparent hover:border-slate-200 focus:border-blue-500 text-slate-900 placeholder-slate-400'
-  );
-
-  const accentBorderMap: Record<string, string> = {
-    blue: 'border-l-blue-500',
-    violet: 'border-l-violet-500',
-    pink: 'border-l-pink-500',
-    emerald: 'border-l-emerald-500',
-    amber: 'border-l-amber-500',
-    cyan: 'border-l-cyan-500',
-    rose: 'border-l-rose-500',
-    indigo: 'border-l-indigo-500',
-  };
-
-  const accentDotMap: Record<string, string> = {
-    blue: 'bg-blue-500',
-    violet: 'bg-violet-500',
-    pink: 'bg-pink-500',
-    emerald: 'bg-emerald-500',
-    amber: 'bg-amber-500',
-    cyan: 'bg-cyan-500',
-    rose: 'bg-rose-500',
-    indigo: 'bg-indigo-500',
-  };
+  }
 
   return (
-    <div
-      className={cn(
-        'rounded-xl border-l-2 border transition-all',
-        accentBorderMap[accent],
-        dk ? 'bg-white/[0.03] border-white/8' : 'bg-white border-slate-200'
-      )}
-    >
-      {/* HEADER */}
-      <div
-        className="flex items-center gap-3 px-4 py-3 cursor-pointer group flex-wrap"
-        onClick={() => setOpen(!open)}
-      >
-        <div className={cn('w-2 h-2 rounded-full flex-shrink-0', accentDotMap[accent])} />
-
-        {/* Date range */}
+    <div className={cn(
+      'rounded-2xl border p-4 space-y-4',
+      dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200'
+    )}>
+      <div className="flex items-center gap-3 flex-wrap">
         <input
           type="date"
-          value={startDate}
-          onChange={(e) => set('startDate', e.target.value)}
-          onClick={(e) => e.stopPropagation()}
-          className={cn(fieldCls, 'w-36')}
+          value={local.startDate || ''}
+          onChange={e => patch({ startDate: e.target.value })}
+          className={cn(inputCls, 'w-40')}
         />
-        <span className={cn('text-xs', dk ? 'text-slate-500' : 'text-slate-400')}>→</span>
+
         <input
           type="date"
-          value={endDate}
-          onChange={(e) => set('endDate', e.target.value)}
-          onClick={(e) => e.stopPropagation()}
-          className={cn(fieldCls, 'w-36')}
+          value={local.endDate || ''}
+          onChange={e => patch({ endDate: e.target.value })}
+          className={cn(inputCls, 'w-40')}
         />
-        <span className={cn('text-xs font-bold', dk ? 'text-slate-400' : 'text-slate-600')}>
-          {nights} nights
-        </span>
 
-        {/* Room type */}
         <select
-          value={roomType}
-          onChange={(e) => set('roomType', e.target.value)}
-          onClick={(e) => e.stopPropagation()}
-          className={cn(fieldCls, 'w-20 cursor-pointer')}
+          value={local.roomType || 'DZ'}
+          onChange={e => patch({ roomType: e.target.value })}
+          className={cn(inputCls, 'w-24')}
         >
           <option value="EZ">EZ</option>
           <option value="DZ">DZ</option>
           <option value="TZ">TZ</option>
         </select>
 
-        {/* Room count */}
-        <div className="flex items-center gap-1">
-          <span className={cn('text-xs', dk ? 'text-slate-500' : 'text-slate-400')}>×</span>
-          <input
-            type="number"
-            min="1"
-            max="99"
-            value={rooms}
-            onChange={(e) => set('numberOfRooms', parseInt(e.target.value) || 1)}
-            onClick={(e) => e.stopPropagation()}
-            className={cn(fieldCls, 'w-14 text-center')}
-          />
-          <span className={cn('text-xs', dk ? 'text-slate-500' : 'text-slate-400')}>rooms</span>
+        <input
+          type="number"
+          min={1}
+          value={local.numberOfRooms || 1}
+          onChange={e => patch({ numberOfRooms: Math.max(1, parseInt(e.target.value || '1')) })}
+          className={cn(inputCls, 'w-24')}
+        />
+
+        <div className={cn('text-sm font-bold', dk ? 'text-slate-300' : 'text-slate-700')}>
+          {nights} nights
         </div>
 
-        {/* Beds badge */}
-        <span
-          className={cn(
-            'text-xs font-bold px-2 py-0.5 rounded-full',
-            dk ? 'bg-white/10 text-slate-300' : 'bg-slate-100 text-slate-600'
-          )}
-        >
+        <div className={cn('text-sm font-bold', dk ? 'text-slate-300' : 'text-slate-700')}>
           {totalBeds} beds
-        </span>
+        </div>
 
-        {/* Total cost */}
-        <span className={cn('text-sm font-black ml-auto', dk ? 'text-white' : 'text-slate-900')}>
-          €{total.toLocaleString('de-DE', { minimumFractionDigits: 0 })}
-        </span>
-
-        {/* Paid toggle */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            set('isPaid', !isPaid);
-          }}
-          className={cn(
-            'px-2 py-0.5 rounded-full text-[10px] font-bold border transition-all',
-            isPaid
-              ? 'bg-green-500/20 text-green-300 border-green-500/30'
-              : dk
-              ? 'bg-white/5 text-slate-500 border-white/10'
-              : 'bg-slate-100 text-slate-400 border-slate-200'
-          )}
-        >
-          {isPaid ? '✓ Paid' : 'Unpaid'}
-        </button>
-
-        {saving && <Loader2 size={12} className="animate-spin text-blue-400 flex-shrink-0" />}
-
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleDelete();
-          }}
-          className={cn(
-            'p-1 rounded opacity-0 group-hover:opacity-100 transition-all',
-            dk ? 'hover:bg-red-600/20 text-red-400' : 'hover:bg-red-100 text-red-600'
-          )}
-        >
-          <Trash2 size={13} />
-        </button>
-
-        <ChevronDown
-          size={14}
-          className={cn(
-            'transition-transform flex-shrink-0',
-            dk ? 'text-slate-600' : 'text-slate-400',
-            open && 'rotate-180'
-          )}
-        />
+        <div className="ml-auto flex items-center gap-2">
+          {saving && <Loader2 size={14} className="animate-spin text-blue-400" />}
+          <button
+            onClick={() => setShowCalendar(!showCalendar)}
+            className={cn(
+              'px-3 py-2 rounded-lg text-xs font-bold border flex items-center gap-1',
+              dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+            )}
+          >
+            <CalendarDays size={13} />
+            {showCalendar ? 'Hide calendar' : 'Show calendar'}
+          </button>
+          <button
+            onClick={handleDelete}
+            className="px-3 py-2 rounded-lg text-xs font-bold bg-red-600/10 text-red-400 hover:bg-red-600/20 border border-red-500/20 flex items-center gap-1"
+          >
+            <Trash2 size={13} />
+            Delete
+          </button>
+        </div>
       </div>
 
-      {/* BODY */}
-      {open && (
-        <div
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <label className={cn('text-xs font-bold uppercase tracking-widest', dk ? 'text-slate-400' : 'text-slate-500')}>
+            Standard € / night / room
+          </label>
+          <input
+            type="number"
+            min={0}
+            step="0.01"
+            value={local.pricePerNightPerRoom || 0}
+            onChange={e => patch({ pricePerNightPerRoom: Number(e.target.value || 0) })}
+            className={cn(inputCls, 'w-28')}
+          />
+        </div>
+
+        <button
+          onClick={() => patch({ useManualPrices: !local.useManualPrices })}
           className={cn(
-            'px-4 pb-4 pt-2 space-y-3 border-t',
-            dk ? 'border-white/5' : 'border-slate-100'
+            'px-3 py-2 rounded-lg text-xs font-bold border transition-all',
+            local.useManualPrices
+              ? 'bg-purple-600 text-white border-purple-600'
+              : dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
           )}
         >
-          {/* Price + discount row */}
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2">
-              <span
-                className={cn(
-                  'text-xs font-bold uppercase tracking-widest',
-                  dk ? 'text-slate-500' : 'text-slate-400'
-                )}
-              >
-                Price/night/room
-              </span>
-              <span className={cn('text-sm', dk ? 'text-slate-400' : 'text-slate-500')}>€</span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={pricePerNight}
-                onChange={(e) => set('pricePerNightPerRoom', parseFloat(e.target.value) || 0)}
-                className={cn(fieldCls, 'w-24')}
-              />
-            </div>
+          {local.useManualPrices ? 'Manual price ON' : 'Use manual nightly prices'}
+        </button>
 
-            <button
-              onClick={() => set('hasDiscount', !hasDiscount)}
-              className={cn(
-                'flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg border transition-all',
-                hasDiscount
-                  ? 'bg-blue-600/20 text-blue-300 border-blue-500/30'
-                  : dk
-                  ? 'bg-white/5 text-slate-500 border-white/10'
-                  : 'bg-slate-100 text-slate-400 border-slate-200'
-              )}
+        <button
+          onClick={() => patch({ hasDiscount: !local.hasDiscount })}
+          className={cn(
+            'px-3 py-2 rounded-lg text-xs font-bold border transition-all flex items-center gap-1',
+            local.hasDiscount
+              ? 'bg-blue-600 text-white border-blue-600'
+              : dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+          )}
+        >
+          <Tag size={12} />
+          Discount
+        </button>
+
+        {local.hasDiscount && (
+          <>
+            <select
+              value={local.discountType || 'percentage'}
+              onChange={e => patch({ discountType: e.target.value })}
+              className={cn(inputCls, 'w-28')}
             >
-              <Tag size={11} /> Discount
-            </button>
+              <option value="percentage">%</option>
+              <option value="fixed">€ fixed</option>
+            </select>
 
-            {hasDiscount && (
-              <>
-                <select
-                  value={discountType}
-                  onChange={(e) => set('discountType', e.target.value)}
-                  className={cn(fieldCls, 'w-24')}
-                >
-                  <option value="percentage">%</option>
-                  <option value="fixed">€ fixed</option>
-                </select>
-                <input
-                  type="number"
-                  min="0"
-                  value={discountValue}
-                  onChange={(e) => set('discountValue', parseFloat(e.target.value) || 0)}
-                  className={cn(fieldCls, 'w-20')}
-                />
-              </>
-            )}
+            <input
+              type="number"
+              min={0}
+              value={local.discountValue || 0}
+              onChange={e => patch({ discountValue: Number(e.target.value || 0) })}
+              className={cn(inputCls, 'w-24')}
+            />
+          </>
+        )}
 
-            <div className="flex items-center gap-2 ml-auto">
-              <span className={cn('text-xs', dk ? 'text-slate-500' : 'text-slate-400')}>
-                {rooms} rooms × {nights} nights × €{pricePerNight}
-                {discount > 0 && ` − €${discount.toLocaleString('de-DE', { minimumFractionDigits: 0 })}`}
-              </span>
-              <span className={cn('text-base font-black', dk ? 'text-white' : 'text-slate-900')}>
-                = €{total.toLocaleString('de-DE', { minimumFractionDigits: 0 })}
-              </span>
-            </div>
+        <button
+          onClick={() => patch({ isPaid: !local.isPaid })}
+          className={cn(
+            'px-3 py-2 rounded-lg text-xs font-bold border transition-all',
+            local.isPaid
+              ? 'bg-green-600 text-white border-green-600'
+              : dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+          )}
+        >
+          {local.isPaid ? 'Paid' : 'Unpaid'}
+        </button>
+
+        <div className={cn('ml-auto text-sm font-black', dk ? 'text-white' : 'text-slate-900')}>
+          Total: €{total.toLocaleString('de-DE', { maximumFractionDigits: 2 })}
+        </div>
+      </div>
+
+      <input
+        type="text"
+        value={local.bookingId || ''}
+        onChange={e => patch({ bookingId: e.target.value })}
+        placeholder="Booking reference / note..."
+        className={cn(inputCls, 'w-full')}
+      />
+
+      {showCalendar && local.startDate && local.endDate && (
+        <div className={cn(
+          'rounded-xl border p-3',
+          dk ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'
+        )}>
+          <div className="flex items-center justify-between mb-3">
+            <p className={cn('text-xs font-bold uppercase tracking-widest', dk ? 'text-slate-400' : 'text-slate-500')}>
+              Night calendar
+            </p>
+            <p className={cn('text-xs', dk ? 'text-slate-500' : 'text-slate-400')}>
+              {allNights.length} nights
+            </p>
           </div>
 
-          {/* Booking reference */}
-          <input
-            type="text"
-            value={local.bookingId || local.booking_id || ''}
-            onChange={(e) => set('bookingId', e.target.value)}
-            placeholder="Booking reference / note (optional)..."
-            className={cn(fieldCls, 'w-full text-xs')}
-          />
+          <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(130px,1fr))' }}>
+            {allNights.map((night) => (
+              <div
+                key={night}
+                className={cn(
+                  'rounded-lg border p-2',
+                  dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200'
+                )}
+              >
+                <p className={cn('text-[11px] font-bold mb-1', dk ? 'text-slate-300' : 'text-slate-700')}>
+                  {new Date(night).toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-GB', {
+                    day: '2-digit',
+                    month: 'short'
+                  })}
+                </p>
 
-          {/* Employee slots */}
-          <div>
-            <p
-              className={cn(
-                'text-[10px] font-bold uppercase tracking-widest mb-2',
-                dk ? 'text-slate-500' : 'text-slate-400'
-              )}
-            >
-              Bed assignments — {roomType} × {rooms} = {totalBeds} beds
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {Array.from({ length: totalBeds }).map((_, i) => (
-                <EmployeeSlot
-                  key={i}
-                  slotIndex={i}
-                  durationId={duration.id}
-                  employee={(local.employees || [])[i] || null}
-                  durationStart={startDate}
-                  durationEnd={endDate}
-                  isDarkMode={isDarkMode}
-                  onUpdate={handleEmployeeUpdate}
-                />
-              ))}
-            </div>
+                {local.useManualPrices ? (
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={nightlyPrices[night] ?? local.pricePerNightPerRoom ?? 0}
+                    onChange={e => patch({
+                      nightlyPrices: {
+                        ...(local.nightlyPrices || {}),
+                        [night]: Number(e.target.value || 0),
+                      },
+                    })}
+                    className={cn(inputCls, 'w-full px-2 py-1 text-xs')}
+                  />
+                ) : (
+                  <p className={cn('text-xs font-bold', dk ? 'text-white' : 'text-slate-900')}>
+                    €{Number(local.pricePerNightPerRoom || 0)}
+                  </p>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}
+
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className={cn('text-xs font-bold uppercase tracking-widest', dk ? 'text-slate-400' : 'text-slate-500')}>
+            Bed assignments
+          </p>
+          <p className={cn('text-xs', dk ? 'text-slate-500' : 'text-slate-400')}>
+            Free beds now: {gaps.length}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {Array.from({ length: totalBeds }).map((_, slotIndex) => {
+            const employee = local.employees?.[slotIndex] ?? null;
+            const substituteGap = gaps.find(g => g.slotIndex === slotIndex);
+
+            return (
+              <div key={slotIndex} className="space-y-2">
+                <EmployeeSlot
+                  durationId={local.id}
+                  slotIndex={slotIndex}
+                  employee={employee}
+                  durationStart={local.startDate}
+                  durationEnd={local.endDate}
+                  isDarkMode={dk}
+                  onUpdated={onEmployeeUpdated}
+                />
+
+                {!employee && substituteGap?.type === 'full' ? null : substituteGap ? (
+                  <EmployeeSlot
+                    durationId={local.id}
+                    slotIndex={slotIndex}
+                    employee={null}
+                    durationStart={substituteGap.availableFrom}
+                    durationEnd={substituteGap.availableTo}
+                    isDarkMode={dk}
+                    onUpdated={onEmployeeUpdated}
+                    substituteWindow={{
+                      from: substituteGap.availableFrom,
+                      to: substituteGap.availableTo,
+                    }}
+                  />
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
