@@ -1,3 +1,15 @@
+
+// src/lib/utils.ts
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+// Tailwind class merger - THIS WAS MISSING!
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+// Add any other utility functions you had below...
+
 // src/utils.ts
 import { RoomType, Employee, Duration } from './types';
 
