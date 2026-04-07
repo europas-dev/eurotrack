@@ -1,122 +1,283 @@
+// src/components/HotelRow.tsx
 import React, { useState } from 'react';
 import { cn } from '../lib/utils';
 import { 
-  Building2, ChevronDown, Calendar, MapPin, User, Phone, 
-  Mail, Globe, ExternalLink, Plus, Trash2, AlertCircle, CheckCircle2 
+  Building2, ChevronDown, MapPin, 
+  Trash2, AlertCircle, Phone, Mail, Globe
 } from 'lucide-react';
 
-export const HotelRow = ({ entry, isDarkMode, onDelete }: any) => {
+interface HotelRowProps {
+  entry: any;
+  isDarkMode: boolean;
+  onDelete: (id: string) => void;
+}
+
+export function HotelRow({ entry, isDarkMode, onDelete }: HotelRowProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  // --- COLOR LOGIC ENGINE ---
-  const getStatusStyle = (emp: any, durationEnd: string) => {
-    const today = new Date();
-    const checkIn = new Date(emp.checkIn);
-    const checkOut = new Date(emp.checkOut);
-    const end = new Date(durationEnd);
-    
-    const diffDays = Math.ceil((checkOut.getTime() - today.getTime()) / (1000 * 3600 * 24));
-
-    if (checkOut < today) return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'; // Green: Completed
-    if (checkOut.getTime() !== end.getTime()) return 'bg-orange-500/10 text-orange-500 border-orange-500/20'; // Orange: Early Checkout
-    if (diffDays <= 3 && diffDays > 0) return 'bg-red-500/10 text-red-500 border-red-500/20'; // Red: 3 days left
-    if (checkIn > today) return 'bg-blue-500/10 text-blue-400 border-blue-500/20'; // Blue: Future
-    return 'bg-slate-500/10 text-slate-300 border-white/10'; // Normal: Staying
-  };
-
   return (
     <div className={cn(
-      "mb-4 rounded-xl border transition-all duration-300 overflow-hidden",
-      isDarkMode ? "bg-[#0B1224] border-white/5" : "bg-white border-slate-200"
+      "mb-3 rounded-xl border transition-all duration-300 overflow-hidden",
+      isDarkMode ? "bg-[#0B1224] border-white/5 hover:border-white/10" : "bg-white border-slate-200 hover:border-slate-300"
     )}>
       {/* MAIN ROW */}
-      <div className="grid grid-cols-12 items-center px-8 py-5 cursor-pointer group" onClick={() => setIsOpen(!isOpen)}>
-        <div className="col-span-3 flex items-center gap-4">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white"><Building2 size={20}/></div>
+      <div 
+        className="grid grid-cols-12 items-center px-8 py-5 cursor-pointer group hover:bg-white/[0.02] transition-colors"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        {/* Hotel Name & City */}
+        <div className="col-span-2 flex items-center gap-4">
+          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white flex-shrink-0">
+            <Building2 size={20} />
+          </div>
           <div>
-            <h3 className="text-base font-bold text-white leading-none">{entry.name}</h3>
-            <span className="text-[9px] font-bold opacity-30 uppercase tracking-widest">{entry.city}</span>
+            <h3 className="text-sm font-bold text-white leading-none">{entry.name}</h3>
+            <span className={cn(
+              "text-[9px] font-bold uppercase tracking-widest",
+              isDarkMode ? "text-slate-500" : "text-slate-400"
+            )}>
+              {entry.city}
+            </span>
           </div>
         </div>
 
+        {/* Company Tag */}
+        <div className="col-span-1">
+          <span className={cn(
+            "px-3 py-1.5 rounded-full text-xs font-bold",
+            isDarkMode ? "bg-purple-600/20 text-purple-300 border border-purple-500/30" : "bg-purple-100 text-purple-700"
+          )}>
+            {entry.companyTag}
+          </span>
+        </div>
+
+        {/* Durations */}
         <div className="col-span-3 flex flex-wrap gap-2">
-          {entry.durations?.map((d: any, i: number) => (
-            <div key={i} className="px-2 py-1 bg-white/5 border border-white/10 rounded text-[9px] font-bold text-slate-400">
-              {d.roomType}: {d.start} - {d.end}
+          {entry.durations?.slice(0, 3).map((d: any, i: number) => (
+            <div key={i} className={cn(
+              "px-3 py-1.5 rounded-lg text-[10px] font-bold border",
+              isDarkMode ? "bg-white/5 border-white/10 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-600"
+            )}>
+              {d.start} - {d.end} (⓷ {d.roomType})
             </div>
           ))}
+          {entry.durations?.length > 3 && (
+            <div className="px-2 py-1 text-[9px] text-slate-400">
+              +{entry.durations.length - 3} more
+            </div>
+          )}
         </div>
 
-        <div className="col-span-1 text-center font-mono">
-          <p className="text-sm font-bold text-white">{entry.totalNights || 0}</p>
-          <p className="text-[7px] font-bold opacity-30 uppercase">Nights</p>
+        {/* Total Nights */}
+        <div className="col-span-1 text-center">
+          <p className="text-sm font-bold text-blue-400">{entry.totalNights || 0}</p>
+          <p className={cn("text-[9px] font-bold uppercase", isDarkMode ? "text-slate-500" : "text-slate-400")}>
+            Nights
+          </p>
         </div>
 
-        <div className="col-span-1 text-center font-mono">
-          <p className="text-sm font-bold text-emerald-500">{entry.freeBeds || 0}</p>
-          <p className="text-[7px] font-bold opacity-30 uppercase">Free</p>
+        {/* Free Beds */}
+        <div className="col-span-1 text-center">
+          <p className="text-sm font-bold text-green-400">{entry.freeBeds || 0}</p>
+          <p className={cn("text-[9px] font-bold uppercase", isDarkMode ? "text-slate-500" : "text-slate-400")}>
+            Free
+          </p>
         </div>
 
-        <div className="col-span-2 flex flex-wrap gap-1 px-2">
-          {entry.assignedEmployees?.map((name: string, i: number) => (
-            <div key={i} className="px-2 py-0.5 bg-white/5 border border-white/10 rounded text-[8px] font-bold text-white uppercase tracking-tighter">
+        {/* Employees */}
+        <div className="col-span-2 flex flex-wrap gap-1">
+          {entry.assignedEmployees?.slice(0, 2).map((name: string, i: number) => (
+            <span key={i} className={cn(
+              "px-2 py-1 rounded text-[9px] font-bold uppercase border",
+              isDarkMode ? "bg-white/5 border-white/10 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-600"
+            )}>
               {name}
-            </div>
+            </span>
           ))}
+          {entry.assignedEmployees?.length > 2 && (
+            <span className="text-[9px] text-slate-400">+{entry.assignedEmployees.length - 2}</span>
+          )}
         </div>
 
-        <div className="col-span-2 flex items-center justify-end gap-4">
-          <div className="text-right font-mono">
-            <p className="text-base font-bold text-white">{entry.totalCost?.toLocaleString('de-DE')} €</p>
-          </div>
+        {/* Total Cost */}
+        <div className="col-span-1 text-right">
+          <p className="text-base font-bold text-white">
+            €{(entry.totalCost || 0).toLocaleString('de-DE')}
+          </p>
+        </div>
+
+        {/* Actions */}
+        <div className="col-span-1 flex items-center justify-end gap-2">
           <button 
             onClick={(e) => { e.stopPropagation(); setShowDeleteModal(true); }}
-            className="p-2 opacity-0 group-hover:opacity-100 text-slate-600 hover:text-red-500 transition-all"
+            className={cn(
+              "p-2 rounded-lg transition-all opacity-0 group-hover:opacity-100",
+              isDarkMode ? "hover:bg-red-600/20 text-red-400" : "hover:bg-red-100 text-red-600"
+            )}
           >
-            <Trash2 size={16}/>
+            <Trash2 size={16} />
           </button>
-          <ChevronDown size={18} className={cn("opacity-20 transition-transform", isOpen && "rotate-180")}/>
+          <ChevronDown size={18} className={cn(
+            "transition-transform",
+            isDarkMode ? "text-slate-600" : "text-slate-400",
+            isOpen && "rotate-180"
+          )} />
         </div>
       </div>
 
-      {/* DROPDOWN AREA */}
+      {/* EXPANDED SECTION */}
       {isOpen && (
-        <div className="px-8 pb-8 space-y-6 animate-in fade-in slide-in-from-top-2">
-          <div className="grid grid-cols-5 gap-4 p-5 bg-white/5 rounded-xl border border-white/5">
-             {['Address', 'Contact person', 'Telefon', 'Email', 'Web'].map((label, i) => (
-               <div key={i}>
-                 <p className="text-[7px] font-bold opacity-30 uppercase mb-1">{label}</p>
-                 <input className="w-full bg-transparent text-[10px] font-bold text-white outline-none border-b border-white/5 focus:border-blue-500 py-1" placeholder="..." />
-               </div>
-             ))}
+        <div className={cn(
+          "px-8 pb-8 pt-4 border-t space-y-6",
+          isDarkMode ? "border-white/5 bg-white/[0.01]" : "border-slate-200 bg-slate-50/50"
+        )}>
+          {/* Contact Details */}
+          <div className={cn(
+            "grid grid-cols-5 gap-4 p-4 rounded-xl border",
+            isDarkMode ? "bg-white/5 border-white/10" : "bg-white border-slate-200"
+          )}>
+            <div>
+              <label className={cn("text-[9px] font-bold uppercase mb-2 block", isDarkMode ? "text-slate-500" : "text-slate-400")}>
+                Address
+              </label>
+              <input 
+                type="text"
+                defaultValue={entry.address || ''}
+                placeholder="Add address..."
+                className={cn(
+                  "w-full px-2 py-1.5 rounded-lg text-sm outline-none border transition-all",
+                  isDarkMode 
+                    ? "bg-white/5 border-white/10 text-white placeholder-slate-600 focus:border-blue-500"
+                    : "bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500"
+                )}
+              />
+            </div>
+            <div>
+              <label className={cn("text-[9px] font-bold uppercase mb-2 block", isDarkMode ? "text-slate-500" : "text-slate-400")}>
+                <Phone size={12} className="inline mr-1" /> Phone
+              </label>
+              <input 
+                type="text"
+                defaultValue={entry.contact || ''}
+                placeholder="Add phone..."
+                className={cn(
+                  "w-full px-2 py-1.5 rounded-lg text-sm outline-none border transition-all",
+                  isDarkMode 
+                    ? "bg-white/5 border-white/10 text-white placeholder-slate-600 focus:border-blue-500"
+                    : "bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500"
+                )}
+              />
+            </div>
+            <div>
+              <label className={cn("text-[9px] font-bold uppercase mb-2 block", isDarkMode ? "text-slate-500" : "text-slate-400")}>
+                <Mail size={12} className="inline mr-1" /> Email
+              </label>
+              <input 
+                type="email"
+                defaultValue={entry.email || ''}
+                placeholder="Add email..."
+                className={cn(
+                  "w-full px-2 py-1.5 rounded-lg text-sm outline-none border transition-all",
+                  isDarkMode 
+                    ? "bg-white/5 border-white/10 text-white placeholder-slate-600 focus:border-blue-500"
+                    : "bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500"
+                )}
+              />
+            </div>
+            <div>
+              <label className={cn("text-[9px] font-bold uppercase mb-2 block", isDarkMode ? "text-slate-500" : "text-slate-400")}>
+                <Globe size={12} className="inline mr-1" /> Website
+              </label>
+              <input 
+                type="url"
+                defaultValue={entry.webLink || ''}
+                placeholder="Add URL..."
+                className={cn(
+                  "w-full px-2 py-1.5 rounded-lg text-sm outline-none border transition-all",
+                  isDarkMode 
+                    ? "bg-white/5 border-white/10 text-white placeholder-slate-600 focus:border-blue-500"
+                    : "bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500"
+                )}
+              />
+            </div>
+            <div>
+              <label className={cn("text-[9px] font-bold uppercase mb-2 block", isDarkMode ? "text-slate-500" : "text-slate-400")}>
+                City
+              </label>
+              <input 
+                type="text"
+                defaultValue={entry.city || ''}
+                placeholder="Add city..."
+                className={cn(
+                  "w-full px-2 py-1.5 rounded-lg text-sm outline-none border transition-all",
+                  isDarkMode 
+                    ? "bg-white/5 border-white/10 text-white placeholder-slate-600 focus:border-blue-500"
+                    : "bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500"
+                )}
+              />
+            </div>
           </div>
 
-          <div className="flex items-center justify-between border-b border-white/5 pb-2">
-            <h4 className="text-[9px] font-bold uppercase tracking-widest text-blue-500">Booking Durations</h4>
-            <button className="p-1.5 bg-blue-600 rounded-md text-white hover:scale-105 transition-transform"><Plus size={16}/></button>
+          {/* Calendar & Durations would go here */}
+          <div className={cn(
+            "p-4 rounded-lg border text-center",
+            isDarkMode ? "bg-white/5 border-white/10 text-slate-400" : "bg-white border-slate-200 text-slate-600"
+          )}>
+            📅 Calendar & Duration Tabs Coming Soon
           </div>
-
-          {/* DURATION TABS & SLOTS Logic would render here */}
         </div>
       )}
 
       {/* DELETE MODAL */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#0F172A] border border-white/10 p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl">
-            <div className="w-12 h-12 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle size={24}/>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className={cn(
+            "p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl border",
+            isDarkMode 
+              ? "bg-[#0F172A] border-white/10" 
+              : "bg-white border-slate-200"
+          )}>
+            <div className={cn(
+              "w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4",
+              isDarkMode ? "bg-red-600/20" : "bg-red-100"
+            )}>
+              <AlertCircle size={24} className={isDarkMode ? "text-red-400" : "text-red-600"} />
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">Are you sure?</h3>
-            <p className="text-sm text-slate-400 mb-6">This entry will be permanently deleted. This action cannot be undone.</p>
+            <h3 className={cn(
+              "text-xl font-bold mb-2",
+              isDarkMode ? "text-white" : "text-slate-900"
+            )}>
+              Are you sure?
+            </h3>
+            <p className={cn(
+              "text-sm mb-6",
+              isDarkMode ? "text-slate-400" : "text-slate-600"
+            )}>
+              This hotel will be permanently deleted. This action cannot be undone.
+            </p>
             <div className="flex gap-3">
-              <button onClick={() => setShowDeleteModal(false)} className="flex-1 py-3 bg-white/5 rounded-xl text-xs font-bold text-white">No, Keep it</button>
-              <button onClick={() => { onDelete(); setShowDeleteModal(false); }} className="flex-1 py-3 bg-red-600 rounded-xl text-xs font-bold text-white">Yes, Delete</button>
+              <button 
+                onClick={() => setShowDeleteModal(false)}
+                className={cn(
+                  "flex-1 py-3 rounded-xl text-sm font-bold transition-all",
+                  isDarkMode
+                    ? "bg-white/5 hover:bg-white/10 text-white"
+                    : "bg-slate-100 hover:bg-slate-200 text-slate-900"
+                )}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => { onDelete(entry.id); setShowDeleteModal(false); }}
+                className="flex-1 py-3 bg-red-600 hover:bg-red-700 rounded-xl text-white font-bold transition-all"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
       )}
     </div>
   );
-};
+}
