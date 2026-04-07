@@ -25,6 +25,21 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang }: Dashboa
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // ADD THIS:
+  const monthNames = lang === 'de'
+    ? ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
+    : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+  // ... rest of your code
+export default function Dashboard({ theme, lang, toggleTheme, setLang }: DashboardProps) {
+  const [hotels, setHotels] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [selectedYear, setSelectedYear] = useState(2026);
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
   useEffect(() => {
     loadHotels();
   }, []);
