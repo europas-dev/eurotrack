@@ -1,12 +1,9 @@
 // src/Dashboard.tsx
 import React, { useState, useEffect } from 'react';
-import Header from './components/Header';
-import Sidebar from './components/Sidebar';
-import { HotelRow } from './components/HotelRow';
 import { getHotels, signOut } from './lib/supabase';
 import { cn } from './lib/utils';
 import type { Theme, Language } from './lib/types';
-import { Plus, Building2 } from 'lucide-react';
+import { Plus, Building2, LogOut } from 'lucide-react';
 
 interface DashboardProps {
   theme: Theme;
@@ -19,10 +16,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang }: Dashboa
   const [hotels, setHotels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedYear, setSelectedYear] = useState(2026);
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     loadHotels();
@@ -33,10 +26,10 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang }: Dashboa
       setLoading(true);
       setError('');
       const data = await getHotels();
-      console.log('Loaded hotels:', data);
+      console.log('✅ Loaded hotels:', data);
       setHotels(data || []);
     } catch (err: any) {
-      console.error('Load hotels error:', err);
+      console.error('❌ Load hotels error:', err);
       setError(err.message || 'Failed to load hotels');
     } finally {
       setLoading(false);
@@ -52,193 +45,126 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang }: Dashboa
     }
   }
 
-  const handleDeleteHotel = (id: string) => {
-    console.log('Delete hotel:', id);
-    alert('Delete functionality coming soon!');
-  };
-
-  const filteredHotels = hotels.filter(hotel => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      hotel.name?.toLowerCase().includes(query) ||
-      hotel.city?.toLowerCase().includes(query) ||
-      hotel.companyTag?.toLowerCase().includes(query)
-    );
-  });
-
-  const stats = {
-    totalSpend: 0,
-    freeBeds: 0
-  };
-
-  if (error) {
-    return (
-      <div className={cn("min-h-screen p-6", theme === 'dark' ? "bg-[#020617]" : "bg-slate-50")}>
-        <div className="max-w-md mx-auto mt-20 p-8 border rounded-2xl text-center">
-          <p className="text-red-500 font-bold mb-4">Error: {error}</p>
-          <button 
-            onClick={loadHotels}
-            className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700"
+  return (
+    <div className={cn("min-h-screen", theme === 'dark' ? "bg-[#020617] text-white" : "bg-slate-50 text-slate-900")}>
+      {/* Simple Header */}
+      <header className={cn(
+        "border-b p-6",
+        theme === 'dark' ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200"
+      )}>
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <h1 className="text-2xl font-black">
+            Euro<span className="text-[#EAB308]">Track.</span>
+          </h1>
+          <button
+            onClick={handleSignOut}
+            className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg flex items-center gap-2"
           >
-            Retry
+            <LogOut size={18} />
+            {lang === 'de' ? 'Abmelden' : 'Sign Out'}
           </button>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className={cn("min-h-screen flex", theme === 'dark' ? "bg-[#020617]" : "bg-slate-50")}>
-      {/* Sidebar */}
-      <Sidebar
-        theme={theme}
-        lang={lang}
-        selectedYear={selectedYear}
-        setSelectedYear={setSelectedYear}
-        selectedMonth={selectedMonth}
-        setSelectedMonth={setSelectedMonth}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-        hotels={hotels}
-      />
+      </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <Header
-          theme={theme}
-          lang={lang}
-          toggleTheme={toggleTheme}
-          setLang={setLang}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          onSignOut={handleSignOut}
-        />
-
-        {/* Stats Bar */}
-        <div className={cn(
-          "px-8 py-4 border-b",
-          theme === 'dark' ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-200"
-        )}>
-          <div className="flex items-center gap-8">
-            <div>
-              <p className={cn(
-                "text-xs font-bold uppercase tracking-widest mb-1",
-                theme === 'dark' ? "text-slate-500" : "text-slate-400"
-              )}>
-                {lang === 'de' ? 'Freie Betten' : 'Free Beds'}
-              </p>
-              <p className="text-2xl font-black text-green-400">{stats.freeBeds}</p>
-            </div>
-
-            <div>
-              <p className={cn(
-                "text-xs font-bold uppercase tracking-widest mb-1",
-                theme === 'dark' ? "text-slate-500" : "text-slate-400"
-              )}>
-                {lang === 'de' ? 'Gesamtausgaben' : 'Total Spent'}
-              </p>
-              <p className="text-2xl font-black text-blue-400">
-                €{stats.totalSpend.toLocaleString('de-DE')}
-              </p>
-            </div>
-
-            <div>
-              <p className={cn(
-                "text-xs font-bold uppercase tracking-widest mb-1",
-                theme === 'dark' ? "text-slate-500" : "text-slate-400"
-              )}>
-                {lang === 'de' ? 'Hotels' : 'Hotels'}
-              </p>
-              <p className="text-2xl font-black text-white">{hotels.length}</p>
-            </div>
+      <main className="max-w-7xl mx-auto p-6">
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className={cn(
+            "p-6 rounded-xl border",
+            theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-slate-200"
+          )}>
+            <p className="text-xs text-slate-400 uppercase mb-2">Hotels</p>
+            <p className="text-3xl font-black">{hotels.length}</p>
+          </div>
+          
+          <div className={cn(
+            "p-6 rounded-xl border",
+            theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-slate-200"
+          )}>
+            <p className="text-xs text-slate-400 uppercase mb-2">Free Beds</p>
+            <p className="text-3xl font-black text-green-400">0</p>
+          </div>
+          
+          <div className={cn(
+            "p-6 rounded-xl border",
+            theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-slate-200"
+          )}>
+            <p className="text-xs text-slate-400 uppercase mb-2">Total Cost</p>
+            <p className="text-3xl font-black text-blue-400">€0</p>
           </div>
         </div>
 
-        {/* Main Content Area */}
-        <main className="flex-1 p-6 overflow-y-auto">
-          {/* Header with Add Button */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className={cn(
-              "text-2xl font-black",
-              theme === 'dark' ? "text-white" : "text-slate-900"
-            )}>
-              {selectedMonth === null 
-                ? (lang === 'de' ? 'Dashboard' : 'Dashboard')
-                : `${lang === 'de' ? 'Monat' : 'Month'} ${selectedYear}`
-              }
-            </h2>
-
-            <button
-              onClick={() => alert('Add hotel coming soon!')}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl flex items-center gap-2 transition-all shadow-lg"
+        {/* Error State */}
+        {error && (
+          <div className="mb-6 p-6 bg-red-600/10 border border-red-600/20 rounded-xl">
+            <p className="text-red-400 font-bold">Error: {error}</p>
+            <button 
+              onClick={loadHotels}
+              className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
             >
-              <Plus size={20} />
-              {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
+              Retry
             </button>
           </div>
+        )}
 
-          {/* Loading State */}
-          {loading ? (
-            <div className="text-center py-20">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-              <p className={cn(
-                "mt-4 text-sm font-bold",
-                theme === 'dark' ? "text-slate-400" : "text-slate-600"
-              )}>
-                {lang === 'de' ? 'Lade Hotels...' : 'Loading hotels...'}
-              </p>
-            </div>
-          ) : filteredHotels.length === 0 ? (
-            /* Empty State */
+        {/* Loading State */}
+        {loading && (
+          <div className="text-center py-20">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+            <p className="text-slate-400">Loading hotels...</p>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && !error && hotels.length === 0 && (
+          <div className={cn(
+            "text-center py-20 rounded-2xl border-2 border-dashed",
+            theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-slate-200"
+          )}>
             <div className={cn(
-              "text-center py-20 px-6 rounded-2xl border-2 border-dashed",
-              theme === 'dark' ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50"
+              "w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center",
+              theme === 'dark' ? "bg-blue-600/20" : "bg-blue-100"
             )}>
-              <div className={cn(
-                "w-20 h-20 rounded-full mx-auto mb-6 flex items-center justify-center",
-                theme === 'dark' ? "bg-blue-600/20" : "bg-blue-100"
-              )}>
-                <Building2 size={40} className="text-blue-600" />
-              </div>
-              <h3 className={cn(
-                "text-xl font-bold mb-2",
-                theme === 'dark' ? "text-white" : "text-slate-900"
-              )}>
-                {lang === 'de' ? 'Noch keine Hotels' : 'No Hotels Yet'}
-              </h3>
-              <p className={cn(
-                "text-sm mb-6",
-                theme === 'dark' ? "text-slate-400" : "text-slate-600"
-              )}>
-                {lang === 'de' 
-                  ? 'Beginnen Sie mit dem Hinzufügen Ihres ersten Hotels' 
-                  : 'Start by adding your first hotel'}
-              </p>
-              <button
-                onClick={() => alert('Add hotel coming soon!')}
-                className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl inline-flex items-center gap-2 transition-all shadow-lg"
+              <Building2 size={40} className="text-blue-600" />
+            </div>
+            <h3 className="text-2xl font-bold mb-2">No Hotels Yet</h3>
+            <p className="text-slate-400 mb-8">Start by adding your first hotel</p>
+            <button
+              onClick={() => alert('Add hotel feature coming soon!')}
+              className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl inline-flex items-center gap-2"
+            >
+              <Plus size={20} />
+              Add First Hotel
+            </button>
+          </div>
+        )}
+
+        {/* Hotels List */}
+        {!loading && hotels.length > 0 && (
+          <div className="space-y-4">
+            {hotels.map((hotel: any) => (
+              <div
+                key={hotel.id}
+                className={cn(
+                  "p-6 rounded-xl border",
+                  theme === 'dark' ? "bg-white/5 border-white/10" : "bg-white border-slate-200"
+                )}
               >
-                <Plus size={20} />
-                {lang === 'de' ? 'Erstes Hotel hinzufügen' : 'Add First Hotel'}
-              </button>
-            </div>
-          ) : (
-            /* Hotel List */
-            <div className="space-y-3">
-              {filteredHotels.map(hotel => (
-                <HotelRow
-                  key={hotel.id}
-                  entry={hotel}
-                  isDarkMode={theme === 'dark'}
-                  onDelete={handleDeleteHotel}
-                />
-              ))}
-            </div>
-          )}
-        </main>
-      </div>
+                <h3 className="text-xl font-bold mb-2">{hotel.name}</h3>
+                <p className="text-sm text-slate-400">{hotel.city} • {hotel.companyTag}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Debug Info */}
+        <div className="mt-8 p-4 bg-yellow-600/10 border border-yellow-600/20 rounded-lg">
+          <p className="text-xs text-yellow-400 font-mono">
+            ✅ Dashboard loaded | Theme: {theme} | Lang: {lang} | Hotels: {hotels.length}
+          </p>
+        </div>
+      </main>
     </div>
   );
 }
