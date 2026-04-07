@@ -2,66 +2,81 @@
 
 export type RoomType = 'EZ' | 'DZ' | 'TZ';
 export type UserRole = 'admin' | 'editor' | 'viewer';
+export type CollaboratorPermission = 'viewer' | 'editor';
 export type EmployeeStatus = 'active' | 'ending-soon' | 'completed' | 'upcoming';
 export type Language = 'de' | 'en';
 export type Theme = 'dark' | 'light';
-export type SortBy = 'recent' | 'name' | 'max-duration' | 'min-duration' | 'max-cost' | 'min-cost' | 'most-booked' | 'least-booked';
+export type ThemePreference = 'light' | 'dark' | 'system';
 export type GroupBy = 'none' | 'company' | 'city';
 
-// Employee
 export interface Employee {
   id: string;
+  durationId?: string;
+  slotIndex?: number;
   name: string;
-  checkIn: string;  // ISO date string
-  checkOut: string; // ISO date string
+  checkIn: string;
+  checkOut: string;
 }
 
-// Duration
 export interface Duration {
   id: string;
   hotelId: string;
-  bookingId?: string;
+  bookingId?: string | null;
   startDate: string;
   endDate: string;
   roomType: RoomType;
   numberOfRooms: number;
   pricePerNightPerRoom: number;
-  autoDistribute: boolean;
-  nightlyPrices?: Record<string, number>; // { '2026-04-01': 90, '2026-04-02': 85, ... }
+  autoDistribute?: boolean;
+  useManualPrices?: boolean;
+  nightlyPrices?: Record<string, number>;
   hasDiscount: boolean;
   discountType?: 'percentage' | 'fixed';
   discountValue?: number;
   isPaid: boolean;
   extensionNote?: string;
-  employees: (Employee | null)[]; // Array based on total beds (numberOfRooms × capacity)
+  employees: (Employee | null)[];
 }
 
-// Hotel
+export interface HotelCollaborator {
+  id: string;
+  hotelId: string;
+  ownerId: string;
+  sharedWithId: string;
+  permission: CollaboratorPermission;
+  createdAt: string;
+  profile?: UserProfile | null;
+}
+
 export interface Hotel {
   id: string;
   userId: string;
   name: string;
   city: string;
-  address?: string;
-  contact?: string;
-  email?: string;
-  webLink?: string;
+  address?: string | null;
+  contact?: string | null;
+  contactPerson?: string | null;
+  email?: string | null;
+  webLink?: string | null;
+  notes?: string | null;
   companyTag: string;
   durations: Duration[];
-  createdAt: string;
+  collaborators?: HotelCollaborator[];
+  createdAt?: string;
   updatedAt?: string;
 }
 
-// User Profile
 export interface UserProfile {
   id: string;
-  email: string;
-  fullName: string;
-  role: UserRole;
-  createdAt: string;
+  email?: string;
+  fullName?: string | null;
+  role?: UserRole;
+  fontFamily?: string;
+  fontScale?: number;
+  themePreference?: ThemePreference;
+  createdAt?: string;
 }
 
-// Notification
 export interface Notification {
   id: string;
   userId: string;
@@ -73,34 +88,24 @@ export interface Notification {
   createdAt: string;
 }
 
-// Workspace Share
 export interface WorkspaceShare {
   id: string;
   ownerId: string;
   sharedWithId: string;
-  permission: UserRole;
+  permission: CollaboratorPermission;
   createdAt: string;
 }
 
-// Filter State
-export interface FilterState {
-  groupBy: GroupBy;
-  companies: string[];
-  cities: string[];
-  roomTypes: RoomType[];
-  freeBeds: {
-    today: boolean;
-    in3Days: boolean;
-    in7Days: boolean;
-    customDate?: string;
-  };
-  employeeStatus: EmployeeStatus[];
-  costRange: { min: number; max: number };
-  durationLength: { min: number; max: number };
-  dateRange?: { from: string; to: string };
+export interface Gap {
+  type: 'start' | 'end';
+  availableFrom: string;
+  availableTo: string;
+  slotIndex: number;
+  durationId: string;
+  hotelId: string;
+  afterEmployeeId?: string;
 }
 
-// Stats
 export interface HotelStats {
   totalNights: number;
   totalCost: number;
@@ -116,20 +121,8 @@ export interface GlobalStats {
   activeEmployees: number;
 }
 
-// Gap Detection
-export interface Gap {
-  type: 'start' | 'end';
-  availableFrom: string;
-  availableTo: string;
-  slotIndex: number;
-  durationId: string;
-  hotelId: string;
-  afterEmployeeId?: string;
-}
-
-// Export Options
-export interface ExportOptions {
-  format: 'excel' | 'csv' | 'pdf' | 'docx';
-  includeFilters: boolean;
-  dateRange?: { from: string; to: string };
+export interface AppSettings {
+  themePreference: ThemePreference;
+  fontFamily: string;
+  fontScale: number;
 }
