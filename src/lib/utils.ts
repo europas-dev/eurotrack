@@ -12,20 +12,35 @@ export function calculateNights(startDate?: string, endDate?: string) {
   return Math.max(0, Math.ceil(diff / 86400000));
 }
 
-export function formatDate(input?: string, lang: 'de' | 'en' = 'en') {
+export function formatDateDisplay(input?: string, lang: 'de' | 'en' = 'de') {
+  if (!input) return '';
+  const d = new Date(input);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  if (lang === 'de') return `${day}/${month}/${year}`;
+  return `${day}/${month}/${year}`;
+}
+
+export function formatDateShort(input?: string, lang: 'de' | 'en' = 'de') {
   if (!input) return '';
   const d = new Date(input);
   return d.toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-GB', {
     day: '2-digit',
-    month: 'short',
+    month: '2-digit',
   });
 }
 
 export function formatCurrency(amount: number) {
-  return '€' + amount.toLocaleString('de-DE', {
+  return '€' + Number(amount || 0).toLocaleString('de-DE', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   });
+}
+
+export function normalizeNumberInput(value: string | number) {
+  const num = Number(String(value ?? '').replace(/^0+(?=\d)/, ''));
+  return Number.isFinite(num) ? num : 0;
 }
 
 export function getBedsPerRoom(roomType?: string) {
@@ -125,13 +140,18 @@ export function durationTouchesMonth(duration: any, year: number, month: number)
   return getMonthOverlapNights(duration.startDate, duration.endDate, year, month) > 0;
 }
 
-export function getDurationSummary(duration: any, lang: 'de' | 'en' = 'en') {
-  const rooms = duration.numberOfRooms || 1;
+export function getDurationTabLabel(duration: any, lang: 'de' | 'en' = 'de') {
+  const rooms = Math.max(1, duration.numberOfRooms || 1);
   const roomType = duration.roomType || 'DZ';
   const nights = calculateNights(duration.startDate, duration.endDate);
-  const start = formatDate(duration.startDate, lang);
-  const end = formatDate(duration.endDate, lang);
-  return `${rooms}×${roomType} ${start} – ${end} ${nights}n`;
+  return `${rooms} 🛏 ${roomType} 🌙 ${nights}`;
+}
+
+export function getDurationRowLabel(duration: any, lang: 'de' | 'en' = 'de') {
+  const rooms = Math.max(1, duration.numberOfRooms || 1);
+  const roomType = duration.roomType || 'DZ';
+  const nights = calculateNights(duration.startDate, duration.endDate);
+  return `${rooms} 🛏 ${roomType} 🌙 ${nights}`;
 }
 
 export function getDurationGapInfo(duration: any) {
@@ -198,4 +218,46 @@ export function calcHotelTotalNights(hotel: any) {
 
 export function calcHotelTotalCost(hotel: any) {
   return (hotel.durations || []).reduce((sum: number, d: any) => sum + getDurationTotal(d), 0);
+}
+
+export function isFreeOnDate(duration: any, targetDate: string) {
+  const date = new Date(targetDate);
+  const start = new Date(duration.startDate);
+  const end = new Date(duration.endDate);
+
+  if (!(date >= start && date < end)) return false;
+
+  const totalBeds = getTotalBeds(duration.roomType, duration.numberOfRooms);
+  const employees = duration.employees || [];
+  let occupied = 0;
+
+  for (let i = 0; i < totalBeds; i++) {
+    const emp = employees[i];
+    if (!emp?.checkIn || !emp?.checkOut) continue;
+    const ci = new Date(emp.checkIn);
+    const co = new Date(emp.checkOut);
+    if (date >= ci && date < co) occupied++;
+  }
+
+  return occupied < totalBeds;
+}
+
+export function hotelHasFreeOnDate(hotel: any, targetDate: string) {
+  return (hotel.durations || []).some((d: any) => isFreeOnDate(d, targetDate));
+}
+
+export function getFreeBedFilterDate(mode: 'now' | 'in3' | 'in7' | 'custom', customDate?: string) {
+  const base = new Date();
+  base.setHours(0, 0, 0, 0);
+  if (mode === 'in3') base.setDate(base.getDate() + 3);
+  if (mode === 'in7') base.setDate(base.getDate() + 7);
+  if (mode === 'custom' && customDate) return customDate;
+  return base.toISOString().split('T')[0];
+}
+
+export function sumGroupCost(hotels: any[], selectedYear: number, selectedMonth: number | null) {
+  return hotels.reduce((sum, hotel) => {
+    if (selectedMonth === null) return sum + calcHotelTotalCost(hotel);
+    return sum + (hotel.durations || []).reduce((inner: number, d: any) => inner + getDurationCostForMonth(d, selectedYear, selectedMonth), 0);
+  }, 0);
 }
