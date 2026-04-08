@@ -1,40 +1,62 @@
+// src/lib/supabase.ts
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl     = import.meta.env.VITE_SUPABASE_URL as string;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export async function signIn(email: string, password: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  return data;
+}
+export async function signOut() {
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
+}
+export async function getSession() {
+  const { data } = await supabase.auth.getSession();
+  return data.session;
+}
 
 // ─── NORMALIZERS ──────────────────────────────────────────────────────────────
 function normalizeEmployee(e: any) {
   if (!e) return null;
   return {
     ...e,
-    durationId: e.durationid ?? e.durationId,
-    slotIndex:  e.slotindex  ?? e.slotIndex,
-    checkIn:    e.checkin    ?? e.checkIn,
-    checkOut:   e.checkout   ?? e.checkOut,
+    durationId: e.duration_id ?? e.durationId,
+    slotIndex:  e.slot_index  ?? e.slotIndex,
+    checkIn:    e.check_in    ?? e.checkIn,
+    checkOut:   e.check_out   ?? e.checkOut,
   };
 }
 
 function normalizeDuration(d: any) {
   return {
     ...d,
-    hotelId:              d.hotelid              ?? d.hotelId,
-    startDate:            d.startdate            ?? d.startDate,
-    endDate:              d.enddate              ?? d.endDate,
-    roomType:             d.roomtype             ?? d.roomType,
-    numberOfRooms:        d.numberofrooms        ?? d.numberOfRooms,
-    pricePerNightPerRoom: d.pricepernightperroom ?? d.pricePerNightPerRoom,
-    hasDiscount:          d.hasdiscount          ?? d.hasDiscount,
-    discountType:         d.discounttype         ?? d.discountType,
-    discountValue:        d.discountvalue        ?? d.discountValue,
-    isPaid:               d.ispaid               ?? d.isPaid,
-    bookingId:            d.bookingid            ?? d.bookingId,
-    extensionNote:        d.extensionnote        ?? d.extensionNote,
-    autoDistribute:       d.autodistribute       ?? d.autoDistribute,
-    useManualPrices:      d.usemanualprice       ?? d.useManualPrices,
-    nightlyPrices:        d.nightlyprices        ?? d.nightlyPrices ?? {},
+    hotelId:               d.hotel_id                ?? d.hotelId,
+    startDate:             d.start_date              ?? d.startDate,
+    endDate:               d.end_date                ?? d.endDate,
+    roomType:              d.room_type               ?? d.roomType,
+    numberOfRooms:         d.number_of_rooms         ?? d.numberOfRooms,
+    wgBeds:                d.wg_beds                 ?? d.wgBeds,
+    pricePerNightPerRoom:  d.price_per_night_per_room ?? d.pricePerNightPerRoom,
+    totalPriceOverride:    d.total_price_override    ?? d.totalPriceOverride,
+    useManualPrices:       d.use_manual_prices       ?? d.useManualPrices,
+    nightlyPrices:         d.nightly_prices          ?? d.nightlyPrices,
+    nettoPrice:            d.netto_price             ?? d.nettoPrice,
+    bruttoPrice:           d.brutto_price            ?? d.bruttoPrice,
+    mwst:                  d.mwst,
+    hasDiscount:           d.has_discount            ?? d.hasDiscount,
+    discountType:          d.discount_type           ?? d.discountType,
+    discountValue:         d.discount_value          ?? d.discountValue,
+    isPaid:                d.is_paid                 ?? d.isPaid,
+    hasDeposit:            d.has_deposit             ?? d.hasDeposit,
+    depositAmount:         d.deposit_amount          ?? d.depositAmount,
+    invoiceNo:             d.invoice_no              ?? d.invoiceNo,
+    bookingId:             d.booking_id              ?? d.bookingId,
+    roomNo:                d.room_no                 ?? d.roomNo,
+    floor:                 d.floor,
     employees: (d.employees || []).map(normalizeEmployee),
   };
 }
@@ -42,66 +64,42 @@ function normalizeDuration(d: any) {
 function normalizeHotel(h: any) {
   return {
     ...h,
-    companyTag:    h.companytag    ?? h.companyTag,
-    company:       h.companytag    ?? h.companyTag,
-    webLink:       h.weblink       ?? h.webLink,
-    contactPerson: h.contactperson ?? h.contactPerson,
+    companyTag:    h.company_tag     ?? h.companyTag,
+    webLink:       h.web_link        ?? h.webLink,
+    contactPerson: h.contact_person  ?? h.contactPerson ?? h.contact,
+    lastUpdatedBy: h.last_updated_by ?? h.lastUpdatedBy,
+    lastUpdatedAt: h.last_updated_at ?? h.lastUpdatedAt,
     durations: (h.durations || []).map(normalizeDuration),
   };
-}
-
-// ─── AUTH ─────────────────────────────────────────────────────────────────────
-export async function signIn(email: string, password: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw error;
-  return data;
-}
-
-export async function signOut() {
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
-}
-
-export async function getSession() {
-  const { data } = await supabase.auth.getSession();
-  return data.session;
 }
 
 // ─── HOTELS ───────────────────────────────────────────────────────────────────
 export async function getHotels() {
   const { data, error } = await supabase
     .from('hotels')
-    .select('*, durations(*, employees(*))')
+    .select(`*, durations(*, employees(*))`)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data || []).map(normalizeHotel);
 }
 
-export async function createHotel(data: {
-  name: string;
-  city: string;
-  companyTag?: string;
-  company?: string;
-  address?: string;
-  contact?: string;
-  email?: string;
-  webLink?: string;
-}) {
+export async function createHotel(data: any) {
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
-
   const { data: result, error } = await supabase
     .from('hotels')
-    .insert({
-      name:       data.name,
-      city:       data.city,
-      companytag: data.companyTag ?? data.company ?? '',
-      address:    data.address    ?? null,
-      contact:    data.contact    ?? null,
-      email:      data.email      ?? null,
-      weblink:    data.webLink    ?? null,
-      userid:     user.id,
-    })
+    .insert([{
+      name:            data.name          || '',
+      city:            data.city          || '',
+      company_tag:     data.companyTag    || '',
+      address:         data.address       || null,
+      contact_person:  data.contactPerson || null,
+      email:           data.email         || null,
+      web_link:        data.webLink       || null,
+      notes:           data.notes         || null,
+      user_id:         user?.id           || null,
+      last_updated_by: user?.email        || null,
+      last_updated_at: new Date().toISOString(),
+    }])
     .select()
     .single();
   if (error) throw error;
@@ -109,18 +107,20 @@ export async function createHotel(data: {
 }
 
 export async function updateHotel(id: string, data: any) {
+  const { data: { user } } = await supabase.auth.getUser();
   const { error } = await supabase
     .from('hotels')
     .update({
-      name:          data.name,
-      city:          data.city,
-      companytag:    data.companyTag    ?? data.companytag,
-      address:       data.address,
-      contact:       data.contact,
-      email:         data.email,
-      weblink:       data.webLink       ?? data.weblink,
-      contactperson: data.contactPerson ?? data.contactperson,
-      notes:         data.notes,
+      name:            data.name,
+      city:            data.city,
+      company_tag:     data.companyTag    ?? data.company_tag,
+      address:         data.address,
+      contact_person:  data.contactPerson ?? data.contact,
+      email:           data.email,
+      web_link:        data.webLink       ?? data.web_link,
+      notes:           data.notes,
+      last_updated_by: user?.email        || null,
+      last_updated_at: new Date().toISOString(),
     })
     .eq('id', id);
   if (error) throw error;
@@ -135,21 +135,31 @@ export async function deleteHotel(id: string) {
 export async function createDuration(data: any) {
   const { data: result, error } = await supabase
     .from('durations')
-    .insert({
-      hotelid:              data.hotelId,
-      startdate:            data.startDate            ?? '',
-      enddate:              data.endDate              ?? '',
-      roomtype:             data.roomType             ?? 'DZ',
-      numberofrooms:        data.numberOfRooms        ?? 1,
-      pricepernightperroom: data.pricePerNightPerRoom ?? 0,
-      hasdiscount:          data.hasDiscount          ?? false,
-      discounttype:         data.discountType         ?? 'percentage',
-      discountvalue:        data.discountValue        ?? 0,
-      ispaid:               data.isPaid               ?? false,
-      bookingid:            data.bookingId            ?? null,
-      usemanualprice:       data.useManualPrices      ?? false,
-      nightlyprices:        data.nightlyPrices        ?? {},
-    })
+    .insert([{
+      hotel_id:                 data.hotelId,
+      start_date:               data.startDate              || null,
+      end_date:                 data.endDate                || null,
+      room_type:                data.roomType               || 'DZ',
+      number_of_rooms:          data.numberOfRooms          || 1,
+      wg_beds:                  data.wgBeds                 || null,
+      price_per_night_per_room: data.pricePerNightPerRoom   || 0,
+      total_price_override:     data.totalPriceOverride     || null,
+      use_manual_prices:        data.useManualPrices        || false,
+      nightly_prices:           data.nightlyPrices          || null,
+      netto_price:              data.nettoPrice             || null,
+      brutto_price:             data.bruttoPrice            || null,
+      mwst:                     data.mwst                   || null,
+      has_discount:             data.hasDiscount            || false,
+      discount_type:            data.discountType           || 'percentage',
+      discount_value:           data.discountValue          || 0,
+      is_paid:                  data.isPaid                 || false,
+      has_deposit:              data.hasDeposit             || false,
+      deposit_amount:           data.depositAmount          || null,
+      invoice_no:               data.invoiceNo              || null,
+      booking_id:               data.bookingId              || null,
+      room_no:                  data.roomNo                 || null,
+      floor:                    data.floor                  || null,
+    }])
     .select()
     .single();
   if (error) throw error;
@@ -160,20 +170,28 @@ export async function updateDuration(id: string, data: any) {
   const { error } = await supabase
     .from('durations')
     .update({
-      startdate:            data.startDate            ?? data.startdate,
-      enddate:              data.endDate              ?? data.enddate,
-      roomtype:             data.roomType             ?? data.roomtype,
-      numberofrooms:        data.numberOfRooms        ?? data.numberofrooms,
-      pricepernightperroom: data.pricePerNightPerRoom ?? data.pricepernightperroom,
-      hasdiscount:          data.hasDiscount          ?? data.hasdiscount,
-      discounttype:         data.discountType         ?? data.discounttype,
-      discountvalue:        data.discountValue        ?? data.discountvalue,
-      ispaid:               data.isPaid               ?? data.ispaid,
-      bookingid:            data.bookingId            ?? data.bookingid,
-      extensionnote:        data.extensionNote        ?? data.extensionnote,
-      usemanualprice:       data.useManualPrices      ?? data.usemanualprice,
-      nightlyprices:        data.nightlyPrices        ?? data.nightlyprices,
-      autodistribute:       data.autoDistribute       ?? data.autodistribute,
+      start_date:               data.startDate             ?? data.start_date,
+      end_date:                 data.endDate               ?? data.end_date,
+      room_type:                data.roomType              ?? data.room_type,
+      number_of_rooms:          data.numberOfRooms         ?? data.number_of_rooms,
+      wg_beds:                  data.wgBeds                ?? data.wg_beds,
+      price_per_night_per_room: data.pricePerNightPerRoom  ?? data.price_per_night_per_room,
+      total_price_override:     data.totalPriceOverride    ?? data.total_price_override,
+      use_manual_prices:        data.useManualPrices       ?? data.use_manual_prices,
+      nightly_prices:           data.nightlyPrices         ?? data.nightly_prices,
+      netto_price:              data.nettoPrice            ?? data.netto_price,
+      brutto_price:             data.bruttoPrice           ?? data.brutto_price,
+      mwst:                     data.mwst,
+      has_discount:             data.hasDiscount           ?? data.has_discount,
+      discount_type:            data.discountType          ?? data.discount_type,
+      discount_value:           data.discountValue         ?? data.discount_value,
+      is_paid:                  data.isPaid                ?? data.is_paid,
+      has_deposit:              data.hasDeposit            ?? data.has_deposit,
+      deposit_amount:           data.depositAmount         ?? data.deposit_amount,
+      invoice_no:               data.invoiceNo             ?? data.invoice_no,
+      booking_id:               data.bookingId             ?? data.booking_id,
+      room_no:                  data.roomNo                ?? data.room_no,
+      floor:                    data.floor,
     })
     .eq('id', id);
   if (error) throw error;
@@ -188,13 +206,13 @@ export async function deleteDuration(id: string) {
 export async function createEmployee(durationId: string, slotIndex: number, data: any) {
   const { data: result, error } = await supabase
     .from('employees')
-    .insert({
-      durationid: durationId,
-      slotindex:  slotIndex,
-      name:       data.name,
-      checkin:    data.checkIn  ?? null,
-      checkout:   data.checkOut ?? null,
-    })
+    .insert([{
+      duration_id: durationId,
+      slot_index:  slotIndex,
+      name:        data.name,
+      check_in:    data.checkIn  || null,
+      check_out:   data.checkOut || null,
+    }])
     .select()
     .single();
   if (error) throw error;
@@ -205,9 +223,9 @@ export async function updateEmployee(id: string, data: any) {
   const { error } = await supabase
     .from('employees')
     .update({
-      name:     data.name,
-      checkin:  data.checkIn  ?? data.checkin,
-      checkout: data.checkOut ?? data.checkout,
+      name:      data.name,
+      check_in:  data.checkIn  ?? data.check_in,
+      check_out: data.checkOut ?? data.check_out,
     })
     .eq('id', id);
   if (error) throw error;
@@ -216,175 +234,4 @@ export async function updateEmployee(id: string, data: any) {
 export async function deleteEmployee(id: string) {
   const { error } = await supabase.from('employees').delete().eq('id', id);
   if (error) throw error;
-}
-
-// ─── USER PROFILE ─────────────────────────────────────────────────────────────
-export async function getMyProfile() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
-
-  if (error) {
-    if (error.code === 'PGRST116') return { id: user.id, email: user.email };
-    throw error;
-  }
-
-  return {
-    ...data,
-    fullName:   data.full_name   ?? data.fullname,
-    fontFamily: data.font_family ?? data.fontfamily ?? 'inter',
-    fontScale:  data.font_scale  ?? data.fontscale  ?? 100,
-    avatarUrl:  data.avatar_url  ?? data.avatarurl,
-  };
-}
-
-export async function updateMyProfile(updates: {
-  fullName?: string;
-  fontFamily?: string;
-  fontScale?: number;
-  avatarUrl?: string;
-}) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
-
-  const payload: Record<string, any> = { id: user.id };
-  if (updates.fullName   !== undefined) payload.full_name   = updates.fullName;
-  if (updates.avatarUrl  !== undefined) payload.avatar_url  = updates.avatarUrl;
-  if (updates.fontFamily !== undefined) payload.font_family = updates.fontFamily;
-  if (updates.fontScale  !== undefined) payload.font_scale  = updates.fontScale;
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .upsert(payload, { onConflict: 'id' })
-    .select()
-    .single();
-  if (error) throw error;
-
-  return {
-    ...data,
-    fullName:   data.full_name   ?? data.fullname,
-    fontFamily: data.font_family ?? data.fontfamily ?? 'inter',
-    fontScale:  data.font_scale  ?? data.fontscale  ?? 100,
-    avatarUrl:  data.avatar_url  ?? data.avatarurl,
-  };
-}
-
-export async function searchProfiles(query: string) {
-  if (!query.trim()) return [];
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, full_name, email')
-    .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
-    .limit(10);
-  if (error) throw error;
-  return (data || []).map((p: any) => ({
-    ...p,
-    fullName: p.full_name ?? p.fullname,
-  }));
-}
-
-// ─── COLLABORATORS ────────────────────────────────────────────────────────────
-export async function inviteCollaborator(
-  hotelId: string,
-  sharedWithId: string,
-  permission: 'viewer' | 'editor'
-) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
-
-  const { data, error } = await supabase
-    .from('workspace_shares')
-    .insert([{
-      owner_id:       user.id,
-      hotel_id:       hotelId,
-      shared_with_id: sharedWithId,
-      permission,
-    }])
-    .select('*, profile:shared_with_id(id, full_name, email)')
-    .single();
-  if (error) throw error;
-  return data;
-}
-
-export async function updateCollaboratorPermission(shareId: string, permission: 'viewer' | 'editor') {
-  const { data, error } = await supabase
-    .from('workspace_shares')
-    .update({ permission })
-    .eq('id', shareId)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
-}
-
-export async function removeCollaborator(shareId: string) {
-  const { error } = await supabase.from('workspace_shares').delete().eq('id', shareId);
-  if (error) throw error;
-}
-
-export async function getCollaborators() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
-  const { data, error } = await supabase
-    .from('workspace_shares')
-    .select('*, profile:shared_with_id(id, full_name, email)')
-    .eq('owner_id', user.id);
-  if (error) throw error;
-  return data || [];
-}
-
-// ─── OFFLINE QUEUE ────────────────────────────────────────────────────────────
-const QUEUE_KEY = 'eurotrack_offline_queue';
-
-interface QueuedOp {
-  id: string;
-  type: string;
-  payload: any;
-  timestamp: number;
-}
-
-function loadQueue(): QueuedOp[] {
-  try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); }
-  catch { return []; }
-}
-
-function saveQueue(q: QueuedOp[]) {
-  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch {}
-}
-
-export function hasQueuedOps(): boolean {
-  return loadQueue().length > 0;
-}
-
-export function queueOp(op: Omit<QueuedOp, 'id' | 'timestamp'>) {
-  const q = loadQueue();
-  q.push({ ...op, id: crypto.randomUUID(), timestamp: Date.now() });
-  saveQueue(q);
-}
-
-export async function syncOfflineQueue() {
-  const q = loadQueue();
-  if (!q.length) return;
-  const failed: QueuedOp[] = [];
-  for (const op of q) {
-    try {
-      if (op.type === 'updateHotel')    await updateHotel(op.payload.id, op.payload.fields);
-      if (op.type === 'updateDuration') await updateDuration(op.payload.id, op.payload.fields);
-      if (op.type === 'deleteDuration') await deleteDuration(op.payload.id);
-      if (op.type === 'updateEmployee') await updateEmployee(op.payload.id, op.payload.fields);
-    } catch {
-      failed.push(op);
-    }
-  }
-  saveQueue(failed);
-}
-
-// Auto-sync when connection returns
-if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => { syncOfflineQueue().catch(console.error); });
 }
