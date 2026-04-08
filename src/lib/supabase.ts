@@ -256,3 +256,46 @@ export async function syncOfflineQueue(): Promise<{ synced: number; failed: numb
   }
   return { synced, failed };
 }
+
+// ─── USER PROFILE ─────────────────────────────────────────────────────────────
+export async function getMyProfile() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateMyProfile(updates: {
+  fullName?: string;
+  avatarUrl?: string;
+}) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      full_name:  updates.fullName  ?? null,
+      avatar_url: updates.avatarUrl ?? null,
+    })
+    .eq('id', user.id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function searchProfiles(query: string) {
+  if (!query.trim()) return [];
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, email')
+    .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
+    .limit(10);
+  if (error) throw error;
+  return data || [];
+}
