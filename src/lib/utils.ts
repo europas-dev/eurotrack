@@ -1,170 +1,157 @@
-import { Duration, Hotel, RoomType } from './types';
+// src/lib/utils.ts
+import type { Duration, RoomType, EmployeeStatus, Employee } from './types';
 
-export function cn(...classes: (string | boolean | undefined | null)[]): string {
+export function cn(...classes: (string | undefined | null | false)[]): string {
   return classes.filter(Boolean).join(' ');
 }
 
-export function calculateNights(start: string, end: string): number {
-  if (!start || !end) return 0;
-  const diff = new Date(end).getTime() - new Date(start).getTime();
-  return Math.max(0, Math.ceil(diff / 86400000));
+export function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(amount);
 }
 
-export function formatCurrency(v: number): string {
-  return v.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+export function calculateNights(startDate?: string, endDate?: string): number {
+  if (!startDate || !endDate) return 0;
+  const diff = new Date(endDate).getTime() - new Date(startDate).getTime();
+  return Math.max(0, Math.floor(diff / 86400000));
 }
 
-export function formatDateDisplay(date: string | null, lang: 'de' | 'en' = 'de'): string {
-  if (!date) return '';
-  const d = new Date(date);
-  return d.toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-GB', {
-    day: '2-digit', month: '2-digit', year: '2-digit',
-  });
-}
-
-export function normalizeNumberInput(val: string): number {
-  return parseFloat(val.replace(',', '.')) || 0;
-}
-
-export function getTotalBeds(roomType: RoomType | string, numberOfRooms: number, wgBeds?: number): number {
-  if (roomType === 'WG') return wgBeds ?? 0;
-  const bedsPerRoom = roomType === 'EZ' ? 1 : roomType === 'DZ' ? 2 : roomType === 'TZ' ? 3 : 1;
-  return bedsPerRoom * (numberOfRooms || 1);
-}
-
-export function getDurationTotal(d: any): number {
-  if (!d) return 0;
-  const nights = calculateNights(d.startDate, d.endDate);
-  if (!nights) return 0;
-  const rooms = d.numberOfRooms || 1;
-  let base = 0;
-  if (d.useManualPrices && d.nightlyPrices && Object.keys(d.nightlyPrices).length > 0) {
-    base = Object.values(d.nightlyPrices as Record<string, number>).reduce((a, b) => a + b, 0) * rooms;
-  } else {
-    base = nights * (d.pricePerNightPerRoom || 0) * rooms;
-  }
-  if (d.hasDiscount) {
-    if (d.discountType === 'percentage') base *= 1 - (d.discountValue || 0) / 100;
-    else base -= d.discountValue || 0;
-  }
-  return Math.max(0, base);
-}
-
-export function calcHotelTotalCost(hotel: any): number {
-  return (hotel.durations || []).reduce((s: number, d: any) => s + getDurationTotal(d), 0);
-}
-
-export function calcHotelTotalNights(hotel: any): number {
-  return (hotel.durations || []).reduce((s: number, d: any) => s + calculateNights(d.startDate, d.endDate), 0);
-}
-
-export function calcHotelFreeBeds(hotel: any): number {
-  return (hotel.durations || []).reduce((s: number, d: any) => {
-    const total = getTotalBeds(d.roomType, d.numberOfRooms, d.wgBeds);
-    const filled = (d.employees || []).filter(Boolean).length;
-    return s + Math.max(0, total - filled);
-  }, 0);
-}
-
-export function calcHotelPaidTotal(hotel: any): number {
-  return (hotel.durations || []).filter((d: any) => d.isPaid).reduce((s: number, d: any) => s + getDurationTotal(d), 0);
-}
-
-export function calcHotelUnpaidTotal(hotel: any): number {
-  return (hotel.durations || []).filter((d: any) => !d.isPaid).reduce((s: number, d: any) => s + getDurationTotal(d), 0);
-}
-
-export function getEmployeeStatus(
-  checkIn?: string | null,
-  checkOut?: string | null
-): 'active' | 'ending-soon' | 'completed' | 'upcoming' | 'unknown' {
-  const now = new Date();
-  const ci = checkIn ? new Date(checkIn) : null;
-  const co = checkOut ? new Date(checkOut) : null;
-  if (!ci && !co) return 'unknown';
-  if (co && co < now) return 'completed';
-  if (ci && ci > now) return 'upcoming';
-  if (co) {
-    const daysLeft = (co.getTime() - now.getTime()) / 86400000;
-    if (daysLeft <= 7) return 'ending-soon';
-  }
-  return 'active';
-}
-
-export function getDurationTabLabel(d: any, lang: 'de' | 'en'): string {
-  if (!d.startDate && !d.endDate) return lang === 'de' ? 'Neue Dauer' : 'New Duration';
-  const nights = calculateNights(d.startDate, d.endDate);
-  const start = formatDateDisplay(d.startDate, lang);
-  return `${start} · ${nights}N`;
-}
-
-export function getDurationRowLabel(d: any, lang: 'de' | 'en'): string {
-  return getDurationTabLabel(d, lang);
-}
-
-export function getNightsBetween(startDate: string, endDate: string): string[] {
+export function getNightsBetween(startDate?: string, endDate?: string): string[] {
+  if (!startDate || !endDate) return [];
   const nights: string[] = [];
-  if (!startDate || !endDate) return nights;
-  let cur = new Date(startDate);
+  const cur = new Date(startDate);
   const end = new Date(endDate);
   while (cur < end) {
     nights.push(cur.toISOString().split('T')[0]);
-    cur = new Date(cur.getTime() + 86400000);
+    cur.setDate(cur.getDate() + 1);
   }
   return nights;
 }
 
-export function getDurationGapInfo(d: any): Array<{
-  slotIndex: number;
-  type: 'full';
-  availableFrom: string;
-  availableTo: string;
-}> {
+export function getTotalBeds(roomType: RoomType, numberOfRooms: number, wgBeds?: number): number {
+  const rooms = Math.max(1, numberOfRooms);
+  switch (roomType) {
+    case 'EZ': return rooms * 1;
+    case 'DZ': return rooms * 2;
+    case 'TZ': return rooms * 3;
+    case 'WG': return Math.max(1, wgBeds ?? 1);
+    default:   return rooms;
+  }
+}
+
+export function normalizeNumberInput(val: string): number {
+  const n = parseFloat(val);
+  return isNaN(n) ? 0 : n;
+}
+
+// ─── PRICING ─────────────────────────────────────────────────────────────────
+// Forward:  total = nights × pricePerNight × rooms
+// Reverse:  enter totalPriceOverride → system shows implied nightly price
+// Brutto/Netto:
+//   Netto + MwSt  → Brutto = Netto × (1 + mwst/100)
+//   Brutto + MwSt → Netto  = Brutto ÷ (1 + mwst/100)
+//   Brutto alone  → Netto UNKNOWN — never fake it
+
+export function getDurationTotal(d: Duration): number {
+  const nights = calculateNights(d.startDate, d.endDate);
+  const rooms  = Math.max(1, d.numberOfRooms || 1);
+  let base = 0;
+
+  if (d.totalPriceOverride && d.totalPriceOverride > 0) {
+    base = d.totalPriceOverride;
+  } else if (d.useManualPrices && d.nightlyPrices) {
+    const allNights = getNightsBetween(d.startDate, d.endDate);
+    const sum = allNights.reduce((acc, n) => acc + (d.nightlyPrices![n] ?? d.pricePerNightPerRoom ?? 0), 0);
+    base = sum * rooms;
+  } else {
+    base = nights * (d.pricePerNightPerRoom || 0) * rooms;
+  }
+
+  if (d.hasDiscount && d.discountValue && d.discountValue > 0) {
+    base = d.discountType === 'percentage'
+      ? base * (1 - d.discountValue / 100)
+      : base - d.discountValue;
+  }
+
+  return Math.max(0, base);
+}
+
+export function getImpliedNightlyPrice(d: Duration): number | null {
+  if (!d.totalPriceOverride || d.totalPriceOverride <= 0) return null;
+  const nights = calculateNights(d.startDate, d.endDate);
+  const rooms  = Math.max(1, d.numberOfRooms || 1);
+  if (nights === 0 || rooms === 0) return null;
+  return d.totalPriceOverride / nights / rooms;
+}
+
+export function getBruttoFromNetto(netto: number, mwst: number): number {
+  return netto * (1 + mwst / 100);
+}
+
+export function getNettoFromBrutto(brutto: number, mwst: number): number {
+  return brutto / (1 + mwst / 100);
+}
+
+// ─── FREE BEDS ────────────────────────────────────────────────────────────────
+export function getFreeBeds(d: Duration, onDate?: string): number {
   const totalBeds = getTotalBeds(d.roomType, d.numberOfRooms, d.wgBeds);
-  const gaps: Array<{ slotIndex: number; type: 'full'; availableFrom: string; availableTo: string }> = [];
+  const checkDate = onDate || new Date().toISOString().split('T')[0];
+  if (!d.startDate || !d.endDate) return 0;
+  if (checkDate < d.startDate || checkDate >= d.endDate) return 0;
+  const occupied = (d.employees || []).filter(e => {
+    if (!e) return false;
+    const cin  = e.checkIn  || d.startDate;
+    const cout = e.checkOut || d.endDate;
+    return cin <= checkDate && cout > checkDate;
+  }).length;
+  return Math.max(0, totalBeds - occupied);
+}
+
+export function getHotelFreeBeds(hotel: { durations: Duration[] }, onDate?: string): number {
+  return hotel.durations.reduce((sum, d) => sum + getFreeBeds(d, onDate), 0);
+}
+
+// ─── EMPLOYEE STATUS ──────────────────────────────────────────────────────────
+export function getEmployeeStatus(e: Employee, today?: string): EmployeeStatus {
+  const now = today || new Date().toISOString().split('T')[0];
+  if (!e.checkIn || !e.checkOut) return 'unknown';
+  if (e.checkOut <= now) return 'completed';
+  if (e.checkIn  >  now) return 'upcoming';
+  const daysLeft = Math.ceil((new Date(e.checkOut).getTime() - new Date(now).getTime()) / 86400000);
+  return daysLeft <= 7 ? 'ending-soon' : 'active';
+}
+
+export function getEmployeeStatusColor(status: EmployeeStatus): string {
+  switch (status) {
+    case 'active':      return 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-300';
+    case 'ending-soon': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+    case 'completed':   return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+    case 'upcoming':    return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+    default:            return 'bg-slate-100 text-slate-500';
+  }
+}
+
+// ─── DURATION TAG LABEL ───────────────────────────────────────────────────────
+export function getDurationTagLabel(d: Duration): string {
+  if (!d.startDate) return 'No date';
+  const nights = calculateNights(d.startDate, d.endDate);
+  const [, m, day] = d.startDate.split('-');
+  return `${day}.${m} · ${nights}N`;
+}
+
+// ─── GAP DETECTION ────────────────────────────────────────────────────────────
+export function getDurationGapInfo(d: Duration) {
+  const totalBeds = getTotalBeds(d.roomType, d.numberOfRooms, d.wgBeds);
+  const gaps: Array<{ slotIndex: number; type: 'full' | 'partial'; availableFrom: string; availableTo: string }> = [];
   for (let i = 0; i < totalBeds; i++) {
-    if (!(d.employees || [])[i]) {
+    const emp = d.employees?.[i];
+    if (!emp) {
       gaps.push({ slotIndex: i, type: 'full', availableFrom: d.startDate, availableTo: d.endDate });
+    } else {
+      if (emp.checkIn  && emp.checkIn  > d.startDate)
+        gaps.push({ slotIndex: i, type: 'partial', availableFrom: d.startDate, availableTo: emp.checkIn });
+      if (emp.checkOut && emp.checkOut < d.endDate)
+        gaps.push({ slotIndex: i, type: 'partial', availableFrom: emp.checkOut, availableTo: d.endDate });
     }
   }
   return gaps;
-}
-
-export function highlightText(text: string, query: string): string {
-  if (!query.trim()) return text;
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return text.replace(new RegExp(`(${escaped})`, 'gi'), '<mark class="search-highlight">$1</mark>');
-}
-
-export function isFreeBedToday(hotel: any): boolean {
-  const today = new Date().toISOString().split('T')[0];
-  return isFreeBedOnDay(hotel, today);
-}
-
-export function isFreeBedOnDay(hotel: any, targetDate: string): boolean {
-  return (hotel.durations || []).some((d: any) => {
-    if (!d.startDate || !d.endDate) return false;
-    if (d.startDate > targetDate || d.endDate <= targetDate) return false;
-    const total = getTotalBeds(d.roomType, d.numberOfRooms, d.wgBeds);
-    const filled = (d.employees || []).filter(Boolean).length;
-    return filled < total;
-  });
-}
-
-export function addDays(base: string, days: number): string {
-  const d = new Date(base);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
-}
-
-// Used by Sidebar — receives a single duration, not a hotel
-export function getDurationCostForMonth(duration: any, year: number, month: number): number {
-  if (!duration?.startDate && !duration?.endDate) return 0;
-  const start = new Date(duration.startDate);
-  const end = new Date(duration.endDate);
-  const matches =
-    (start.getFullYear() === year && start.getMonth() === month) ||
-    (end.getFullYear() === year && end.getMonth() === month);
-  if (!matches) return 0;
-  return getDurationTotal(duration);
 }
