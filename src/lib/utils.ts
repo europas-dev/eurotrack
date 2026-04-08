@@ -9,6 +9,12 @@ export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(amount);
 }
 
+export function formatDateDisplay(date: string | null | undefined, lang: 'de' | 'en' = 'de'): string {
+  if (!date) return '—';
+  const [y, m, d] = date.split('-');
+  return lang === 'de' ? `${d}.${m}.${y}` : `${m}/${d}/${y}`;
+}
+
 export function calculateNights(startDate?: string, endDate?: string): number {
   if (!startDate || !endDate) return 0;
   const diff = new Date(endDate).getTime() - new Date(startDate).getTime();
@@ -43,14 +49,7 @@ export function normalizeNumberInput(val: string): number {
   return isNaN(n) ? 0 : n;
 }
 
-// ─── PRICING ─────────────────────────────────────────────────────────────────
-// Forward:  total = nights × pricePerNight × rooms
-// Reverse:  enter totalPriceOverride → system shows implied nightly price
-// Brutto/Netto:
-//   Netto + MwSt  → Brutto = Netto × (1 + mwst/100)
-//   Brutto + MwSt → Netto  = Brutto ÷ (1 + mwst/100)
-//   Brutto alone  → Netto UNKNOWN — never fake it
-
+// ─── PRICING ──────────────────────────────────────────────────────────────────
 export function getDurationTotal(d: Duration): number {
   const nights = calculateNights(d.startDate, d.endDate);
   const rooms  = Math.max(1, d.numberOfRooms || 1);
@@ -110,6 +109,23 @@ export function getHotelFreeBeds(hotel: { durations: Duration[] }, onDate?: stri
   return hotel.durations.reduce((sum, d) => sum + getFreeBeds(d, onDate), 0);
 }
 
+// ─── HOTEL AGGREGATES ─────────────────────────────────────────────────────────
+export function calcHotelTotalNights(hotel: any): number {
+  return (hotel.durations || []).reduce((sum: number, d: any) =>
+    sum + calculateNights(d?.startDate, d?.endDate), 0);
+}
+
+export function calcHotelTotalCost(hotel: any): number {
+  return (hotel.durations || []).reduce((sum: number, d: any) =>
+    sum + getDurationTotal(d), 0);
+}
+
+export function calcHotelFreeBeds(hotel: any): number {
+  const today = new Date().toISOString().split('T')[0];
+  return (hotel.durations || []).reduce((sum: number, d: any) =>
+    sum + getFreeBeds(d, today), 0);
+}
+
 // ─── EMPLOYEE STATUS ──────────────────────────────────────────────────────────
 export function getEmployeeStatus(e: Employee, today?: string): EmployeeStatus {
   const now = today || new Date().toISOString().split('T')[0];
@@ -130,12 +146,23 @@ export function getEmployeeStatusColor(status: EmployeeStatus): string {
   }
 }
 
-// ─── DURATION TAG LABEL ───────────────────────────────────────────────────────
+// ─── DURATION LABELS ──────────────────────────────────────────────────────────
 export function getDurationTagLabel(d: Duration): string {
   if (!d.startDate) return 'No date';
   const nights = calculateNights(d.startDate, d.endDate);
   const [, m, day] = d.startDate.split('-');
   return `${day}.${m} · ${nights}N`;
+}
+
+export function getDurationRowLabel(d: any, lang: 'de' | 'en' = 'de'): string {
+  if (!d?.startDate) return lang === 'de' ? 'Kein Datum' : 'No date';
+  const nights = calculateNights(d.startDate, d.endDate);
+  const [, m, day] = d.startDate.split('-');
+  return `${day}.${m} · ${nights}N`;
+}
+
+export function getDurationTabLabel(d: any, lang: 'de' | 'en' = 'de'): string {
+  return getDurationRowLabel(d, lang);
 }
 
 // ─── GAP DETECTION ────────────────────────────────────────────────────────────
