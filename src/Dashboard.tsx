@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import {
-  getHotels, signOut, deleteHotel, createHotel, syncOfflineQueue, hasQueuedOps
-} from '../lib/supabase';
-import { cn, calcHotelFreeBeds, calcHotelTotalCost, isFreeBedToday, isFreeBedOnDay, addDays, highlightText } from '../lib/utils';
-import { type Theme, type Language } from '../lib/types';
+import { getHotels, signOut, deleteHotel, createHotel, syncOfflineQueue, hasQueuedOps } from './lib/supabase';
+import { cn, calcHotelFreeBeds, calcHotelTotalCost, isFreeBedToday, isFreeBedOnDay, addDays, highlightText } from './lib/utils';
+import { type Theme, type Language } from './lib/types';
 import { Plus, Building2, Check, X, Loader2, Filter, ArrowUpDown, Download } from 'lucide-react';
-import Header from './Header';
-import { Sidebar } from './Sidebar';
-import { HotelRow } from './HotelRow';
+import Header from './components/Header';
+import { Sidebar } from './components/Sidebar';
+import { HotelRow } from './components/HotelRow';
 
 interface DashboardProps { theme: Theme; lang: Language; toggleTheme: () => void; setLang: (l: Language) => void; }
 
