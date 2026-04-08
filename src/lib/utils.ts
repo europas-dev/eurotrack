@@ -149,3 +149,16 @@ export function addDays(base: string, days: number): string {
   d.setDate(d.getDate() + days);
   return d.toISOString().split('T')[0];
 }
+export function getDurationCostForMonth(hotel: any, year: number, month: number): number {
+  return hotel.durations
+    .filter((d: any) => {
+      if (!d.startDate && !d.endDate) return false;
+      const start = new Date(d.startDate);
+      const end = new Date(d.endDate);
+      return (
+        (start.getFullYear() === year && start.getMonth() === month) ||
+        (end.getFullYear() === year && end.getMonth() === month)
+      );
+    })
+    .reduce((sum: number, d: any) => sum + getDurationTotal(d), 0);
+}
