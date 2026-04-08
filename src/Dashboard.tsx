@@ -283,3 +283,66 @@ export default function Dashboard({ isDarkMode: dk, lang = 'de', selectedMonth, 
                 </div>
               </div>
             </div>
+                </div>
+        )}
+      </div>
+
+      {/* Sort + actions */}
+      <div className="flex items-center gap-2 ml-auto">
+        <select value={sortBy} onChange={e => setSortBy(e.target.value as SortBy)}
+          className={cn(inputBase, 'cursor-pointer')}>
+          <option value="name">{lang==='de'?'Name':'Name'}</option>
+          <option value="city">{lang==='de'?'Stadt':'City'}</option>
+          <option value="cost">{lang==='de'?'Kosten':'Cost'}</option>
+          <option value="nights">{lang==='de'?'Nächte':'Nights'}</option>
+        </select>
+        <button onClick={handleExport} className={btn}><Download size={13}/></button>
+        <div className={cn('flex items-center gap-1 text-[11px] font-semibold', si.color)}>
+          {si.icon}{si.label}
+        </div>
+        <button onClick={handleAddHotel}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shrink-0">
+          <Plus size={13}/>{lang==='de'?'Hotel':'Hotel'}
+        </button>
+      </div>
+    </div>
+
+    {/* ══ HOTEL LIST ══════════════════════════════════════════════════════ */}
+    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 size={24} className="animate-spin text-slate-400"/>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className={cn('text-center py-20 text-sm', dk?'text-slate-600':'text-slate-400')}>
+          {lang==='de'?'Keine Hotels gefunden':'No hotels found'}
+        </div>
+      ) : groupBy !== 'none' ? (
+        Object.entries(grouped).sort(([a],[b]) => a.localeCompare(b)).map(([group, items]) => (
+          <div key={group}>
+            <p className={cn('text-[10px] font-bold uppercase tracking-widest px-1 pb-1 pt-2',
+              dk?'text-slate-500':'text-slate-400')}>
+              {group} <span className="normal-case font-normal">({items.length})</span>
+            </p>
+            {items.map(h => (
+              <HotelRow key={h.id} hotel={h} isDarkMode={dk} lang={lang}
+                selectedMonth={selectedMonth} selectedYear={selectedYear}
+                onUpdate={handleHotelUpdate} onDelete={handleHotelDelete}
+                onDurationUpdate={handleDurUpdate} onDurationDelete={handleDurDelete}
+                onDurationCreate={handleDurCreate}/>
+            ))}
+          </div>
+        ))
+      ) : (
+        filtered.map(h => (
+          <HotelRow key={h.id} hotel={h} isDarkMode={dk} lang={lang}
+            selectedMonth={selectedMonth} selectedYear={selectedYear}
+            onUpdate={handleHotelUpdate} onDelete={handleHotelDelete}
+            onDurationUpdate={handleDurUpdate} onDurationDelete={handleDurDelete}
+            onDurationCreate={handleDurCreate}/>
+        ))
+      )}
+    </div>
+  </div>
+  );
+}
