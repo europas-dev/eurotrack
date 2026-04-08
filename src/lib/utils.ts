@@ -15,20 +15,26 @@ export function calculateNights(startDate?: string, endDate?: string) {
 export function formatDateDisplay(input?: string, lang: 'de' | 'en' = 'de') {
   if (!input) return '';
   const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return '';
   const day = String(d.getDate()).padStart(2, '0');
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const year = d.getFullYear();
-  if (lang === 'de') return `${day}/${month}/${year}`;
   return `${day}/${month}/${year}`;
 }
 
 export function formatDateShort(input?: string, lang: 'de' | 'en' = 'de') {
   if (!input) return '';
   const d = new Date(input);
-  return d.toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-  });
+  if (Number.isNaN(d.getTime())) return '';
+  const monthNamesDe = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+  const monthNamesEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const months = lang === 'de' ? monthNamesDe : monthNamesEn;
+  return `${d.getDate()} ${months[d.getMonth()]}`;
+}
+
+export function formatDateRangeShort(startDate?: string, endDate?: string, lang: 'de' | 'en' = 'de') {
+  if (!startDate || !endDate) return '';
+  return `${formatDateShort(startDate, lang)} - ${formatDateShort(endDate, lang)}`;
 }
 
 export function formatCurrency(amount: number) {
@@ -39,7 +45,10 @@ export function formatCurrency(amount: number) {
 }
 
 export function normalizeNumberInput(value: string | number) {
-  const num = Number(String(value ?? '').replace(/^0+(?=\d)/, ''));
+  const raw = String(value ?? '').trim();
+  if (!raw) return 0;
+  const cleaned = raw.replace(/^0+(?=\d)/, '');
+  const num = Number(cleaned);
   return Number.isFinite(num) ? num : 0;
 }
 
@@ -94,7 +103,9 @@ export function getDurationTotal(duration: any) {
 
   if (useManual && duration.startDate && duration.endDate) {
     const nightsList = getNightsBetween(duration.startDate, duration.endDate);
-    subtotal = nightsList.reduce((sum, night) => sum + Number(nightlyPrices[night] ?? base) * rooms, 0);
+    subtotal = nightsList.reduce((sum, night) => {
+      return sum + Number(nightlyPrices[night] ?? base) * rooms;
+    }, 0);
   } else {
     subtotal = nights * base * rooms;
   }
@@ -144,14 +155,20 @@ export function getDurationTabLabel(duration: any, lang: 'de' | 'en' = 'de') {
   const rooms = Math.max(1, duration.numberOfRooms || 1);
   const roomType = duration.roomType || 'DZ';
   const nights = calculateNights(duration.startDate, duration.endDate);
-  return `${rooms} 🛏 ${roomType} 🌙 ${nights}`;
+  const dateRange = formatDateRangeShort(duration.startDate, duration.endDate, lang);
+
+  if (!dateRange) return `${rooms} ${roomType} • ${nights}${lang === 'de' ? 'N' : 'N'}`;
+  return `${dateRange} • ${rooms} ${roomType} • ${nights}${lang === 'de' ? 'N' : 'N'}`;
 }
 
 export function getDurationRowLabel(duration: any, lang: 'de' | 'en' = 'de') {
   const rooms = Math.max(1, duration.numberOfRooms || 1);
   const roomType = duration.roomType || 'DZ';
   const nights = calculateNights(duration.startDate, duration.endDate);
-  return `${rooms} 🛏 ${roomType} 🌙 ${nights}`;
+  const dateRange = formatDateRangeShort(duration.startDate, duration.endDate, lang);
+
+  if (!dateRange) return `${rooms} ${roomType} • ${nights}${lang === 'de' ? 'N' : 'N'}`;
+  return `${dateRange} • ${rooms} ${roomType} • ${nights}${lang === 'de' ? 'N' : 'N'}`;
 }
 
 export function getDurationGapInfo(duration: any) {
