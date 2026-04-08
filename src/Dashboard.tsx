@@ -1,528 +1,476 @@
 // src/Dashboard.tsx
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Plus, Building2, Loader2 } from 'lucide-react';
 import {
-  ArrowDownAZ, ArrowUpAZ, ChevronDown, Download,
-  Filter, Loader2, LogOut, Plus, RefreshCw, Search, SlidersHorizontal, X
-} from 'lucide-react';
-import {
-  calcHotelFreeBeds, calcHotelTotalCost, cn,
-  durationTouchesMonth, exportToCSV, formatCurrency,
-  getDurationCostForMonth, hotelHasFreeOnDate,
-  getFreeBedFilterDate, sumGroupCost
-} from './lib/utils';
-import {
-  createHotel, deleteHotel, getHotels,
-  signOut, syncOfflineQueue
+  getHotels, signOut, deleteHotel, createHotel, syncOfflineQueue
 } from './lib/supabase';
 import { hasQueuedOps } from './lib/offlineQueue';
-import { HotelRow } from './components/HotelRow';
+import { cn, calcHotelFreeBeds, calcHotelTotalCost, calcHotelTotalNights,
+  durationTouchesMonth, exportToCSV, formatCurrency,
+  getDurationCostForMonth, hotelHasFreeOnDate, getFreeBedFilterDate,
+  sumGroupCost } from './lib/utils';
+import type { Theme, Language } from './lib/types';
+import Header from './components/Header';
 import Sidebar from './components/Sidebar';
+import { HotelRow } from './components/HotelRow';
 
 interface DashboardProps {
-  theme: 'dark' | 'light';
-  lang: 'de' | 'en';
+  theme: Theme;
+  lang: Language;
   toggleTheme: () => void;
-  setLang: (lang: 'de' | 'en') => void;
+  setLang: (l: Language) => void;
 }
 
-type SortKey = 'name' | 'city' | 'company' | 'cost' | 'nights' | 'freeBeds';
-type SortDir = 'asc' | 'desc';
+// ── Inline new hotel form (preserved from your original) ──────────────────────
+function NewHotelRow({ isDarkMode, lang, onSave, onCancel }: {
+  isDarkMode: boolean; lang: Language;
+  onSave: (hotel: any) => void; onCancel: () => void;
+}) {
+  const dk = isDarkMode;
+  const [name, setName]   = useState('');
+  const [city, setCity]   = useState('');
+  const [tag,  setTag]    = useState('');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr]     = useState('');
+  const nameRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => { nameRef.current?.focus(); }, []);
+
+  const canSave = name.trim().length > 0 && city.trim().length > 0 && tag.trim().length > 0;
+
+  const handleSave = async () => {
+    if (!canSave) return;
+    setErr('');
+    try {
+      setSaving(true);
+      const newHotel = await createHotel({ name: name.trim(), city: city.trim(), company: tag.trim() });
+      onSave({ ...newHotel, durations: [] });
+    } catch (e: any) {
+      setErr(e?.message || 'Failed to save');
+      setSaving(false);
+    }
+  };
+
+  const ic = cn(
+    'px-3 py-2 rounded-lg text-sm outline-none border transition-all',
+    dk ? 'bg-white/5 border-white/10 focus:border-blue-500 text-white placeholder-slate-600'
+       : 'bg-white border-slate-200 focus:border-blue-500 text-slate-900 placeholder-slate-400'
+  );
+
+  return (
+    <div className={cn('mb-2 rounded-xl border px-4 py-3 space-y-2', dk ? 'bg-[#0B1224] border-blue-500/40' : 'bg-white border-blue-400')}>
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="w-8 h-8 bg-blue-600/30 rounded-lg flex items-center justify-center flex-shrink-0">
+          <Building2 size={16} className="text-blue-400" />
+        </div>
+        <input ref={nameRef} type="text" value={name} onChange={e => setName(e.target.value)}
+          placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel name...'}
+          onKeyDown={e => e.key === 'Enter' && handleSave()}
+          className={cn(ic, 'w-52')} />
+        <input type="text" value={city} onChange={e => setCity(e.target.value)}
+          placeholder={lang === 'de' ? 'Stadt...' : 'City...'}
+          onKeyDown={e => e.key === 'Enter' && handleSave()}
+          className={cn(ic, 'w-36')} />
+        <input type="text" value={tag} onChange={e => setTag(e.target.value)}
+          placeholder="Company..."
+          onKeyDown={e => e.key === 'Enter' && handleSave()}
+          className={cn(ic, 'w-36')} />
+        <button onClick={handleSave} disabled={saving || !canSave}
+          className="p-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-lg transition-all flex-shrink-0">
+          {saving ? <Loader2 size={16} className="animate-spin" /> : (
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><polyline points="20 6 9 17 4 12"/></svg>
+          )}
+        </button>
+        <button onClick={onCancel}
+          className={cn('p-2 rounded-lg transition-all flex-shrink-0', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
+          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      {err && <p className="text-red-400 text-xs font-bold px-1">{err}</p>}
+      {!canSave && (name || city || tag) && (
+        <p className={cn('text-xs px-1', dk ? 'text-slate-500' : 'text-slate-400')}>
+          {lang === 'de' ? 'Alle 3 Felder ausfüllen, dann ↵ drücken' : 'Fill all 3 fields then press ↵'}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function Dashboard({ theme, lang, toggleTheme, setLang }: DashboardProps) {
   const dk = theme === 'dark';
 
-  // ── Data ──────────────────────────────────────────────────────────────────
-  const [hotels, setHotels]           = useState<any[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [creating, setCreating]       = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [hotels,          setHotels]          = useState<any[]>([]);
+  const [loading,         setLoading]         = useState(true);
+  const [error,           setError]           = useState('');
+  const [selectedYear,    setSelectedYear]    = useState(2026);
+  const [selectedMonth,   setSelectedMonth]   = useState<number | null>(null);
+  const [sidebarCollapsed,setSidebarCollapsed]= useState(false);
+  const [searchQuery,     setSearchQuery]     = useState('');
+  const [addingHotel,     setAddingHotel]     = useState(false);
+  const [showFilterMenu,  setShowFilterMenu]  = useState(false);
+  const [showSortMenu,    setShowSortMenu]    = useState(false);
+  const [filterPaid,      setFilterPaid]      = useState<'all' | 'paid' | 'unpaid'>('all');
+  const [filterFreeBeds,  setFilterFreeBeds]  = useState(false);
+  const [sortBy,          setSortBy]          = useState<'name' | 'cost' | 'nights' | 'city'>('name');
+  const [sortDir,         setSortDir]         = useState<'asc' | 'desc'>('asc');
+  const [offlinePending,  setOfflinePending]  = useState(hasQueuedOps());
 
-  // ── Month / year ──────────────────────────────────────────────────────────
-  const [selectedYear, setSelectedYear]   = useState(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(new Date().getMonth());
+  const monthNames = lang === 'de'
+    ? ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']
+    : ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-  // ── Toolbar state ─────────────────────────────────────────────────────────
-  const [search,        setSearch]        = useState('');
-  const [filterOpen,    setFilterOpen]    = useState(false);
-  const [sortKey,       setSortKey]       = useState<SortKey>('name');
-  const [sortDir,       setSortDir]       = useState<SortDir>('asc');
-  const [filterPaid,    setFilterPaid]    = useState<'all' | 'paid' | 'unpaid'>('all');
-  const [filterFreeBed, setFilterFreeBed] = useState<'all' | 'now' | 'in3' | 'in7'>('all');
-  const [filterCompany, setFilterCompany] = useState('');
-  const [filterCity,    setFilterCity]    = useState('');
-  const filterRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { loadHotels(); }, []);
 
-  // ── Load ──────────────────────────────────────────────────────────────────
-  async function load(silent = false) {
+  // Recheck offline queue every 5s
+  useEffect(() => {
+    const t = setInterval(() => setOfflinePending(hasQueuedOps()), 5000);
+    return () => clearInterval(t);
+  }, []);
+
+  async function loadHotels() {
     try {
-      if (!silent) setLoading(true);
+      setLoading(true); setError('');
       const data = await getHotels();
       setHotels(data);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    } catch (err: any) {
+      setError(err.message || 'Failed to load');
+    } finally { setLoading(false); }
   }
 
-  useEffect(() => { load(); }, []);
+  // ── Calc helpers (preserved from your original) ───────────────────────────
+  const calcCost    = (h: any) => h.durations?.reduce((s: number, d: any) => {
+    const n = Math.max(0, Math.ceil((new Date(d.endDate||0).getTime() - new Date(d.startDate||0).getTime()) / 86400000));
+    return s + n * (d.pricePerNightPerRoom || 0) * (d.numberOfRooms || 1);
+  }, 0) || 0;
+  const calcNights  = (h: any) => h.durations?.reduce((s: number, d: any) =>
+    s + Math.max(0, Math.ceil((new Date(d.endDate||0).getTime() - new Date(d.startDate||0).getTime()) / 86400000)), 0) || 0;
+  const calcFree    = (h: any) => h.durations?.reduce((s: number, d: any) =>
+    s + (d.employees || []).filter((e: any) => e === null).length, 0) || 0;
 
-  // Close filter dropdown on outside click
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (filterOpen && filterRef.current && !filterRef.current.contains(e.target as Node)) {
-        setFilterOpen(false);
+  // ── Export ────────────────────────────────────────────────────────────────
+  const handleExport = () => {
+    const rows = [
+      ['Hotel', 'City', 'Company', 'Bookings', 'Total Nights', 'Free Beds', 'Total Cost EUR'],
+      ...filtered.map(h => [
+        h.name, h.city, h.companyTag || h.company,
+        h.durations?.length,
+        calcNights(h), calcFree(h),
+        calcCost(h).toFixed(2)
+      ])
+    ];
+    const csv = rows.map(r => r.map((v: any) => v).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `eurotrack-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // ── Filtering + sorting ───────────────────────────────────────────────────
+  const filtered = useMemo(() => {
+    let list = hotels.filter(h => {
+      if (selectedMonth !== null) {
+        const touches = (h.durations || []).some((d: any) =>
+          durationTouchesMonth(d, selectedYear, selectedMonth));
+        if (!touches) return false;
       }
-    }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [filterOpen]);
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        if (!h.name?.toLowerCase().includes(q) &&
+            !h.city?.toLowerCase().includes(q) &&
+            !(h.companyTag || h.company)?.toLowerCase().includes(q)) return false;
+      }
+      if (filterFreeBeds && calcFree(h) === 0) return false;
+      if (filterPaid === 'paid'   && !h.durations?.every((d: any) => d.isPaid))  return false;
+      if (filterPaid === 'unpaid' &&  h.durations?.every((d: any) => d.isPaid))  return false;
+      return true;
+    });
+
+    return [...list].sort((a, b) => {
+      let va: any, vb: any;
+      if      (sortBy === 'name')   { va = a.name?.toLowerCase();  vb = b.name?.toLowerCase(); }
+      else if (sortBy === 'city')   { va = a.city?.toLowerCase();  vb = b.city?.toLowerCase(); }
+      else if (sortBy === 'cost')   { va = calcCost(a);            vb = calcCost(b); }
+      else                          { va = calcNights(a);          vb = calcNights(b); }
+      return (va < vb ? -1 : va > vb ? 1 : 0) * (sortDir === 'asc' ? 1 : -1);
+    });
+  }, [hotels, searchQuery, selectedYear, selectedMonth, filterFreeBeds, filterPaid, sortBy, sortDir]);
+
+  // ── Summary totals ────────────────────────────────────────────────────────
+  const totalSpend = useMemo(() =>
+    sumGroupCost(filtered, selectedYear, selectedMonth), [filtered, selectedYear, selectedMonth]);
+  const freeBeds   = useMemo(() => filtered.reduce((s, h) => s + calcFree(h), 0), [filtered]);
 
   // ── Derived options ───────────────────────────────────────────────────────
   const companyOptions = useMemo(() =>
-    [...new Set(hotels.map(h => h.company).filter(Boolean))].sort() as string[],
-    [hotels]);
-
+    [...new Set(hotels.map(h => h.companyTag || h.company).filter(Boolean))].sort() as string[], [hotels]);
   const cityOptions = useMemo(() =>
-    [...new Set(hotels.map(h => h.city).filter(Boolean))].sort() as string[],
-    [hotels]);
+    [...new Set(hotels.map(h => h.city).filter(Boolean))].sort() as string[], [hotels]);
 
-  // ── Filtering ─────────────────────────────────────────────────────────────
-  const filtered = useMemo(() => {
-    let list = [...hotels];
-
-    // Month filter
-    if (selectedMonth !== null) {
-      list = list.filter(h =>
-        (h.durations || []).some((d: any) => durationTouchesMonth(d, selectedYear, selectedMonth))
-      );
-    }
-
-    // Search
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(h =>
-        h.name?.toLowerCase().includes(q) ||
-        h.city?.toLowerCase().includes(q) ||
-        h.company?.toLowerCase().includes(q) ||
-        (h.durations || []).some((d: any) =>
-          d.bookingId?.toLowerCase().includes(q) ||
-          (d.employees || []).some((e: any) => e?.name?.toLowerCase().includes(q))
-        )
-      );
-    }
-
-    // Company filter
-    if (filterCompany) {
-      list = list.filter(h => h.company === filterCompany);
-    }
-
-    // City filter
-    if (filterCity) {
-      list = list.filter(h => h.city === filterCity);
-    }
-
-    // Paid filter
-    if (filterPaid !== 'all') {
-      list = list.filter(h =>
-        (h.durations || []).some((d: any) =>
-          filterPaid === 'paid' ? d.isPaid : !d.isPaid
-        )
-      );
-    }
-
-    // Free bed filter
-    if (filterFreeBed !== 'all') {
-      const targetDate = getFreeBedFilterDate(filterFreeBed as any);
-      list = list.filter(h => hotelHasFreeOnDate(h, targetDate));
-    }
-
-    // Sort
-    list.sort((a, b) => {
-      let av: any, bv: any;
-      switch (sortKey) {
-        case 'name':     av = a.name?.toLowerCase();   bv = b.name?.toLowerCase();   break;
-        case 'city':     av = a.city?.toLowerCase();   bv = b.city?.toLowerCase();   break;
-        case 'company':  av = a.company?.toLowerCase(); bv = b.company?.toLowerCase(); break;
-        case 'cost':     av = calcHotelTotalCost(a);   bv = calcHotelTotalCost(b);   break;
-        case 'nights':   av = a.durations?.reduce((s: number, d: any) => s + (d.numberOfRooms || 1), 0); bv = b.durations?.reduce((s: number, d: any) => s + (d.numberOfRooms || 1), 0); break;
-        case 'freeBeds': av = calcHotelFreeBeds(a);    bv = calcHotelFreeBeds(b);    break;
-        default:         av = ''; bv = '';
-      }
-      if (av === undefined || av === null) av = '';
-      if (bv === undefined || bv === null) bv = '';
-      const cmp = av < bv ? -1 : av > bv ? 1 : 0;
-      return sortDir === 'asc' ? cmp : -cmp;
-    });
-
-    return list;
-  }, [hotels, search, selectedYear, selectedMonth, filterCompany, filterCity, filterPaid, filterFreeBed, sortKey, sortDir]);
-
-  // ── Summary totals ────────────────────────────────────────────────────────
-  const totalHotels = filtered.length;
-
-  const totalFreeBeds = useMemo(() =>
-    filtered.reduce((s, h) => s + calcHotelFreeBeds(h), 0),
-    [filtered]);
-
-  const totalCost = useMemo(() =>
-    sumGroupCost(filtered, selectedYear, selectedMonth),
-    [filtered, selectedYear, selectedMonth]);
-
-  // ── Actions ───────────────────────────────────────────────────────────────
-  async function handleAddHotel() {
-    try {
-      setCreating(true);
-      const created = await createHotel({
-        name: lang === 'de' ? 'Neues Hotel' : 'New Hotel',
-        city: '', company: '',
-      });
-      setHotels(prev => [created, ...prev]);
-    } catch (e) {
-      console.error(e);
-      alert(lang === 'de' ? 'Hotel konnte nicht erstellt werden' : 'Could not create hotel');
-    } finally { setCreating(false); }
-  }
-
-  function handleUpdateHotel(id: string, updated: any) {
-    setHotels(prev => prev.map(h => h.id === id ? { ...h, ...updated } : h));
-  }
-
-  async function handleDeleteHotel(id: string) {
-    try {
-      await deleteHotel(id);
-      setHotels(prev => prev.filter(h => h.id !== id));
-    } catch (e) { console.error(e); }
-  }
-
-  function toggleSort(key: SortKey) {
-    if (sortKey === key) setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
-    else { setSortKey(key); setSortDir('asc'); }
-  }
-
-  function clearFilters() {
-    setSearch(''); setFilterCompany(''); setFilterCity('');
-    setFilterPaid('all'); setFilterFreeBed('all');
-    setSortKey('name'); setSortDir('asc');
-  }
-
-  const hasActiveFilters = search || filterCompany || filterCity ||
-    filterPaid !== 'all' || filterFreeBed !== 'all';
-
-  // ── Styles ────────────────────────────────────────────────────────────────
-  const inputCls = cn(
-    'px-3 py-2 rounded-lg text-sm outline-none border transition-all',
-    dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-500 focus:border-blue-500'
-       : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-400'
+  // ── Menu styles ───────────────────────────────────────────────────────────
+  const menuCls = cn(
+    'absolute top-full mt-1 right-0 z-50 rounded-xl border shadow-xl p-3 min-w-[200px] space-y-1',
+    dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200'
   );
-
-  const btnSecondary = cn(
-    'px-3 py-2 rounded-lg text-xs font-bold border flex items-center gap-1.5 whitespace-nowrap transition-all',
-    dk ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-700 hover:bg-slate-100'
+  const menuLabel = cn('text-[10px] font-bold uppercase tracking-widest mb-2 block px-1', dk ? 'text-slate-500' : 'text-slate-400');
+  const menuBtn   = (active: boolean) => cn(
+    'w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-all',
+    active ? 'bg-blue-600 text-white' : dk ? 'hover:bg-white/5 text-slate-300' : 'hover:bg-slate-100 text-slate-700'
   );
-
-  const pillCls = cn(
-    'px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap',
-    dk ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-700'
-  );
-
-  const activePillCls = 'bg-blue-600 text-white';
-
-  const monthLabel = selectedMonth !== null
-    ? (lang === 'de'
-      ? ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'][selectedMonth]
-      : ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][selectedMonth])
-    + ` ${selectedYear}`
-    : (lang === 'de' ? 'Alle Monate' : 'All months');
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className={cn('flex min-h-screen', dk ? 'bg-[#020617] text-white' : 'bg-slate-50 text-slate-900')}>
+    <div className={cn('min-h-screen flex', dk ? 'bg-[#020617]' : 'bg-slate-50')}>
 
-      {/* Sidebar */}
       <Sidebar
         theme={theme} lang={lang}
-        selectedYear={selectedYear} setSelectedYear={setSelectedYear}
+        selectedYear={selectedYear}   setSelectedYear={setSelectedYear}
         selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth}
-        collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        collapsed={sidebarCollapsed}  onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         hotels={hotels}
       />
 
-      {/* Main */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
 
-        {/* ── SINGLE TOOLBAR ROW ───────────────────────────────────────────── */}
-        <div className={cn(
-          'sticky top-0 z-40 border-b px-4 py-2.5 flex items-center gap-2 flex-wrap',
-          dk ? 'bg-[#020617]/95 border-white/10 backdrop-blur' : 'bg-white/95 border-slate-200 backdrop-blur'
-        )}>
+        {/* Header — your original with Share, Notifications, Settings */}
+        <Header
+          theme={theme} lang={lang}
+          toggleTheme={toggleTheme} setLang={setLang}
+          searchQuery={searchQuery}  setSearchQuery={setSearchQuery}
+          onExport={handleExport}
+          onSignOut={async () => { try { await signOut(); window.location.reload(); } catch(e) {} }}
+        />
 
-          {/* Summary pills */}
-          <div className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg border flex-shrink-0', dk ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-slate-50')}>
-            <span className={cn('text-[10px] uppercase font-bold tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')}>
-              {lang === 'de' ? 'Hotels' : 'Hotels'}
-            </span>
-            <span className="text-sm font-black text-blue-400">{totalHotels}</span>
-          </div>
+        {/* ── BIG STATS BAR ─────────────────────────────────────────────── */}
+        <div className={cn('px-8 py-4 border-b', dk ? 'bg-[#0F172A] border-white/5' : 'bg-white border-slate-200')}>
+          <div className="flex items-center gap-10">
+            {[
+              {
+                label: lang === 'de' ? 'Freie Betten' : 'Free Beds',
+                value: String(freeBeds),
+                cls: freeBeds > 0 ? 'text-red-400' : 'text-green-400',
+              },
+              {
+                label: lang === 'de' ? 'Gesamt' : 'Total Spent',
+                value: totalSpend.toLocaleString('de-DE', { minimumFractionDigits: 0 }),
+                cls: 'text-blue-400',
+                prefix: '€',
+              },
+              {
+                label: 'Hotels',
+                value: String(filtered.length),
+                cls: dk ? 'text-white' : 'text-slate-900',
+              },
+            ].map(({ label, value, cls, prefix }) => (
+              <div key={label}>
+                <p className={cn('text-[10px] font-bold uppercase tracking-widest mb-1', dk ? 'text-slate-500' : 'text-slate-400')}>
+                  {label}
+                </p>
+                <p className={cn('text-2xl font-black', cls)}>
+                  {prefix}{value}
+                </p>
+              </div>
+            ))}
 
-          <div className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg border flex-shrink-0', dk ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-slate-50')}>
-            <span className={cn('text-[10px] uppercase font-bold tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')}>
-              {lang === 'de' ? 'Frei' : 'Free'}
-            </span>
-            <span className={cn('text-sm font-black', totalFreeBeds > 0 ? 'text-amber-400' : 'text-green-400')}>{totalFreeBeds}</span>
-          </div>
-
-          <div className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg border flex-shrink-0', dk ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-slate-50')}>
-            <span className={cn('text-[10px] uppercase font-bold tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')}>
-              {lang === 'de' ? 'Kosten' : 'Cost'}
-            </span>
-            <span className="text-sm font-black text-green-400">{formatCurrency(totalCost)}</span>
-          </div>
-
-          {/* Divider */}
-          <div className={cn('w-px h-6 flex-shrink-0', dk ? 'bg-white/10' : 'bg-slate-200')} />
-
-          {/* Search */}
-          <div className="relative flex-shrink-0">
-            <Search size={13} className={cn('absolute left-2.5 top-1/2 -translate-y-1/2', dk ? 'text-slate-500' : 'text-slate-400')} />
-            <input
-              className={cn(inputCls, 'pl-8 w-48')}
-              placeholder={lang === 'de' ? 'Suchen...' : 'Search...'}
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-            {search && (
-              <button onClick={() => setSearch('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-400">
-                <X size={12} />
+            {/* Offline sync pill */}
+            {offlinePending && (
+              <button
+                onClick={async () => {
+                  await syncOfflineQueue();
+                  await loadHotels();
+                  setOfflinePending(hasQueuedOps());
+                }}
+                className="ml-4 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-all">
+                ⚡ {lang === 'de' ? 'Offline-Änderungen synchronisieren' : 'Sync offline changes'}
               </button>
             )}
           </div>
+        </div>
 
-          {/* Filter dropdown */}
-          <div className="relative flex-shrink-0" ref={filterRef}>
-            <button onClick={() => setFilterOpen(!filterOpen)}
-              className={cn(btnSecondary, hasActiveFilters && 'border-blue-500 text-blue-400')}>
-              <Filter size={13} />
-              {lang === 'de' ? 'Filter' : 'Filter'}
-              {hasActiveFilters && (
-                <span className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">!</span>
-              )}
-              <ChevronDown size={11} className={cn('transition-transform', filterOpen && 'rotate-180')} />
-            </button>
+        {/* ── TOOLBAR ───────────────────────────────────────────────────── */}
+        <main className="flex-1 p-6 overflow-y-auto">
+          <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
+            <h2 className={cn('text-xl font-black', dk ? 'text-white' : 'text-slate-900')}>
+              {selectedMonth === null ? 'Dashboard' : `${monthNames[selectedMonth]} ${selectedYear}`}
+            </h2>
 
-            {filterOpen && (
-              <div className={cn(
-                'absolute top-full left-0 mt-1 w-72 rounded-xl border shadow-xl p-3 space-y-3 z-50',
-                dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200'
-              )}>
-                {/* Company */}
-                <div>
-                  <label className={cn('text-[10px] font-bold uppercase tracking-widest mb-1 block', dk ? 'text-slate-400' : 'text-slate-500')}>
-                    {lang === 'de' ? 'Firma' : 'Company'}
-                  </label>
-                  <select value={filterCompany} onChange={e => setFilterCompany(e.target.value)}
-                    className={cn(inputCls, 'w-full')}>
-                    <option value="">{lang === 'de' ? 'Alle' : 'All'}</option>
-                    {companyOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
+            <div className="flex items-center gap-2">
 
-                {/* City */}
-                <div>
-                  <label className={cn('text-[10px] font-bold uppercase tracking-widest mb-1 block', dk ? 'text-slate-400' : 'text-slate-500')}>
-                    {lang === 'de' ? 'Stadt' : 'City'}
-                  </label>
-                  <select value={filterCity} onChange={e => setFilterCity(e.target.value)}
-                    className={cn(inputCls, 'w-full')}>
-                    <option value="">{lang === 'de' ? 'Alle' : 'All'}</option>
-                    {cityOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-
-                {/* Paid status */}
-                <div>
-                  <label className={cn('text-[10px] font-bold uppercase tracking-widest mb-1 block', dk ? 'text-slate-400' : 'text-slate-500')}>
-                    {lang === 'de' ? 'Zahlungsstatus' : 'Payment'}
-                  </label>
-                  <div className="flex gap-1">
+              {/* Filter */}
+              <div className="relative">
+                <button
+                  onClick={() => { setShowFilterMenu(!showFilterMenu); setShowSortMenu(false); }}
+                  className={cn(
+                    'px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all',
+                    filterPaid !== 'all' || filterFreeBeds
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-100'
+                  )}>
+                  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                  {lang === 'de' ? 'Filter' : 'Filter'}
+                  {(filterPaid !== 'all' || filterFreeBeds) && (
+                    <span className="bg-white/30 rounded-full w-4 h-4 text-[9px] flex items-center justify-center">
+                      {(filterPaid !== 'all' ? 1 : 0) + (filterFreeBeds ? 1 : 0)}
+                    </span>
+                  )}
+                </button>
+                {showFilterMenu && (
+                  <div className={menuCls}>
+                    <label className={menuLabel}>{lang === 'de' ? 'Zahlung' : 'Payment'}</label>
                     {(['all', 'paid', 'unpaid'] as const).map(v => (
-                      <button key={v} onClick={() => setFilterPaid(v)}
-                        className={cn('flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all',
-                          filterPaid === v ? activePillCls : dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}>
-                        {v === 'all' ? (lang === 'de' ? 'Alle' : 'All') : v === 'paid' ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Ausstehend' : 'Unpaid')}
+                      <button key={v} onClick={() => setFilterPaid(v)} className={menuBtn(filterPaid === v)}>
+                        {v === 'all'    ? (lang === 'de' ? 'Alle Hotels'        : 'All hotels') :
+                         v === 'paid'   ? (lang === 'de' ? 'Vollständig bezahlt': 'Fully paid') :
+                                          (lang === 'de' ? 'Unbezahlt'          : 'Has unpaid')}
                       </button>
                     ))}
+                    <div className={cn('border-t my-2', dk ? 'border-white/10' : 'border-slate-100')} />
+                    <button onClick={() => setFilterFreeBeds(!filterFreeBeds)} className={menuBtn(filterFreeBeds)}>
+                      {lang === 'de' ? 'Freie Betten' : 'Has free beds'}
+                    </button>
+                    <div className={cn('border-t my-2', dk ? 'border-white/10' : 'border-slate-100')} />
+                    <button
+                      onClick={() => { setFilterPaid('all'); setFilterFreeBeds(false); setShowFilterMenu(false); }}
+                      className={cn('w-full text-left px-3 py-1.5 rounded text-xs mt-1 transition-all', dk ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-600')}>
+                      {lang === 'de' ? 'Filter zurücksetzen' : 'Clear filters'}
+                    </button>
                   </div>
-                </div>
-
-                {/* Free beds */}
-                <div>
-                  <label className={cn('text-[10px] font-bold uppercase tracking-widest mb-1 block', dk ? 'text-slate-400' : 'text-slate-500')}>
-                    {lang === 'de' ? 'Freie Betten' : 'Free beds'}
-                  </label>
-                  <div className="flex gap-1">
-                    {(['all', 'now', 'in3', 'in7'] as const).map(v => (
-                      <button key={v} onClick={() => setFilterFreeBed(v)}
-                        className={cn('flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all',
-                          filterFreeBed === v ? activePillCls : dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}>
-                        {v === 'all' ? (lang === 'de' ? 'Alle' : 'All') : v === 'now' ? (lang === 'de' ? 'Jetzt' : 'Now') : v === 'in3' ? '+3d' : '+7d'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {hasActiveFilters && (
-                  <button onClick={clearFilters}
-                    className="w-full py-2 rounded-lg bg-red-600/10 text-red-400 hover:bg-red-600/20 border border-red-500/20 text-xs font-bold">
-                    {lang === 'de' ? 'Filter zurücksetzen' : 'Clear all filters'}
-                  </button>
                 )}
               </div>
-            )}
+
+              {/* Sort */}
+              <div className="relative">
+                <button
+                  onClick={() => { setShowSortMenu(!showSortMenu); setShowFilterMenu(false); }}
+                  className={cn('px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all',
+                    dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-100')}>
+                  <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+                  {lang === 'de' ? 'Sortieren' : 'Sort'}
+                  <span className={cn('text-[10px] font-normal', dk ? 'text-slate-500' : 'text-slate-400')}>
+                    {sortBy} {sortDir === 'asc' ? '↑' : '↓'}
+                  </span>
+                </button>
+                {showSortMenu && (
+                  <div className={menuCls}>
+                    <label className={menuLabel}>{lang === 'de' ? 'Sortieren nach' : 'Sort by'}</label>
+                    {(['name', 'Name'], ['city', 'City'], ['cost', 'Total Cost'], ['nights', 'Total Nights']).map(([v, label]) => (
+                      <button key={v} onClick={() => setSortBy(v as any)} className={menuBtn(sortBy === v)}>
+                        {label}
+                      </button>
+                    ))}
+                    <div className={cn('border-t my-2', dk ? 'border-white/10' : 'border-slate-100')} />
+                    <label className={menuLabel}>{lang === 'de' ? 'Richtung' : 'Direction'}</label>
+                    <div className="flex gap-2">
+                      <button onClick={() => setSortDir('asc')}  className={cn(menuBtn(sortDir === 'asc'),  'flex-1 text-center')}>Asc</button>
+                      <button onClick={() => setSortDir('desc')} className={cn(menuBtn(sortDir === 'desc'), 'flex-1 text-center')}>Desc</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Export */}
+              <button onClick={handleExport}
+                className={cn('px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all',
+                  dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-100')}>
+                <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                {lang === 'de' ? 'Export' : 'Export CSV'}
+              </button>
+
+              {/* Add Hotel */}
+              <button onClick={() => setAddingHotel(true)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl flex items-center gap-2 text-sm">
+                <Plus size={16} />
+                {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
+              </button>
+            </div>
           </div>
 
-          {/* Sort */}
-          <div className="relative flex-shrink-0">
-            <select
-              value={sortKey}
-              onChange={e => { setSortKey(e.target.value as SortKey); setSortDir('asc'); }}
-              className={cn(inputCls, 'appearance-none pr-8 cursor-pointer')}>
-              <option value="name">{lang === 'de' ? 'Name' : 'Name'}</option>
-              <option value="city">{lang === 'de' ? 'Stadt' : 'City'}</option>
-              <option value="company">{lang === 'de' ? 'Firma' : 'Company'}</option>
-              <option value="cost">{lang === 'de' ? 'Kosten' : 'Cost'}</option>
-              <option value="freeBeds">{lang === 'de' ? 'Freie Betten' : 'Free beds'}</option>
-            </select>
-            <button
-              onClick={() => setSortDir(p => p === 'asc' ? 'desc' : 'asc')}
-              className={cn('absolute right-2 top-1/2 -translate-y-1/2', dk ? 'text-slate-400' : 'text-slate-500')}>
-              {sortDir === 'asc' ? <ArrowDownAZ size={13} /> : <ArrowUpAZ size={13} />}
-            </button>
-          </div>
-
-          {/* Divider */}
-          <div className={cn('w-px h-6 flex-shrink-0', dk ? 'bg-white/10' : 'bg-slate-200')} />
-
-          {/* Month selector pill */}
-          <div className={cn('flex items-center gap-1 flex-shrink-0')}>
-            <button onClick={() => {
-              if (selectedMonth === null) { setSelectedMonth(11); }
-              else if (selectedMonth === 0) { setSelectedYear(y => y - 1); setSelectedMonth(11); }
-              else setSelectedMonth(m => m! - 1);
-            }} className={cn('p-1.5 rounded-lg', dk ? 'hover:bg-white/10' : 'hover:bg-slate-100')}>
-              ‹
-            </button>
-            <button onClick={() => setSelectedMonth(null)}
-              className={cn('px-3 py-1.5 rounded-lg text-xs font-bold border',
-                selectedMonth === null
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}>
-              {monthLabel}
-            </button>
-            <button onClick={() => {
-              if (selectedMonth === null) { setSelectedMonth(0); }
-              else if (selectedMonth === 11) { setSelectedYear(y => y + 1); setSelectedMonth(0); }
-              else setSelectedMonth(m => m! + 1);
-            }} className={cn('p-1.5 rounded-lg', dk ? 'hover:bg-white/10' : 'hover:bg-slate-100')}>
-              ›
-            </button>
-          </div>
-
-          {/* Divider */}
-          <div className={cn('w-px h-6 flex-shrink-0', dk ? 'bg-white/10' : 'bg-slate-200')} />
-
-          {/* Export */}
-          <button onClick={() => exportToCSV(filtered)}
-            className={cn(btnSecondary, 'flex-shrink-0')}>
-            <Download size={13} />
-            {lang === 'de' ? 'Export' : 'Export'}
-          </button>
-
-          {/* Sync */}
-          {hasQueuedOps() && (
-            <button onClick={() => syncOfflineQueue().then(() => load(true))}
-              className={cn(btnSecondary, 'flex-shrink-0 border-amber-500 text-amber-400 hover:bg-amber-500/10')}>
-              <RefreshCw size={13} />
-              {lang === 'de' ? 'Sync' : 'Sync'}
-            </button>
+          {/* Close dropdowns overlay */}
+          {(showFilterMenu || showSortMenu) && (
+            <div className="fixed inset-0 z-40"
+              onClick={() => { setShowFilterMenu(false); setShowSortMenu(false); }} />
           )}
 
-          {/* Add hotel — rightmost */}
-          <button onClick={handleAddHotel} disabled={creating}
-            className="ml-auto flex-shrink-0 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-50 transition-all">
-            {creating ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
-            {lang === 'de' ? 'Hotel' : 'Hotel'}
-          </button>
-
-          {/* Theme + lang + logout in header far right */}
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <button onClick={toggleTheme}
-              className={cn('p-2 rounded-lg text-xs font-bold', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-600')}>
-              {dk ? '☀️' : '🌙'}
-            </button>
-            <button onClick={() => setLang(lang === 'de' ? 'en' : 'de')}
-              className={cn('px-2.5 py-1.5 rounded-lg text-xs font-bold border', dk ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-700 hover:bg-slate-100')}>
-              {lang === 'de' ? 'EN' : 'DE'}
-            </button>
-            <button onClick={() => signOut().catch(console.error)}
-              className={cn('p-2 rounded-lg', dk ? 'hover:bg-white/10 text-slate-400 hover:text-red-400' : 'hover:bg-slate-100 text-slate-500 hover:text-red-500')}>
-              <LogOut size={14} />
-            </button>
-          </div>
-        </div>
-
-        {/* ── Hotel list ─────────────────────────────────────────────────── */}
-        <div className="flex-1 p-4 space-y-3">
+          {/* Loading */}
           {loading ? (
-            <div className="flex items-center justify-center py-24">
-              <Loader2 size={32} className="animate-spin text-blue-500" />
+            <div className="text-center py-20">
+              <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4" />
+              <p className={dk ? 'text-slate-400' : 'text-slate-600'}>Loading...</p>
             </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <p className={cn('text-2xl font-black mb-2', dk ? 'text-slate-600' : 'text-slate-300')}>
-                {hasActiveFilters
-                  ? (lang === 'de' ? 'Keine Treffer' : 'No matches')
-                  : (lang === 'de' ? 'Noch kein Hotel' : 'No hotels yet')}
-              </p>
-              <p className={cn('text-sm mb-4', dk ? 'text-slate-600' : 'text-slate-400')}>
-                {hasActiveFilters
-                  ? (lang === 'de' ? 'Filter anpassen oder zurücksetzen' : 'Adjust or clear your filters')
-                  : (lang === 'de' ? 'Klicke "+ Hotel" um zu starten' : 'Click "+ Hotel" to get started')}
-              </p>
-              {hasActiveFilters && (
-                <button onClick={clearFilters}
-                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold">
-                  {lang === 'de' ? 'Filter zurücksetzen' : 'Clear filters'}
-                </button>
-              )}
+          ) : error ? (
+            <div className="p-5 bg-red-600/10 border border-red-600/20 rounded-xl">
+              <p className="text-red-400 font-bold text-sm mb-1">Error</p>
+              <p className={cn('text-sm', dk ? 'text-slate-400' : 'text-slate-600')}>{error}</p>
+              <button onClick={loadHotels} className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-sm">Retry</button>
             </div>
           ) : (
-            filtered.map(hotel => (
-              <HotelRow
-                key={hotel.id}
-                entry={hotel}
-                isDarkMode={dk}
-                lang={lang}
-                companyOptions={companyOptions}
-                cityOptions={cityOptions}
-                onDelete={handleDeleteHotel}
-                onUpdate={handleUpdateHotel}
-                onAddBelow={async (afterId) => {
-                  try {
-                    const created = await createHotel({
-                      name: lang === 'de' ? 'Neues Hotel' : 'New Hotel',
-                      city: '', company: '',
-                    });
-                    setHotels(prev => {
-                      const idx = prev.findIndex(h => h.id === afterId);
-                      const next = [...prev];
-                      next.splice(idx + 1, 0, created);
-                      return next;
-                    });
-                  } catch (e) { console.error(e); }
-                }}
-              />
-            ))
+            <div className="space-y-2">
+
+              {/* Inline add hotel form */}
+              {addingHotel && (
+                <NewHotelRow
+                  isDarkMode={dk} lang={lang}
+                  onSave={h => { setHotels(p => [h, ...p]); setAddingHotel(false); }}
+                  onCancel={() => setAddingHotel(false)}
+                />
+              )}
+
+              {/* Empty state */}
+              {filtered.length === 0 && !addingHotel && (
+                <div className={cn('text-center py-20 rounded-2xl border-2 border-dashed', dk ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}>
+                  <div className={cn('w-16 h-16 rounded-full mx-auto mb-5 flex items-center justify-center', dk ? 'bg-blue-600/20' : 'bg-blue-100')}>
+                    <Building2 size={32} className="text-blue-500" />
+                  </div>
+                  <h3 className={cn('text-xl font-bold mb-2', dk ? 'text-white' : 'text-slate-900')}>
+                    {lang === 'de' ? 'Noch keine Hotels' : 'No Hotels Yet'}
+                  </h3>
+                  <p className={cn('text-sm mb-6', dk ? 'text-slate-500' : 'text-slate-400')}>
+                    {lang === 'de' ? 'Klicken Sie auf „Hotel hinzufügen"' : 'Click "Add Hotel" to get started'}
+                  </p>
+                  <button onClick={() => setAddingHotel(true)}
+                    className="px-7 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl inline-flex items-center gap-2 text-sm">
+                    <Plus size={18} />
+                    {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
+                  </button>
+                </div>
+              )}
+
+              {/* Hotel list */}
+              {filtered.map(hotel => (
+                <HotelRow
+                  key={hotel.id}
+                  entry={hotel}
+                  isDarkMode={dk}
+                  lang={lang}
+                  companyOptions={companyOptions}
+                  cityOptions={cityOptions}
+                  onDelete={async id => {
+                    try { await deleteHotel(id); setHotels(p => p.filter(h => h.id !== id)); }
+                    catch(e) { console.error(e); }
+                  }}
+                  onUpdate={(id, u) => setHotels(p => p.map(h => h.id === id ? { ...h, ...u } : h))}
+                  onAddBelow={async afterId => {
+                    try {
+                      const created = await createHotel({
+                        name: lang === 'de' ? 'Neues Hotel' : 'New Hotel',
+                        city: '', company: '',
+                      });
+                      setHotels(prev => {
+                        const idx = prev.findIndex(h => h.id === afterId);
+                        const next = [...prev];
+                        next.splice(idx + 1, 0, { ...created, durations: [] });
+                        return next;
+                      });
+                    } catch(e) { console.error(e); }
+                  }}
+                />
+              ))}
+            </div>
           )}
-        </div>
+        </main>
       </div>
     </div>
   );
