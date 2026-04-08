@@ -4,7 +4,7 @@ import { cn, calcHotelFreeBeds, calcHotelTotalCost, isFreeBedToday, isFreeBedOnD
 import { type Theme, type Language } from './lib/types';
 import { Plus, Building2, Check, X, Loader2, Filter, ArrowUpDown, Download } from 'lucide-react';
 import Header from './components/Header';
-import { Sidebar } from './components/Sidebar';
+import Sidebar from './components/Sidebar';
 import { HotelRow } from './components/HotelRow';
 
 interface DashboardProps { theme: Theme; lang: Language; toggleTheme: () => void; setLang: (l: Language) => void; }
