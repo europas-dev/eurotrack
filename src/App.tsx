@@ -142,11 +142,13 @@ export default function App() {
       {view === 'auth' && (
         <Auth onBack={() => setView('landing')} lang={lang} theme={theme} />
       )}
-      {view === 'dashboard' && (
-        <Dashboard theme={theme} lang={lang}
-          toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
-          setLang={setLang} />
-      )}
+{view === 'dashboard' && (
+  <ErrorBoundary>
+    <Dashboard theme={theme} lang={lang}
+      toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
+      setLang={setLang} />
+  </ErrorBoundary>
+)}
     </>
   );
 }
