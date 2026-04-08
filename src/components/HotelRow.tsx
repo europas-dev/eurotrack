@@ -7,31 +7,29 @@ import { offlineSync } from '../lib/offlineSync';
 import DurationCard from './DurationCard';
 
 interface HotelRowProps {
-  hotel: any;
+  entry: any;
   isDarkMode: boolean;
   lang?: 'de' | 'en';
-  selectedMonth: number;
-  selectedYear: number;
-  onUpdate: (id: string, updated: any) => void;
+  companyOptions?: string[];
+  cityOptions?: string[];
   onDelete: (id: string) => void;
-  onDurationUpdate: (hotelId: string, durationId: string, data: any) => void;
-  onDurationDelete: (hotelId: string, durationId: string) => void;
-  onDurationCreate: (hotelId: string, duration: any) => void;
+  onUpdate: (id: string, updated: any) => void;
+  onAddBelow?: (afterHotelId: string) => void;
 }
 
-export default function HotelRow({
-  hotel,
+export function HotelRow({
+  entry,
   isDarkMode,
   lang = 'de',
-  onUpdate,
+  companyOptions = [],
+  cityOptions = [],
   onDelete,
-  onDurationUpdate,
-  onDurationDelete,
-  onDurationCreate,
+  onUpdate,
+  onAddBelow,
 }: HotelRowProps) {
   const dk = isDarkMode;
   const [open, setOpen]                           = useState(false);
-  const [localHotel, setLocalHotel]               = useState(hotel);
+  const [localHotel, setLocalHotel]               = useState(entry);
   const [saving, setSaving]                       = useState(false);
   const [creatingDuration, setCreatingDuration]   = useState(false);
   const [confirmDelete, setConfirmDelete]         = useState(false);
@@ -95,7 +93,6 @@ export default function HotelRow({
       const next = { ...localHotel, durations: nextDurations };
       setLocalHotel(next);
       onUpdate(localHotel.id, next);
-      onDurationCreate(localHotel.id, dur);
       setOpen(true);
       setActiveDurationTab(nextDurations.length - 1);
     } catch (e) {
@@ -106,7 +103,8 @@ export default function HotelRow({
   }
 
   const employeePillClass = (emp: any) => {
-    const status = getEmployeeStatus(emp?.checkIn, emp?.checkOut);
+    const today = new Date().toISOString().split('T')[0];
+    const status = getEmployeeStatus(emp, today);
     if (status === 'ending-soon') return dk ? 'border-red-500 text-red-300 bg-red-500/10'      : 'border-red-300 text-red-700 bg-red-50';
     if (status === 'completed')   return dk ? 'border-green-500 text-green-300 bg-green-500/10' : 'border-green-300 text-green-700 bg-green-50';
     if (status === 'upcoming')    return dk ? 'border-blue-500 text-blue-300 bg-blue-500/10'    : 'border-blue-300 text-blue-700 bg-blue-50';
@@ -194,8 +192,10 @@ export default function HotelRow({
           <div className={cn('border-t p-4 space-y-4', dk?'border-white/10 bg-white/[0.02]':'border-slate-200 bg-slate-50/50')}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <input className={inputCls} value={localHotel.name||''} onChange={e=>patchHotel({name:e.target.value})} placeholder={lang==='de'?'Hotelname...':'Hotel name...'}/>
-              <input className={inputCls} value={localHotel.city||''} onChange={e=>patchHotel({city:e.target.value})} placeholder={lang==='de'?'Stadt...':'City...'}/>
-              <input className={inputCls} value={localHotel.companyTag||''} onChange={e=>patchHotel({companyTag:e.target.value})} placeholder={lang==='de'?'Firma...':'Company...'}/>
+              <input list={`city-list-${localHotel.id}`} className={inputCls} value={localHotel.city||''} onChange={e=>patchHotel({city:e.target.value})} placeholder={lang==='de'?'Stadt...':'City...'}/>
+              <datalist id={`city-list-${localHotel.id}`}>{cityOptions.map(x=><option key={x} value={x}/>)}</datalist>
+              <input list={`company-list-${localHotel.id}`} className={inputCls} value={localHotel.companyTag||''} onChange={e=>patchHotel({companyTag:e.target.value})} placeholder={lang==='de'?'Firma...':'Company...'}/>
+              <datalist id={`company-list-${localHotel.id}`}>{companyOptions.map(x=><option key={x} value={x}/>)}</datalist>
               <input className={inputCls} value={localHotel.address||''} onChange={e=>patchHotel({address:e.target.value})} placeholder={lang==='de'?'Adresse...':'Address...'}/>
               <input className={inputCls} value={localHotel.contact||''} onChange={e=>patchHotel({contact:e.target.value})} placeholder={lang==='de'?'Telefon...':'Phone...'}/>
               <input className={inputCls} value={localHotel.email||''} onChange={e=>patchHotel({email:e.target.value})} placeholder="Email..."/>
@@ -223,21 +223,19 @@ export default function HotelRow({
 
             {(localHotel.durations || []).filter(Boolean).length > 0 ? (
               <DurationCard
-                duration={(localHotel.durations || []).filter(Boolean)[activeDurationTab]}
+                duration={(localHotel.durations||[]).filter(Boolean)[activeDurationTab]}
                 isDarkMode={dk}
                 lang={lang}
                 onUpdate={(id: string, updated: any) => {
                   const next = { ...localHotel, durations: (localHotel.durations||[]).map((d:any) => d?.id===id ? updated : d) };
                   setLocalHotel(next);
                   onUpdate(localHotel.id, next);
-                  onDurationUpdate(localHotel.id, id, updated);
                 }}
                 onDelete={(durationId: string) => {
                   const nextDurations = (localHotel.durations||[]).filter((d:any) => d?.id!==durationId);
                   const next = { ...localHotel, durations: nextDurations };
                   setLocalHotel(next);
                   onUpdate(localHotel.id, next);
-                  onDurationDelete(localHotel.id, durationId);
                   setActiveDurationTab(prev => Math.max(0, Math.min(prev, nextDurations.length-1)));
                 }}
               />
@@ -251,6 +249,16 @@ export default function HotelRow({
           </div>
         )}
       </div>
+
+      {onAddBelow && (
+        <div className="flex justify-center">
+          <button onClick={() => onAddBelow(localHotel.id)}
+            className={cn('px-3 py-1 rounded-full text-[11px] flex items-center gap-1 transition-all',
+              dk?'text-slate-500 hover:text-blue-400':'text-slate-400 hover:text-blue-500')}>
+            <Plus size={11}/>{lang==='de'?'Hotel darunter hinzufügen':'Add hotel below'}
+          </button>
+        </div>
+      )}
 
       {confirmDelete && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4">
