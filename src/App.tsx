@@ -23,29 +23,6 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {error:
   }
 }
 
-import React, { useEffect, useState } from 'react';
-import { supabase } from './lib/supabase';
-import { offlineSync } from './lib/offlineSync';
-import Landing from './components/Landing';
-import Auth from './components/Auth';
-import Dashboard from './Dashboard';
-
-// ← ADD THIS BLOCK HERE
-class ErrorBoundary extends React.Component<{children: React.ReactNode}, {error: string}> {
-  state = { error: '' };
-  componentDidCatch(e: Error) { this.setState({ error: e.message }); }
-  render() {
-    if (this.state.error) return (
-      <div style={{color:'red',padding:20,fontFamily:'monospace',whiteSpace:'pre-wrap'}}>
-        CRASH: {this.state.error}
-      </div>
-    );
-    return this.props.children;
-  }
-}
-
-export default function App() {
-
 export default function App() {
   const [view, setView]                       = useState<View>('landing');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -63,7 +40,6 @@ export default function App() {
       setView(session ? 'dashboard' : 'landing');
     });
 
-    // Subscribe to offlineSync status updates
     const unsub = offlineSync.subscribe((status) => {
       if (status === 'offline') {
         setOfflineBanner(true);
@@ -78,8 +54,6 @@ export default function App() {
       } else if (status === 'failed') {
         setSyncMsg('⚠ Some changes failed to sync');
         setTimeout(() => setSyncMsg(''), 4000);
-      } else if (status === 'pending') {
-        setOfflineBanner(false);
       }
     });
 
@@ -116,7 +90,6 @@ export default function App() {
 
   return (
     <>
-      {/* Offline banner */}
       {offlineBanner && (
         <div className="fixed top-0 left-0 right-0 z-[100] bg-amber-500 text-black text-xs font-bold text-center py-1.5 px-4">
           📡 {lang === 'de'
@@ -125,7 +98,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Sync message */}
       {syncMsg && (
         <div className={`fixed top-0 left-0 right-0 z-[100] text-white text-xs font-bold text-center py-1.5 px-4 ${
           syncMsg.startsWith('⚠') ? 'bg-amber-600' : 'bg-green-600'
@@ -142,13 +114,13 @@ export default function App() {
       {view === 'auth' && (
         <Auth onBack={() => setView('landing')} lang={lang} theme={theme} />
       )}
-{view === 'dashboard' && (
-  <ErrorBoundary>
-    <Dashboard theme={theme} lang={lang}
-      toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
-      setLang={setLang} />
-  </ErrorBoundary>
-)}
+      {view === 'dashboard' && (
+        <ErrorBoundary>
+          <Dashboard theme={theme} lang={lang}
+            toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
+            setLang={setLang} />
+        </ErrorBoundary>
+      )}
     </>
   );
 }
