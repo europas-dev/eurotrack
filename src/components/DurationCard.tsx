@@ -1,6 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, Loader2, Tag, Trash2, Minus, Plus } from 'lucide-react';
-import { cn, calculateNights, formatCurrency, getDurationGapInfo, getDurationTotal, getNightsBetween, getTotalBeds, normalizeNumberInput } from '../lib/utils';
+import {
+  cn,
+  calculateNights,
+  formatCurrency,
+  formatDateDisplay,
+  getDurationGapInfo,
+  getDurationTotal,
+  getNightsBetween,
+  getTotalBeds,
+  normalizeNumberInput,
+} from '../lib/utils';
 import { deleteDuration, updateDuration } from '../lib/supabase';
 import EmployeeSlot from './EmployeeSlot';
 
@@ -89,10 +99,24 @@ export default function DurationCard({
       dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200'
     )}>
       <div className="flex items-center gap-3 flex-wrap">
-        <input type="date" value={local.startDate || ''} onChange={e => patch({ startDate: e.target.value })} className={cn(inputCls, 'w-40')} />
-        <input type="date" value={local.endDate || ''} onChange={e => patch({ endDate: e.target.value })} className={cn(inputCls, 'w-40')} />
+        <input
+          type="date"
+          value={local.startDate || ''}
+          onChange={e => patch({ startDate: e.target.value })}
+          className={cn(inputCls, 'w-40')}
+        />
+        <input
+          type="date"
+          value={local.endDate || ''}
+          onChange={e => patch({ endDate: e.target.value })}
+          className={cn(inputCls, 'w-40')}
+        />
 
-        <select value={local.roomType || 'DZ'} onChange={e => patch({ roomType: e.target.value })} className={cn(inputCls, 'w-24')}>
+        <select
+          value={local.roomType || 'DZ'}
+          onChange={e => patch({ roomType: e.target.value })}
+          className={cn(inputCls, 'w-24')}
+        >
           <option value="EZ">EZ</option>
           <option value="DZ">DZ</option>
           <option value="TZ">TZ</option>
@@ -146,6 +170,18 @@ export default function DurationCard({
         </div>
       </div>
 
+      <div className={cn(
+        'rounded-xl border px-3 py-2 flex items-center justify-between text-xs',
+        dk ? 'bg-white/5 border-white/10 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+      )}>
+        <span>
+          {lang === 'de' ? 'Check-in:' : 'Check-in:'} {formatDateDisplay(local.startDate, lang) || '--/--/----'}
+        </span>
+        <span>
+          {lang === 'de' ? 'Check-out:' : 'Check-out:'} {formatDateDisplay(local.endDate, lang) || '--/--/----'}
+        </span>
+      </div>
+
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <label className={cn('text-xs font-bold uppercase tracking-widest', dk ? 'text-slate-400' : 'text-slate-500')}>
@@ -184,11 +220,21 @@ export default function DurationCard({
 
         {local.hasDiscount && (
           <>
-            <select value={local.discountType || 'percentage'} onChange={e => patch({ discountType: e.target.value })} className={cn(inputCls, 'w-28')}>
+            <select
+              value={local.discountType || 'percentage'}
+              onChange={e => patch({ discountType: e.target.value })}
+              className={cn(inputCls, 'w-28')}
+            >
               <option value="percentage">%</option>
               <option value="fixed">€ fix</option>
             </select>
-            <input type="number" min={0} value={local.discountValue || 0} onChange={e => patch({ discountValue: normalizeNumberInput(e.target.value) })} className={cn(inputCls, 'w-24')} />
+            <input
+              type="number"
+              min={0}
+              value={local.discountValue || 0}
+              onChange={e => patch({ discountValue: normalizeNumberInput(e.target.value) })}
+              className={cn(inputCls, 'w-24')}
+            />
           </>
         )}
 
@@ -230,7 +276,7 @@ export default function DurationCard({
             {allNights.map((night) => (
               <div key={night} className={cn('rounded-lg border p-2', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
                 <p className={cn('text-[11px] font-bold mb-1', dk ? 'text-slate-300' : 'text-slate-700')}>
-                  {night.split('-').reverse().join('/')}
+                  {formatDateDisplay(night, lang)}
                 </p>
 
                 {local.useManualPrices ? (
@@ -316,10 +362,16 @@ export default function DurationCard({
               {lang === 'de' ? 'Diese Buchungsdauer wird dauerhaft gelöscht.' : 'This duration will be deleted permanently.'}
             </p>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setConfirmDelete(false)} className={cn('px-4 py-2 rounded-lg border text-sm font-bold', dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className={cn('px-4 py-2 rounded-lg border text-sm font-bold', dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}
+              >
                 {lang === 'de' ? 'Abbrechen' : 'Cancel'}
               </button>
-              <button onClick={handleDelete} className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold">
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold"
+              >
                 {lang === 'de' ? 'Löschen' : 'Delete'}
               </button>
             </div>
