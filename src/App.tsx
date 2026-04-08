@@ -10,6 +10,19 @@ type View = 'landing' | 'auth' | 'dashboard';
 type Theme = 'dark' | 'light';
 type Language = 'de' | 'en';
 
+class ErrorBoundary extends React.Component<{children: React.ReactNode}, {error: string}> {
+  state = { error: '' };
+  componentDidCatch(e: Error) { this.setState({ error: e.message }); }
+  render() {
+    if (this.state.error) return (
+      <div style={{color:'red',padding:20,fontFamily:'monospace',whiteSpace:'pre-wrap'}}>
+        CRASH: {this.state.error}
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
 export default function App() {
   const [view, setView]                       = useState<View>('landing');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
