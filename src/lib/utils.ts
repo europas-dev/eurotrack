@@ -165,6 +165,36 @@ export function getDurationTabLabel(d: any, lang: 'de' | 'en' = 'de'): string {
   return getDurationRowLabel(d, lang);
 }
 
+export function durationTouchesMonth(d: any, year: number, month: number): boolean {
+  if (!d?.startDate || !d?.endDate) return false;
+  const ms = `${year}-${String(month).padStart(2,'0')}-01`;
+  const me = `${year}-${String(month).padStart(2,'0')}-${String(new Date(year, month, 0).getDate()).padStart(2,'0')}`;
+  return d.startDate <= me && d.endDate >= ms;
+}
+
+export function getDurationCostForMonth(d: any, year: number, month: number): number {
+  return getDurationTotal(d);
+}
+
+export function getFreeBedFilterDate(mode: string, customDate?: string): string {
+  const today = new Date();
+  if (mode === 'now')    return today.toISOString().split('T')[0];
+  if (mode === 'in3')    return new Date(today.getTime() + 3*86400000).toISOString().split('T')[0];
+  if (mode === 'in7')    return new Date(today.getTime() + 7*86400000).toISOString().split('T')[0];
+  if (mode === 'custom') return customDate || today.toISOString().split('T')[0];
+  return today.toISOString().split('T')[0];
+}
+
+export function hotelHasFreeOnDate(hotel: any, date: string): boolean {
+  return getHotelFreeBeds(hotel, date) > 0;
+}
+
+export function sumGroupCost(hotels: any[], year: number, month: number | null): number {
+  return hotels.reduce((sum, h) => {
+    return sum + (h.durations || []).reduce((s: number, d: any) => s + getDurationTotal(d), 0);
+  }, 0);
+}
+
 // ─── GAP DETECTION ────────────────────────────────────────────────────────────
 export function getDurationGapInfo(d: Duration) {
   const totalBeds = getTotalBeds(d.roomType, d.numberOfRooms, d.wgBeds);
