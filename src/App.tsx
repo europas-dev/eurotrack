@@ -23,6 +23,29 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {error:
   }
 }
 
+import React, { useEffect, useState } from 'react';
+import { supabase } from './lib/supabase';
+import { offlineSync } from './lib/offlineSync';
+import Landing from './components/Landing';
+import Auth from './components/Auth';
+import Dashboard from './Dashboard';
+
+// ← ADD THIS BLOCK HERE
+class ErrorBoundary extends React.Component<{children: React.ReactNode}, {error: string}> {
+  state = { error: '' };
+  componentDidCatch(e: Error) { this.setState({ error: e.message }); }
+  render() {
+    if (this.state.error) return (
+      <div style={{color:'red',padding:20,fontFamily:'monospace',whiteSpace:'pre-wrap'}}>
+        CRASH: {this.state.error}
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
+export default function App() {
+
 export default function App() {
   const [view, setView]                       = useState<View>('landing');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
