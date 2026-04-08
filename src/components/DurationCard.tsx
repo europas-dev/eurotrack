@@ -23,6 +23,10 @@ export default function DurationCard({ duration, isDarkMode, lang = 'de', onUpda
 
   useEffect(() => { setLocal(duration); }, [duration.id]);
 
+  if (!local) return null;
+const nights    = calculateNights(local.startDate ?? '', local.endDate ?? '');
+const allNights = useMemo(() => getNightsBetween(local.startDate ?? '', local.endDate ?? ''), [local.startDate, local.endDate]);
+
   const totalBeds = getTotalBeds(local.roomType as RoomType, local.numberOfRooms, local.wgBeds);
   const nights = calculateNights(local.startDate, local.endDate);
   const allNights = useMemo(() => getNightsBetween(local.startDate, local.endDate), [local.startDate, local.endDate]);
