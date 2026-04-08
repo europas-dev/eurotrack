@@ -270,20 +270,41 @@ export default function DurationCard({ duration, isDarkMode, lang = 'de', onUpda
         </div>
       </div>
 
-      {/* ── Delete confirm modal ── */}
+           {/* ── Delete confirm modal ── */}
       {confirmDelete && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4">
-          <div className={cn('w-full max-w-md rounded-2xl border p-5', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
-            <h3 className="text-lg font-black mb-2">{lang === 'de' ? 'Dauer löschen?' : 'Delete duration?'}</h3>
+          <div className={cn(
+            'w-full max-w-md rounded-2xl border p-5',
+            dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+          )}>
+            <h3 className="text-lg font-black mb-2">
+              {lang === 'de' ? 'Dauer löschen?' : 'Delete duration?'}
+            </h3>
             <p className={cn('text-sm mb-4', dk ? 'text-slate-400' : 'text-slate-600')}>
-              {lang === 'de' ? 'Diese Buchungsdauer wird dauerhaft gelöscht.' : 'This duration will be permanently deleted.'}
+              {lang === 'de'
+                ? 'Diese Buchungsdauer wird dauerhaft gelöscht.'
+                : 'This duration will be permanently deleted.'}
             </p>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setConfirmDelete(false)}
-                className={cn('px-4 py-2 rounded-lg border text-sm font-bold',
-                  dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className={cn(
+                  'px-4 py-2 rounded-lg border text-sm font-bold',
+                  dk
+                    ? 'border-white/10 text-slate-300 hover:bg-white/5'
+                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                )}>
                 {lang === 'de' ? 'Abbrechen' : 'Cancel'}
               </button>
-              <button onClick={handleDelete}
+              <button
+                onClick={handleDelete}
                 className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold">
-                {lang === 'de' 
+                {lang === 'de' ? 'Löschen' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
