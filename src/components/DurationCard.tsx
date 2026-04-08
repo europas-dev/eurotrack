@@ -1,5 +1,6 @@
+// src/components/DurationCard.tsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDays, Loader2, Tag, Trash2, Minus, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { CalendarDays, Loader2, Tag, Trash2, Minus, Plus } from 'lucide-react';
 import { cn, calculateNights, formatCurrency, getDurationGapInfo, getDurationTotal, getNightsBetween, getTotalBeds, normalizeNumberInput } from '../lib/utils';
 import { deleteDuration, updateDuration } from '../lib/supabase';
 import { EmployeeSlot } from './EmployeeSlot';
@@ -24,16 +25,13 @@ export default function DurationCard({ duration, isDarkMode, lang = 'de', onUpda
   useEffect(() => { setLocal(duration); }, [duration.id]);
 
   if (!local) return null;
-const nights    = calculateNights(local.startDate ?? '', local.endDate ?? '');
-const allNights = useMemo(() => getNightsBetween(local.startDate ?? '', local.endDate ?? ''), [local.startDate, local.endDate]);
 
-  const totalBeds = getTotalBeds(local.roomType as RoomType, local.numberOfRooms, local.wgBeds);
-  const nights = calculateNights(local.startDate, local.endDate);
-  const allNights = useMemo(() => getNightsBetween(local.startDate, local.endDate), [local.startDate, local.endDate]);
-  const gaps = getDurationGapInfo(local);
-  const total = getDurationTotal(local);
+  const totalBeds  = getTotalBeds(local.roomType as RoomType, local.numberOfRooms, local.wgBeds);
+  const nights     = calculateNights(local.startDate ?? '', local.endDate ?? '');
+  const allNights  = useMemo(() => getNightsBetween(local.startDate ?? '', local.endDate ?? ''), [local.startDate, local.endDate]);
+  const gaps       = getDurationGapInfo(local);
+  const total      = getDurationTotal(local);
 
-  // Brutto/Netto/MwSt logic - never fake Netto from Brutto alone
   const computedBrutto = local.nettoPrice != null && local.mwst != null
     ? local.nettoPrice * (1 + local.mwst / 100) : null;
   const computedNetto = local.bruttoPrice != null && local.mwst != null
@@ -87,11 +85,11 @@ const allNights = useMemo(() => getNightsBetween(local.startDate ?? '', local.en
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex flex-col gap-0.5">
           <label className={labelCls}>{lang === 'de' ? 'Von' : 'From'}</label>
-          <input type="date" value={local.startDate} onChange={e => patch({ startDate: e.target.value })} className={cn(inputCls, 'w-40')} />
+          <input type="date" value={local.startDate ?? ''} onChange={e => patch({ startDate: e.target.value })} className={cn(inputCls, 'w-40')} />
         </div>
         <div className="flex flex-col gap-0.5">
           <label className={labelCls}>{lang === 'de' ? 'Bis' : 'To'}</label>
-          <input type="date" value={local.endDate} onChange={e => patch({ endDate: e.target.value })} className={cn(inputCls, 'w-40')} />
+          <input type="date" value={local.endDate ?? ''} onChange={e => patch({ endDate: e.target.value })} className={cn(inputCls, 'w-40')} />
         </div>
         <div className="flex flex-col gap-0.5">
           <label className={labelCls}>{lang === 'de' ? 'Zimmertyp' : 'Room type'}</label>
@@ -103,7 +101,6 @@ const allNights = useMemo(() => getNightsBetween(local.startDate ?? '', local.en
           </select>
         </div>
 
-        {/* WG: manual beds input */}
         {local.roomType === 'WG' ? (
           <div className="flex flex-col gap-0.5">
             <label className={labelCls}>{lang === 'de' ? 'Betten' : 'Beds'}</label>
@@ -124,18 +121,18 @@ const allNights = useMemo(() => getNightsBetween(local.startDate ?? '', local.en
 
         <div className="flex flex-col items-center ml-auto">
           <span className={cn('text-xs font-bold', dk ? 'text-slate-400' : 'text-slate-500')}>{nights}</span>
-          <span className={cn('text-9px uppercase', dk ? 'text-slate-600' : 'text-slate-400')}>{lang === 'de' ? 'Nächte' : 'nights'}</span>
+          <span className={cn('text-[9px] uppercase', dk ? 'text-slate-600' : 'text-slate-400')}>{lang === 'de' ? 'Nächte' : 'nights'}</span>
         </div>
         <div className="flex flex-col items-center">
           <span className={cn('text-xs font-bold', totalBeds === 0 ? 'text-amber-400' : dk ? 'text-green-400' : 'text-green-600')}>{totalBeds}</span>
-          <span className={cn('text-9px uppercase', dk ? 'text-slate-600' : 'text-slate-400')}>{lang === 'de' ? 'Betten' : 'beds'}</span>
+          <span className={cn('text-[9px] uppercase', dk ? 'text-slate-600' : 'text-slate-400')}>{lang === 'de' ? 'Betten' : 'beds'}</span>
         </div>
         {saving && <Loader2 size={13} className="animate-spin text-blue-400 ml-1" />}
       </div>
 
-      {/* Row 2: Room card fields */}
-      <div className={cn('grid grid-cols-2 gap-2 p-3 rounded-xl border', dk ? 'bg-white/3 border-white/8' : 'bg-slate-50 border-slate-100')}>
-        <p className={cn('col-span-2 text-9px font-bold uppercase tracking-widest mb-1', dk ? 'text-slate-500' : 'text-slate-400')}>
+      {/* Row 2: Room details */}
+      <div className={cn('grid grid-cols-2 gap-2 p-3 rounded-xl border', dk ? 'bg-white/[0.03] border-white/[0.08]' : 'bg-slate-50 border-slate-100')}>
+        <p className={cn('col-span-2 text-[9px] font-bold uppercase tracking-widest mb-1', dk ? 'text-slate-500' : 'text-slate-400')}>
           {lang === 'de' ? 'Zimmer-Details' : 'Room details'}
         </p>
         <input type="text" value={local.roomNumber ?? ''} onChange={e => patch({ roomNumber: e.target.value })}
@@ -149,10 +146,7 @@ const allNights = useMemo(() => getNightsBetween(local.startDate ?? '', local.en
         <div className="flex flex-col gap-0.5">
           <label className={labelCls}>{lang === 'de' ? 'Preis/Nacht/Zimmer' : 'Price/night/room'}</label>
           <input type="number" min={0} step={0.01} value={local.pricePerNightPerRoom ?? 0}
-            onChange={e => {
-              const pn = normalizeNumberInput(e.target.value);
-              patch({ pricePerNightPerRoom: pn });
-            }}
+            onChange={e => patch({ pricePerNightPerRoom: normalizeNumberInput(e.target.value) })}
             className={cn(inputCls, 'w-32')} />
         </div>
         <div className="flex flex-col gap-0.5">
@@ -168,7 +162,6 @@ const allNights = useMemo(() => getNightsBetween(local.startDate ?? '', local.en
             className={cn(inputCls, 'w-32')} />
         </div>
 
-        {/* Discount */}
         <button onClick={() => patch({ hasDiscount: !local.hasDiscount })}
           className={cn('px-3 py-2 rounded-lg text-xs font-bold border transition-all flex items-center gap-1',
             local.hasDiscount ? 'bg-blue-600 text-white border-blue-600'
@@ -258,7 +251,7 @@ const allNights = useMemo(() => getNightsBetween(local.startDate ?? '', local.en
           className={cn(inputCls, 'flex-1 min-w-[140px] mt-4')} />
       </div>
 
-      {/* Manual nightly prices toggle + calendar */}
+      {/* Manual nightly prices + calendar toggle */}
       <div className="flex items-center gap-2 flex-wrap">
         <button onClick={() => patch({ useManualPrices: !local.useManualPrices })}
           className={cn('px-3 py-2 rounded-lg text-xs font-bold border transition-all',
@@ -322,7 +315,7 @@ const allNights = useMemo(() => getNightsBetween(local.startDate ?? '', local.en
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {Array.from({ length: totalBeds }).map((_, slotIndex) => {
             const employee = local.employees?.[slotIndex] ?? null;
-            const substituteGap = gaps.find(g => g.slotIndex === slotIndex);
+            const substituteGap = gaps.find((g: any) => g.slotIndex === slotIndex);
             return (
               <div key={slotIndex} className="space-y-2">
                 <EmployeeSlot
@@ -330,7 +323,7 @@ const allNights = useMemo(() => getNightsBetween(local.startDate ?? '', local.en
                   durationStart={local.startDate} durationEnd={local.endDate}
                   isDarkMode={dk} lang={lang} onUpdated={onEmployeeUpdated}
                 />
-                {!employee && substituteGap?.type === 'full' ? null : substituteGap ? (
+                {substituteGap && employee ? (
                   <EmployeeSlot
                     durationId={local.id} slotIndex={slotIndex} employee={null}
                     durationStart={substituteGap.availableFrom} durationEnd={substituteGap.availableTo}
