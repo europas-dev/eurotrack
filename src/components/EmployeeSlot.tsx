@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Loader2, User, X } from 'lucide-react';
-import { cn, calculateNights, getEmployeeStatus } from '../lib/utils';
+import { cn, calculateNights, formatDateDisplay, getEmployeeStatus } from '../lib/utils';
 import { createEmployee, updateEmployee, deleteEmployee } from '../lib/supabase';
 
 interface EmployeeSlotProps {
@@ -10,6 +10,7 @@ interface EmployeeSlotProps {
   durationStart: string;
   durationEnd: string;
   isDarkMode: boolean;
+  lang?: 'de' | 'en';
   onUpdated: (slotIndex: number, employee: any | null) => void;
   substituteWindow?: { from: string; to: string } | null;
 }
@@ -21,6 +22,7 @@ export default function EmployeeSlot({
   durationStart,
   durationEnd,
   isDarkMode,
+  lang = 'de',
   onUpdated,
   substituteWindow = null,
 }: EmployeeSlotProps) {
@@ -120,45 +122,21 @@ export default function EmployeeSlot({
           className={inputCls}
           value={name}
           onChange={e => setName(e.target.value)}
-          placeholder="Employee name..."
+          placeholder={lang === 'de' ? 'Vollständiger Name...' : 'Full name...'}
         />
 
         <div className="grid grid-cols-2 gap-2">
-          <input
-            type="date"
-            className={inputCls}
-            value={checkIn}
-            min={durationStart || undefined}
-            max={durationEnd || undefined}
-            onChange={e => setCheckIn(e.target.value)}
-          />
-          <input
-            type="date"
-            className={inputCls}
-            value={checkOut}
-            min={durationStart || undefined}
-            max={durationEnd || undefined}
-            onChange={e => setCheckOut(e.target.value)}
-          />
+          <input type="date" className={inputCls} value={checkIn} min={durationStart || undefined} max={durationEnd || undefined} onChange={e => setCheckIn(e.target.value)} />
+          <input type="date" className={inputCls} value={checkOut} min={durationStart || undefined} max={durationEnd || undefined} onChange={e => setCheckOut(e.target.value)} />
         </div>
 
         <div className="flex gap-2">
-          <button
-            onClick={remove}
-            className={cn(
-              'flex-1 py-2 rounded-lg text-xs font-bold border',
-              dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-            )}
-          >
-            Clear
+          <button onClick={remove} className={cn('flex-1 py-2 rounded-lg text-xs font-bold border', dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}>
+            {lang === 'de' ? 'Löschen' : 'Clear'}
           </button>
-          <button
-            onClick={save}
-            disabled={saving || !name.trim()}
-            className="flex-1 py-2 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 flex items-center justify-center gap-1"
-          >
+          <button onClick={save} disabled={saving || !name.trim()} className="flex-1 py-2 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 flex items-center justify-center gap-1">
             {saving ? <Loader2 size={12} className="animate-spin" /> : null}
-            Save
+            {lang === 'de' ? 'Speichern' : 'Save'}
           </button>
         </div>
       </div>
@@ -181,8 +159,8 @@ export default function EmployeeSlot({
           <User size={13} />
           <span className="text-xs font-bold">
             {substituteWindow
-              ? `Add substitute ${substituteWindow.from} → ${substituteWindow.to}`
-              : `Assign bed ${slotIndex + 1}`}
+              ? `${lang === 'de' ? 'Ersatz hinzufügen' : 'Add substitute'} ${formatDateDisplay(substituteWindow.from, lang)} → ${formatDateDisplay(substituteWindow.to, lang)}`
+              : `${lang === 'de' ? 'Bett zuweisen' : 'Assign bed'} ${slotIndex + 1}`}
           </span>
         </div>
       </button>
@@ -199,16 +177,16 @@ export default function EmployeeSlot({
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-sm font-bold">{employee.name}</p>
+        <div className="min-w-0">
+          <p className="text-sm font-bold truncate">{employee.name}</p>
           <p className={cn('text-[11px]', dk ? 'text-slate-400' : 'text-slate-500')}>
-            {employee.checkIn} → {employee.checkOut}
+            {formatDateDisplay(employee.checkIn, lang)} → {formatDateDisplay(employee.checkOut, lang)}
           </p>
           <p className={cn('text-[11px]', dk ? 'text-slate-500' : 'text-slate-400')}>
-            {calculateNights(employee.checkIn, employee.checkOut)} nights
+            {calculateNights(employee.checkIn, employee.checkOut)} {lang === 'de' ? 'Nächte' : 'nights'}
           </p>
         </div>
-        <span className={cn('text-[10px] px-2 py-1 rounded-full font-bold', statusBadge)}>
+        <span className={cn('text-[10px] px-2 py-1 rounded-full font-bold whitespace-nowrap', statusBadge)}>
           {status || 'active'}
         </span>
       </div>
