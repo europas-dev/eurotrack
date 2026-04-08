@@ -32,3 +32,14 @@ body {
 .bg-sidebar {
   background-color: #1E293B;
 }
+mark.search-highlight {
+  background: rgba(234, 179, 8, 0.35);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* Fix year dropdown in light mode */
+select {
+  color-scheme: light dark;
+}
