@@ -1,10 +1,10 @@
 // src/components/HotelRow.tsx
 import React, { useMemo, useRef, useState } from 'react';
 import { Building2, ChevronDown, ChevronUp, Loader2, Plus, Trash2 } from 'lucide-react';
-import { cn, calcHotelFreeBeds, calcHotelTotalCost, calcHotelTotalNights, formatCurrency, formatDateDisplay, getDurationRowLabel, getDurationTabLabel, getEmployeeStatus } from './lib/utils';
-import { createDuration, updateHotel, deleteHotel } from './lib/supabase';
-import { offlineSync } from './lib/offlineSync';
-import DurationCard from './components/DurationCard';
+import { cn, calcHotelFreeBeds, calcHotelTotalCost, calcHotelTotalNights, formatCurrency, formatDateDisplay, getDurationRowLabel, getDurationTabLabel, getEmployeeStatus } from '../lib/utils';
+import { createDuration, updateHotel, deleteHotel } from '../lib/supabase';
+import { offlineSync } from '../lib/offlineSync';
+import DurationCard from './DurationCard';
 
 interface HotelRowProps {
   hotel: any;
@@ -30,11 +30,11 @@ export default function HotelRow({
   onDurationCreate,
 }: HotelRowProps) {
   const dk = isDarkMode;
-  const [open, setOpen]                       = useState(false);
-  const [localHotel, setLocalHotel]           = useState(hotel);
-  const [saving, setSaving]                   = useState(false);
-  const [creatingDuration, setCreatingDuration] = useState(false);
-  const [confirmDelete, setConfirmDelete]     = useState(false);
+  const [open, setOpen]                           = useState(false);
+  const [localHotel, setLocalHotel]               = useState(hotel);
+  const [saving, setSaving]                       = useState(false);
+  const [creatingDuration, setCreatingDuration]   = useState(false);
+  const [confirmDelete, setConfirmDelete]         = useState(false);
   const [activeDurationTab, setActiveDurationTab] = useState(0);
   const saveTimer = useRef<any>(null);
 
@@ -107,9 +107,9 @@ export default function HotelRow({
 
   const employeePillClass = (emp: any) => {
     const status = getEmployeeStatus(emp?.checkIn, emp?.checkOut);
-    if (status === 'ending-soon') return dk ? 'border-red-500 text-red-300 bg-red-500/10'   : 'border-red-300 text-red-700 bg-red-50';
+    if (status === 'ending-soon') return dk ? 'border-red-500 text-red-300 bg-red-500/10'      : 'border-red-300 text-red-700 bg-red-50';
     if (status === 'completed')   return dk ? 'border-green-500 text-green-300 bg-green-500/10' : 'border-green-300 text-green-700 bg-green-50';
-    if (status === 'upcoming')    return dk ? 'border-blue-500 text-blue-300 bg-blue-500/10' : 'border-blue-300 text-blue-700 bg-blue-50';
+    if (status === 'upcoming')    return dk ? 'border-blue-500 text-blue-300 bg-blue-500/10'    : 'border-blue-300 text-blue-700 bg-blue-50';
     return dk ? 'border-white/10 text-slate-200 bg-white/5' : 'border-slate-200 text-slate-700 bg-slate-50';
   };
 
@@ -137,7 +137,7 @@ export default function HotelRow({
 
               <div className="flex items-center gap-2 flex-shrink-0">
                 {(localHotel.durations || []).filter(Boolean).map((d: any, i: number) => (
-                  <span key={d.id || i} className={cn('px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap flex-shrink-0',
+                  <span key={d.id||i} className={cn('px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap flex-shrink-0',
                     dk?'bg-white/5 text-slate-300':'bg-slate-100 text-slate-700')}>
                     {getDurationRowLabel(d, lang)}
                   </span>
