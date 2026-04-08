@@ -25,7 +25,7 @@ interface HeaderProps {
   activeHotelIdForShare?: string | null;
   activeHotelNameForShare?: string | null;
   collaborators?: any[];
-  onCollaboratorsChanged?: (list: any[]) => void;
+  onCollaboratorsChanged?: (list: any[] | ((prev: any[]) => any[])) => void;
 }
 
 export default function Header({
@@ -44,12 +44,41 @@ export default function Header({
 }: HeaderProps) {
   const dk = theme === 'dark';
 
+  const t = {
+    share: lang === 'de' ? 'Teilen' : 'Share',
+    notifications: lang === 'de' ? 'Benachrichtigungen' : 'Notifications',
+    settings: lang === 'de' ? 'Einstellungen' : 'Settings',
+    searchHotels: lang === 'de' ? 'Hotels suchen...' : 'Search hotels...',
+    linkCopied: lang === 'de' ? 'Link kopiert' : 'Link copied',
+    noActiveHotel: lang === 'de' ? 'Kein Hotel ausgewählt' : 'No hotel selected',
+    collaborators: lang === 'de' ? 'Mitarbeiter' : 'Collaborators',
+    shareLink: lang === 'de' ? 'Link teilen' : 'Share link',
+    inviteUser: lang === 'de' ? 'Benutzer einladen' : 'Invite user',
+    searchByEmail: lang === 'de' ? 'Suche per E-Mail oder Name...' : 'Search by email or name...',
+    noCollaborators: lang === 'de' ? 'Noch keine Mitarbeiter' : 'No collaborators yet',
+    profile: lang === 'de' ? 'Profil' : 'Profile',
+    language: lang === 'de' ? 'Sprache' : 'Language',
+    theme: lang === 'de' ? 'Design' : 'Theme',
+    font: lang === 'de' ? 'Schriftart' : 'Font',
+    fontSize: lang === 'de' ? 'Schriftgröße' : 'Font size',
+    fullName: lang === 'de' ? 'Vollständiger Name' : 'Full name',
+    saveProfile: lang === 'de' ? 'Profil speichern' : 'Save profile',
+    signOut: lang === 'de' ? 'Abmelden' : 'Sign Out',
+    markAllRead: lang === 'de' ? 'Alle gelesen' : 'Mark all read',
+    searching: lang === 'de' ? 'Suche...' : 'Searching...',
+    invited: lang === 'de' ? 'Benutzer eingeladen' : 'User invited',
+    openHotelFirst: lang === 'de' ? 'Öffne zuerst ein Hotel' : 'Open a hotel first',
+    invite: lang === 'de' ? 'Einladen' : 'Invite',
+    darkMode: lang === 'de' ? 'Dunkelmodus' : 'Dark mode',
+    lightMode: lang === 'de' ? 'Hellmodus' : 'Light mode',
+  };
+
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showShare, setShowShare] = useState(false);
 
   const [notifications] = useState([
-    { id: 1, type: 'warning', msg: lang === 'de' ? 'Check-outs und freie Betten prüfen' : 'Review upcoming check-outs and free beds' },
+    { id: 1, type: 'warning', msg: lang === 'de' ? 'Prüfe bevorstehende Check-outs und freie Betten' : 'Review upcoming check-outs and free beds' },
     { id: 2, type: 'info', msg: lang === 'de' ? 'CSV Export verfügbar' : 'CSV export available' },
   ]);
   const [readIds, setReadIds] = useState<number[]>([]);
@@ -71,23 +100,18 @@ export default function Header({
   }, []);
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', dk);
-  }, [dk]);
-
-  useEffect(() => {
     const root = document.documentElement;
     const fontScale = profile?.fontScale ?? 100;
     const fontFamily = profile?.fontFamily ?? 'inter';
     root.style.setProperty('--app-font-scale', `${fontScale}%`);
-
     const fontMap: Record<string, string> = {
       inter: 'Inter, ui-sans-serif, system-ui, sans-serif',
-      geist: 'Geist, Inter, ui-sans-serif, system-ui, sans-serif',
-      roboto: 'Roboto, Inter, ui-sans-serif, system-ui, sans-serif',
+      geist: 'Arial, ui-sans-serif, system-ui, sans-serif',
+      roboto: 'Roboto, ui-sans-serif, system-ui, sans-serif',
       mono: 'ui-monospace, SFMono-Regular, Menlo, monospace',
     };
     root.style.setProperty('--app-font-family', fontMap[fontFamily] || fontMap.inter);
-    document.body.style.fontFamily = 'var(--app-font-family)';
+    document.body.style.fontFamily = fontMap[fontFamily] || fontMap.inter;
     document.body.style.fontSize = `calc(16px * ${fontScale / 100})`;
   }, [profile]);
 
@@ -106,7 +130,7 @@ export default function Header({
     dk ? 'hover:bg-white/5 text-slate-200' : 'hover:bg-slate-50 text-slate-700'
   );
 
-  const handleNativeShare = async () => {
+  async function handleNativeShare() {
     try {
       if (navigator.share) {
         await navigator.share({
@@ -115,12 +139,12 @@ export default function Header({
         });
       } else {
         await navigator.clipboard.writeText(window.location.href);
-        alert(lang === 'de' ? 'Link kopiert' : 'Link copied');
+        alert(t.linkCopied);
       }
     } catch {}
-  };
+  }
 
-  const saveProfile = async (patch: any) => {
+  async function saveProfile(patch: any) {
     try {
       setSavingProfile(true);
       const updated = await updateMyProfile(patch);
@@ -130,9 +154,9 @@ export default function Header({
     } finally {
       setSavingProfile(false);
     }
-  };
+  }
 
-  const handleSearchPeople = async (value: string) => {
+  async function handleSearchPeople(value: string) {
     setShareQuery(value);
     setShareError('');
     setShareSuccess('');
@@ -149,49 +173,49 @@ export default function Header({
     } finally {
       setShareLoading(false);
     }
-  };
+  }
 
-  const handleInvite = async (person: any) => {
+  async function handleInvite(person: any) {
     if (!activeHotelIdForShare) {
-      setShareError(lang === 'de' ? 'Öffne zuerst ein Hotel' : 'Open a hotel first');
+      setShareError(t.openHotelFirst);
       return;
     }
     try {
       setShareError('');
       const created = await inviteCollaborator(activeHotelIdForShare, person.id, sharePermission);
-      onCollaboratorsChanged?.([...(collaborators || []), created]);
-      setShareSuccess(lang === 'de' ? 'Benutzer eingeladen' : 'User invited');
+      onCollaboratorsChanged?.((prev: any[]) => [...(prev || collaborators || []), created]);
+      setShareSuccess(t.invited);
       setShareQuery('');
       setShareResults([]);
     } catch (e: any) {
       setShareError(e.message || 'Invite failed');
     }
-  };
+  }
 
-  const handleChangePermission = async (id: string, permission: 'viewer' | 'editor') => {
+  async function handleChangePermission(id: string, permission: 'viewer' | 'editor') {
     try {
       const updated = await updateCollaboratorPermission(id, permission);
-      onCollaboratorsChanged?.((collaborators || []).map((c: any) => (c.id === id ? updated : c)));
+      onCollaboratorsChanged?.((prev: any[]) => (prev || collaborators || []).map((c: any) => (c.id === id ? updated : c)));
     } catch (e) {
       console.error(e);
     }
-  };
+  }
 
-  const handleRemoveCollaborator = async (id: string) => {
+  async function handleRemoveCollaborator(id: string) {
     try {
       await removeCollaborator(id);
-      onCollaboratorsChanged?.((collaborators || []).filter((c: any) => c.id !== id));
+      onCollaboratorsChanged?.((prev: any[]) => (prev || collaborators || []).filter((c: any) => c.id !== id));
     } catch (e) {
       console.error(e);
     }
-  };
+  }
 
   const settingsSections = useMemo(() => ([
-    { icon: <Shield size={14} />, title: lang === 'de' ? 'Privacy & Security' : 'Privacy & Security' },
+    { icon: <Shield size={14} />, title: 'Privacy & Security' },
     { icon: <HelpCircle size={14} />, title: 'FAQ' },
-    { icon: <BookOpen size={14} />, title: lang === 'de' ? 'User Guide' : 'User Guide' },
-    { icon: <Info size={14} />, title: lang === 'de' ? 'About' : 'About' },
-  ]), [lang]);
+    { icon: <BookOpen size={14} />, title: 'User Guide' },
+    { icon: <Info size={14} />, title: 'About' },
+  ]), []);
 
   return (
     <header className={cn(
@@ -205,7 +229,6 @@ export default function Header({
           </div>
 
           <div className="flex items-center gap-1">
-            {/* Share */}
             <div className="relative">
               <button
                 onClick={() => {
@@ -214,7 +237,7 @@ export default function Header({
                   setShowSettings(false);
                 }}
                 className={btnCls}
-                title={lang === 'de' ? 'Teilen' : 'Share'}
+                title={t.share}
               >
                 <Share2 size={18} />
               </button>
@@ -222,42 +245,55 @@ export default function Header({
               {showShare && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setShowShare(false)} />
-                  <div className={cn(panelCls, 'z-50 w-[360px]')}>
+                  <div className={cn(panelCls, 'z-50 w-[380px]')}>
                     <div className={cn(
                       'flex items-center justify-between px-4 py-3 border-b',
                       dk ? 'border-white/10' : 'border-slate-100'
                     )}>
                       <div>
                         <p className={cn('text-sm font-black', dk ? 'text-white' : 'text-slate-900')}>
-                          {lang === 'de' ? 'Zusammenarbeit' : 'Collaborators'}
+                          {t.collaborators}
                         </p>
                         <p className={cn('text-xs', dk ? 'text-slate-500' : 'text-slate-400')}>
-                          {activeHotelNameForShare || (lang === 'de' ? 'Kein Hotel aktiv' : 'No active hotel selected')}
+                          {activeHotelNameForShare || t.noActiveHotel}
                         </p>
                       </div>
-                      <button
-                        onClick={handleNativeShare}
-                        className={cn(
-                          'px-2.5 py-1.5 rounded-lg text-xs font-bold border',
-                          dk ? 'border-white/10 hover:bg-white/5 text-slate-200' : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                        )}
-                      >
-                        {lang === 'de' ? 'Link teilen' : 'Share link'}
-                      </button>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleNativeShare}
+                          className={cn(
+                            'px-2.5 py-1.5 rounded-lg text-xs font-bold border',
+                            dk ? 'border-white/10 hover:bg-white/5 text-slate-200' : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                          )}
+                        >
+                          {t.shareLink}
+                        </button>
+                      </div>
                     </div>
 
                     <div className="p-4 space-y-4">
                       <div>
-                        <p className={cn('text-[11px] font-bold uppercase tracking-widest mb-2', dk ? 'text-slate-500' : 'text-slate-400')}>
-                          {lang === 'de' ? 'Invite user' : 'Invite user'}
-                        </p>
+                        <div className="flex items-center justify-between mb-2">
+                          <p className={cn('text-[11px] font-bold uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')}>
+                            {t.inviteUser}
+                          </p>
+
+                          <button
+                            onClick={() => shareQuery.trim() && shareResults[0] && handleInvite(shareResults[0])}
+                            className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center gap-1"
+                          >
+                            <UserPlus size={12} />
+                            {t.invite}
+                          </button>
+                        </div>
 
                         <div className="flex gap-2 mb-2">
                           <input
                             type="text"
                             value={shareQuery}
                             onChange={e => handleSearchPeople(e.target.value)}
-                            placeholder={lang === 'de' ? 'Search by email or name...' : 'Search by email or name...'}
+                            placeholder={t.searchByEmail}
                             className={cn(
                               'flex-1 px-3 py-2 rounded-lg text-sm outline-none border',
                               dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-600' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'
@@ -276,12 +312,7 @@ export default function Header({
                           </select>
                         </div>
 
-                        {shareLoading && (
-                          <p className={cn('text-xs', dk ? 'text-slate-500' : 'text-slate-400')}>
-                            {lang === 'de' ? 'Suche...' : 'Searching...'}
-                          </p>
-                        )}
-
+                        {shareLoading && <p className={cn('text-xs', dk ? 'text-slate-500' : 'text-slate-400')}>{t.searching}</p>}
                         {shareError && <p className="text-xs text-red-400 font-bold">{shareError}</p>}
                         {shareSuccess && <p className="text-xs text-green-400 font-bold">{shareSuccess}</p>}
 
@@ -308,7 +339,7 @@ export default function Header({
                                   className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center gap-1"
                                 >
                                   <UserPlus size={12} />
-                                  Invite
+                                  {t.invite}
                                 </button>
                               </div>
                             ))}
@@ -318,12 +349,12 @@ export default function Header({
 
                       <div>
                         <p className={cn('text-[11px] font-bold uppercase tracking-widest mb-2', dk ? 'text-slate-500' : 'text-slate-400')}>
-                          {lang === 'de' ? 'Collaborators' : 'Collaborators'}
+                          {t.collaborators}
                         </p>
 
                         {collaborators.length === 0 ? (
                           <p className={cn('text-sm', dk ? 'text-slate-500' : 'text-slate-400')}>
-                            {lang === 'de' ? 'Noch keine Mitarbeiter eingeladen' : 'No collaborators yet'}
+                            {t.noCollaborators}
                           </p>
                         ) : (
                           <div className="space-y-2">
@@ -373,7 +404,6 @@ export default function Header({
               )}
             </div>
 
-            {/* Language */}
             <button
               onClick={() => setLang(lang === 'de' ? 'en' : 'de')}
               className={cn(
@@ -384,7 +414,6 @@ export default function Header({
               {lang.toUpperCase()}
             </button>
 
-            {/* Notifications */}
             <div className="relative">
               <button
                 onClick={() => {
@@ -393,7 +422,7 @@ export default function Header({
                   setShowShare(false);
                 }}
                 className={btnCls}
-                title={lang === 'de' ? 'Benachrichtigungen' : 'Notifications'}
+                title={t.notifications}
               >
                 <Bell size={18} />
                 {unread > 0 && (
@@ -412,13 +441,10 @@ export default function Header({
                       dk ? 'border-white/10' : 'border-slate-100'
                     )}>
                       <p className={cn('text-sm font-black', dk ? 'text-white' : 'text-slate-900')}>
-                        {lang === 'de' ? 'Benachrichtigungen' : 'Notifications'}
+                        {t.notifications}
                       </p>
-                      <button
-                        onClick={() => setReadIds(notifications.map(n => n.id))}
-                        className="text-xs text-blue-400 hover:text-blue-300 font-bold"
-                      >
-                        {lang === 'de' ? 'Alle gelesen' : 'Mark all read'}
+                      <button onClick={() => setReadIds(notifications.map(n => n.id))} className="text-xs text-blue-400 hover:text-blue-300 font-bold">
+                        {t.markAllRead}
                       </button>
                     </div>
 
@@ -439,9 +465,7 @@ export default function Header({
                             {n.type === 'warning' ? '⚠' : 'ℹ'}
                           </span>
                           <span className="flex-1">{n.msg}</span>
-                          {!readIds.includes(n.id) && (
-                            <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1" />
-                          )}
+                          {!readIds.includes(n.id) && <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1" />}
                         </div>
                       ))}
                     </div>
@@ -450,17 +474,14 @@ export default function Header({
               )}
             </div>
 
-            {/* Export */}
-            <button onClick={onExport} className={btnCls} title={lang === 'de' ? 'Exportieren' : 'Export CSV'}>
+            <button onClick={onExport} className={btnCls} title="Export CSV">
               <Download size={18} />
             </button>
 
-            {/* Theme */}
-            <button onClick={toggleTheme} className={btnCls} title={dk ? 'Light mode' : 'Dark mode'}>
+            <button onClick={toggleTheme} className={btnCls} title={dk ? t.lightMode : t.darkMode}>
               {dk ? <Sun size={18} /> : <Moon size={18} />}
             </button>
 
-            {/* Settings */}
             <div className="relative">
               <button
                 onClick={() => {
@@ -469,7 +490,7 @@ export default function Header({
                   setShowShare(false);
                 }}
                 className={btnCls}
-                title={lang === 'de' ? 'Einstellungen' : 'Settings'}
+                title={t.settings}
               >
                 <Settings size={18} />
               </button>
@@ -483,27 +504,23 @@ export default function Header({
                       dk ? 'border-white/10' : 'border-slate-100'
                     )}>
                       <p className={cn('text-sm font-black', dk ? 'text-white' : 'text-slate-900')}>
-                        {lang === 'de' ? 'Einstellungen' : 'Settings'}
+                        {t.settings}
                       </p>
-                      <button
-                        onClick={() => setShowSettings(false)}
-                        className={cn('p-1 rounded', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}
-                      >
+                      <button onClick={() => setShowSettings(false)} className={cn('p-1 rounded', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
                         <X size={14} />
                       </button>
                     </div>
 
                     <div className="p-4 space-y-4">
-                      {/* Profile */}
                       <div>
                         <p className={cn('text-xs font-bold uppercase tracking-widest mb-2', dk ? 'text-slate-500' : 'text-slate-400')}>
-                          {lang === 'de' ? 'Edit profile' : 'Edit profile'}
+                          {t.profile}
                         </p>
                         <input
                           type="text"
                           value={profile?.fullName || ''}
                           onChange={(e) => setProfile((p: any) => ({ ...p, fullName: e.target.value }))}
-                          placeholder={lang === 'de' ? 'Vollständiger Name' : 'Full name'}
+                          placeholder={t.fullName}
                           className={cn(
                             'w-full px-3 py-2 rounded-lg text-sm outline-none border',
                             dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-600' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'
@@ -514,14 +531,13 @@ export default function Header({
                           className="mt-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1"
                         >
                           {savingProfile ? '...' : <Check size={12} />}
-                          Save profile
+                          {t.saveProfile}
                         </button>
                       </div>
 
-                      {/* Language */}
                       <div>
                         <p className={cn('text-xs font-bold uppercase tracking-widest mb-2', dk ? 'text-slate-500' : 'text-slate-400')}>
-                          {lang === 'de' ? 'Sprache' : 'Language'}
+                          {t.language}
                         </p>
                         <div className="flex gap-2">
                           {(['de', 'en'] as const).map(l => (
@@ -530,9 +546,7 @@ export default function Header({
                               onClick={() => setLang(l)}
                               className={cn(
                                 'flex-1 py-2 rounded-lg text-sm font-bold border transition-all',
-                                lang === l
-                                  ? 'bg-blue-600 text-white border-blue-600'
-                                  : dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                                lang === l ? 'bg-blue-600 text-white border-blue-600' : dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
                               )}
                             >
                               {l === 'de' ? '🇩🇪 Deutsch' : '🇬🇧 English'}
@@ -541,10 +555,9 @@ export default function Header({
                         </div>
                       </div>
 
-                      {/* Theme */}
                       <div>
                         <p className={cn('text-xs font-bold uppercase tracking-widest mb-2', dk ? 'text-slate-500' : 'text-slate-400')}>
-                          {lang === 'de' ? 'Design' : 'Theme'}
+                          {t.theme}
                         </p>
                         <button
                           onClick={toggleTheme}
@@ -553,34 +566,35 @@ export default function Header({
                             dk ? 'border-white/10 text-slate-200 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
                           )}
                         >
-                          {dk ? <><Sun size={14} /> Light mode</> : <><Moon size={14} /> Dark mode</>}
+                          {dk ? <><Sun size={14} /> {t.lightMode}</> : <><Moon size={14} /> {t.darkMode}</>}
                         </button>
                       </div>
 
-                      {/* Font family */}
                       <div>
                         <p className={cn('text-xs font-bold uppercase tracking-widest mb-2 flex items-center gap-1', dk ? 'text-slate-500' : 'text-slate-400')}>
-                          <Type size={12} /> Font
+                          <Type size={12} /> {t.font}
                         </p>
                         <select
                           value={profile?.fontFamily || 'inter'}
-                          onChange={e => saveProfile({ fontFamily: e.target.value })}
+                          onChange={e => {
+                            setProfile((p: any) => ({ ...p, fontFamily: e.target.value }));
+                            saveProfile({ fontFamily: e.target.value });
+                          }}
                           className={cn(
                             'w-full px-3 py-2 rounded-lg text-sm outline-none border',
                             dk ? 'bg-white/5 border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
                           )}
                         >
                           <option value="inter">Inter</option>
-                          <option value="geist">Geist</option>
+                          <option value="geist">Arial</option>
                           <option value="roboto">Roboto</option>
                           <option value="mono">Mono</option>
                         </select>
                       </div>
 
-                      {/* Font scale */}
                       <div>
                         <p className={cn('text-xs font-bold uppercase tracking-widest mb-2', dk ? 'text-slate-500' : 'text-slate-400')}>
-                          Font size
+                          {t.fontSize}
                         </p>
                         <div className="flex items-center gap-2">
                           <button
@@ -589,10 +603,7 @@ export default function Header({
                           >
                             <Minus size={14} />
                           </button>
-                          <div className={cn(
-                            'flex-1 text-center py-2 rounded-lg border text-sm font-bold',
-                            dk ? 'border-white/10 text-white' : 'border-slate-200 text-slate-900'
-                          )}>
+                          <div className={cn('flex-1 text-center py-2 rounded-lg border text-sm font-bold', dk ? 'border-white/10 text-white' : 'border-slate-200 text-slate-900')}>
                             {profile?.fontScale || 100}%
                           </div>
                           <button
@@ -604,7 +615,6 @@ export default function Header({
                         </div>
                       </div>
 
-                      {/* Info blocks */}
                       <div className="space-y-1">
                         {settingsSections.map((section, idx) => (
                           <button key={idx} className={itemCls}>
@@ -621,17 +631,12 @@ export default function Header({
               )}
             </div>
 
-            {/* Sign out */}
-            <button
-              onClick={onSignOut}
-              className="ml-1 px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-sm transition-all"
-            >
-              {lang === 'de' ? 'Abmelden' : 'Sign Out'}
+            <button onClick={onSignOut} className="ml-1 px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-sm transition-all">
+              {t.signOut}
             </button>
           </div>
         </div>
 
-        {/* Search row */}
         <div className="mt-3">
           <div className={cn(
             'flex items-center gap-2 px-4 py-2 rounded-lg border',
@@ -640,19 +645,13 @@ export default function Header({
             <Search size={16} className={cn('flex-shrink-0', dk ? 'text-slate-500' : 'text-slate-400')} />
             <input
               type="text"
-              placeholder={lang === 'de' ? 'Hotels suchen...' : 'Search hotels...'}
+              placeholder={t.searchHotels}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className={cn(
-                'flex-1 outline-none bg-transparent text-sm',
-                dk ? 'text-white placeholder-slate-500' : 'text-slate-900 placeholder-slate-400'
-              )}
+              className={cn('flex-1 outline-none bg-transparent text-sm', dk ? 'text-white placeholder-slate-500' : 'text-slate-900 placeholder-slate-400')}
             />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className={cn('p-0.5 rounded', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-200 text-slate-500')}
-              >
+            {!!searchQuery && (
+              <button onClick={() => setSearchQuery('')} className={cn('p-0.5 rounded', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-200 text-slate-500')}>
                 <X size={14} />
               </button>
             )}
