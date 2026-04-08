@@ -4,11 +4,12 @@ import {
   Search, SlidersHorizontal, Download, Plus, X,
   WifiOff, Loader2, CheckCircle, AlertCircle, Clock,
 } from 'lucide-react';
-import { cn, formatCurrency, getHotelFreeBeds, getDurationTotal, calculateNights } from '../lib/utils';
-import { getHotels, createHotel } from '../lib/supabase';
-import { offlineSync } from '../lib/offlineSync';
-import HotelRow from './HotelRow';
-import type { SyncStatus, GroupBy, SortBy, FreeBedFilter, PaidFilter, DepositFilter } from '../lib/types';
+// CORRECT (for src/Dashboard.tsx)
+import { cn, formatCurrency, getHotelFreeBeds, getDurationTotal, calculateNights } from './lib/utils';
+import { getHotels, createHotel } from './lib/supabase';
+import { offlineSync } from './lib/offlineSync';
+import HotelRow from './components/HotelRow';
+import type { SyncStatus, GroupBy, SortBy, FreeBedFilter, PaidFilter, DepositFilter } from './lib/types';
 
 interface Props {
   isDarkMode: boolean;
