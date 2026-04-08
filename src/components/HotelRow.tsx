@@ -1,257 +1,362 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Loader2, Plus, Trash2 } from 'lucide-react';
-import { cn, calcHotelFreeBeds, calcHotelTotalCost, calcHotelTotalNights, formatCurrency, formatDateDisplay, getDurationTabLabel, getEmployeeStatus } from '../lib/utils';
-import { createDuration, updateHotel } from '../lib/supabase';
+// src/components/HotelRow.tsx
+import React, { useRef, useState, useEffect } from 'react';
+import { ChevronRight, ChevronDown, Trash2, Plus } from 'lucide-react';
+import {
+  cn, formatCurrency, calculateNights, getTotalBeds,
+  getFreeBeds, getDurationTotal, getDurationTagLabel,
+  getEmployeeStatus, getEmployeeStatusColor,
+} from '../lib/utils';
+import { offlineSync } from '../lib/offlineSync';
+import { createDuration, deleteDuration as supaDeleteDuration } from '../lib/supabase';
 import DurationCard from './DurationCard';
 
-interface HotelRowProps {
-  entry: any;
+interface Props {
+  hotel: any;
   isDarkMode: boolean;
   lang?: 'de' | 'en';
-  companyOptions?: string[];
-  cityOptions?: string[];
+  highlightText?: string;
+  showPaidAmounts?: boolean;
+  onUpdate: (id: string, data: any) => void;
   onDelete: (id: string) => void;
-  onUpdate: (id: string, updated: any) => void;
+  onDurationUpdate: (hotelId: string, durId: string, data: any) => void;
+  onDurationDelete: (hotelId: string, durId: string) => void;
+  onDurationCreate: (hotelId: string, dur: any) => void;
 }
 
-export function HotelRow({ entry, isDarkMode, lang = 'de', companyOptions = [], cityOptions = [], onDelete, onUpdate }: HotelRowProps) {
-  const dk = isDarkMode;
-  const [open, setOpen] = useState(false);
-  const [localHotel, setLocalHotel] = useState(entry);
-  const [saving, setSaving] = useState(false);
-  const [creatingDuration, setCreatingDuration] = useState(false);
+export default function HotelRow({
+  hotel, isDarkMode: dk, lang = 'de', highlightText = '', showPaidAmounts = false,
+  onUpdate, onDelete, onDurationUpdate, onDurationDelete, onDurationCreate,
+}: Props) {
+  const [expanded, setExpanded]         = useState(false);
+  const [activeDurIdx, setActiveDurIdx] = useState(0);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [activeDurationTab, setActiveDurationTab] = useState(0);
+  const [addingDur, setAddingDur]       = useState(false);
   const saveTimer = useRef<any>(null);
+  const today = new Date().toISOString().split('T')[0];
 
-  const totalNights = useMemo(() => calcHotelTotalNights(localHotel), [localHotel]);
-  const totalCost = useMemo(() => calcHotelTotalCost(localHotel), [localHotel]);
-  const freeBeds = useMemo(() => calcHotelFreeBeds(localHotel), [localHotel]);
-  const employees = useMemo(() =>
-    (localHotel.durations || []).flatMap((d: any) => (d.employees || []).filter(Boolean)),
-    [localHotel]);
+  // ── Stats ──────────────────────────────────────────────────────────────────
+  const totalNights = hotel.durations.reduce((s: number, d: any) => s + calculateNights(d.startDate, d.endDate), 0);
+  const totalCost   = hotel.durations.reduce((s: number, d: any) => s + getDurationTotal(d), 0);
+  const paidCost    = hotel.durations.filter((d:any) => d.isPaid).reduce((s:number,d:any) => s + getDurationTotal(d), 0);
+  const unpaidCost  = totalCost - paidCost;
+  const freeBeds    = hotel.durations.reduce((s:number,d:any) => s + getFreeBeds(d, today), 0);
 
-  const inputCls = cn('w-full px-3 py-2 rounded-lg text-sm outline-none border transition-all',
-    dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-600 focus:border-blue-500'
-       : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500');
+  const allEmployees: any[] = [];
+  hotel.durations.forEach((d: any) => {
+    (d.employees || []).forEach((e: any) => { if (e) allEmployees.push({ ...e, durationId: d.id }); });
+  });
 
+  // ── Inline edit ────────────────────────────────────────────────────────────
   function patchHotel(changes: any) {
-    const next = { ...localHotel, ...changes };
-    setLocalHotel(next);
+    const next = { ...hotel, ...changes };
+    onUpdate(hotel.id, next);
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
-      try { setSaving(true); await updateHotel(localHotel.id, next); onUpdate(localHotel.id, next); }
-      catch (e) { console.error(e); } finally { setSaving(false); }
+      await offlineSync.enqueue({ type: 'updateHotel', payload: { id: hotel.id, ...next } });
     }, 400);
   }
 
-  async function addDuration() {
-    try {
-      setCreatingDuration(true);
-      const created = await createDuration({
-        hotelId: localHotel.id, startDate: '', endDate: '',
-        roomType: 'DZ', numberOfRooms: 1, pricePerNightPerRoom: 0,
-        hasDiscount: false, discountType: 'percentage', discountValue: 0,
-        isPaid: false, bookingId: null, useManualPrices: false, nightlyPrices: {},
-      });
-      const nextDurations = [...(localHotel.durations || []), { ...created, employees: [] }];
-      const next = { ...localHotel, durations: nextDurations };
-      setLocalHotel(next);
-      onUpdate(localHotel.id, next);
-      setOpen(true);
-      setActiveDurationTab(nextDurations.length - 1);
-    } catch (e) { console.error(e); }
-    finally { setCreatingDuration(false); }
+  // ── Highlight ──────────────────────────────────────────────────────────────
+  function hl(text: string): React.ReactNode {
+    if (!highlightText || !text) return text;
+    const re = new RegExp(`(${highlightText.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
+    return text.split(re).map((p, i) =>
+      re.test(p) ? <mark key={i} className="bg-yellow-200 dark:bg-yellow-700/50 rounded px-0.5">{p}</mark> : p
+    );
   }
 
-  const pillClass = (emp: any) => {
-    const s = getEmployeeStatus(emp?.checkIn, emp?.checkOut);
-    if (s === 'ending-soon') return dk ? 'border-red-500 text-red-300 bg-red-500/10' : 'border-red-300 text-red-700 bg-red-50';
-    if (s === 'completed') return dk ? 'border-green-500 text-green-300 bg-green-500/10' : 'border-green-300 text-green-700 bg-green-50';
-    if (s === 'upcoming') return dk ? 'border-blue-500 text-blue-300 bg-blue-500/10' : 'border-blue-300 text-blue-700 bg-blue-50';
-    return dk ? 'border-white/10 text-slate-200 bg-white/5' : 'border-slate-200 text-slate-700 bg-slate-50';
-  };
+  // ── Add duration ───────────────────────────────────────────────────────────
+  async function handleAddDuration() {
+    if (addingDur) return;
+    setAddingDur(true);
+    try {
+      const created = await createDuration({ hotelId: hotel.id });
+      onDurationCreate(hotel.id, created);
+      setActiveDurIdx(hotel.durations.length);
+      setExpanded(true);
+    } catch {
+      await offlineSync.enqueue({ type: 'createDuration', payload: { hotelId: hotel.id } });
+    }
+    setAddingDur(false);
+  }
+
+  // ── Delete hotel ───────────────────────────────────────────────────────────
+  async function handleDelete() {
+    await offlineSync.enqueue({ type: 'deleteHotel', payload: { id: hotel.id } });
+    onDelete(hotel.id);
+    setConfirmDelete(false);
+  }
+
+  const inp = cn(
+    'bg-transparent outline-none border-b transition-all text-sm font-semibold min-w-0',
+    dk ? 'border-transparent focus:border-white/30 text-white placeholder-slate-600'
+       : 'border-transparent focus:border-slate-300 text-slate-900 placeholder-slate-300'
+  );
 
   return (
-    <div className="space-y-0">
-      <div className={cn('rounded-2xl border overflow-hidden', dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')}>
+    <div className={cn('rounded-xl border transition-all',
+      dk ? 'bg-slate-900 border-white/10' : 'bg-white border-slate-200 shadow-sm'
+    )}>
 
-        {/* Main compact row */}
-        <div className="px-4 py-3">
-          <div className="flex items-center gap-3 min-w-0">
+      {/* ══ MAIN ROW ════════════════════════════════════════════════════════ */}
+      <div className={cn(
+        'flex items-center gap-2 px-3 py-2.5 min-h-[52px] flex-wrap',
+        expanded && (dk ? 'border-b border-white/10' : 'border-b border-slate-100')
+      )}>
 
-            {/* Chevron expand button */}
-            <button onClick={() => setOpen(!open)}
-              className={cn('w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all',
-                dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
-              {open ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-            </button>
+        {/* Chevron */}
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className={cn('shrink-0 p-1 rounded-md transition-colors',
+            dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-400')}
+        >
+          {expanded ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
+        </button>
 
-            {/* Hotel name + city */}
-            <div className="min-w-[160px] flex-shrink-0">
-              <p className={cn('text-sm font-black leading-tight', dk ? 'text-white' : 'text-slate-900')}>{localHotel.name || <span className="opacity-30">{lang === 'de' ? 'Kein Name' : 'No name'}</span>}</p>
-              <p className={cn('text-[11px] leading-tight', dk ? 'text-slate-400' : 'text-slate-500')}>{localHotel.city || '—'}</p>
-            </div>
+        {/* Hotel name — inline editable */}
+        <input
+          value={hotel.name || ''}
+          onChange={e => patchHotel({ name: e.target.value })}
+          placeholder={lang==='de' ? 'Hotelname...' : 'Hotel name...'}
+          className={cn(inp, 'w-36 min-w-[100px]')}
+        />
 
-            {/* Company tag */}
-            {localHotel.companyTag && (
-              <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap flex-shrink-0',
-                dk ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-700')}>
-                {localHotel.companyTag}
-              </span>
-            )}
+        <span className={cn('select-none', dk ? 'text-slate-700' : 'text-slate-300')}>·</span>
 
-            {/* Duration tags */}
-            <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap">
-              {(localHotel.durations || []).map((d: any, i: number) => (
-                <button key={d.id || i}
-                  onClick={() => { setOpen(true); setActiveDurationTab(i); }}
-                  className={cn('px-2 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap transition-all',
-                    dk ? 'bg-white/5 text-slate-300 hover:bg-blue-500/20 hover:text-blue-300'
-                       : 'bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-600')}>
-                  {getDurationTabLabel(d, lang)}
-                </button>
-              ))}
-            </div>
+        {/* City — inline editable */}
+        <input
+          value={hotel.city || ''}
+          onChange={e => patchHotel({ city: e.target.value })}
+          placeholder={lang==='de' ? 'Stadt...' : 'City...'}
+          className={cn(inp, 'w-24 min-w-[70px]')}
+        />
 
-            {/* Spacer */}
-            <div className="flex-1" />
+        <span className={cn('select-none', dk ? 'text-slate-700' : 'text-slate-300')}>·</span>
 
-            {/* Nights */}
-            <div className="text-center min-w-[60px] flex-shrink-0">
-              <p className="text-sm font-black text-blue-400">{totalNights}</p>
-              <p className={cn('text-[10px] uppercase', dk ? 'text-slate-500' : 'text-slate-400')}>{lang === 'de' ? 'Nächte' : 'nights'}</p>
-            </div>
+        {/* Company — inline editable */}
+        <input
+          value={hotel.companyTag || ''}
+          onChange={e => patchHotel({ companyTag: e.target.value })}
+          placeholder={lang==='de' ? 'Firma...' : 'Company...'}
+          className={cn(inp, 'w-28 min-w-[70px]')}
+        />
 
-            {/* Free beds — RED when > 0 */}
-            <div className="text-center min-w-[60px] flex-shrink-0">
-              <p className={cn('text-sm font-black', freeBeds > 0 ? 'text-red-400' : dk ? 'text-green-400' : 'text-green-600')}>{freeBeds}</p>
-              <p className={cn('text-[10px] uppercase', dk ? 'text-slate-500' : 'text-slate-400')}>{lang === 'de' ? 'frei' : 'free'}</p>
-            </div>
-
-            {/* Employee pills */}
-            {employees.length > 0 && (
-              <div className="flex items-center gap-1 flex-shrink-0">
-                {employees.slice(0, 4).map((emp: any) => (
-                  <div key={emp.id}
-                    className={cn('px-2 py-0.5 rounded-full border text-[10px] font-bold whitespace-nowrap', pillClass(emp))}
-                    title={`${emp.name} ${formatDateDisplay(emp.checkIn, lang)} – ${formatDateDisplay(emp.checkOut, lang)}`}>
-                    {emp.name}
-                  </div>
-                ))}
-                {employees.length > 4 && (
-                  <span className={cn('text-[10px] font-bold', dk ? 'text-slate-500' : 'text-slate-400')}>+{employees.length - 4}</span>
+        {/* Duration tags */}
+        {hotel.durations.length > 0 && (
+          <div className="flex items-center gap-1 flex-wrap ml-1">
+            {hotel.durations.map((d: any, i: number) => (
+              <button
+                key={d.id}
+                onClick={() => { setExpanded(true); setActiveDurIdx(i); }}
+                className={cn(
+                  'px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-colors',
+                  d.isPaid
+                    ? dk ? 'bg-green-900/30 border-green-500/30 text-green-400' : 'bg-green-50 border-green-200 text-green-700'
+                    : dk ? 'bg-slate-800 border-white/10 text-slate-300 hover:bg-white/10' : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200'
                 )}
-              </div>
-            )}
-
-            {/* Total cost */}
-            <div className={cn('text-sm font-black min-w-[90px] text-right flex-shrink-0', dk ? 'text-white' : 'text-slate-900')}>
-              {formatCurrency(totalCost)}
-            </div>
-
-            {saving && <Loader2 size={14} className="animate-spin text-blue-400 flex-shrink-0" />}
-
-            {/* Delete */}
-            <button onClick={() => setConfirmDelete(true)}
-              className={cn('p-1.5 rounded-lg flex-shrink-0 transition-all',
-                dk ? 'hover:bg-red-500/10 text-slate-500 hover:text-red-400' : 'hover:bg-red-50 text-slate-400 hover:text-red-500')}>
-              <Trash2 size={14} />
-            </button>
-          </div>
-        </div>
-
-        {/* Expanded detail panel */}
-        {open && (
-          <div className={cn('border-t p-4 space-y-4', dk ? 'border-white/10 bg-white/[0.02]' : 'border-slate-200 bg-slate-50/50')}>
-
-            {/* Editable hotel fields */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <input className={inputCls} value={localHotel.name || ''} onChange={e => patchHotel({ name: e.target.value })}
-                placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel name...'} />
-              <input list={`city-list-${localHotel.id}`} className={inputCls} value={localHotel.city || ''} onChange={e => patchHotel({ city: e.target.value })}
-                placeholder={lang === 'de' ? 'Stadt...' : 'City...'} />
-              <datalist id={`city-list-${localHotel.id}`}>{cityOptions.map(x => <option key={x} value={x} />)}</datalist>
-              <input list={`company-list-${localHotel.id}`} className={inputCls} value={localHotel.companyTag || ''} onChange={e => patchHotel({ companyTag: e.target.value })}
-                placeholder={lang === 'de' ? 'Firma...' : 'Company...'} />
-              <datalist id={`company-list-${localHotel.id}`}>{companyOptions.map(x => <option key={x} value={x} />)}</datalist>
-              <input className={inputCls} value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })}
-                placeholder={lang === 'de' ? 'Adresse...' : 'Address...'} />
-              <input className={inputCls} value={localHotel.contact || ''} onChange={e => patchHotel({ contact: e.target.value })}
-                placeholder={lang === 'de' ? 'Telefon...' : 'Phone...'} />
-              <input className={inputCls} value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })}
-                placeholder="Email..." />
-              <input className={inputCls} value={localHotel.webLink || ''} onChange={e => patchHotel({ webLink: e.target.value })}
-                placeholder={lang === 'de' ? 'Webseite...' : 'Website...'} />
-              <input className={inputCls} value={localHotel.contactPerson || ''} onChange={e => patchHotel({ contactPerson: e.target.value })}
-                placeholder={lang === 'de' ? 'Ansprechpartner...' : 'Contact person...'} />
-            </div>
-            <textarea className={cn(inputCls, 'min-h-[80px] resize-y')} value={localHotel.notes || ''} onChange={e => patchHotel({ notes: e.target.value })}
-              placeholder={lang === 'de' ? 'Notizen...' : 'Notes...'} />
-
-            {/* Duration tabs */}
-            <div className="flex items-center gap-2 flex-wrap">
-              {(localHotel.durations || []).map((d: any, i: number) => (
-                <button key={d.id || i} onClick={() => setActiveDurationTab(i)}
-                  className={cn('px-3 py-2 rounded-lg text-xs font-bold border transition-all',
-                    activeDurationTab === i
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}>
-                  {getDurationTabLabel(d, lang)}
-                </button>
-              ))}
-              <button onClick={addDuration} disabled={creatingDuration}
-                className={cn('px-3 py-2 rounded-lg text-xs font-bold border transition-all flex items-center gap-1',
-                  dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}>
-                {creatingDuration ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
-                {lang === 'de' ? 'Neue Dauer' : 'Add duration'}
+                title={`${d.startDate || '?'} → ${d.endDate || '?'}`}
+              >
+                {getDurationTagLabel(d)}
               </button>
-            </div>
-
-            {/* Active duration card */}
-            {(localHotel.durations || []).length > 0 ? (
-              <DurationCard
-                duration={localHotel.durations[activeDurationTab]}
-                isDarkMode={dk} lang={lang}
-                onUpdate={(id, updatedDuration) => {
-                  const next = { ...localHotel, durations: localHotel.durations.map((d: any) => d.id === id ? updatedDuration : d) };
-                  setLocalHotel(next); onUpdate(localHotel.id, next);
-                }}
-                onDelete={durationId => {
-                  const nextDurations = localHotel.durations.filter((d: any) => d.id !== durationId);
-                  const next = { ...localHotel, durations: nextDurations };
-                  setLocalHotel(next); onUpdate(localHotel.id, next);
-                  setActiveDurationTab(prev => Math.max(0, Math.min(prev, nextDurations.length - 1)));
-                }}
-              />
-            ) : (
-              <button onClick={addDuration} disabled={creatingDuration}
-                className={cn('w-full py-4 rounded-xl border-2 border-dashed text-sm font-bold transition-all',
-                  dk ? 'border-white/10 text-slate-400 hover:border-blue-500/40 hover:text-blue-400'
-                     : 'border-slate-200 text-slate-500 hover:border-blue-400 hover:text-blue-500')}>
-                {creatingDuration ? (lang === 'de' ? 'Erstelle...' : 'Creating...') : (lang === 'de' ? 'Erste Dauer hinzufügen' : 'Add first duration')}
-              </button>
-            )}
+            ))}
           </div>
         )}
+
+        <div className="flex-1 min-w-[8px]"/>
+
+        {/* Total nights */}
+        {totalNights > 0 && (
+          <span className={cn('text-xs font-semibold shrink-0', dk ? 'text-slate-500' : 'text-slate-400')}>
+            {totalNights}N
+          </span>
+        )}
+
+        {/* Free beds — RED if > 0 */}
+        <button
+          onClick={() => setExpanded(true)}
+          className={cn(
+            'text-xs font-bold shrink-0 px-1.5 py-0.5 rounded-full transition-colors',
+            freeBeds > 0
+              ? 'bg-red-500/15 text-red-500'
+              : dk ? 'text-slate-700' : 'text-slate-300'
+          )}
+          title={`${freeBeds} ${lang==='de' ? 'freie Betten heute' : 'free beds today'}`}
+        >
+          {freeBeds > 0 ? `${freeBeds} frei` : '—'}
+        </button>
+
+        {/* Employee pills */}
+        <div className="flex items-center gap-1 flex-wrap shrink-0 max-w-[180px]">
+          {allEmployees.slice(0, 4).map((e: any, i: number) => {
+            const status = getEmployeeStatus(e, today);
+            return (
+              <span key={i} className={cn(
+                'text-[10px] px-1.5 py-0.5 rounded-full font-semibold truncate max-w-[72px]',
+                getEmployeeStatusColor(status)
+              )}>
+                {e.name}
+              </span>
+            );
+          })}
+          {allEmployees.length > 4 && (
+            <span className={cn('text-[10px] font-semibold', dk ? 'text-slate-500' : 'text-slate-400')}>
+              +{allEmployees.length - 4}
+            </span>
+          )}
+        </div>
+
+        {/* Total cost */}
+        <span className={cn('text-sm font-black shrink-0', dk ? 'text-white' : 'text-slate-900')}>
+          {formatCurrency(totalCost)}
+        </span>
+
+        {/* Paid / unpaid — only when payment filter is active */}
+        {showPaidAmounts && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-[11px] font-semibold text-green-500">{formatCurrency(paidCost)}</span>
+            <span className="text-[11px] font-semibold text-red-400">{formatCurrency(unpaidCost)}</span>
+          </div>
+        )}
+
+        {/* Delete */}
+        <button
+          onClick={() => setConfirmDelete(true)}
+          className="shrink-0 p-1.5 rounded-md text-red-400 hover:bg-red-500/10 transition-colors"
+        >
+          <Trash2 size={14}/>
+        </button>
       </div>
 
-      {/* Delete confirmation */}
+      {/* ══ EXPANDED PANEL ══════════════════════════════════════════════════ */}
+      {expanded && (
+        <div className="px-4 pb-4 pt-3 space-y-4">
+
+          {/* Contact fields — only here, not in main row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {([
+              { key: 'address',       label: lang==='de' ? 'Adresse'         : 'Address',        ph: 'Musterstr. 1, Berlin' },
+              { key: 'contactPerson', label: lang==='de' ? 'Ansprechpartner' : 'Contact person', ph: 'Max Mustermann' },
+              { key: 'contact',       label: lang==='de' ? 'Telefon'         : 'Phone',          ph: '+49 30 ...' },
+              { key: 'email',         label: 'E-Mail',                                           ph: 'hotel@example.com' },
+              { key: 'webLink',       label: 'Website',                                          ph: 'https://...' },
+            ] as { key: string; label: string; ph: string }[]).map(({ key, label, ph }) => (
+              <div key={key} className="flex flex-col gap-1">
+                <label className={cn('text-[10px] font-semibold uppercase tracking-wide',
+                  dk ? 'text-slate-500' : 'text-slate-400')}>{label}</label>
+                <input
+                  value={(hotel as any)[key] || ''}
+                  onChange={e => patchHotel({ [key]: e.target.value })}
+                  placeholder={ph}
+                  className={cn('px-2.5 py-1.5 rounded-md border text-sm outline-none transition-all',
+                    dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-600 focus:border-blue-500'
+                       : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-400'
+                  )}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Notes */}
+          <div className="flex flex-col gap-1">
+            <label className={cn('text-[10px] font-semibold uppercase tracking-wide',
+              dk ? 'text-slate-500' : 'text-slate-400')}>{lang==='de' ? 'Notiz' : 'Notes'}</label>
+            <textarea
+              value={hotel.notes || ''}
+              onChange={e => patchHotel({ notes: e.target.value })}
+              placeholder={lang==='de' ? 'Interne Notiz...' : 'Internal note...'}
+              rows={2}
+              className={cn('px-2.5 py-1.5 rounded-md border text-sm outline-none resize-none transition-all',
+                dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-600 focus:border-blue-500'
+                   : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-400'
+              )}
+            />
+          </div>
+
+          {/* Last updated */}
+          {hotel.lastUpdatedBy && (
+            <p className={cn('text-[10px]', dk ? 'text-slate-600' : 'text-slate-400')}>
+              {lang==='de' ? 'Zuletzt geändert von' : 'Last updated by'}: {hotel.lastUpdatedBy}
+              {hotel.lastUpdatedAt && ` · ${new Date(hotel.lastUpdatedAt).toLocaleString('de-DE')}`}
+            </p>
+          )}
+
+          {/* Duration tabs */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {hotel.durations.map((d: any, i: number) => (
+              <button
+                key={d.id}
+                onClick={() => setActiveDurIdx(i)}
+                className={cn('px-3 py-1.5 rounded-lg text-xs font-bold border transition-all',
+                  activeDurIdx === i
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : dk ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                )}
+              >
+                {getDurationTagLabel(d)}
+              </button>
+            ))}
+            <button
+              onClick={handleAddDuration}
+              disabled={addingDur}
+              className={cn('px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1',
+                dk ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+              )}
+            >
+              <Plus size={12}/>{lang==='de' ? 'Aufenthalt' : 'Duration'}
+            </button>
+          </div>
+
+          {/* Empty state */}
+          {hotel.durations.length === 0 && (
+            <div
+              onClick={handleAddDuration}
+              className={cn(
+                'rounded-xl border-2 border-dashed flex items-center justify-center py-8 cursor-pointer transition-colors',
+                dk ? 'border-white/10 hover:border-white/20 text-slate-600 hover:text-slate-400'
+                   : 'border-slate-200 hover:border-slate-300 text-slate-400 hover:text-slate-500'
+              )}
+            >
+              <Plus size={16} className="mr-2"/>
+              {lang==='de' ? 'Ersten Aufenthalt hinzufügen' : 'Add first duration'}
+            </div>
+          )}
+
+          {/* Active duration card */}
+          {hotel.durations[activeDurIdx] && (
+            <DurationCard
+              key={hotel.durations[activeDurIdx].id}
+              duration={hotel.durations[activeDurIdx]}
+              isDarkMode={dk}
+              lang={lang}
+              onUpdate={(id, data) => onDurationUpdate(hotel.id, id, data)}
+              onDelete={id => {
+                onDurationDelete(hotel.id, id);
+                setActiveDurIdx(Math.max(0, activeDurIdx - 1));
+              }}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Delete confirm */}
       {confirmDelete && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4">
-          <div className={cn('w-full max-w-md rounded-2xl border p-5', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
-            <h3 className="text-lg font-black mb-2">{lang === 'de' ? 'Hotel löschen?' : 'Delete hotel?'}</h3>
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4">
+          <div className={cn('w-full max-w-sm rounded-xl border p-5',
+            dk ? 'bg-slate-900 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+          )}>
+            <h3 className="text-base font-black mb-2">{lang==='de' ? 'Hotel löschen?' : 'Delete hotel?'}</h3>
             <p className={cn('text-sm mb-4', dk ? 'text-slate-400' : 'text-slate-600')}>
-              {lang === 'de' ? 'Dieses Hotel und alle zugehörigen Buchungen werden dauerhaft gelöscht.' : 'This hotel and all related durations will be deleted permanently.'}
+              {hotel.name || (lang==='de' ? 'Dieses Hotel' : 'This hotel')} {lang==='de' ? 'wird dauerhaft gelöscht.' : 'will be deleted permanently.'}
             </p>
             <div className="flex justify-end gap-2">
               <button onClick={() => setConfirmDelete(false)}
-                className={cn('px-4 py-2 rounded-lg border text-sm font-bold', dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}>
-                {lang === 'de' ? 'Abbrechen' : 'Cancel'}
+                className={cn('px-4 py-2 rounded-lg border text-sm font-semibold',
+                  dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                )}>
+                {lang==='de' ? 'Abbrechen' : 'Cancel'}
               </button>
-              <button onClick={() => onDelete(localHotel.id)}
-                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold">
-                {lang === 'de' ? 'Löschen' : 'Delete'}
+              <button onClick={handleDelete} className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold">
+                {lang==='de' ? 'Löschen' : 'Delete'}
               </button>
             </div>
           </div>
