@@ -4,7 +4,6 @@ import {
   Search, SlidersHorizontal, Download, Plus, X,
   WifiOff, Loader2, CheckCircle, AlertCircle, Clock,
 } from 'lucide-react';
-// CORRECT (for src/Dashboard.tsx)
 import { cn, formatCurrency, getHotelFreeBeds, getDurationTotal, calculateNights } from './lib/utils';
 import { getHotels, createHotel } from './lib/supabase';
 import { offlineSync } from './lib/offlineSync';
@@ -72,9 +71,9 @@ export default function Dashboard({ isDarkMode: dk, lang = 'de', selectedMonth, 
   const handleHotelUpdate = (id: string, data: any) => setHotels(p => p.map(h => h.id === id ? { ...h, ...data } : h));
   const handleHotelDelete = (id: string) => setHotels(p => p.filter(h => h.id !== id));
   const handleDurUpdate   = (hid: string, did: string, data: any) =>
-    setHotels(p => p.map(h => h.id !== hid ? h : { ...h, durations: h.durations.map((d: any) => d.id === did ? { ...d, ...data } : d) }));
+    setHotels(p => p.map(h => h.id !== hid ? h : { ...h, durations: h.durations.map((d: any) => d?.id === did ? { ...d, ...data } : d) }));
   const handleDurDelete   = (hid: string, did: string) =>
-    setHotels(p => p.map(h => h.id !== hid ? h : { ...h, durations: h.durations.filter((d: any) => d.id !== did) }));
+    setHotels(p => p.map(h => h.id !== hid ? h : { ...h, durations: h.durations.filter((d: any) => d?.id !== did) }));
   const handleDurCreate   = (hid: string, dur: any) =>
     setHotels(p => p.map(h => h.id !== hid ? h : { ...h, durations: [...h.durations, dur] }));
 
@@ -93,36 +92,39 @@ export default function Dashboard({ isDarkMode: dk, lang = 'de', selectedMonth, 
     return [
       h.name, h.city, h.companyTag, h.contactPerson, h.contact,
       h.address, h.email, h.webLink, h.notes,
-      ...(h.durations || []).flatMap((d: any) => [
+      ...(h.durations || []).filter(Boolean).flatMap((d: any) => [
         d.invoiceNo, d.bookingId, d.roomNo, d.floor,
-        ...(d.employees || []).map((e: any) => e?.name),
+        ...(d.employees || []).filter(Boolean).map((e: any) => e?.name),
       ]),
     ].filter(Boolean).join(' ').toLowerCase();
   }
 
   let filtered = hotels.filter(h => {
+    const durations = (h.durations || []).filter(Boolean); // ← null guard
     const ms = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
     const me = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(new Date(selectedYear, selectedMonth, 0).getDate()).padStart(2, '0')}`;
-    const inMonth = h.durations.length === 0 || h.durations.some((d: any) =>
+    const inMonth = durations.length === 0 || durations.some((d: any) =>
       !d.startDate || !d.endDate || (d.startDate <= me && d.endDate >= ms)
     );
     if (!inMonth) return false;
     if (search.trim() && !searchFields(h).includes(search.trim().toLowerCase())) return false;
     const fbd = getFreeBedDate();
     if (fbd && getHotelFreeBeds(h, fbd) <= 0) return false;
-    if (paidFilter === 'paid'   && !h.durations.some((d: any) =>  d.isPaid)) return false;
-    if (paidFilter === 'unpaid' && !h.durations.some((d: any) => !d.isPaid)) return false;
-    if (depositFilter === 'deposit-paid' && !h.durations.some((d: any) =>  d.hasDeposit)) return false;
-    if (depositFilter === 'no-deposit'   &&  h.durations.some((d: any) =>  d.hasDeposit)) return false;
+    if (paidFilter === 'paid'   && !durations.some((d: any) =>  d.isPaid)) return false;
+    if (paidFilter === 'unpaid' && !durations.some((d: any) => !d.isPaid)) return false;
+    if (depositFilter === 'deposit-paid' && !durations.some((d: any) =>  d.hasDeposit)) return false;
+    if (depositFilter === 'no-deposit'   &&  durations.some((d: any) =>  d.hasDeposit)) return false;
     return true;
   });
 
   filtered = [...filtered].sort((a, b) => {
+    const aDurs = (a.durations || []).filter(Boolean);
+    const bDurs = (b.durations || []).filter(Boolean);
     switch (sortBy) {
       case 'name':   return (a.name || '').localeCompare(b.name || '');
       case 'city':   return (a.city || '').localeCompare(b.city || '');
-      case 'cost':   return b.durations.reduce((s: number, d: any) => s + getDurationTotal(d), 0) - a.durations.reduce((s: number, d: any) => s + getDurationTotal(d), 0);
-      case 'nights': return b.durations.reduce((s: number, d: any) => s + calculateNights(d.startDate, d.endDate), 0) - a.durations.reduce((s: number, d: any) => s + calculateNights(d.startDate, d.endDate), 0);
+      case 'cost':   return bDurs.reduce((s: number, d: any) => s + getDurationTotal(d), 0) - aDurs.reduce((s: number, d: any) => s + getDurationTotal(d), 0);
+      case 'nights': return bDurs.reduce((s: number, d: any) => s + calculateNights(d.startDate, d.endDate), 0) - aDurs.reduce((s: number, d: any) => s + calculateNights(d.startDate, d.endDate), 0);
       default: return 0;
     }
   });
@@ -138,7 +140,7 @@ export default function Dashboard({ isDarkMode: dk, lang = 'de', selectedMonth, 
 
   const totalHotels   = filtered.length;
   const totalFreeBeds = filtered.reduce((s, h) => s + getHotelFreeBeds(h, today), 0);
-  const totalCost     = filtered.reduce((s, h) => s + h.durations.reduce((ss: number, d: any) => ss + getDurationTotal(d), 0), 0);
+  const totalCost     = filtered.reduce((s, h) => s + (h.durations || []).filter(Boolean).reduce((ss: number, d: any) => ss + getDurationTotal(d), 0), 0);
   const hasFilters    = !!(search || freeBedFilter !== 'none' || paidFilter !== 'all' || depositFilter !== 'all');
 
   function clearFilters() {
@@ -147,11 +149,14 @@ export default function Dashboard({ isDarkMode: dk, lang = 'de', selectedMonth, 
   }
 
   function handleExport() {
-    const rows = filtered.map(h => [
-      h.name, h.city, h.companyTag, h.contactPerson || h.contact || '', h.email || '',
-      h.durations.length,
-      h.durations.reduce((s: number, d: any) => s + getDurationTotal(d), 0).toFixed(2),
-    ]);
+    const rows = filtered.map(h => {
+      const durs = (h.durations || []).filter(Boolean);
+      return [
+        h.name, h.city, h.companyTag, h.contactPerson || h.contact || '', h.email || '',
+        durs.length,
+        durs.reduce((s: number, d: any) => s + getDurationTotal(d), 0).toFixed(2),
+      ];
+    });
     const csv = [['Hotel', 'Stadt', 'Firma', 'Kontakt', 'Email', 'Aufenthalte', 'Kosten'], ...rows].map(r => r.join(';')).join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
@@ -160,11 +165,11 @@ export default function Dashboard({ isDarkMode: dk, lang = 'de', selectedMonth, 
   }
 
   const syncMap: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
-    saved:   { icon: <CheckCircle size={12}/>,                       label: lang === 'de' ? 'Gespeichert' : 'Saved',    color: 'text-green-500' },
-    saving:  { icon: <Loader2 size={12} className="animate-spin"/>,  label: lang === 'de' ? 'Speichern...' : 'Saving...', color: 'text-blue-400' },
-    pending: { icon: <Clock size={12}/>,                             label: lang === 'de' ? 'Ausstehend' : 'Pending',  color: 'text-yellow-500' },
-    failed:  { icon: <AlertCircle size={12}/>,                       label: lang === 'de' ? 'Fehler' : 'Failed',       color: 'text-red-500' },
-    offline: { icon: <WifiOff size={12}/>,                           label: 'Offline',                                  color: 'text-orange-400' },
+    saved:   { icon: <CheckCircle size={12}/>,                       label: lang === 'de' ? 'Gespeichert' : 'Saved',      color: 'text-green-500' },
+    saving:  { icon: <Loader2 size={12} className="animate-spin"/>,  label: lang === 'de' ? 'Speichern...' : 'Saving...', color: 'text-blue-400'  },
+    pending: { icon: <Clock size={12}/>,                             label: lang === 'de' ? 'Ausstehend' : 'Pending',     color: 'text-yellow-500'},
+    failed:  { icon: <AlertCircle size={12}/>,                       label: lang === 'de' ? 'Fehler' : 'Failed',          color: 'text-red-500'   },
+    offline: { icon: <WifiOff size={12}/>,                           label: 'Offline',                                     color: 'text-orange-400'},
   };
   const si = syncMap[syncStatus] || syncMap.saved;
 
