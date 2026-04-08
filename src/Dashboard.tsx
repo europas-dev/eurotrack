@@ -7,7 +7,7 @@ import {
 import { cn, formatCurrency, getHotelFreeBeds, getDurationTotal, calculateNights } from './lib/utils';
 import { getHotels, createHotel } from './lib/supabase';
 import { offlineSync } from './lib/offlineSync';
-import HotelRow from './components/HotelRow';
+import { HotelRow } from './components/HotelRow';
 import type { SyncStatus, GroupBy, SortBy, FreeBedFilter, PaidFilter, DepositFilter } from './lib/types';
 
 interface Props {
