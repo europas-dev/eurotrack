@@ -1,194 +1,221 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL!;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY!;
+const supabaseUrl     = import.meta.env.VITE_SUPABASE_URL as string;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// ─── NORMALIZERS ──────────────────────────────────────────────────────────────
+function normalizeEmployee(e: any) {
+  if (!e) return null;
+  return {
+    ...e,
+    durationId: e.durationid ?? e.durationId,
+    slotIndex:  e.slotindex  ?? e.slotIndex,
+    checkIn:    e.checkin    ?? e.checkIn,
+    checkOut:   e.checkout   ?? e.checkOut,
+  };
+}
+
+function normalizeDuration(d: any) {
+  return {
+    ...d,
+    hotelId:              d.hotelid              ?? d.hotelId,
+    startDate:            d.startdate            ?? d.startDate,
+    endDate:              d.enddate              ?? d.endDate,
+    roomType:             d.roomtype             ?? d.roomType,
+    numberOfRooms:        d.numberofrooms        ?? d.numberOfRooms,
+    pricePerNightPerRoom: d.pricepernightperroom ?? d.pricePerNightPerRoom,
+    hasDiscount:          d.hasdiscount          ?? d.hasDiscount,
+    discountType:         d.discounttype         ?? d.discountType,
+    discountValue:        d.discountvalue        ?? d.discountValue,
+    isPaid:               d.ispaid               ?? d.isPaid,
+    bookingId:            d.bookingid            ?? d.bookingId,
+    extensionNote:        d.extensionnote        ?? d.extensionNote,
+    autoDistribute:       d.autodistribute       ?? d.autoDistribute,
+    useManualPrices:      d.usemanualprice       ?? d.useManualPrices,
+    nightlyPrices:        d.nightlyprices        ?? d.nightlyPrices ?? {},
+    employees: (d.employees || []).map(normalizeEmployee),
+  };
+}
+
+function normalizeHotel(h: any) {
+  return {
+    ...h,
+    companyTag:    h.companytag    ?? h.companyTag,
+    company:       h.companytag    ?? h.companyTag,
+    webLink:       h.weblink       ?? h.webLink,
+    contactPerson: h.contactperson ?? h.contactPerson,
+    durations: (h.durations || []).map(normalizeDuration),
+  };
+}
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
+export async function signIn(email: string, password: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  return data;
+}
+
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
 }
 
+export async function getSession() {
+  const { data } = await supabase.auth.getSession();
+  return data.session;
+}
+
 // ─── HOTELS ───────────────────────────────────────────────────────────────────
 export async function getHotels() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
-
   const { data, error } = await supabase
     .from('hotels')
-    .select(`
-      *,
-      durations (
-        *,
-        employees (*)
-      )
-    `)
-    .eq('user_id', user.id)
+    .select('*, durations(*, employees(*))')
     .order('created_at', { ascending: false });
-
   if (error) throw error;
   return (data || []).map(normalizeHotel);
 }
 
-export async function createHotel(fields: {
+export async function createHotel(data: {
   name: string;
   city: string;
-  company: string;
+  companyTag?: string;
+  company?: string;
+  address?: string;
+  contact?: string;
+  email?: string;
+  webLink?: string;
 }) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  const { data, error } = await supabase
+  const { data: result, error } = await supabase
     .from('hotels')
-    .insert([{
-      user_id:     user.id,
-      name:        fields.name,
-      city:        fields.city,
-      company_tag: fields.company,
-    }])
+    .insert({
+      name:       data.name,
+      city:       data.city,
+      companytag: data.companyTag ?? data.company ?? '',
+      address:    data.address    ?? null,
+      contact:    data.contact    ?? null,
+      email:      data.email      ?? null,
+      weblink:    data.webLink    ?? null,
+      userid:     user.id,
+    })
     .select()
     .single();
-
   if (error) throw error;
-  return normalizeHotel({ ...data, durations: [] });
+  return normalizeHotel({ ...result, durations: [] });
 }
 
-export async function updateHotel(id: string, fields: any) {
-  const payload: Record<string, any> = {};
-  if (fields.name        !== undefined) payload.name        = fields.name;
-  if (fields.city        !== undefined) payload.city        = fields.city;
-  if (fields.companyTag  !== undefined) payload.company_tag = fields.companyTag;
-  if (fields.company     !== undefined) payload.company_tag = fields.company;
-  if (fields.address     !== undefined) payload.address     = fields.address;
-  if (fields.contact     !== undefined) payload.contact     = fields.contact;
-  if (fields.email       !== undefined) payload.email       = fields.email;
-  if (fields.webLink     !== undefined) payload.web_link    = fields.webLink;
-  if (fields.notes       !== undefined) payload.notes       = fields.notes;
-  if (fields.contactPerson !== undefined) payload.contact_person = fields.contactPerson;
-
-  const { data, error } = await supabase
+export async function updateHotel(id: string, data: any) {
+  const { error } = await supabase
     .from('hotels')
-    .update(payload)
-    .eq('id', id)
-    .select()
-    .single();
-
+    .update({
+      name:          data.name,
+      city:          data.city,
+      companytag:    data.companyTag    ?? data.companytag,
+      address:       data.address,
+      contact:       data.contact,
+      email:         data.email,
+      weblink:       data.webLink       ?? data.weblink,
+      contactperson: data.contactPerson ?? data.contactperson,
+      notes:         data.notes,
+    })
+    .eq('id', id);
   if (error) throw error;
-  return data;
 }
 
 export async function deleteHotel(id: string) {
-  const { error } = await supabase
-    .from('hotels')
-    .delete()
-    .eq('id', id);
+  const { error } = await supabase.from('hotels').delete().eq('id', id);
   if (error) throw error;
 }
 
 // ─── DURATIONS ────────────────────────────────────────────────────────────────
-export async function createDuration(fields: {
-  hotelId: string;
-  startDate: string;
-  endDate: string;
-  roomType: string;
-  numberOfRooms: number;
-  pricePerNightPerRoom: number;
-  hasDiscount: boolean;
-  discountType: string;
-  discountValue: number;
-  isPaid: boolean;
-  bookingId?: string | null;
-  useManualPrices?: boolean;
-  nightlyPrices?: Record<string, number>;
-}) {
-  const { data, error } = await supabase
+export async function createDuration(data: any) {
+  const { data: result, error } = await supabase
     .from('durations')
-    .insert([{
-      hotel_id:                fields.hotelId,
-      start_date:              fields.startDate,
-      end_date:                fields.endDate,
-      room_type:               fields.roomType,
-      number_of_rooms:         fields.numberOfRooms,
-      price_per_night_per_room: fields.pricePerNightPerRoom,
-      has_discount:            fields.hasDiscount,
-      discount_type:           fields.discountType,
-      discount_value:          fields.discountValue,
-      is_paid:                 fields.isPaid,
-      booking_id:              fields.bookingId ?? null,
-      use_manual_prices:       fields.useManualPrices ?? false,
-      nightly_prices:          fields.nightlyPrices ?? {},
-    }])
-    .select(`*, employees (*)`)
+    .insert({
+      hotelid:              data.hotelId,
+      startdate:            data.startDate            ?? '',
+      enddate:              data.endDate              ?? '',
+      roomtype:             data.roomType             ?? 'DZ',
+      numberofrooms:        data.numberOfRooms        ?? 1,
+      pricepernightperroom: data.pricePerNightPerRoom ?? 0,
+      hasdiscount:          data.hasDiscount          ?? false,
+      discounttype:         data.discountType         ?? 'percentage',
+      discountvalue:        data.discountValue        ?? 0,
+      ispaid:               data.isPaid               ?? false,
+      bookingid:            data.bookingId            ?? null,
+      usemanualprice:       data.useManualPrices      ?? false,
+      nightlyprices:        data.nightlyPrices        ?? {},
+    })
+    .select()
     .single();
-
   if (error) throw error;
-  return normalizeDuration(data);
+  return normalizeDuration({ ...result, employees: [] });
 }
 
-export async function updateDuration(id: string, fields: any) {
-  const payload: Record<string, any> = {};
-  if (fields.startDate             !== undefined) payload.start_date               = fields.startDate;
-  if (fields.endDate               !== undefined) payload.end_date                 = fields.endDate;
-  if (fields.roomType              !== undefined) payload.room_type                = fields.roomType;
-  if (fields.numberOfRooms         !== undefined) payload.number_of_rooms          = fields.numberOfRooms;
-  if (fields.pricePerNightPerRoom  !== undefined) payload.price_per_night_per_room = fields.pricePerNightPerRoom;
-  if (fields.hasDiscount           !== undefined) payload.has_discount             = fields.hasDiscount;
-  if (fields.discountType          !== undefined) payload.discount_type            = fields.discountType;
-  if (fields.discountValue         !== undefined) payload.discount_value           = fields.discountValue;
-  if (fields.isPaid                !== undefined) payload.is_paid                  = fields.isPaid;
-  if (fields.bookingId             !== undefined) payload.booking_id               = fields.bookingId;
-  if (fields.extensionNote         !== undefined) payload.extension_note           = fields.extensionNote;
-  if (fields.useManualPrices       !== undefined) payload.use_manual_prices        = fields.useManualPrices;
-  if (fields.nightlyPrices         !== undefined) payload.nightly_prices           = fields.nightlyPrices;
-  if (fields.autoDistribute        !== undefined) payload.auto_distribute          = fields.autoDistribute;
-
-  const { data, error } = await supabase
-    .from('durations')
-    .update(payload)
-    .eq('id', id)
-    .select(`*, employees (*)`)
-    .single();
-
-  if (error) throw error;
-  return normalizeDuration(data);
-}
-
-export async function deleteDuration(id: string) {
+export async function updateDuration(id: string, data: any) {
   const { error } = await supabase
     .from('durations')
-    .delete()
+    .update({
+      startdate:            data.startDate            ?? data.startdate,
+      enddate:              data.endDate              ?? data.enddate,
+      roomtype:             data.roomType             ?? data.roomtype,
+      numberofrooms:        data.numberOfRooms        ?? data.numberofrooms,
+      pricepernightperroom: data.pricePerNightPerRoom ?? data.pricepernightperroom,
+      hasdiscount:          data.hasDiscount          ?? data.hasdiscount,
+      discounttype:         data.discountType         ?? data.discounttype,
+      discountvalue:        data.discountValue        ?? data.discountvalue,
+      ispaid:               data.isPaid               ?? data.ispaid,
+      bookingid:            data.bookingId            ?? data.bookingid,
+      extensionnote:        data.extensionNote        ?? data.extensionnote,
+      usemanualprice:       data.useManualPrices      ?? data.usemanualprice,
+      nightlyprices:        data.nightlyPrices        ?? data.nightlyprices,
+      autodistribute:       data.autoDistribute       ?? data.autodistribute,
+    })
     .eq('id', id);
   if (error) throw error;
 }
 
-// ─── EMPLOYEES ────────────────────────────────────────────────────────────────
-export async function upsertEmployees(
-  durationId: string,
-  employees: { id?: string; name: string | null; checkIn: string; checkOut: string }[]
-) {
-  // Delete existing and re-insert for simplicity
-  await supabase.from('employees').delete().eq('duration_id', durationId);
-
-  const rows = employees
-    .filter(e => e !== null)
-    .map(e => ({
-      duration_id: durationId,
-      name:        e.name,
-      check_in:    e.checkIn,
-      check_out:   e.checkOut,
-    }));
-
-  if (!rows.length) return [];
-
-  const { data, error } = await supabase
-    .from('employees')
-    .insert(rows)
-    .select();
-
+export async function deleteDuration(id: string) {
+  const { error } = await supabase.from('durations').delete().eq('id', id);
   if (error) throw error;
-  return (data || []).map(normalizeEmployee);
+}
+
+// ─── EMPLOYEES ────────────────────────────────────────────────────────────────
+export async function createEmployee(durationId: string, slotIndex: number, data: any) {
+  const { data: result, error } = await supabase
+    .from('employees')
+    .insert({
+      durationid: durationId,
+      slotindex:  slotIndex,
+      name:       data.name,
+      checkin:    data.checkIn  ?? null,
+      checkout:   data.checkOut ?? null,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return normalizeEmployee(result);
+}
+
+export async function updateEmployee(id: string, data: any) {
+  const { error } = await supabase
+    .from('employees')
+    .update({
+      name:     data.name,
+      checkin:  data.checkIn  ?? data.checkin,
+      checkout: data.checkOut ?? data.checkout,
+    })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteEmployee(id: string) {
+  const { error } = await supabase.from('employees').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // ─── USER PROFILE ─────────────────────────────────────────────────────────────
@@ -203,17 +230,16 @@ export async function getMyProfile() {
     .single();
 
   if (error) {
-    // Profile row doesn't exist yet — return minimal object
     if (error.code === 'PGRST116') return { id: user.id, email: user.email };
     throw error;
   }
 
   return {
     ...data,
-    fullName:   data.full_name,
-    fontFamily: data.font_family,
-    fontScale:  data.font_scale,
-    avatarUrl:  data.avatar_url,
+    fullName:   data.full_name   ?? data.fullname,
+    fontFamily: data.font_family ?? data.fontfamily ?? 'inter',
+    fontScale:  data.font_scale  ?? data.fontscale  ?? 100,
+    avatarUrl:  data.avatar_url  ?? data.avatarurl,
   };
 }
 
@@ -237,32 +263,28 @@ export async function updateMyProfile(updates: {
     .upsert(payload, { onConflict: 'id' })
     .select()
     .single();
-
   if (error) throw error;
 
   return {
     ...data,
-    fullName:   data.full_name,
-    fontFamily: data.font_family,
-    fontScale:  data.font_scale,
-    avatarUrl:  data.avatar_url,
+    fullName:   data.full_name   ?? data.fullname,
+    fontFamily: data.font_family ?? data.fontfamily ?? 'inter',
+    fontScale:  data.font_scale  ?? data.fontscale  ?? 100,
+    avatarUrl:  data.avatar_url  ?? data.avatarurl,
   };
 }
 
 export async function searchProfiles(query: string) {
   if (!query.trim()) return [];
-
   const { data, error } = await supabase
     .from('profiles')
     .select('id, full_name, email')
     .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
     .limit(10);
-
   if (error) throw error;
-
   return (data || []).map((p: any) => ({
     ...p,
-    fullName: p.full_name,
+    fullName: p.full_name ?? p.fullname,
   }));
 }
 
@@ -285,68 +307,54 @@ export async function inviteCollaborator(
     }])
     .select('*, profile:shared_with_id(id, full_name, email)')
     .single();
-
   if (error) throw error;
   return data;
 }
 
-export async function updateCollaboratorPermission(
-  shareId: string,
-  permission: 'viewer' | 'editor'
-) {
+export async function updateCollaboratorPermission(shareId: string, permission: 'viewer' | 'editor') {
   const { data, error } = await supabase
     .from('workspace_shares')
     .update({ permission })
     .eq('id', shareId)
     .select()
     .single();
-
   if (error) throw error;
   return data;
 }
 
 export async function removeCollaborator(shareId: string) {
-  const { error } = await supabase
-    .from('workspace_shares')
-    .delete()
-    .eq('id', shareId);
-
+  const { error } = await supabase.from('workspace_shares').delete().eq('id', shareId);
   if (error) throw error;
 }
 
 export async function getCollaborators() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
-
   const { data, error } = await supabase
     .from('workspace_shares')
     .select('*, profile:shared_with_id(id, full_name, email)')
     .eq('owner_id', user.id);
-
   if (error) throw error;
   return data || [];
 }
 
-// ─── OFFLINE SYNC ─────────────────────────────────────────────────────────────
+// ─── OFFLINE QUEUE ────────────────────────────────────────────────────────────
 const QUEUE_KEY = 'eurotrack_offline_queue';
 
 interface QueuedOp {
   id: string;
-  type: 'updateHotel' | 'updateDuration' | 'createHotel' | 'deleteDuration';
+  type: string;
   payload: any;
   timestamp: number;
 }
 
 function loadQueue(): QueuedOp[] {
-  try {
-    return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
-  } catch {
-    return [];
-  }
+  try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); }
+  catch { return []; }
 }
 
 function saveQueue(q: QueuedOp[]) {
-  localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch {}
 }
 
 export function hasQueuedOps(): boolean {
@@ -362,82 +370,21 @@ export function queueOp(op: Omit<QueuedOp, 'id' | 'timestamp'>) {
 export async function syncOfflineQueue() {
   const q = loadQueue();
   if (!q.length) return;
-
   const failed: QueuedOp[] = [];
-
   for (const op of q) {
     try {
-      if (op.type === 'updateHotel') {
-        await updateHotel(op.payload.id, op.payload.fields);
-      } else if (op.type === 'updateDuration') {
-        await updateDuration(op.payload.id, op.payload.fields);
-      } else if (op.type === 'deleteDuration') {
-        await deleteDuration(op.payload.id);
-      }
+      if (op.type === 'updateHotel')    await updateHotel(op.payload.id, op.payload.fields);
+      if (op.type === 'updateDuration') await updateDuration(op.payload.id, op.payload.fields);
+      if (op.type === 'deleteDuration') await deleteDuration(op.payload.id);
+      if (op.type === 'updateEmployee') await updateEmployee(op.payload.id, op.payload.fields);
     } catch {
       failed.push(op);
     }
   }
-
   saveQueue(failed);
 }
 
 // Auto-sync when connection returns
 if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => {
-    syncOfflineQueue().catch(console.error);
-  });
-}
-
-// ─── NORMALIZERS (snake_case → camelCase) ──────────────────────────────────────
-function normalizeHotel(h: any) {
-  return {
-    id:            h.id,
-    userId:        h.user_id,
-    name:          h.name,
-    city:          h.city,
-    companyTag:    h.company_tag,
-    company:       h.company_tag,   // alias so both work
-    address:       h.address,
-    contact:       h.contact,
-    contactPerson: h.contact_person,
-    email:         h.email,
-    webLink:       h.web_link,
-    notes:         h.notes,
-    createdAt:     h.created_at,
-    updatedAt:     h.updated_at,
-    durations:     (h.durations || []).map(normalizeDuration),
-  };
-}
-
-function normalizeDuration(d: any) {
-  return {
-    id:                   d.id,
-    hotelId:              d.hotel_id,
-    bookingId:            d.booking_id,
-    startDate:            d.start_date,
-    endDate:              d.end_date,
-    roomType:             d.room_type,
-    numberOfRooms:        d.number_of_rooms,
-    pricePerNightPerRoom: d.price_per_night_per_room,
-    hasDiscount:          d.has_discount,
-    discountType:         d.discount_type,
-    discountValue:        d.discount_value,
-    isPaid:               d.is_paid,
-    extensionNote:        d.extension_note,
-    autoDistribute:       d.auto_distribute,
-    useManualPrices:      d.use_manual_prices,
-    nightlyPrices:        d.nightly_prices ?? {},
-    employees:            (d.employees || []).map(normalizeEmployee),
-  };
-}
-
-function normalizeEmployee(e: any) {
-  if (!e) return null;
-  return {
-    id:       e.id,
-    name:     e.name,
-    checkIn:  e.check_in,
-    checkOut: e.check_out,
-  };
+  window.addEventListener('online', () => { syncOfflineQueue().catch(console.error); });
 }
