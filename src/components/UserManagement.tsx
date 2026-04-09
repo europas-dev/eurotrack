@@ -4,8 +4,8 @@ import { getAllUsers, setUserRole, UserRole } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import {
   Users, Shield, Crown, Eye, Edit3, Clock,
-  Sun, Moon, Globe, ArrowLeft, AlertTriangle,
-  Check, XCircle, Search, RefreshCw, ChevronDown,
+  Sun, Moon, Globe, ArrowLeft,
+  Check, XCircle, Search, RefreshCw, ChevronDown, Lock,
 } from 'lucide-react';
 
 interface Props {
@@ -19,7 +19,9 @@ interface Props {
 
 type Filter = 'all' | UserRole;
 
-const ROLES: UserRole[] = ['superadmin', 'admin', 'editor', 'viewer', 'pending'];
+// superadmin is intentionally excluded from the assignable dropdown options
+const ASSIGNABLE_ROLES: UserRole[] = ['admin', 'editor', 'viewer', 'pending'];
+const ALL_ROLES:        UserRole[] = ['superadmin', 'admin', 'editor', 'viewer', 'pending'];
 
 const ROLE_META: Record<UserRole, {
   en: string; de: string;
@@ -87,8 +89,7 @@ function ConfirmDialog({
         'w-full max-w-sm rounded-2xl border shadow-2xl overflow-hidden',
         dk ? 'bg-[#0D1625] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
       )}>
-        {/* Colored top bar matching the new role */}
-        <div className={cn('h-1.5 w-full', meta.dot.replace('bg-', 'bg-'))} />
+        <div className={cn('h-1.5 w-full', meta.dot)} />
 
         <div className="p-6">
           <div className="flex items-center gap-3 mb-5">
@@ -194,7 +195,7 @@ function StatCard({ role, count, active, lang, onClick, theme }: {
   );
 }
 
-// ── Inline role selector row ────────────────────────────────────────────────
+// ── User row ────────────────────────────────────────────────────────────────
 function UserRow({
   user, lang, theme,
   selectedRole, onDropdownChange, onApply, isSelf,
@@ -205,16 +206,20 @@ function UserRow({
 }) {
   const dk          = theme === 'dark';
   const currentRole = (user.role as UserRole) ?? 'pending';
-  const isDirty     = selectedRole !== currentRole;
-  const isLocked    = currentRole === 'superadmin' || isSelf;
-  const initials    = (user.full_name || user.username || user.email || '?')[0].toUpperCase();
-  const grad        = avatarGradient(initials);
+  // superadmin rows are fully locked — cannot be changed via the UI
+  const isSuperAdmin = currentRole === 'superadmin';
+  const isLocked     = isSuperAdmin || isSelf;
+  const isDirty      = !isLocked && selectedRole !== currentRole;
+  const initials     = (user.full_name || user.username || user.email || '?')[0].toUpperCase();
+  const grad         = avatarGradient(initials);
 
   return (
     <div className={cn(
-      'group flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all',
-      dk ? 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06] hover:border-white/10'
-         : 'bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm'
+      'flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all',
+      isLocked
+        ? dk ? 'bg-white/[0.02] border-white/[0.04] opacity-70' : 'bg-slate-50 border-slate-100 opacity-70'
+        : dk ? 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06] hover:border-white/10'
+             : 'bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm'
     )}>
       {/* Avatar */}
       <div className={cn(
@@ -226,12 +231,17 @@ function UserRow({
 
       {/* Name + email */}
       <div className="flex-1 min-w-0">
-        <p className="font-bold text-sm leading-tight truncate">
-          {user.full_name || user.username || user.email}
-        </p>
+        <div className="flex items-center gap-1.5">
+          <p className="font-bold text-sm leading-tight truncate">
+            {user.full_name || user.username || user.email}
+          </p>
+          {isSuperAdmin && (
+            <Lock size={11} className={dk ? 'text-yellow-400/60 shrink-0' : 'text-yellow-600/60 shrink-0'} />
+          )}
+        </div>
         <p className={cn('text-xs truncate mt-0.5', dk ? 'text-slate-500' : 'text-slate-400')}>
           {user.email}
-          {user.username && <span className={cn('ml-2 opacity-60')}>@{user.username}</span>}
+          {user.username && <span className="ml-2 opacity-60">@{user.username}</span>}
         </p>
       </div>
 
@@ -240,51 +250,61 @@ function UserRow({
         <RoleBadge role={currentRole} lang={lang} />
       </div>
 
-      {/* Role dropdown */}
-      <div className="relative shrink-0">
-        <select
-          value={selectedRole}
-          onChange={e => onDropdownChange(e.target.value as UserRole)}
-          disabled={isLocked}
-          className={cn(
-            'appearance-none text-xs font-bold pl-3 pr-7 py-2 rounded-xl border outline-none transition-all cursor-pointer',
-            isLocked && 'opacity-40 cursor-not-allowed',
-            isDirty
-              ? 'bg-blue-600 border-blue-500 text-white'
-              : dk
-                ? 'bg-white/8 border-white/10 text-slate-300 hover:bg-white/12'
-                : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-          )}
-        >
-          {ROLES.map(r => (
-            <option key={r} value={r}>
-              {r === 'superadmin' ? 'Super Admin' :
-               r === 'admin'      ? 'Admin' :
-               r === 'editor'     ? (lang === 'de' ? 'Bearbeiter' : 'Editor') :
-               r === 'viewer'     ? (lang === 'de' ? 'Betrachter' : 'Viewer') :
+      {/* Dropdown — hidden for superadmins, shown for everyone else */}
+      {isSuperAdmin ? (
+        <div className={cn(
+          'shrink-0 px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5',
+          dk ? 'bg-yellow-500/5 border-yellow-500/10 text-yellow-400/50' : 'bg-yellow-50 border-yellow-200 text-yellow-600/50'
+        )}>
+          <Lock size={11} />
+          {lang === 'de' ? 'Nur DB' : 'DB only'}
+        </div>
+      ) : (
+        <>
+          <div className="relative shrink-0">
+            <select
+              value={selectedRole}
+              onChange={e => onDropdownChange(e.target.value as UserRole)}
+              disabled={isLocked}
+              className={cn(
+                'appearance-none text-xs font-bold pl-3 pr-7 py-2 rounded-xl border outline-none transition-all cursor-pointer',
+                isLocked && 'opacity-40 cursor-not-allowed',
+                isDirty
+                  ? 'bg-blue-600 border-blue-500 text-white'
+                  : dk
+                    ? 'bg-white/8 border-white/10 text-slate-300 hover:bg-white/12'
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+              )}
+            >
+              {ASSIGNABLE_ROLES.map(r => (
+                <option key={r} value={r}>
+                  {r === 'admin'  ? 'Admin' :
+                   r === 'editor' ? (lang === 'de' ? 'Bearbeiter' : 'Editor') :
+                   r === 'viewer' ? (lang === 'de' ? 'Betrachter' : 'Viewer') :
                                      (lang === 'de' ? 'Ausstehend' : 'Pending')}
-            </option>
-          ))}
-        </select>
-        <ChevronDown size={11}
-          className={cn('absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none',
-            isDirty ? 'text-white/70' : dk ? 'text-slate-500' : 'text-slate-400')}
-        />
-      </div>
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={11}
+              className={cn('absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none',
+                isDirty ? 'text-white/70' : dk ? 'text-slate-500' : 'text-slate-400')}
+            />
+          </div>
 
-      {/* Apply button */}
-      <button
-        onClick={onApply}
-        disabled={!isDirty || isLocked}
-        className={cn(
-          'shrink-0 px-3.5 py-2 rounded-xl text-xs font-black transition-all',
-          isDirty && !isLocked
-            ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-sm shadow-blue-600/30 scale-100 hover:scale-105'
-            : cn('opacity-0 pointer-events-none', dk ? 'bg-white/5' : 'bg-slate-100')
-        )}
-      >
-        {lang === 'de' ? 'Anwenden' : 'Apply'}
-      </button>
+          <button
+            onClick={onApply}
+            disabled={!isDirty}
+            className={cn(
+              'shrink-0 px-3.5 py-2 rounded-xl text-xs font-black transition-all',
+              isDirty
+                ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-sm shadow-blue-600/30 hover:scale-105'
+                : 'opacity-0 pointer-events-none'
+            )}
+          >
+            {lang === 'de' ? 'Anwenden' : 'Apply'}
+          </button>
+        </>
+      )}
     </div>
   );
 }
@@ -293,16 +313,16 @@ function UserRow({
 export default function UserManagement({ theme, lang, toggleTheme, setLang, onBack }: Props) {
   const dk = theme === 'dark';
 
-  const [users,        setUsers]        = useState<any[]>([]);
-  const [loading,      setLoading]      = useState(true);
-  const [refreshing,   setRefreshing]   = useState(false);
-  const [dbError,      setDbError]      = useState('');
-  const [search,       setSearch]       = useState('');
-  const [filter,       setFilter]       = useState<Filter>('all');
+  const [users,         setUsers]         = useState<any[]>([]);
+  const [loading,       setLoading]       = useState(true);
+  const [refreshing,    setRefreshing]    = useState(false);
+  const [dbError,       setDbError]       = useState('');
+  const [search,        setSearch]        = useState('');
+  const [filter,        setFilter]        = useState<Filter>('all');
   const [pendingChange, setPendingChange] = useState<{ user: any; newRole: UserRole } | null>(null);
-  const [saving,       setSaving]       = useState(false);
-  const [saveError,    setSaveError]    = useState('');
-  const [selectedRole, setSelectedRole] = useState<Record<string, UserRole>>({});
+  const [saving,        setSaving]        = useState(false);
+  const [saveError,     setSaveError]     = useState('');
+  const [selectedRole,  setSelectedRole]  = useState<Record<string, UserRole>>({});
 
   async function loadUsers(silent = false) {
     if (!silent) setLoading(true);
@@ -321,10 +341,9 @@ export default function UserManagement({ theme, lang, toggleTheme, setLang, onBa
 
   useEffect(() => { loadUsers(); }, []);
 
-  // Counts per role
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: users.length };
-    ROLES.forEach(r => { c[r] = users.filter(u => u.role === r).length; });
+    ALL_ROLES.forEach(r => { c[r] = users.filter(u => u.role === r).length; });
     return c;
   }, [users]);
 
@@ -371,7 +390,6 @@ export default function UserManagement({ theme, lang, toggleTheme, setLang, onBa
   return (
     <div className={cn('flex flex-col h-full', dk ? 'bg-[#020617]' : 'bg-slate-50')}>
 
-      {/* ── Confirm dialog ── */}
       {pendingChange && (
         <ConfirmDialog
           user={pendingChange.user} newRole={pendingChange.newRole}
@@ -381,12 +399,8 @@ export default function UserManagement({ theme, lang, toggleTheme, setLang, onBa
         />
       )}
 
-      {/* ── Big header ── */}
-      <div className={cn(
-        'shrink-0 border-b',
-        dk ? 'bg-[#0A1120] border-white/10' : 'bg-white border-slate-200'
-      )}>
-        {/* Top bar */}
+      {/* ── Header ── */}
+      <div className={cn('shrink-0 border-b', dk ? 'bg-[#0A1120] border-white/10' : 'bg-white border-slate-200')}>
         <div className="flex items-center justify-between px-6 pt-5 pb-2">
           <div className="flex items-center gap-3">
             <button onClick={onBack}
@@ -407,13 +421,8 @@ export default function UserManagement({ theme, lang, toggleTheme, setLang, onBa
               </div>
             </div>
           </div>
-
-          {/* Controls */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => loadUsers(true)}
-              disabled={refreshing}
-              title={lang === 'de' ? 'Aktualisieren' : 'Refresh'}
+            <button onClick={() => loadUsers(true)} disabled={refreshing}
               className={cn('p-2 rounded-xl transition-all', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
               <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
             </button>
@@ -461,16 +470,11 @@ export default function UserManagement({ theme, lang, toggleTheme, setLang, onBa
 
       {/* ── User list ── */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-
-        {/* Loading skeleton */}
         {loading && Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className={cn(
-            'h-[64px] rounded-2xl border animate-pulse',
-            dk ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-white border-slate-100'
-          )} />
+          <div key={i} className={cn('h-[64px] rounded-2xl border animate-pulse',
+            dk ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-white border-slate-100')} />
         ))}
 
-        {/* DB error */}
         {!loading && dbError && (
           <div className="p-5 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-start gap-3">
             <XCircle size={18} className="text-red-400 shrink-0 mt-0.5" />
@@ -481,7 +485,6 @@ export default function UserManagement({ theme, lang, toggleTheme, setLang, onBa
           </div>
         )}
 
-        {/* Empty state */}
         {!loading && !dbError && filtered.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center border',
@@ -492,15 +495,13 @@ export default function UserManagement({ theme, lang, toggleTheme, setLang, onBa
               {search ? (lang === 'de' ? 'Keine Treffer' : 'No matches') : (lang === 'de' ? 'Keine Benutzer' : 'No users')}
             </p>
             {search && (
-              <button onClick={() => setSearch('')}
-                className="text-xs text-blue-500 hover:underline">
+              <button onClick={() => setSearch('')} className="text-xs text-blue-500 hover:underline">
                 {lang === 'de' ? 'Suche löschen' : 'Clear search'}
               </button>
             )}
           </div>
         )}
 
-        {/* Rows */}
         {!loading && !dbError && filtered.map(user => (
           <UserRow
             key={user.id}
@@ -515,24 +516,20 @@ export default function UserManagement({ theme, lang, toggleTheme, setLang, onBa
         ))}
       </div>
 
-      {/* Footer count */}
+      {/* Footer */}
       {!loading && !dbError && (
-        <div className={cn(
-          'shrink-0 border-t px-6 py-3 flex items-center justify-between',
-          dk ? 'border-white/10 bg-[#0A1120]' : 'border-slate-200 bg-white'
-        )}>
+        <div className={cn('shrink-0 border-t px-6 py-3 flex items-center justify-between',
+          dk ? 'border-white/10 bg-[#0A1120]' : 'border-slate-200 bg-white')}>
           <p className={cn('text-xs', dk ? 'text-slate-500' : 'text-slate-400')}>
             {filtered.length} {lang === 'de' ? 'Benutzer angezeigt' : 'users shown'}
             {filter !== 'all' && (
-              <button onClick={() => setFilter('all')}
-                className="ml-2 text-blue-500 hover:underline">
+              <button onClick={() => setFilter('all')} className="ml-2 text-blue-500 hover:underline">
                 {lang === 'de' ? 'Filter entfernen' : 'clear filter'}
               </button>
             )}
           </p>
           {counts.pending > 0 && (
-            <button
-              onClick={() => setFilter('pending')}
+            <button onClick={() => setFilter('pending')}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-all">
               <Clock size={11} />
               {counts.pending} {lang === 'de' ? 'ausstehend' : 'pending'}
