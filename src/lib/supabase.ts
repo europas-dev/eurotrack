@@ -66,19 +66,12 @@ export async function getAllUsers(): Promise<any[]> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  console.log('[getAllUsers] fetching all profiles as user:', user.id)
-
   const { data, error } = await supabase
     .from('profiles')
     .select('id, email, full_name, username, role, created_at')
     .order('created_at', { ascending: false })
 
-  if (error) {
-    console.error('[getAllUsers] DB error:', error.message, error.code, error.details)
-    throw new Error(error.message)
-  }
-
-  console.log('[getAllUsers] returned rows:', data?.length ?? 0, data)
+  if (error) throw new Error(error.message)
   return (data ?? []).map((p: any) => ({ ...p, fullName: p.full_name ?? '' }))
 }
 
@@ -106,6 +99,7 @@ export async function getMyProfile() {
     const username   = row?.username   ?? user.user_metadata?.username   ?? ''
     const fontScale  = user.user_metadata?.fontScale  ?? 100
     const fontFamily = user.user_metadata?.fontFamily ?? 'inter'
+    const avatar     = user.user_metadata?.avatar     ?? null
 
     return {
       id:         user.id,
@@ -114,6 +108,7 @@ export async function getMyProfile() {
       fullName,
       username,
       avatar_url: user.user_metadata?.avatar_url ?? null,
+      avatar,
       fontScale,
       fontFamily,
       role:       (row?.role as UserRole) ?? 'pending',
@@ -126,6 +121,7 @@ export async function updateMyProfile(updates: {
   fullName?:   string
   username?:   string
   avatar_url?: string
+  avatar?:     string | null
   fontScale?:  number
   fontFamily?: string
 }) {
@@ -140,6 +136,7 @@ export async function updateMyProfile(updates: {
   if (updates.fontScale     !== undefined) metaPatch.fontScale  = updates.fontScale
   if (updates.fontFamily    !== undefined) metaPatch.fontFamily = updates.fontFamily
   if (updates.avatar_url    !== undefined) metaPatch.avatar_url = updates.avatar_url
+  if (updates.avatar        !== undefined) metaPatch.avatar     = updates.avatar
 
   if (Object.keys(metaPatch).length > 0) {
     const { error: authErr } = await supabase.auth.updateUser({ data: metaPatch })
@@ -155,6 +152,90 @@ export async function updateMyProfile(updates: {
   }
 
   return getMyProfile()
+}
+
+// ─── Security: update username ────────────────────────────────────────────────
+export async function updateMyUsername(newUsername: string): Promise<void> {
+  const trimmed = newUsername.trim()
+  if (!trimmed) throw new Error('Username cannot be empty')
+  if (trimmed.length < 3) throw new Error('Username must be at least 3 characters')
+  if (!/^[a-zA-Z0-9_.-]+$/.test(trimmed)) throw new Error('Username: only letters, numbers, _ . -')
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  // Check uniqueness
+  const { data: existing } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('username', trimmed)
+    .neq('id', user.id)
+    .maybeSingle()
+  if (existing) throw new Error('This username is already taken')
+
+  // Update profiles table (used for login lookup)
+  const { error: dbErr } = await supabase
+    .from('profiles')
+    .update({ username: trimmed })
+    .eq('id', user.id)
+  if (dbErr) throw dbErr
+
+  // Also update auth metadata so getMyProfile stays in sync
+  await supabase.auth.updateUser({ data: { username: trimmed } })
+}
+
+// ─── Security: update email ───────────────────────────────────────────────────
+export async function updateMyEmail(newEmail: string): Promise<void> {
+  const trimmed = newEmail.trim()
+  if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed))
+    throw new Error('Please enter a valid email address')
+
+  const { error } = await supabase.auth.updateUser({ email: trimmed })
+  if (error) throw error
+  // Also update profiles.email so username-login lookup keeps working after confirmation
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) {
+    await supabase.from('profiles').update({ email: trimmed }).eq('id', user.id)
+  }
+}
+
+// ─── Security: update password ────────────────────────────────────────────────
+export async function updateMyPassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  if (newPassword.length < 6) throw new Error('New password must be at least 6 characters')
+
+  // Re-authenticate by signing in with current credentials
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user?.email) throw new Error('Could not determine current email')
+
+  const { error: reAuthErr } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  })
+  if (reAuthErr) throw new Error('Current password is incorrect')
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) throw error
+}
+
+// ─── Security: send password reset email ─────────────────────────────────────
+export async function sendPasswordReset(email: string): Promise<void> {
+  const { error } = await supabase.auth.resetPasswordForEmail(email)
+  if (error) throw error
+}
+
+// ─── Access: grant user access (admin/superadmin) ────────────────────────────
+export async function grantUserAccess(
+  userId: string,
+  role: 'viewer' | 'editor' | 'admin'
+): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ role })
+    .eq('id', userId)
+  if (error) throw error
 }
 
 export async function searchProfiles(query: string): Promise<any[]> {
@@ -211,7 +292,7 @@ export async function getCollaborators(): Promise<any[]> {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, email, full_name, role, created_at')
+      .select('id, email, full_name, username, role, created_at')
       .in('role', ['admin', 'editor', 'viewer'])
       .order('created_at', { ascending: true })
     if (error) return []
@@ -221,6 +302,7 @@ export async function getCollaborators(): Promise<any[]> {
       role:       p.role,
       email:      p.email     ?? '',
       fullName:   p.full_name ?? '',
+      username:   p.username  ?? '',
       full_name:  p.full_name ?? '',
       avatar_url: null,
     }))
@@ -246,7 +328,6 @@ function serialiseCompanyTag(tags: string[]): string | null {
   return JSON.stringify(tags)
 }
 
-// ─── Normalizers ──────────────────────────────────────────────────────────────
 function normalizeEmployee(e: any): any {
   if (!e || typeof e !== 'object') return null
   return {
@@ -304,7 +385,7 @@ function normalizeHotel(h: any): any {
   }
 }
 
-// ─── Hotels — company-wide ────────────────────────────────────────────────────
+// ─── Hotels ───────────────────────────────────────────────────────────────────
 export async function getHotels() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
@@ -354,7 +435,7 @@ export async function createHotel(data: {
     .select().single()
 
   if (error) throw error
-  if (!result) throw new Error('Hotel created but no data returned — check RLS policies')
+  if (!result) throw new Error('Hotel created but no data returned')
   return normalizeHotel({ ...result, durations: [] })
 }
 
@@ -363,9 +444,7 @@ export async function updateHotel(id: string, data: any) {
   if (!user) throw new Error('Not authenticated')
 
   const rawTag = data.companyTag ?? data.companytag ?? null
-  const tags = Array.isArray(rawTag)
-    ? rawTag
-    : (rawTag ? [rawTag] : [])
+  const tags = Array.isArray(rawTag) ? rawTag : (rawTag ? [rawTag] : [])
 
   const updatePayload: any = {
     name:          data.name,
