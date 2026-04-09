@@ -27,20 +27,28 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
   }
 }
 
+// Race getMyAccessLevel against a 6-second timeout to prevent infinite loading
+async function getAccessLevelWithTimeout(timeoutMs = 6000): Promise<AccessLevel | null> {
+  return Promise.race([
+    getMyAccessLevel(),
+    new Promise<null>((_, reject) =>
+      setTimeout(() => reject(new Error('Access level check timed out')), timeoutMs)
+    ),
+  ]).catch(() => null);
+}
+
 export default function App() {
   const [view,          setView]          = useState<View>('landing');
-  // Start as NOT loading — we'll flip to true only while the async check runs
   const [loading,       setLoading]       = useState(true);
   const [accessLevel,   setAccessLevel]   = useState<AccessLevel | null>(null);
   const [theme,         setTheme]         = useState<Theme>('dark');
   const [lang,          setLang]          = useState<Language>('en');
   const [offlineBanner, setOfflineBanner] = useState(!navigator.onLine);
   const pollRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-  const initDone = useRef(false); // prevent double-init in StrictMode
+  const initDone = useRef(false);
 
   const dk = theme === 'dark';
 
-  // Derive the correct view from a resolved role and apply it
   const applyRole = useCallback((role: string) => {
     if (role === 'superadmin') setView('superadmin-home');
     else if (role === 'pending') setView('pending');
@@ -49,7 +57,8 @@ export default function App() {
 
   const resolveAccess = useCallback(async (): Promise<string | null> => {
     try {
-      const access = await getMyAccessLevel();
+      const access = await getAccessLevelWithTimeout();
+      if (!access) return null;
       setAccessLevel(access);
       applyRole(access.role);
       return access.role;
@@ -76,7 +85,6 @@ export default function App() {
     if (initDone.current) return;
     initDone.current = true;
 
-    // ── Single init: check existing session, then always setLoading(false) ──
     let cancelled = false;
 
     (async () => {
@@ -88,8 +96,12 @@ export default function App() {
           setLoading(false);
           return;
         }
-        // Session exists — resolve role, then stop loading
-        await resolveAccess();
+        // Session exists — resolve role with timeout, then stop loading
+        const role = await resolveAccess();
+        // If timeout/error occurred and role is null, fall back to landing
+        if (!cancelled && !role) {
+          setView('landing');
+        }
       } catch {
         if (!cancelled) setView('landing');
       } finally {
@@ -97,11 +109,11 @@ export default function App() {
       }
     })();
 
-    // ── Auth state listener (only for subsequent sign-in / sign-out) ──
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (cancelled) return;
       if (event === 'SIGNED_IN' && session?.user) {
-        await resolveAccess();
+        const role = await resolveAccess();
+        if (!cancelled && !role) setView('landing');
         setLoading(false);
       } else if (event === 'SIGNED_OUT') {
         stopPoll();
@@ -109,7 +121,6 @@ export default function App() {
         setView('landing');
         setLoading(false);
       }
-      // INITIAL_SESSION and TOKEN_REFRESHED are intentionally ignored
     });
 
     const handleOnline  = () => setOfflineBanner(false);
@@ -139,7 +150,7 @@ export default function App() {
     setLoading(false);
   }
 
-  // ── Loading splash ─────────────────────────────────────────────────────────
+  // ── Loading splash ───────────────────────────────────────────────────────────────────────
   if (loading) return (
     <div className="min-h-screen bg-[#020617] flex items-center justify-center">
       <div className="text-center">
@@ -150,7 +161,7 @@ export default function App() {
     </div>
   );
 
-  // ── Landing ────────────────────────────────────────────────────────────────
+  // ── Landing ────────────────────────────────────────────────────────────────────────────────────────
   if (view === 'landing') return (
     <Landing
       onLogin={()      => setView('login')}
@@ -161,7 +172,7 @@ export default function App() {
     />
   );
 
-  // ── Auth ───────────────────────────────────────────────────────────────────
+  // ── Auth ───────────────────────────────────────────────────────────────────────────────────────────
   if (view === 'login' || view === 'signup' || view === 'admin-login') return (
     <Auth
       initialMode='login'
@@ -170,7 +181,7 @@ export default function App() {
     />
   );
 
-  // ── Pending ────────────────────────────────────────────────────────────────
+  // ── Pending ───────────────────────────────────────────────────────────────────────────────────────
   if (view === 'pending' || accessLevel?.role === 'pending') return (
     <div className={cn('min-h-screen flex flex-col items-center justify-center p-8',
       dk ? 'bg-[#020617] text-white' : 'bg-slate-100 text-slate-900')}>
@@ -207,7 +218,7 @@ export default function App() {
     </div>
   );
 
-  // ── Superadmin home ────────────────────────────────────────────────────────
+  // ── Superadmin home ──────────────────────────────────────────────────────────────────────────────
   if (view === 'superadmin-home' && accessLevel?.role === 'superadmin') return (
     <SuperAdminHome
       onDashboard={()      => setView('dashboard')}
@@ -218,7 +229,7 @@ export default function App() {
     />
   );
 
-  // ── User Management ────────────────────────────────────────────────────────
+  // ── User Management ─────────────────────────────────────────────────────────────────────────────
   if (view === 'user-management' && accessLevel?.role === 'superadmin') return (
     <div className={cn('flex flex-col h-screen overflow-hidden',
       dk ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-900')}>
@@ -234,7 +245,7 @@ export default function App() {
     </div>
   );
 
-  // ── Dashboard ──────────────────────────────────────────────────────────────
+  // ── Dashboard ──────────────────────────────────────────────────────────────────────────────────────
   const isViewOnly = accessLevel?.role === 'viewer';
   return (
     <div className={cn('flex flex-col h-screen overflow-hidden',
