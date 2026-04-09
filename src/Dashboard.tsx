@@ -55,7 +55,8 @@ function NewHotelRow({ isDarkMode, lang, onSave, onCancel }: {
       setSaving(true)
       const newHotel = await createHotel({ name: name.trim(), city: city.trim(), companyTag: tag.trim() })
       if (!newHotel || !newHotel.id) throw new Error('Hotel creation returned no data')
-      onSave(newHotel)
+      // Always guarantee durations array exists so HotelRow never crashes
+      onSave({ ...newHotel, durations: newHotel.durations ?? [] })
     } catch (e: any) {
       setErr(e?.message || 'Failed to create hotel')
       setSaving(false)
@@ -133,7 +134,12 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
   useEffect(() => { loadHotels() }, [])
 
   async function loadHotels() {
-    try { setLoading(true); setError(''); setHotels(await getHotels()) }
+    try {
+      setLoading(true); setError('')
+      const raw = await getHotels()
+      // Guarantee every hotel has a durations array so HotelRow never crashes
+      setHotels((raw ?? []).map((h: any) => ({ ...h, durations: h.durations ?? [] })))
+    }
     catch (e: any) { setError(e.message || 'Failed to load') }
     finally { setLoading(false) }
   }
@@ -436,12 +442,12 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
               {visibleHotels.filter(h => h && h.id).map(hotel => (
                 <HotelRow
                   key={hotel.id}
-                  hotel={hotel}
+                  entry={hotel}
                   isDarkMode={dk}
                   lang={lang}
                   companyOptions={companyOptions}
                   cityOptions={cityOptions}
-                  onUpdate={(id, updated) => setHotels(prev => prev.map(h => h.id === id ? updated : h))}
+                  onUpdate={(id, updated) => setHotels(prev => prev.map(h => h.id === id ? { ...updated, durations: updated.durations ?? [] } : h))}
                   onDelete={id => {
                     deleteHotel(id).catch(console.error)
                     setHotels(prev => prev.filter(h => h.id !== id))
