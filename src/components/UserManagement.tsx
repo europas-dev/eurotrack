@@ -1,8 +1,12 @@
 // src/components/UserManagement.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { getAllUsers, setUserRole, UserRole } from '../lib/supabase';
 import { cn } from '../lib/utils';
-import { Users, Shield, Crown, Eye, Edit3, Clock, Sun, Moon, Globe, ArrowLeft, AlertTriangle, Check, XCircle } from 'lucide-react';
+import {
+  Users, Shield, Crown, Eye, Edit3, Clock,
+  Sun, Moon, Globe, ArrowLeft, AlertTriangle,
+  Check, XCircle, Search, RefreshCw, ChevronDown,
+} from 'lucide-react';
 
 interface Props {
   theme:       'dark' | 'light';
@@ -13,14 +17,58 @@ interface Props {
   onBack:      () => void;
 }
 
-const ROLE_META: Record<UserRole, { en: string; de: string; color: string; icon: React.ReactNode }> = {
-  superadmin: { en: 'Super Admin', de: 'Super Admin', color: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20', icon: <Crown  size={12} /> },
-  admin:      { en: 'Admin',       de: 'Admin',       color: 'text-green-400 bg-green-400/10 border-green-400/20',   icon: <Shield size={12} /> },
-  editor:     { en: 'Editor',      de: 'Bearbeiter',  color: 'text-blue-400 bg-blue-400/10 border-blue-400/20',     icon: <Edit3  size={12} /> },
-  viewer:     { en: 'Viewer',      de: 'Betrachter',  color: 'text-slate-400 bg-slate-400/10 border-slate-400/20',  icon: <Eye    size={12} /> },
-  pending:    { en: 'Pending',     de: 'Ausstehend',  color: 'text-amber-400 bg-amber-400/10 border-amber-400/20',  icon: <Clock  size={12} /> },
+type Filter = 'all' | UserRole;
+
+const ROLES: UserRole[] = ['superadmin', 'admin', 'editor', 'viewer', 'pending'];
+
+const ROLE_META: Record<UserRole, {
+  en: string; de: string;
+  bg: string; text: string; border: string;
+  dot: string;
+  icon: React.ReactNode;
+}> = {
+  superadmin: {
+    en: 'Super Admin', de: 'Super Admin',
+    bg: 'bg-yellow-500/10', text: 'text-yellow-400', border: 'border-yellow-500/20', dot: 'bg-yellow-400',
+    icon: <Crown size={13} />,
+  },
+  admin: {
+    en: 'Admin', de: 'Admin',
+    bg: 'bg-green-500/10', text: 'text-green-400', border: 'border-green-500/20', dot: 'bg-green-400',
+    icon: <Shield size={13} />,
+  },
+  editor: {
+    en: 'Editor', de: 'Bearbeiter',
+    bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/20', dot: 'bg-blue-400',
+    icon: <Edit3 size={13} />,
+  },
+  viewer: {
+    en: 'Viewer', de: 'Betrachter',
+    bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/20', dot: 'bg-slate-400',
+    icon: <Eye size={13} />,
+  },
+  pending: {
+    en: 'Pending', de: 'Ausstehend',
+    bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/20', dot: 'bg-amber-400',
+    icon: <Clock size={13} />,
+  },
 };
 
+// Gradient avatars by first letter
+const AVATAR_COLORS = [
+  'from-blue-500 to-indigo-600',
+  'from-purple-500 to-pink-600',
+  'from-green-500 to-teal-600',
+  'from-orange-500 to-red-500',
+  'from-cyan-500 to-blue-600',
+  'from-rose-500 to-pink-600',
+];
+function avatarGradient(str: string) {
+  const code = (str || '?').charCodeAt(0);
+  return AVATAR_COLORS[code % AVATAR_COLORS.length];
+}
+
+// ── Confirm dialog ──────────────────────────────────────────────────────────
 function ConfirmDialog({
   user, newRole, lang, theme, onConfirm, onCancel, saving, saveError,
 }: {
@@ -30,267 +78,468 @@ function ConfirmDialog({
   const dk   = theme === 'dark';
   const meta = ROLE_META[newRole];
   const name = user.full_name || user.username || user.email || 'User';
+  const prev = ROLE_META[user.role as UserRole] ?? ROLE_META.pending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.65)' }}>
-      <div className={cn('w-full max-w-sm rounded-2xl border shadow-2xl p-6',
-        dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.70)' }}>
+      <div className={cn(
+        'w-full max-w-sm rounded-2xl border shadow-2xl overflow-hidden',
+        dk ? 'bg-[#0D1625] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+      )}>
+        {/* Colored top bar matching the new role */}
+        <div className={cn('h-1.5 w-full', meta.dot.replace('bg-', 'bg-'))} />
 
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center">
-            <AlertTriangle size={20} className="text-amber-400" />
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-5">
+            <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center border', meta.bg, meta.border)}>
+              <span className={meta.text}>{meta.icon}</span>
+            </div>
+            <div>
+              <h3 className="font-black text-sm">
+                {lang === 'de' ? 'Rolle ändern?' : 'Change Role?'}
+              </h3>
+              <p className={cn('text-xs', dk ? 'text-slate-500' : 'text-slate-400')}>{name}</p>
+            </div>
           </div>
-          <h3 className="font-black text-base">
-            {lang === 'de' ? 'Rolle ändern?' : 'Change role?'}
-          </h3>
-        </div>
 
-        <p className={cn('text-sm leading-relaxed mb-4', dk ? 'text-slate-400' : 'text-slate-500')}>
-          {lang === 'de'
-            ? <><strong className={dk ? 'text-white' : 'text-slate-900'}>{name}</strong> wird auf <span className={cn('font-bold', meta.color.split(' ')[0])}>{meta.de}</span> gesetzt.</>
-            : <><strong className={dk ? 'text-white' : 'text-slate-900'}>{name}</strong>'s role will be set to <span className={cn('font-bold', meta.color.split(' ')[0])}>{meta.en}</span>.</>
-          }
-        </p>
-
-        {/* Show DB error clearly so user knows it failed */}
-        {saveError && (
-          <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-2">
-            <XCircle size={16} className="text-red-400 mt-0.5 shrink-0" />
-            <p className="text-red-400 text-xs leading-relaxed">{saveError}</p>
+          {/* Before → After */}
+          <div className={cn('flex items-center gap-3 p-3 rounded-xl mb-4', dk ? 'bg-white/5' : 'bg-slate-50')}>
+            <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border',
+              prev.bg, prev.text, prev.border)}>
+              {prev.icon} {lang === 'de' ? prev.de : prev.en}
+            </span>
+            <span className={cn('text-xs', dk ? 'text-slate-500' : 'text-slate-400')}>→</span>
+            <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border',
+              meta.bg, meta.text, meta.border)}>
+              {meta.icon} {lang === 'de' ? meta.de : meta.en}
+            </span>
           </div>
-        )}
 
-        <div className="flex gap-3 justify-end">
-          <button onClick={onCancel} disabled={saving}
-            className={cn('px-4 py-2 rounded-xl text-sm font-bold transition-all',
-              dk ? 'bg-white/5 hover:bg-white/10 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600')}>
-            {lang === 'de' ? 'Abbrechen' : 'Cancel'}
-          </button>
-          <button onClick={onConfirm} disabled={saving}
-            className="px-4 py-2 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white transition-all flex items-center gap-2 disabled:opacity-60">
-            {saving
-              ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {lang === 'de' ? 'Speichern…' : 'Saving…'}</>
-              : <><Check size={14} /> {lang === 'de' ? 'Ja, ändern' : 'Yes, change'}</>
-            }
-          </button>
+          {saveError && (
+            <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-2">
+              <XCircle size={14} className="text-red-400 mt-0.5 shrink-0" />
+              <p className="text-red-400 text-xs leading-relaxed">{saveError}</p>
+            </div>
+          )}
+
+          <div className="flex gap-2.5">
+            <button onClick={onCancel} disabled={saving}
+              className={cn('flex-1 py-2.5 rounded-xl text-sm font-bold transition-all',
+                dk ? 'bg-white/5 hover:bg-white/10 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600')}>
+              {lang === 'de' ? 'Abbrechen' : 'Cancel'}
+            </button>
+            <button onClick={onConfirm} disabled={saving}
+              className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white transition-all flex items-center justify-center gap-2 disabled:opacity-60">
+              {saving
+                ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {lang === 'de' ? 'Speichern…' : 'Saving…'}</>
+                : <><Check size={14} /> {lang === 'de' ? 'Bestätigen' : 'Confirm'}</>
+              }
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
+// ── Role badge ──────────────────────────────────────────────────────────────
+function RoleBadge({ role, lang }: { role: UserRole; lang: 'de' | 'en' }) {
+  const m = ROLE_META[role] ?? ROLE_META.pending;
+  return (
+    <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border', m.bg, m.text, m.border)}>
+      {m.icon} {lang === 'de' ? m.de : m.en}
+    </span>
+  );
+}
+
+// ── Stat card ───────────────────────────────────────────────────────────────
+function StatCard({ role, count, active, lang, onClick, theme }: {
+  role: Filter; count: number; active: boolean;
+  lang: 'de' | 'en'; onClick: () => void; theme: 'dark' | 'light';
+}) {
+  const dk = theme === 'dark';
+  if (role === 'all') {
+    return (
+      <button onClick={onClick} className={cn(
+        'flex flex-col items-center justify-center gap-1 px-4 py-3 rounded-2xl border transition-all min-w-[72px] text-center',
+        active
+          ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20'
+          : dk ? 'bg-white/5 border-white/10 hover:bg-white/8 text-slate-300' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
+      )}>
+        <span className="text-xl font-black leading-none">{count}</span>
+        <span className="text-[11px] font-bold opacity-80">{lang === 'de' ? 'Alle' : 'All'}</span>
+      </button>
+    );
+  }
+  const m = ROLE_META[role as UserRole];
+  return (
+    <button onClick={onClick} className={cn(
+      'flex flex-col items-center justify-center gap-1 px-4 py-3 rounded-2xl border transition-all min-w-[72px] text-center',
+      active
+        ? cn(m.bg, m.border, 'shadow-sm ring-2', m.text.replace('text-', 'ring-').replace('400', '400/40'))
+        : dk ? 'bg-white/5 border-white/10 hover:bg-white/8' : 'bg-white border-slate-200 hover:bg-slate-50'
+    )}>
+      <span className={cn('text-xl font-black leading-none', active ? m.text : dk ? 'text-white' : 'text-slate-800')}>
+        {count}
+      </span>
+      <span className={cn('text-[11px] font-bold', active ? m.text : dk ? 'text-slate-500' : 'text-slate-400')}>
+        {role === 'superadmin' ? 'Super' :
+         role === 'admin'      ? 'Admin' :
+         role === 'editor'     ? (lang === 'de' ? 'Bearb.' : 'Editor') :
+         role === 'viewer'     ? (lang === 'de' ? 'Betracht.' : 'Viewer') :
+                                  (lang === 'de' ? 'Ausst.' : 'Pending')}
+      </span>
+    </button>
+  );
+}
+
+// ── Inline role selector row ────────────────────────────────────────────────
+function UserRow({
+  user, lang, theme,
+  selectedRole, onDropdownChange, onApply, isSelf,
+}: {
+  user: any; lang: 'de' | 'en'; theme: 'dark' | 'light';
+  selectedRole: UserRole; onDropdownChange: (r: UserRole) => void;
+  onApply: () => void; isSelf: boolean;
+}) {
+  const dk          = theme === 'dark';
+  const currentRole = (user.role as UserRole) ?? 'pending';
+  const isDirty     = selectedRole !== currentRole;
+  const isLocked    = currentRole === 'superadmin' || isSelf;
+  const initials    = (user.full_name || user.username || user.email || '?')[0].toUpperCase();
+  const grad        = avatarGradient(initials);
+
+  return (
+    <div className={cn(
+      'group flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all',
+      dk ? 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06] hover:border-white/10'
+         : 'bg-white border-slate-100 hover:border-slate-200 hover:shadow-sm'
+    )}>
+      {/* Avatar */}
+      <div className={cn(
+        'w-9 h-9 rounded-xl bg-gradient-to-br flex items-center justify-center text-white font-black text-sm shrink-0 select-none',
+        grad
+      )}>
+        {initials}
+      </div>
+
+      {/* Name + email */}
+      <div className="flex-1 min-w-0">
+        <p className="font-bold text-sm leading-tight truncate">
+          {user.full_name || user.username || user.email}
+        </p>
+        <p className={cn('text-xs truncate mt-0.5', dk ? 'text-slate-500' : 'text-slate-400')}>
+          {user.email}
+          {user.username && <span className={cn('ml-2 opacity-60')}>@{user.username}</span>}
+        </p>
+      </div>
+
+      {/* Role badge (current) */}
+      <div className="hidden sm:block shrink-0">
+        <RoleBadge role={currentRole} lang={lang} />
+      </div>
+
+      {/* Role dropdown */}
+      <div className="relative shrink-0">
+        <select
+          value={selectedRole}
+          onChange={e => onDropdownChange(e.target.value as UserRole)}
+          disabled={isLocked}
+          className={cn(
+            'appearance-none text-xs font-bold pl-3 pr-7 py-2 rounded-xl border outline-none transition-all cursor-pointer',
+            isLocked && 'opacity-40 cursor-not-allowed',
+            isDirty
+              ? 'bg-blue-600 border-blue-500 text-white'
+              : dk
+                ? 'bg-white/8 border-white/10 text-slate-300 hover:bg-white/12'
+                : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+          )}
+        >
+          {ROLES.map(r => (
+            <option key={r} value={r}>
+              {r === 'superadmin' ? 'Super Admin' :
+               r === 'admin'      ? 'Admin' :
+               r === 'editor'     ? (lang === 'de' ? 'Bearbeiter' : 'Editor') :
+               r === 'viewer'     ? (lang === 'de' ? 'Betrachter' : 'Viewer') :
+                                     (lang === 'de' ? 'Ausstehend' : 'Pending')}
+            </option>
+          ))}
+        </select>
+        <ChevronDown size={11}
+          className={cn('absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none',
+            isDirty ? 'text-white/70' : dk ? 'text-slate-500' : 'text-slate-400')}
+        />
+      </div>
+
+      {/* Apply button */}
+      <button
+        onClick={onApply}
+        disabled={!isDirty || isLocked}
+        className={cn(
+          'shrink-0 px-3.5 py-2 rounded-xl text-xs font-black transition-all',
+          isDirty && !isLocked
+            ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-sm shadow-blue-600/30 scale-100 hover:scale-105'
+            : cn('opacity-0 pointer-events-none', dk ? 'bg-white/5' : 'bg-slate-100')
+        )}
+      >
+        {lang === 'de' ? 'Anwenden' : 'Apply'}
+      </button>
+    </div>
+  );
+}
+
+// ── Main component ──────────────────────────────────────────────────────────
 export default function UserManagement({ theme, lang, toggleTheme, setLang, onBack }: Props) {
   const dk = theme === 'dark';
 
-  const [users,   setUsers]   = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dbError, setDbError] = useState('');
-  const [search,  setSearch]  = useState('');
-
+  const [users,        setUsers]        = useState<any[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [refreshing,   setRefreshing]   = useState(false);
+  const [dbError,      setDbError]      = useState('');
+  const [search,       setSearch]       = useState('');
+  const [filter,       setFilter]       = useState<Filter>('all');
   const [pendingChange, setPendingChange] = useState<{ user: any; newRole: UserRole } | null>(null);
-  const [saving,        setSaving]        = useState(false);
-  const [saveError,     setSaveError]     = useState('');
-  const [selectedRole,  setSelectedRole]  = useState<Record<string, UserRole>>({});
+  const [saving,       setSaving]       = useState(false);
+  const [saveError,    setSaveError]    = useState('');
+  const [selectedRole, setSelectedRole] = useState<Record<string, UserRole>>({});
 
-  useEffect(() => {
-    getAllUsers()
-      .then(u => { setUsers(u); setLoading(false); })
-      .catch(e => { setDbError(String(e)); setLoading(false); });
-  }, []);
+  async function loadUsers(silent = false) {
+    if (!silent) setLoading(true);
+    else setRefreshing(true);
+    setDbError('');
+    try {
+      const u = await getAllUsers();
+      setUsers(u);
+    } catch (e: any) {
+      setDbError(String(e));
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }
 
-  function handleDropdownChange(user: any, newRole: UserRole) {
-    setSelectedRole(prev => ({ ...prev, [user.id]: newRole }));
+  useEffect(() => { loadUsers(); }, []);
+
+  // Counts per role
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: users.length };
+    ROLES.forEach(r => { c[r] = users.filter(u => u.role === r).length; });
+    return c;
+  }, [users]);
+
+  const filtered = useMemo(() => {
+    return users.filter(u => {
+      const matchFilter = filter === 'all' || u.role === filter;
+      const q = search.trim().toLowerCase();
+      const matchSearch = !q ||
+        u.email?.toLowerCase().includes(q) ||
+        u.full_name?.toLowerCase().includes(q) ||
+        u.username?.toLowerCase().includes(q);
+      return matchFilter && matchSearch;
+    });
+  }, [users, filter, search]);
+
+  function handleDropdownChange(userId: string, newRole: UserRole) {
+    setSelectedRole(prev => ({ ...prev, [userId]: newRole }));
   }
 
   function handleApplyClick(user: any) {
     const newRole = selectedRole[user.id] ?? (user.role as UserRole);
-    if (newRole === (user.role as UserRole)) return;
+    if (newRole === user.role) return;
     setSaveError('');
     setPendingChange({ user, newRole });
   }
 
   async function confirmChange() {
     if (!pendingChange) return;
-    setSaving(true);
-    setSaveError('');
+    setSaving(true); setSaveError('');
     try {
       await setUserRole(pendingChange.user.id, pendingChange.newRole);
-      // Only update UI AFTER DB confirmed the change
       setUsers(prev => prev.map(u =>
         u.id === pendingChange.user.id ? { ...u, role: pendingChange.newRole } : u
       ));
       setSelectedRole(prev => { const n = { ...prev }; delete n[pendingChange.user.id]; return n; });
       setPendingChange(null);
     } catch (err: any) {
-      // Show the real error in the dialog — don't close it
       setSaveError(err.message ?? 'Failed to update role');
     } finally {
       setSaving(false);
     }
   }
 
-  const filtered = users.filter(u =>
-    !search.trim() ||
-    u.email?.toLowerCase().includes(search.toLowerCase()) ||
-    u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-    u.username?.toLowerCase().includes(search.toLowerCase())
-  );
-
   return (
     <div className={cn('flex flex-col h-full', dk ? 'bg-[#020617]' : 'bg-slate-50')}>
 
+      {/* ── Confirm dialog ── */}
       {pendingChange && (
         <ConfirmDialog
-          user={pendingChange.user}
-          newRole={pendingChange.newRole}
-          lang={lang} theme={theme}
-          saving={saving}
-          saveError={saveError}
+          user={pendingChange.user} newRole={pendingChange.newRole}
+          lang={lang} theme={theme} saving={saving} saveError={saveError}
           onConfirm={confirmChange}
           onCancel={() => { setPendingChange(null); setSaveError(''); }}
         />
       )}
 
-      {/* Header */}
-      <div className={cn('flex items-center justify-between px-6 py-4 border-b shrink-0',
-        dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
-        <div className="flex items-center gap-3">
-          <button onClick={onBack}
-            className={cn('p-2 rounded-xl transition-all', dk ? 'hover:bg-white/10' : 'hover:bg-slate-100')}>
-            <ArrowLeft size={18} />
-          </button>
+      {/* ── Big header ── */}
+      <div className={cn(
+        'shrink-0 border-b',
+        dk ? 'bg-[#0A1120] border-white/10' : 'bg-white border-slate-200'
+      )}>
+        {/* Top bar */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-2">
+          <div className="flex items-center gap-3">
+            <button onClick={onBack}
+              className={cn('p-2 rounded-xl transition-all', dk ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500')}>
+              <ArrowLeft size={18} />
+            </button>
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/30">
+                <Users size={17} className="text-white" />
+              </div>
+              <div>
+                <h1 className="font-black text-base leading-tight">
+                  {lang === 'de' ? 'Benutzerverwaltung' : 'User Management'}
+                </h1>
+                <p className={cn('text-xs leading-tight', dk ? 'text-slate-500' : 'text-slate-400')}>
+                  EuroTrack &mdash; Super Admin
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Controls */}
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center">
-              <Users size={16} className="text-white" />
-            </div>
+            <button
+              onClick={() => loadUsers(true)}
+              disabled={refreshing}
+              title={lang === 'de' ? 'Aktualisieren' : 'Refresh'}
+              className={cn('p-2 rounded-xl transition-all', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
+              <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+            </button>
+            <button onClick={() => setLang(lang === 'de' ? 'en' : 'de')}
+              className={cn('px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5',
+                dk ? 'bg-white/5 hover:bg-white/10 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600')}>
+              <Globe size={12} /> {lang === 'de' ? 'EN' : 'DE'}
+            </button>
+            <button onClick={toggleTheme}
+              className={cn('p-2 rounded-xl transition-all', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
+              {dk ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+          </div>
+        </div>
+
+        {/* Stats filter row */}
+        <div className="flex items-center gap-2.5 px-6 py-4 overflow-x-auto no-scrollbar">
+          <StatCard role="all"        count={counts.all}        active={filter === 'all'}        lang={lang} onClick={() => setFilter('all')}        theme={theme} />
+          <StatCard role="superadmin" count={counts.superadmin} active={filter === 'superadmin'} lang={lang} onClick={() => setFilter('superadmin')} theme={theme} />
+          <StatCard role="admin"      count={counts.admin}      active={filter === 'admin'}      lang={lang} onClick={() => setFilter('admin')}      theme={theme} />
+          <StatCard role="editor"     count={counts.editor}     active={filter === 'editor'}     lang={lang} onClick={() => setFilter('editor')}     theme={theme} />
+          <StatCard role="viewer"     count={counts.viewer}     active={filter === 'viewer'}     lang={lang} onClick={() => setFilter('viewer')}     theme={theme} />
+          <StatCard role="pending"    count={counts.pending}    active={filter === 'pending'}    lang={lang} onClick={() => setFilter('pending')}    theme={theme} />
+        </div>
+
+        {/* Search */}
+        <div className="px-6 pb-4">
+          <div className="relative">
+            <Search size={15} className={cn('absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none', dk ? 'text-slate-500' : 'text-slate-400')} />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder={lang === 'de' ? 'Name, E-Mail oder Benutzername…' : 'Search name, email or username…'}
+              className={cn(
+                'w-full pl-9 pr-4 py-2.5 rounded-xl text-sm border outline-none transition-all',
+                dk
+                  ? 'bg-white/5 border-white/10 focus:border-blue-500 text-white placeholder-slate-500'
+                  : 'bg-slate-50 border-slate-200 focus:border-blue-500 text-slate-900 placeholder-slate-400'
+              )}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── User list ── */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+
+        {/* Loading skeleton */}
+        {loading && Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className={cn(
+            'h-[64px] rounded-2xl border animate-pulse',
+            dk ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-white border-slate-100'
+          )} />
+        ))}
+
+        {/* DB error */}
+        {!loading && dbError && (
+          <div className="p-5 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-start gap-3">
+            <XCircle size={18} className="text-red-400 shrink-0 mt-0.5" />
             <div>
-              <h1 className="font-black text-sm">{lang === 'de' ? 'Benutzerverwaltung' : 'User Management'}</h1>
-              <p className={cn('text-xs', dk ? 'text-slate-500' : 'text-slate-400')}>
-                {users.length} {lang === 'de' ? 'Benutzer' : 'users'}
-              </p>
+              <p className="text-red-400 font-bold text-sm">{lang === 'de' ? 'Fehler beim Laden' : 'Error loading users'}</p>
+              <p className="text-red-400/70 text-xs mt-1">{dbError}</p>
             </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setLang(lang === 'de' ? 'en' : 'de')}
-            className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all',
-              dk ? 'bg-white/5 hover:bg-white/10' : 'bg-slate-100 hover:bg-slate-200')}>
-            <Globe size={12} /> {lang === 'de' ? 'EN' : 'DE'}
-          </button>
-          <button onClick={toggleTheme}
-            className={cn('p-2 rounded-xl transition-all', dk ? 'hover:bg-white/10' : 'hover:bg-slate-100')}>
-            {dk ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
-        </div>
-      </div>
-
-      {/* Search */}
-      <div className={cn('px-6 py-3 border-b shrink-0',
-        dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
-        <input
-          type="text"
-          placeholder={lang === 'de' ? 'Suche nach Name, E-Mail, Benutzername…' : 'Search by name, email, username…'}
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className={cn('w-full px-4 py-2.5 rounded-xl text-sm outline-none border transition-all',
-            dk ? 'bg-white/5 border-white/10 focus:border-blue-500 text-white placeholder-slate-500'
-               : 'bg-slate-50 border-slate-200 focus:border-blue-500 text-slate-900 placeholder-slate-400')}
-        />
-      </div>
-
-      {/* Body */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        {loading && (
-          <div className="flex items-center justify-center py-16">
-            <div className="w-6 h-6 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
-          </div>
         )}
 
-        {dbError && (
-          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-            <strong>Error loading users:</strong> {dbError}
-          </div>
-        )}
-
+        {/* Empty state */}
         {!loading && !dbError && filtered.length === 0 && (
-          <div className={cn('text-center py-16 text-sm', dk ? 'text-slate-500' : 'text-slate-400')}>
-            {lang === 'de' ? 'Keine Benutzer gefunden.' : 'No users found.'}
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center border',
+              dk ? 'bg-white/5 border-white/10' : 'bg-slate-100 border-slate-200')}>
+              <Users size={22} className={dk ? 'text-slate-500' : 'text-slate-400'} />
+            </div>
+            <p className={cn('text-sm font-bold', dk ? 'text-slate-500' : 'text-slate-400')}>
+              {search ? (lang === 'de' ? 'Keine Treffer' : 'No matches') : (lang === 'de' ? 'Keine Benutzer' : 'No users')}
+            </p>
+            {search && (
+              <button onClick={() => setSearch('')}
+                className="text-xs text-blue-500 hover:underline">
+                {lang === 'de' ? 'Suche löschen' : 'Clear search'}
+              </button>
+            )}
           </div>
         )}
 
-        {!loading && filtered.map(user => {
-          const currentRole = (user.role as UserRole) ?? 'pending';
-          const dropRole    = selectedRole[user.id] ?? currentRole;
-          const isDirty     = dropRole !== currentRole;
-          const meta        = ROLE_META[currentRole] ?? ROLE_META.pending;
-
-          return (
-            <div key={user.id}
-              className={cn('flex items-center gap-4 px-4 py-3 rounded-xl mb-2 border transition-all',
-                dk ? 'bg-white/3 border-white/5 hover:bg-white/6' : 'bg-white border-slate-200 hover:bg-slate-50')}>
-
-              {/* Avatar */}
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-black text-sm shrink-0">
-                {(user.full_name || user.username || user.email || '?')[0].toUpperCase()}
-              </div>
-
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-sm truncate">
-                  {user.full_name || user.username || user.email}
-                </p>
-                <p className={cn('text-xs truncate', dk ? 'text-slate-500' : 'text-slate-400')}>
-                  {user.email}
-                </p>
-              </div>
-
-              {/* Current role badge */}
-              <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border shrink-0', meta.color)}>
-                {meta.icon}
-                {lang === 'de' ? meta.de : meta.en}
-              </span>
-
-              {/* Role selector */}
-              <select
-                value={dropRole}
-                onChange={e => handleDropdownChange(user, e.target.value as UserRole)}
-                disabled={currentRole === 'superadmin'}
-                className={cn(
-                  'text-xs font-bold px-2 py-1.5 rounded-lg border outline-none transition-all cursor-pointer',
-                  dk ? 'bg-white/5 border-white/10 text-white hover:bg-white/10' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100',
-                  currentRole === 'superadmin' && 'opacity-40 cursor-not-allowed'
-                )}
-              >
-                {(['superadmin', 'admin', 'editor', 'viewer', 'pending'] as UserRole[]).map(r => (
-                  <option key={r} value={r}>
-                    {r === 'superadmin' ? 'Super Admin' :
-                     r === 'admin'      ? 'Admin' :
-                     r === 'editor'     ? (lang === 'de' ? 'Bearbeiter' : 'Editor') :
-                     r === 'viewer'     ? (lang === 'de' ? 'Betrachter' : 'Viewer') :
-                                          (lang === 'de' ? 'Ausstehend' : 'Pending')}
-                  </option>
-                ))}
-              </select>
-
-              {/* Apply button — only shown when dropdown differs from current */}
-              <button
-                onClick={() => handleApplyClick(user)}
-                disabled={!isDirty || currentRole === 'superadmin'}
-                className={cn(
-                  'px-3 py-1.5 rounded-lg text-xs font-black transition-all shrink-0',
-                  isDirty && currentRole !== 'superadmin'
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
-                    : 'opacity-30 cursor-not-allowed',
-                  dk ? 'disabled:bg-white/5' : 'disabled:bg-slate-100'
-                )}
-              >
-                {lang === 'de' ? 'Anwenden' : 'Apply'}
-              </button>
-            </div>
-          );
-        })}
+        {/* Rows */}
+        {!loading && !dbError && filtered.map(user => (
+          <UserRow
+            key={user.id}
+            user={user}
+            lang={lang}
+            theme={theme}
+            isSelf={false}
+            selectedRole={selectedRole[user.id] ?? (user.role as UserRole)}
+            onDropdownChange={r => handleDropdownChange(user.id, r)}
+            onApply={() => handleApplyClick(user)}
+          />
+        ))}
       </div>
+
+      {/* Footer count */}
+      {!loading && !dbError && (
+        <div className={cn(
+          'shrink-0 border-t px-6 py-3 flex items-center justify-between',
+          dk ? 'border-white/10 bg-[#0A1120]' : 'border-slate-200 bg-white'
+        )}>
+          <p className={cn('text-xs', dk ? 'text-slate-500' : 'text-slate-400')}>
+            {filtered.length} {lang === 'de' ? 'Benutzer angezeigt' : 'users shown'}
+            {filter !== 'all' && (
+              <button onClick={() => setFilter('all')}
+                className="ml-2 text-blue-500 hover:underline">
+                {lang === 'de' ? 'Filter entfernen' : 'clear filter'}
+              </button>
+            )}
+          </p>
+          {counts.pending > 0 && (
+            <button
+              onClick={() => setFilter('pending')}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-all">
+              <Clock size={11} />
+              {counts.pending} {lang === 'de' ? 'ausstehend' : 'pending'}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

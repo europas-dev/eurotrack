@@ -14,6 +14,25 @@ type View = 'landing' | 'login' | 'signup' | 'admin-login' | 'dashboard' | 'supe
 type Theme    = 'dark' | 'light';
 type Language = 'de' | 'en';
 
+// ── Persist last view across refreshes for logged-in users ─────────────────
+const VIEW_KEY = 'et_last_view';
+const VALID_PERSISTED: View[] = ['dashboard', 'user-management'];
+function getPersistedView(): View | null {
+  try {
+    const v = sessionStorage.getItem(VIEW_KEY) as View | null;
+    return v && VALID_PERSISTED.includes(v) ? v : null;
+  } catch { return null; }
+}
+function persistView(v: View) {
+  try {
+    if (VALID_PERSISTED.includes(v)) sessionStorage.setItem(VIEW_KEY, v);
+    else sessionStorage.removeItem(VIEW_KEY);
+  } catch {}
+}
+function clearPersistedView() {
+  try { sessionStorage.removeItem(VIEW_KEY); } catch {}
+}
+
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: string }> {
   state = { error: '' };
   componentDidCatch(e: Error) { this.setState({ error: e.message }); }
@@ -29,31 +48,38 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
 
 export default function App() {
   const [view,          setView]          = useState<View>('landing');
-  // Start as true — we ALWAYS check session before showing anything
   const [loading,       setLoading]       = useState(true);
   const [accessLevel,   setAccessLevel]   = useState<AccessLevel | null>(null);
   const [theme,         setTheme]         = useState<Theme>('dark');
   const [lang,          setLang]          = useState<Language>('en');
   const [offlineBanner, setOfflineBanner] = useState(!navigator.onLine);
   const pollRef    = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Prevent the onAuthStateChange INITIAL_SESSION / SIGNED_IN from
-  // double-routing while our own init async block is still running.
   const initDone   = useRef(false);
-  // Track whether we intentionally signed out so the listener doesn't
-  // re-route us to landing a second time.
   const signingOut = useRef(false);
 
   const dk = theme === 'dark';
 
-  // ─── helpers ────────────────────────────────────────────────────────────
-  const applyRole = useCallback((role: string) => {
-    if (role === 'superadmin') setView('superadmin-home');
-    else if (role === 'pending') setView('pending');
-    else setView('dashboard');
+  // ── setView + persist ───────────────────────────────────────────────────
+  const navigate = useCallback((v: View) => {
+    setView(v);
+    persistView(v);
   }, []);
 
-  const resolveAccess = useCallback(async (): Promise<AccessLevel> => {
-    // Race the DB call against a 10-second timeout so we never hang forever
+  // ── role → default view (respects persisted view if compatible) ─────────
+  const applyRole = useCallback((role: string, persisted: View | null = null) => {
+    if (role === 'superadmin') {
+      // Superadmin: honour persisted view (dashboard / user-management)
+      // otherwise go to superadmin-home
+      const target = persisted ?? 'superadmin-home';
+      setView(target);
+    } else if (role === 'pending') {
+      setView('pending');
+    } else {
+      setView(persisted ?? 'dashboard');
+    }
+  }, []);
+
+  const resolveAccess = useCallback(async (persisted: View | null = null): Promise<AccessLevel> => {
     const result = await Promise.race([
       getMyAccessLevel(),
       new Promise<AccessLevel>(res =>
@@ -61,7 +87,7 @@ export default function App() {
       ),
     ]);
     setAccessLevel(result);
-    applyRole(result.role);
+    applyRole(result.role, persisted);
     return result;
   }, [applyRole]);
 
@@ -79,28 +105,26 @@ export default function App() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }, []);
 
-  // ─── one-time mount effect ───────────────────────────────────────────────
+  // ── mount effect ─────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
 
-    // STEP 1 — synchronously read the session that Supabase already stored
-    // in memory / localStorage. This is instant; no network needed.
     supabase.auth.getSession().then(async ({ data: { session }, error }) => {
       if (cancelled) return;
 
       if (error || !session?.user) {
-        // Genuinely no session → go to landing
+        clearPersistedView();
         setView('landing');
         setLoading(false);
         initDone.current = true;
         return;
       }
 
-      // STEP 2 — we have a session, fetch the role from DB
+      // Pass the persisted view so applyRole can restore it
+      const persisted = getPersistedView();
       try {
-        await resolveAccess();
+        await resolveAccess(persisted);
       } catch {
-        // resolveAccess is safe, but just in case
         setView('landing');
       } finally {
         if (!cancelled) {
@@ -110,30 +134,23 @@ export default function App() {
       }
     });
 
-    // STEP 3 — listen for EXPLICIT auth events AFTER our init is done
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (cancelled || !initDone.current) return;
 
       if (event === 'SIGNED_IN' && session?.user) {
-        // Only act on explicit new sign-ins (not the page-load echo)
-        // Resolved access will reroute via applyRole
         setLoading(true);
-        await resolveAccess();
+        await resolveAccess(null); // fresh login → no persisted view
         setLoading(false);
-
       } else if (event === 'SIGNED_OUT') {
-        // Only react if WE triggered it, not a silent token event
         if (!signingOut.current) return;
         signingOut.current = false;
         stopPoll();
+        clearPersistedView();
         setAccessLevel(null);
         setView('landing');
         setLoading(false);
-
-      } else if (event === 'TOKEN_REFRESHED') {
-        // Silent background refresh — keep current view, do nothing
-      } else if (event === 'INITIAL_SESSION') {
-        // This fires synchronously with getSession — already handled above
+      } else if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+        // silent — no action
       }
     });
 
@@ -150,39 +167,36 @@ export default function App() {
       window.removeEventListener('offline', handleOffline);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // strict empty — runs once on mount only
+  }, []);
 
   useEffect(() => {
     if (view === 'pending') startPendingPoll();
     else stopPoll();
   }, [view, startPendingPoll, stopPoll]);
 
-  // ─── sign-out ────────────────────────────────────────────────────────────
   async function handleSignOut() {
     stopPoll();
     signingOut.current = true;
+    clearPersistedView();
     try { await supabase.auth.signOut(); } catch {}
-    // Ensure we land on landing even if the SIGNED_OUT event is swallowed
     setAccessLevel(null);
     setView('landing');
     setLoading(false);
     signingOut.current = false;
   }
 
-  // ─── loading screen ──────────────────────────────────────────────────────
+  // ── loading ───────────────────────────────────────────────────────────────
   if (loading) return (
     <div className="min-h-screen bg-[#020617] flex items-center justify-center">
       <div className="text-center space-y-4">
-        <div className="text-3xl font-black italic">
-          Euro<span className="text-yellow-400">Track.</span>
-        </div>
+        <div className="text-3xl font-black italic">Euro<span className="text-yellow-400">Track.</span></div>
         <div className="mx-auto w-8 h-8 rounded-full border-2 border-blue-600/30 border-t-blue-600 animate-spin" />
         <p className="text-slate-500 text-sm">Loading&hellip;</p>
       </div>
     </div>
   );
 
-  // ─── routes ──────────────────────────────────────────────────────────────
+  // ── routes ────────────────────────────────────────────────────────────────
   if (view === 'landing') return (
     <Landing
       onLogin={()       => setView('login')}
@@ -195,11 +209,7 @@ export default function App() {
   );
 
   if (view === 'login' || view === 'signup' || view === 'admin-login') return (
-    <Auth
-      initialMode='login'
-      onBack={() => setView('landing')}
-      lang={lang} theme={theme}
-    />
+    <Auth initialMode='login' onBack={() => setView('landing')} lang={lang} theme={theme} />
   );
 
   if (view === 'pending' || accessLevel?.role === 'pending') return (
@@ -218,23 +228,18 @@ export default function App() {
             ? 'Ihr Konto wurde erstellt, wartet aber noch auf die Freigabe durch einen Administrator.'
             : 'Your account has been created but is awaiting approval by an administrator.'}
         </p>
-        <div className={cn('flex items-center justify-center gap-2 text-xs mb-8',
-          dk ? 'text-slate-500' : 'text-slate-400')}>
+        <div className={cn('flex items-center justify-center gap-2 text-xs mb-8', dk ? 'text-slate-500' : 'text-slate-400')}>
           <RefreshCw size={12} className="animate-spin" />
           {lang === 'de' ? 'Wird automatisch geprüft…' : 'Checking automatically…'}
         </div>
         <div className="flex gap-3 justify-center">
-          <button
-            onClick={() => resolveAccess()}
+          <button onClick={() => resolveAccess()}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-all">
-            <RefreshCw size={14} />
-            {lang === 'de' ? 'Jetzt prüfen' : 'Check Now'}
+            <RefreshCw size={14} /> {lang === 'de' ? 'Jetzt prüfen' : 'Check Now'}
           </button>
-          <button
-            onClick={handleSignOut}
+          <button onClick={handleSignOut}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-600 hover:bg-slate-700 text-white text-sm font-bold rounded-xl transition-all">
-            <LogOut size={14} />
-            {lang === 'de' ? 'Abmelden' : 'Sign Out'}
+            <LogOut size={14} /> {lang === 'de' ? 'Abmelden' : 'Sign Out'}
           </button>
         </div>
       </div>
@@ -243,8 +248,8 @@ export default function App() {
 
   if (view === 'superadmin-home' && accessLevel?.role === 'superadmin') return (
     <SuperAdminHome
-      onDashboard={()      => setView('dashboard')}
-      onUserManagement={() => setView('user-management')}
+      onDashboard={()      => navigate('dashboard')}
+      onUserManagement={() => navigate('user-management')}
       onSignOut={handleSignOut}
       lang={lang}  setLang={setLang}
       theme={theme} toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
@@ -260,7 +265,7 @@ export default function App() {
           toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
           setLang={setLang}
           onSignOut={handleSignOut}
-          onBack={() => setView('superadmin-home')}
+          onBack={() => { clearPersistedView(); setView('superadmin-home'); }}
         />
       </ErrorBoundary>
     </div>
@@ -291,7 +296,7 @@ export default function App() {
             accessLevel={accessLevel}
             onSignOut={
               accessLevel?.role === 'superadmin'
-                ? () => setView('superadmin-home')
+                ? () => { clearPersistedView(); setView('superadmin-home'); }
                 : handleSignOut
             }
           />
