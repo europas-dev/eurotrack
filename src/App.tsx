@@ -28,32 +28,35 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
 }
 
 export default function App() {
-  const [view,          setView]         = useState<View>('landing');
-  const [loading,       setLoading]      = useState(true);
-  const [accessLevel,   setAccessLevel]  = useState<AccessLevel | null>(null);
-  const [theme,         setTheme]        = useState<Theme>('dark');
-  const [lang,          setLang]         = useState<Language>('en');
+  const [view,          setView]          = useState<View>('landing');
+  // Start as NOT loading — we'll flip to true only while the async check runs
+  const [loading,       setLoading]       = useState(true);
+  const [accessLevel,   setAccessLevel]   = useState<AccessLevel | null>(null);
+  const [theme,         setTheme]         = useState<Theme>('dark');
+  const [lang,          setLang]          = useState<Language>('en');
   const [offlineBanner, setOfflineBanner] = useState(!navigator.onLine);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const initDone = useRef(false); // prevent double-init in StrictMode
 
   const dk = theme === 'dark';
 
-  const resolveAccess = useCallback(async () => {
+  // Derive the correct view from a resolved role and apply it
+  const applyRole = useCallback((role: string) => {
+    if (role === 'superadmin') setView('superadmin-home');
+    else if (role === 'pending') setView('pending');
+    else setView('dashboard');
+  }, []);
+
+  const resolveAccess = useCallback(async (): Promise<string | null> => {
     try {
       const access = await getMyAccessLevel();
       setAccessLevel(access);
-      if (access.role === 'superadmin') {
-        setView('superadmin-home');
-      } else if (access.role === 'pending') {
-        setView('pending');
-      } else {
-        setView('dashboard');
-      }
+      applyRole(access.role);
       return access.role;
     } catch {
       return null;
     }
-  }, []);
+  }, [applyRole]);
 
   const startPendingPoll = useCallback(() => {
     if (pollRef.current) return;
@@ -70,38 +73,52 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // On mount: check existing session once, then stop loading
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        resolveAccess().finally(() => setLoading(false));
-      } else {
-        setView('landing');
-        setLoading(false);
-      }
-    }).catch(() => {
-      setView('landing');
-      setLoading(false);
-    });
+    if (initDone.current) return;
+    initDone.current = true;
 
-    // Only react to explicit sign-in / sign-out events after initial load
+    // ── Single init: check existing session, then always setLoading(false) ──
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (error || !session?.user) {
+          setView('landing');
+          setLoading(false);
+          return;
+        }
+        // Session exists — resolve role, then stop loading
+        await resolveAccess();
+      } catch {
+        if (!cancelled) setView('landing');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    // ── Auth state listener (only for subsequent sign-in / sign-out) ──
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN') {
-        if (session?.user) await resolveAccess();
+      if (cancelled) return;
+      if (event === 'SIGNED_IN' && session?.user) {
+        await resolveAccess();
+        setLoading(false);
       } else if (event === 'SIGNED_OUT') {
         stopPoll();
         setAccessLevel(null);
         setView('landing');
         setLoading(false);
       }
-      // TOKEN_REFRESHED and INITIAL_SESSION are intentionally ignored
-      // to prevent re-triggering resolveAccess and causing loading flicker
+      // INITIAL_SESSION and TOKEN_REFRESHED are intentionally ignored
     });
 
     const handleOnline  = () => setOfflineBanner(false);
     const handleOffline = () => setOfflineBanner(true);
     window.addEventListener('online',  handleOnline);
     window.addEventListener('offline', handleOffline);
+
     return () => {
+      cancelled = true;
       subscription.unsubscribe();
       stopPoll();
       window.removeEventListener('online',  handleOnline);
@@ -110,26 +127,19 @@ export default function App() {
   }, [resolveAccess, stopPoll]);
 
   useEffect(() => {
-    if (view === 'pending') {
-      startPendingPoll();
-    } else {
-      stopPoll();
-    }
+    if (view === 'pending') startPendingPoll();
+    else stopPoll();
   }, [view, startPendingPoll, stopPoll]);
 
   async function handleSignOut() {
     stopPoll();
-    await supabase.auth.signOut();
+    try { await supabase.auth.signOut(); } catch {}
     setAccessLevel(null);
     setView('landing');
     setLoading(false);
   }
 
-  function handleSuperadminBack() {
-    setView('superadmin-home');
-  }
-
-  // ── Loading splash ────────────────────────────────────────────────────────
+  // ── Loading splash ─────────────────────────────────────────────────────────
   if (loading) return (
     <div className="min-h-screen bg-[#020617] flex items-center justify-center">
       <div className="text-center">
@@ -140,18 +150,18 @@ export default function App() {
     </div>
   );
 
-  // ── Landing ───────────────────────────────────────────────────────────────
+  // ── Landing ────────────────────────────────────────────────────────────────
   if (view === 'landing') return (
     <Landing
-      onLogin={()       => setView('login')}
-      onRegister={()    => setView('signup')}
+      onLogin={()      => setView('login')}
+      onRegister={()   => setView('signup')}
       onAdminLogin={()  => setView('admin-login')}
       lang={lang} setLang={setLang}
       isDarkMode={dk} toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
     />
   );
 
-  // ── Auth ──────────────────────────────────────────────────────────────────
+  // ── Auth ───────────────────────────────────────────────────────────────────
   if (view === 'login' || view === 'signup' || view === 'admin-login') return (
     <Auth
       initialMode='login'
@@ -160,7 +170,7 @@ export default function App() {
     />
   );
 
-  // ── Pending ───────────────────────────────────────────────────────────────
+  // ── Pending ────────────────────────────────────────────────────────────────
   if (view === 'pending' || accessLevel?.role === 'pending') return (
     <div className={cn('min-h-screen flex flex-col items-center justify-center p-8',
       dk ? 'bg-[#020617] text-white' : 'bg-slate-100 text-slate-900')}>
@@ -197,18 +207,18 @@ export default function App() {
     </div>
   );
 
-  // ── Superadmin home ───────────────────────────────────────────────────────
+  // ── Superadmin home ────────────────────────────────────────────────────────
   if (view === 'superadmin-home' && accessLevel?.role === 'superadmin') return (
     <SuperAdminHome
       onDashboard={()      => setView('dashboard')}
       onUserManagement={() => setView('user-management')}
       onSignOut={handleSignOut}
-      lang={lang}
-      theme={theme}
+      lang={lang}  setLang={setLang}
+      theme={theme} toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
     />
   );
 
-  // ── User Management ───────────────────────────────────────────────────────
+  // ── User Management ────────────────────────────────────────────────────────
   if (view === 'user-management' && accessLevel?.role === 'superadmin') return (
     <div className={cn('flex flex-col h-screen overflow-hidden',
       dk ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-900')}>
@@ -218,15 +228,14 @@ export default function App() {
           toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
           setLang={setLang}
           onSignOut={handleSignOut}
-          onBack={handleSuperadminBack}
+          onBack={() => setView('superadmin-home')}
         />
       </ErrorBoundary>
     </div>
   );
 
-  // ── Dashboard ─────────────────────────────────────────────────────────────
+  // ── Dashboard ──────────────────────────────────────────────────────────────
   const isViewOnly = accessLevel?.role === 'viewer';
-
   return (
     <div className={cn('flex flex-col h-screen overflow-hidden',
       dk ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-900')}>
@@ -251,7 +260,7 @@ export default function App() {
             accessLevel={accessLevel}
             onSignOut={
               accessLevel?.role === 'superadmin'
-                ? handleSuperadminBack
+                ? () => setView('superadmin-home')
                 : handleSignOut
             }
           />
