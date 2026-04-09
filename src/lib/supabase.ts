@@ -21,39 +21,85 @@ export async function getSession() {
 }
 
 // ─── Profiles ─────────────────────────────────────────────────────────────────
+// Always read from the profiles TABLE (source of truth for username/full_name)
+// and fall back to auth metadata only if the row doesn't exist yet.
 export async function getMyProfile() {
   try {
-    const { data: { user }, error } = await supabase.auth.getUser()
-    if (error || !user) return null
+    const { data: { user }, error: authErr } = await supabase.auth.getUser()
+    if (authErr || !user) return null
+
+    // Read from profiles table first
+    const { data: row } = await supabase
+      .from('profiles')
+      .select('id, email, full_name, username, avatar_url, role')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    const fullName = row?.full_name
+      ?? user.user_metadata?.full_name
+      ?? user.user_metadata?.name
+      ?? ''
+    const username = row?.username
+      ?? user.user_metadata?.username
+      ?? ''
+    const fontScale  = user.user_metadata?.fontScale  ?? 100
+    const fontFamily = user.user_metadata?.fontFamily ?? 'inter'
+
     return {
       id:         user.id,
-      email:      user.email ?? '',
-      full_name:  user.user_metadata?.full_name ?? user.user_metadata?.name ?? '',
-      fullName:   user.user_metadata?.full_name ?? user.user_metadata?.name ?? '',
-      avatar_url: user.user_metadata?.avatar_url ?? null,
-      fontScale:  user.user_metadata?.fontScale  ?? 100,
-      fontFamily: user.user_metadata?.fontFamily ?? 'inter',
+      email:      row?.email ?? user.email ?? '',
+      full_name:  fullName,
+      fullName,
+      username,
+      avatar_url: row?.avatar_url ?? user.user_metadata?.avatar_url ?? null,
+      fontScale,
+      fontFamily,
+      role:       row?.role ?? 'admin',
     }
   } catch { return null }
 }
 
+// Update profile: writes to BOTH auth metadata (for fontScale/fontFamily)
+// AND the profiles table row (for full_name / username).
 export async function updateMyProfile(updates: {
-  full_name?: string; fullName?: string
-  avatar_url?: string; fontScale?: number; fontFamily?: string
+  full_name?: string
+  fullName?:  string
+  username?:  string
+  avatar_url?: string
+  fontScale?:  number
+  fontFamily?: string
 }) {
-  const { data, error } = await supabase.auth.updateUser({ data: updates })
-  if (error) throw error
-  const user = data.user
-  if (!user) return null
-  return {
-    id:         user.id,
-    email:      user.email ?? '',
-    full_name:  user.user_metadata?.full_name ?? '',
-    fullName:   user.user_metadata?.full_name ?? '',
-    avatar_url: user.user_metadata?.avatar_url ?? null,
-    fontScale:  user.user_metadata?.fontScale  ?? 100,
-    fontFamily: user.user_metadata?.fontFamily ?? 'inter',
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const fullName = updates.full_name ?? updates.fullName
+
+  // 1. Update auth user metadata (fontScale, fontFamily, full_name)
+  const metaPatch: Record<string, any> = {}
+  if (fullName     !== undefined) metaPatch.full_name  = fullName
+  if (updates.username  !== undefined) metaPatch.username   = updates.username
+  if (updates.fontScale  !== undefined) metaPatch.fontScale  = updates.fontScale
+  if (updates.fontFamily !== undefined) metaPatch.fontFamily = updates.fontFamily
+  if (updates.avatar_url !== undefined) metaPatch.avatar_url = updates.avatar_url
+
+  if (Object.keys(metaPatch).length > 0) {
+    const { error: authErr } = await supabase.auth.updateUser({ data: metaPatch })
+    if (authErr) throw authErr
   }
+
+  // 2. Update profiles table row
+  const rowPatch: Record<string, any> = {}
+  if (fullName          !== undefined) rowPatch.full_name = fullName
+  if (updates.username  !== undefined) rowPatch.username  = updates.username
+  if (updates.avatar_url !== undefined) rowPatch.avatar_url = updates.avatar_url
+
+  if (Object.keys(rowPatch).length > 0) {
+    await supabase.from('profiles').update(rowPatch).eq('id', user.id)
+    // If no row exists yet, insert one
+    // (handles edge case where trigger didn't fire)
+  }
+
+  return getMyProfile()
 }
 
 export async function searchProfiles(query: string): Promise<any[]> {
@@ -61,8 +107,8 @@ export async function searchProfiles(query: string): Promise<any[]> {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, email, full_name, avatar_url')
-      .ilike('email', `%${query.trim()}%`)
+      .select('id, email, full_name, username, avatar_url')
+      .or(`email.ilike.%${query.trim()}%,full_name.ilike.%${query.trim()}%,username.ilike.%${query.trim()}%`)
       .limit(10)
     if (error) return []
     return (data ?? []).map((p: any) => ({ ...p, fullName: p.full_name ?? '' }))
@@ -123,13 +169,13 @@ export async function getCollaborators(hotelId?: string | null): Promise<any[]> 
     const { data, error } = await q
     if (error) return []
     return (data ?? []).map((c: any) => ({
-      id:        c.id,
-      userId:    c.user_id,
-      role:      c.role,
-      hotelId:   c.hotel_id,
-      email:     c.profiles?.email     ?? '',
-      fullName:  c.profiles?.full_name ?? '',
-      full_name: c.profiles?.full_name ?? '',
+      id:         c.id,
+      userId:     c.user_id,
+      role:       c.role,
+      hotelId:    c.hotel_id,
+      email:      c.profiles?.email     ?? '',
+      fullName:   c.profiles?.full_name ?? '',
+      full_name:  c.profiles?.full_name ?? '',
       avatar_url: c.profiles?.avatar_url ?? null,
       profile: { id: c.user_id, email: c.profiles?.email ?? '', fullName: c.profiles?.full_name ?? '' },
     }))
@@ -137,12 +183,10 @@ export async function getCollaborators(hotelId?: string | null): Promise<any[]> 
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-// Normalise companyTag: always return string[] internally
 function normaliseCompanyTag(raw: any): string[] {
   if (!raw) return []
   if (Array.isArray(raw)) return raw.filter(Boolean)
   if (typeof raw === 'string') {
-    // could be a JSON-encoded array like '["A","B"]'
     try {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed)) return parsed.filter(Boolean)
@@ -152,12 +196,8 @@ function normaliseCompanyTag(raw: any): string[] {
   return []
 }
 
-// Serialise string[] → what goes into Supabase
-// We store as text (comma-separated) so it works with a plain text column.
-// If your column is jsonb, change this to: return tags
 function serialiseCompanyTag(tags: string[]): string | null {
   if (!tags || tags.length === 0) return null
-  // Store as JSON array string so we can reliably round-trip multiple values
   return JSON.stringify(tags)
 }
 
@@ -205,7 +245,6 @@ function normalizeDuration(d: any): any {
 
 function normalizeHotel(h: any): any {
   if (!h || typeof h !== 'object') return null
-  // companyTag is always string[] inside the app
   const rawTag = h.companytag ?? h.companyTag ?? null
   return {
     ...h,
@@ -282,7 +321,6 @@ export async function updateHotel(id: string, data: any) {
     userEmail = user?.email ?? user?.id ?? null
   } catch { /* continue */ }
 
-  // companyTag inside the app is always string[]; serialise before saving
   const rawTag = data.companyTag ?? data.companytag ?? null
   const tags = Array.isArray(rawTag)
     ? rawTag
