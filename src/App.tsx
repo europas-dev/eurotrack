@@ -1,11 +1,13 @@
 // src/App.tsx
 import React, { useEffect, useState } from 'react';
 import { supabase } from './lib/supabase';
+import { getMyAccessLevel, AccessLevel } from './lib/supabase';
 import { offlineSync } from './lib/offlineSync';
 import Landing from './components/Landing';
 import Auth from './components/Auth';
 import Dashboard from './Dashboard';
 import { cn } from './lib/utils';
+import { AlertTriangle, LogOut } from 'lucide-react';
 
 type View     = 'landing' | 'login' | 'signup' | 'dashboard';
 type Theme    = 'dark' | 'light';
@@ -26,8 +28,8 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
 
 export default function App() {
   const [view, setView]                       = useState<View>('landing');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading]                 = useState(true);
+  const [accessLevel, setAccessLevel]         = useState<AccessLevel | null>(null);
   const [theme, setTheme]                     = useState<Theme>('dark');
   const [lang, setLang]                       = useState<Language>('en');
   const [offlineBanner, setOfflineBanner]     = useState(!navigator.onLine);
@@ -38,9 +40,15 @@ export default function App() {
 
   useEffect(() => {
     checkAuth();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session);
-      setView(session ? 'dashboard' : 'landing');
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session) {
+        const access = await getMyAccessLevel();
+        setAccessLevel(access);
+        setView('dashboard');
+      } else {
+        setAccessLevel(null);
+        setView('landing');
+      }
     });
     const unsub = offlineSync.subscribe((status) => {
       if (status === 'offline')      { setOfflineBanner(true);  setSyncMsg(''); }
@@ -62,12 +70,24 @@ export default function App() {
   async function checkAuth() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      setIsAuthenticated(!!user);
-      setView(user ? 'dashboard' : 'landing');
-    } catch { }
+      if (user) {
+        const access = await getMyAccessLevel();
+        setAccessLevel(access);
+        setView('dashboard');
+      } else {
+        setView('landing');
+      }
+    } catch { setView('landing'); }
     finally { setLoading(false); }
   }
 
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    setAccessLevel(null);
+    setView('landing');
+  }
+
+  // ── Loading splash ──────────────────────────────────────────────────────────
   if (loading) return (
     <div className="min-h-screen bg-[#020617] flex items-center justify-center">
       <div className="text-center">
@@ -77,6 +97,7 @@ export default function App() {
     </div>
   );
 
+  // ── Landing ─────────────────────────────────────────────────────────────────
   if (view === 'landing') return (
     <Landing
       onLogin={()    => setView('login')}
@@ -86,6 +107,7 @@ export default function App() {
     />
   );
 
+  // ── Auth forms ──────────────────────────────────────────────────────────────
   if (view === 'login' || view === 'signup') return (
     <Auth
       initialMode={view === 'signup' ? 'signup' : 'login'}
@@ -94,10 +116,47 @@ export default function App() {
     />
   );
 
-  const isOffline = offlineMode || offlineBanner;
+  // ── No access screen ────────────────────────────────────────────────────────
+  if (accessLevel?.role === 'none') return (
+    <div className={cn('min-h-screen flex flex-col items-center justify-center p-8', dk ? 'bg-[#020617] text-white' : 'bg-slate-100 text-slate-900')}>
+      <div className={cn('w-full max-w-md p-10 rounded-[2.5rem] border shadow-2xl text-center', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
+        <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+          <AlertTriangle className="text-amber-400" size={32} />
+        </div>
+        <h2 className="text-2xl font-black mb-3">
+          {lang === 'de' ? 'Kein Zugriff' : 'No Access'}
+        </h2>
+        <p className={cn('text-sm mb-8 leading-relaxed', dk ? 'text-slate-400' : 'text-slate-500')}>
+          {lang === 'de'
+            ? 'Sie haben keinen Zugriff auf das Dashboard. Bitte kontaktieren Sie Ihren Vorgesetzten oder Administrator.'
+            : 'You do not have access to the dashboard. Please contact your supervisor or administrator.'}
+        </p>
+        <button
+          onClick={handleSignOut}
+          className="inline-flex items-center gap-2 px-6 py-3 bg-slate-600 hover:bg-slate-700 text-white font-bold rounded-xl transition-all"
+        >
+          <LogOut size={16} />
+          {lang === 'de' ? 'Abmelden' : 'Sign Out'}
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── Dashboard (admin / editor / viewer) ─────────────────────────────────────
+  const isOffline  = offlineMode || offlineBanner;
+  const isViewOnly = accessLevel?.role === 'viewer';
 
   return (
     <div className={cn('flex flex-col h-screen overflow-hidden', dk ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-900')}>
+
+      {/* Viewer badge */}
+      {isViewOnly && (
+        <div className="bg-blue-600 text-white text-xs font-bold text-center py-1.5 px-4 shrink-0 flex items-center justify-center gap-2">
+          <span>👁</span>
+          {lang === 'de' ? 'Nur-Lesen-Modus — Sie können keine Änderungen vornehmen' : 'View-only mode — you cannot make changes'}
+        </div>
+      )}
+
       {isOffline && (
         <div className="bg-amber-500 text-black text-xs font-bold text-center py-1.5 px-4 shrink-0 flex items-center justify-center gap-3">
           <span>📡 {lang === 'de' ? 'Offline — Änderungen werden lokal gespeichert' : 'Offline — changes saved locally'}</span>
@@ -108,11 +167,13 @@ export default function App() {
           )}
         </div>
       )}
+
       {syncMsg && (
         <div className={cn('text-white text-xs font-bold text-center py-1.5 px-4 shrink-0', syncMsg.startsWith('⚠') ? 'bg-amber-600' : 'bg-green-600')}>
           {syncMsg}
         </div>
       )}
+
       <div className="flex-1 min-h-0 overflow-hidden">
         <ErrorBoundary>
           <Dashboard
@@ -121,6 +182,8 @@ export default function App() {
             setLang={setLang}
             offlineMode={isOffline}
             onToggleOfflineMode={() => setOfflineMode(v => !v)}
+            viewOnly={isViewOnly}
+            accessLevel={accessLevel}
           />
         </ErrorBoundary>
       </div>

@@ -1,469 +1,293 @@
-// src/Dashboard.tsx
-import React, { useState, useEffect, useRef, useMemo } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { supabase } from './lib/supabase';
+import type { AccessLevel } from './lib/supabase';
 import {
-  getHotels, signOut, deleteHotel, createHotel
-} from './lib/supabase'
-import {
-  cn, calcHotelFreeBeds, calcHotelTotalCost, calcHotelTotalNights,
-  hotelHasFreeBedsToday, hotelHasFreeBedsTomorrow,
-  hotelHasFreeBedsIn5Days, hotelHasFreeBedsIn7Days,
-  hotelMatchesSearch, formatCurrency
-} from './lib/utils'
-import type { FilterPaid, FilterDeposit, FilterFree, GroupBy } from './lib/types'
-import {
-  Plus, Building2, Check, X, Loader2,
-  Filter, ArrowUpDown, Download, Users, WifiOff, Wifi
-} from 'lucide-react'
-import Header from './components/Header'
-import Sidebar from './components/Sidebar'
-import HotelRow from './components/HotelRow'
-import ShareModal from './components/ShareModal'
-import ExportModal from './components/ExportModal'
-
-type SortBy   = 'name' | 'city' | 'cost' | 'nights'
-type Theme    = 'dark' | 'light'
-type Language = 'de' | 'en'
+  getHotels, createHotel, updateHotel, deleteHotel,
+  createDuration, updateDuration, deleteDuration,
+  createEmployee, updateEmployee, deleteEmployee,
+  getCollaborators,
+} from './lib/supabase';
+import Header from './components/Header';
+import HotelRow from './components/HotelRow';
+import AddHotelModal from './components/AddHotelModal';
+import ExportModal from './components/ExportModal';
+import { cn } from './lib/utils';
+import { Plus, Building2, Loader2, TriangleAlert } from 'lucide-react';
 
 interface DashboardProps {
-  theme: Theme
-  lang: Language
-  toggleTheme: () => void
-  setLang: (l: Language) => void
-  offlineMode?: boolean
-  onToggleOfflineMode?: () => void
+  theme: 'dark' | 'light';
+  lang: 'de' | 'en';
+  toggleTheme: () => void;
+  setLang: (l: 'de' | 'en') => void;
+  offlineMode?: boolean;
+  onToggleOfflineMode?: () => void;
+  viewOnly?: boolean;
+  accessLevel?: AccessLevel | null;
 }
 
-// ─── Inline new-hotel row ─────────────────────────────────────────────────────
-// Only hotel name is entered here. City and company are set inline after creation.
-function NewHotelRow({ isDarkMode, lang, onSave, onCancel }: {
-  isDarkMode: boolean; lang: Language
-  onSave: (hotel: any) => void; onCancel: () => void
-}) {
-  const dk = isDarkMode
-  const [name, setName] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [err, setErr] = useState('')
-  const nameRef = useRef<HTMLInputElement>(null)
-  useEffect(() => { nameRef.current?.focus() }, [])
+export default function Dashboard({
+  theme, lang, toggleTheme, setLang,
+  offlineMode = false,
+  onToggleOfflineMode,
+  viewOnly = false,
+  accessLevel,
+}: DashboardProps) {
+  const dk = theme === 'dark';
 
-  async function handleSave() {
-    const trimmed = name.trim()
-    if (!trimmed) return
-    setErr('')
-    try {
-      setSaving(true)
-      const newHotel = await createHotel({ name: trimmed })
-      if (!newHotel || !newHotel.id) throw new Error('Hotel creation returned no data')
-      onSave({ ...newHotel, durations: newHotel.durations ?? [] })
-    } catch (e: any) {
-      setErr(e?.message || 'Failed to create hotel')
-      setSaving(false)
+  const [hotels,         setHotels]         = useState<any[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [error,          setError]          = useState<string | null>(null);
+  const [searchQuery,    setSearchQuery]    = useState('');
+  const [showAddHotel,   setShowAddHotel]   = useState(false);
+  const [showExport,     setShowExport]     = useState(false);
+  const [collaborators,  setCollaborators]  = useState<any[]>([]);
+  const [activeHotelId,  setActiveHotelId]  = useState<string | null>(null);
+  const [savingIds,      setSavingIds]      = useState<Set<string>>(new Set());
+  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  // Hotels visible to this user
+  const visibleHotels = React.useMemo(() => {
+    if (!accessLevel || accessLevel.role === 'admin') return hotels;
+    if (accessLevel.role === 'editor' || accessLevel.role === 'viewer') {
+      return hotels.filter(h => accessLevel.hotelIds.includes(h.id));
     }
-  }
+    return [];
+  }, [hotels, accessLevel]);
 
-  const ic = cn(
-    'px-3 py-2 rounded-lg text-sm outline-none border transition-all',
-    dk ? 'bg-white/5 border-white/10 focus:border-blue-500 text-white placeholder-slate-600'
-       : 'bg-white border-slate-200 focus:border-blue-500 text-slate-900 placeholder-slate-400'
-  )
+  const filteredHotels = React.useMemo(() => {
+    if (!searchQuery.trim()) return visibleHotels;
+    const q = searchQuery.toLowerCase();
+    return visibleHotels.filter(h =>
+      h.name?.toLowerCase().includes(q) ||
+      h.city?.toLowerCase().includes(q) ||
+      (Array.isArray(h.companyTag) ? h.companyTag : []).some((t: string) => t?.toLowerCase().includes(q))
+    );
+  }, [visibleHotels, searchQuery]);
 
-  return (
-    <div className={cn('mb-2 rounded-xl border px-4 py-3 space-y-2',
-      dk ? 'bg-[#0B1224] border-blue-500/40' : 'bg-white border-blue-400')}>
-      <div className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-blue-600/30 rounded-lg flex items-center justify-center flex-shrink-0">
-          <Building2 size={16} className="text-blue-400" />
-        </div>
-        <input
-          ref={nameRef}
-          value={name}
-          onChange={e => setName(e.target.value)}
-          placeholder={lang === 'de' ? 'Hotelname eingeben...' : 'Enter hotel name...'}
-          onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onCancel() }}
-          className={cn(ic, 'flex-1')}
-        />
-        <button
-          onClick={handleSave}
-          disabled={saving || !name.trim()}
-          className="p-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-lg"
-        >
-          {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-        </button>
-        <button
-          onClick={onCancel}
-          className={cn('p-2 rounded-lg', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}
-        >
-          <X size={16} />
-        </button>
-      </div>
-      {err && <p className="text-red-400 text-xs font-bold px-1">{err}</p>}
-      <p className={cn('text-[10px] px-1', dk ? 'text-slate-600' : 'text-slate-400')}>
-        {lang === 'de' ? 'Stadt und Firma können danach direkt in der Zeile bearbeitet werden.' : 'City and company can be edited inline after creation.'}
-      </p>
-    </div>
-  )
-}
+  const activeHotel = hotels.find(h => h.id === activeHotelId) ?? null;
 
-// ─── Dashboard ────────────────────────────────────────────────────────────────
-export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMode = false, onToggleOfflineMode }: DashboardProps) {
-  const dk = theme === 'dark'
-
-  const [hotels,  setHotels]  = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState('')
-
-  const [selectedYear,  setSelectedYear]  = useState(new Date().getFullYear())
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-
-  const [addingHotel,     setAddingHotel]     = useState(false)
-  const [showFilterMenu,  setShowFilterMenu]  = useState(false)
-  const [showSortMenu,    setShowSortMenu]    = useState(false)
-  const [showShareModal,  setShowShareModal]  = useState(false)
-  const [showExportModal, setShowExportModal] = useState(false)
-
-  const [searchQuery, setSearchQuery] = useState('')
-
-  const [filterPaid,    setFilterPaid]    = useState<FilterPaid>('all')
-  const [filterDeposit, setFilterDeposit] = useState<FilterDeposit>('all')
-  const [filterFree,    setFilterFree]    = useState<FilterFree>('none')
-  const [groupBy,       setGroupBy]       = useState<GroupBy>('none')
-  const [activeGroupTab, setActiveGroupTab] = useState<string | null>(null)
-  const [sortBy,  setSortBy]  = useState<SortBy>('name')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
-
-  const monthNames = lang === 'de'
-    ? ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']
-    : ['January','February','March','April','May','June','July','August','September','October','November','December']
-
-  useEffect(() => { loadHotels() }, [])
+  useEffect(() => { loadHotels(); }, []);
 
   async function loadHotels() {
     try {
-      setLoading(true); setError('')
-      const raw = await getHotels()
-      setHotels((raw ?? []).map((h: any) => ({ ...h, durations: h.durations ?? [] })))
-    }
-    catch (e: any) { setError(e.message || 'Failed to load') }
-    finally { setLoading(false) }
+      setLoading(true); setError(null);
+      const data = await getHotels();
+      setHotels(data);
+    } catch (err: any) {
+      setError(err.message ?? 'Failed to load hotels');
+    } finally { setLoading(false); }
   }
 
-  // All unique company tags across all hotels (flattened from arrays)
-  const companyOptions = useMemo(() =>
-    Array.from(new Set(
-      hotels.flatMap((h: any) =>
-        Array.isArray(h.companyTag) ? h.companyTag : (h.companyTag ? [h.companyTag] : [])
-      ).filter(Boolean)
-    )).sort() as string[]
-  , [hotels])
+  useEffect(() => {
+    getCollaborators(activeHotelId ?? undefined).then(setCollaborators).catch(() => {});
+  }, [activeHotelId]);
 
-  const cityOptions = useMemo(() =>
-    Array.from(new Set(hotels.map((h: any) => h.city).filter(Boolean))).sort() as string[]
-  , [hotels])
+  // ── Guarded write helper — blocks all mutations in viewOnly mode ─────────────
+  function guardWrite<T extends any[]>(fn: (...args: T) => Promise<void>) {
+    return async (...args: T) => {
+      if (viewOnly) return;
+      await fn(...args);
+    };
+  }
 
-  const filtered = useMemo(() => {
-    let list = (hotels ?? []).filter(h => {
-      if (!h || !h.id) return false
-      if (!hotelMatchesSearch(h, searchQuery)) return false
-      if (filterPaid    === 'paid'       && !(h.durations ?? []).every((d: any) => d?.isPaid))          return false
-      if (filterPaid    === 'unpaid'     &&  (h.durations ?? []).every((d: any) => d?.isPaid))          return false
-      if (filterDeposit === 'deposit'    && !(h.durations ?? []).some((d: any) => d?.depositEnabled))   return false
-      if (filterDeposit === 'no-deposit' &&  (h.durations ?? []).some((d: any) => d?.depositEnabled))   return false
-      if (filterFree    === 'today'      && !hotelHasFreeBedsToday(h))    return false
-      if (filterFree    === 'tomorrow'   && !hotelHasFreeBedsTomorrow(h)) return false
-      if (filterFree    === 'in5days'    && !hotelHasFreeBedsIn5Days(h))  return false
-      if (filterFree    === 'in7days'    && !hotelHasFreeBedsIn7Days(h))  return false
-      return true
-    })
-    return [...list].sort((a, b) => {
-      const dir = sortDir === 'asc' ? 1 : -1
-      let va: any, vb: any
-      if      (sortBy === 'name')   { va = (a.name ?? '').toLowerCase(); vb = (b.name ?? '').toLowerCase() }
-      else if (sortBy === 'city')   { va = (a.city ?? '').toLowerCase(); vb = (b.city ?? '').toLowerCase() }
-      else if (sortBy === 'cost')   { va = calcHotelTotalCost(a);        vb = calcHotelTotalCost(b) }
-      else if (sortBy === 'nights') { va = calcHotelTotalNights(a);      vb = calcHotelTotalNights(b) }
-      else                          { va = a.name ?? '';                  vb = b.name ?? '' }
-      return va < vb ? -dir : va > vb ? dir : 0
-    })
-  }, [hotels, searchQuery, filterPaid, filterDeposit, filterFree, sortBy, sortDir])
+  // ── Hotel CRUD ───────────────────────────────────────────────────────────────
+  const handleAddHotel = guardWrite(async (data: any) => {
+    const hotel = await createHotel(data);
+    setHotels(p => [hotel, ...p]);
+  });
 
-  const groupTabs = useMemo(() => {
-    if (groupBy === 'none') return []
-    if (groupBy === 'company') {
-      return Array.from(new Set(
-        filtered.flatMap((h: any) =>
-          Array.isArray(h.companyTag) ? h.companyTag : (h.companyTag ? [h.companyTag] : ['—'])
-        )
-      )).sort() as string[]
-    }
-    return Array.from(new Set(filtered.map((h: any) => h.city || '—'))).sort() as string[]
-  }, [filtered, groupBy])
+  const handleUpdateHotel = guardWrite(async (id: string, data: any) => {
+    setHotels(p => p.map(h => h.id === id ? { ...h, ...data } : h));
+    clearTimeout(saveTimers.current[id]);
+    setSavingIds(p => new Set([...p, id]));
+    saveTimers.current[id] = setTimeout(async () => {
+      try { await updateHotel(id, data); }
+      catch (e) { console.error('Hotel save failed', e); }
+      finally { setSavingIds(p => { const n = new Set(p); n.delete(id); return n; }); }
+    }, 600);
+  });
 
-  const visibleHotels = useMemo(() => {
-    if (groupBy === 'none' || !activeGroupTab) return filtered
-    if (groupBy === 'company') {
-      return filtered.filter((h: any) => {
-        const tags = Array.isArray(h.companyTag) ? h.companyTag : (h.companyTag ? [h.companyTag] : [])
-        return tags.includes(activeGroupTab) || (tags.length === 0 && activeGroupTab === '—')
-      })
-    }
-    return filtered.filter((h: any) => (h.city || '—') === activeGroupTab)
-  }, [filtered, groupBy, activeGroupTab])
+  const handleDeleteHotel = guardWrite(async (id: string) => {
+    setHotels(p => p.filter(h => h.id !== id));
+    if (activeHotelId === id) setActiveHotelId(null);
+    await deleteHotel(id);
+  });
 
-  useEffect(() => { setActiveGroupTab(groupTabs[0] ?? null) }, [groupBy, groupTabs.length])
+  // ── Duration CRUD ────────────────────────────────────────────────────────────
+  const handleAddDuration = guardWrite(async (hotelId: string, data: any) => {
+    const dur = await createDuration({ ...data, hotelId });
+    setHotels(p => p.map(h => h.id === hotelId
+      ? { ...h, durations: [...(h.durations ?? []), dur] }
+      : h));
+  });
 
-  const totalSpend = (hotels ?? []).reduce((s, h) => s + calcHotelTotalCost(h), 0)
-  const freeBeds   = (hotels ?? []).reduce((s, h) => s + calcHotelFreeBeds(h), 0)
-  const activeFilters = [filterPaid !== 'all', filterDeposit !== 'all', filterFree !== 'none'].filter(Boolean).length
+  const handleUpdateDuration = guardWrite(async (hotelId: string, durId: string, data: any) => {
+    setHotels(p => p.map(h => h.id === hotelId
+      ? { ...h, durations: (h.durations ?? []).map((d: any) => d.id === durId ? { ...d, ...data } : d) }
+      : h));
+    clearTimeout(saveTimers.current[durId]);
+    setSavingIds(p => new Set([...p, durId]));
+    saveTimers.current[durId] = setTimeout(async () => {
+      try { await updateDuration(durId, data); }
+      catch (e) { console.error('Duration save failed', e); }
+      finally { setSavingIds(p => { const n = new Set(p); n.delete(durId); return n; }); }
+    }, 600);
+  });
 
-  const menuCls = cn(
-    'absolute top-full mt-1 right-0 z-50 rounded-xl border shadow-xl p-3 min-w-[240px]',
-    dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200'
-  )
-  const sectionLabel = cn('text-[10px] font-bold uppercase tracking-widest block px-1 mb-1 mt-2', dk ? 'text-slate-500' : 'text-slate-400')
-  const menuBtn = (active: boolean) => cn(
-    'w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-all',
-    active ? 'bg-blue-600 text-white' : dk ? 'hover:bg-white/5 text-slate-300' : 'hover:bg-slate-100 text-slate-700'
-  )
-  const toolbarBtn = cn(
-    'px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all',
-    dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-100'
-  )
+  const handleDeleteDuration = guardWrite(async (hotelId: string, durId: string) => {
+    setHotels(p => p.map(h => h.id === hotelId
+      ? { ...h, durations: (h.durations ?? []).filter((d: any) => d.id !== durId) }
+      : h));
+    await deleteDuration(durId);
+  });
 
+  // ── Employee CRUD ────────────────────────────────────────────────────────────
+  const handleAddEmployee = guardWrite(async (hotelId: string, durId: string, slotIndex: number, data: any) => {
+    const emp = await createEmployee(durId, slotIndex, data);
+    setHotels(p => p.map(h => h.id === hotelId
+      ? { ...h, durations: (h.durations ?? []).map((d: any) => d.id === durId
+          ? { ...d, employees: [...(d.employees ?? []), emp] } : d) } : h));
+  });
+
+  const handleUpdateEmployee = guardWrite(async (hotelId: string, durId: string, empId: string, data: any) => {
+    setHotels(p => p.map(h => h.id === hotelId
+      ? { ...h, durations: (h.durations ?? []).map((d: any) => d.id === durId
+          ? { ...d, employees: (d.employees ?? []).map((e: any) => e.id === empId ? { ...e, ...data } : e) } : d) } : h));
+    clearTimeout(saveTimers.current[empId]);
+    saveTimers.current[empId] = setTimeout(async () => {
+      try { await updateEmployee(empId, data); }
+      catch (e) { console.error('Employee save failed', e); }
+    }, 600);
+  });
+
+  const handleDeleteEmployee = guardWrite(async (hotelId: string, durId: string, empId: string) => {
+    setHotels(p => p.map(h => h.id === hotelId
+      ? { ...h, durations: (h.durations ?? []).map((d: any) => d.id === durId
+          ? { ...d, employees: (d.employees ?? []).filter((e: any) => e.id !== empId) } : d) } : h));
+    await deleteEmployee(empId);
+  });
+
+  const handleSignOut = async () => { await supabase.auth.signOut(); };
+
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className={cn('h-full flex', dk ? 'bg-[#020617]' : 'bg-slate-50')}>
-      <Sidebar
+    <div className={cn('flex flex-col h-full', dk ? 'bg-[#020617]' : 'bg-slate-50')}>
+      <Header
         theme={theme} lang={lang}
-        selectedYear={selectedYear} setSelectedYear={setSelectedYear}
-        selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth}
-        collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(v => !v)}
-        hotels={hotels}
+        toggleTheme={toggleTheme} setLang={setLang}
+        searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+        onSignOut={handleSignOut}
+        onExport={() => setShowExport(true)}
+        activeHotelIdForShare={activeHotelId}
+        activeHotelNameForShare={activeHotel?.name ?? null}
+        collaborators={collaborators}
+        onCollaboratorsChanged={setCollaborators}
+        viewOnly={viewOnly}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Header
-          theme={theme} lang={lang}
-          toggleTheme={toggleTheme} setLang={setLang}
-          searchQuery={searchQuery} setSearchQuery={setSearchQuery}
-          onExport={() => setShowExportModal(true)}
-          onShare={() => setShowShareModal(true)}
-          onSignOut={async () => { try { await signOut(); window.location.reload() } catch(e){} }}
-        />
-
-        {/* KPI bar */}
-        <div className={cn('px-8 py-3 border-b flex items-center gap-10', dk ? 'bg-[#0F172A] border-white/5' : 'bg-white border-slate-200')}>
-          {[
-            { label: lang === 'de' ? 'Freie Betten' : 'Free Beds', value: String(freeBeds), cls: freeBeds > 0 ? 'text-amber-400' : 'text-green-400' },
-            { label: lang === 'de' ? 'Gesamt'       : 'Total',     value: formatCurrency(totalSpend), cls: 'text-blue-400' },
-            { label: 'Hotels',                                       value: String(hotels.length), cls: dk ? 'text-white' : 'text-slate-900' },
-          ].map(({ label, value, cls }) => (
-            <div key={label}>
-              <p className={cn('text-[10px] font-bold uppercase tracking-widest mb-0.5', dk ? 'text-slate-500' : 'text-slate-400')}>{label}</p>
-              <p className={cn('text-xl font-black', cls)}>{value}</p>
-            </div>
-          ))}
-          <div className="ml-auto">
-            <button
-              onClick={onToggleOfflineMode}
-              className={cn(
-                'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all',
-                offlineMode
-                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-400 hover:bg-amber-500/30'
-                  : dk ? 'border-white/10 text-slate-500 hover:bg-white/5 hover:text-slate-300'
-                       : 'border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-700'
-              )}
-            >
-              {offlineMode
-                ? <><WifiOff size={13} /> Offline</>
-                : <><Wifi    size={13} /> {lang === 'de' ? 'Offline-Modus' : 'Offline Mode'}</>
-              }
-            </button>
+      <main className="flex-1 min-h-0 overflow-y-auto px-4 md:px-8 py-6">
+        {loading ? (
+          <div className="flex items-center justify-center h-48">
+            <Loader2 className="animate-spin text-blue-500" size={32} />
           </div>
-        </div>
+        ) : error ? (
+          <div className="flex items-center justify-center h-48">
+            <div className="text-center">
+              <TriangleAlert className="text-red-400 mx-auto mb-2" size={32} />
+              <p className="text-red-400 font-bold">{error}</p>
+              <button onClick={loadHotels} className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold">
+                {lang === 'de' ? 'Erneut versuchen' : 'Retry'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4 max-w-7xl mx-auto">
 
-        {/* Main */}
-        <main className="flex-1 p-6 overflow-y-auto">
-          {/* Toolbar */}
-          <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-            <h2 className={cn('text-xl font-black', dk ? 'text-white' : 'text-slate-900')}>
-              {selectedMonth !== null ? `${monthNames[selectedMonth]} ${selectedYear}` : 'Dashboard'}
-            </h2>
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Filter */}
-              <div className="relative">
-                <button
-                  onClick={() => { setShowFilterMenu(v => !v); setShowSortMenu(false) }}
-                  className={cn(
-                    'px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all',
-                    activeFilters > 0 || groupBy !== 'none'
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-100'
-                  )}
-                >
-                  <Filter size={15} />
-                  Filter
-                  {(activeFilters > 0 || groupBy !== 'none') && (
-                    <span className="bg-white/30 rounded-full w-5 h-5 text-[9px] font-black flex items-center justify-center">
-                      {activeFilters + (groupBy !== 'none' ? 1 : 0)}
+            {/* Top bar */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className={cn('text-2xl font-black', dk ? 'text-white' : 'text-slate-900')}>
+                  {lang === 'de' ? 'Hotels' : 'Hotels'}
+                </h1>
+                <p className={cn('text-sm', dk ? 'text-slate-500' : 'text-slate-400')}>
+                  {filteredHotels.length} {lang === 'de' ? 'Hotels' : 'hotels'}
+                  {viewOnly && (
+                    <span className="ml-2 px-2 py-0.5 bg-blue-500/10 text-blue-400 text-xs font-bold rounded-full border border-blue-500/20">
+                      {lang === 'de' ? 'Nur Ansicht' : 'View only'}
                     </span>
                   )}
-                </button>
-                {showFilterMenu && (
-                  <div className={menuCls}>
-                    <span className={sectionLabel}>{lang === 'de' ? 'Zahlung' : 'Payment'}</span>
-                    {(['all','paid','unpaid'] as FilterPaid[]).map(v => (
-                      <button key={v} onClick={() => setFilterPaid(v)} className={menuBtn(filterPaid === v)}>
-                        {{ all: lang==='de'?'Alle':'All', paid: lang==='de'?'Bezahlt':'Paid', unpaid: lang==='de'?'Unbezahlt':'Unpaid' }[v]}
-                      </button>
-                    ))}
-                    <span className={sectionLabel}>{lang === 'de' ? 'Kaution' : 'Deposit'}</span>
-                    {(['all','deposit','no-deposit'] as FilterDeposit[]).map(v => (
-                      <button key={v} onClick={() => setFilterDeposit(v)} className={menuBtn(filterDeposit === v)}>
-                        {{ all: lang==='de'?'Alle':'All', deposit: lang==='de'?'Mit Kaution':'With deposit', 'no-deposit': lang==='de'?'Ohne Kaution':'No deposit' }[v]}
-                      </button>
-                    ))}
-                    <span className={sectionLabel}>{lang === 'de' ? 'Freie Betten' : 'Availability'}</span>
-                    {([
-                      ['none',    lang==='de'?'Alle':'All'],
-                      ['today',   lang==='de'?'Heute frei':'Free today'],
-                      ['tomorrow',lang==='de'?'Morgen frei':'Free tomorrow'],
-                      ['in5days', lang==='de'?'In 5 Tagen':'In 5 days'],
-                      ['in7days', lang==='de'?'In 7 Tagen':'In 7 days'],
-                    ] as [FilterFree,string][]).map(([v,label]) => (
-                      <button key={v} onClick={() => setFilterFree(v as FilterFree)} className={menuBtn(filterFree === v)}>{label}</button>
-                    ))}
-                    <div className={cn('border-t mt-3 mb-2', dk ? 'border-white/10' : 'border-slate-100')} />
-                    <span className={sectionLabel}>{lang === 'de' ? 'Gruppieren nach' : 'Group by'}</span>
-                    {([
-                      ['none',    lang==='de'?'Kein Gruppieren':'No grouping'],
-                      ['company', lang==='de'?'Nach Firma':'By company'],
-                      ['city',    lang==='de'?'Nach Stadt':'By city'],
-                    ] as [GroupBy,string][]).map(([v,label]) => (
-                      <button key={v} onClick={() => setGroupBy(v as GroupBy)} className={menuBtn(groupBy === v)}>{label}</button>
-                    ))}
-                    <div className={cn('border-t mt-3 mb-1', dk ? 'border-white/10' : 'border-slate-100')} />
-                    <button
-                      onClick={() => { setFilterPaid('all'); setFilterDeposit('all'); setFilterFree('none'); setGroupBy('none'); setShowFilterMenu(false) }}
-                      className={cn('w-full text-left px-3 py-1 rounded text-xs font-bold transition-all mt-1',
-                        dk ? 'text-slate-500 hover:text-red-400' : 'text-slate-400 hover:text-red-500')}
-                    >
-                      {lang === 'de' ? '✕  Alle Filter zurücksetzen' : '✕  Clear all filters'}
-                    </button>
-                  </div>
-                )}
+                </p>
               </div>
-              {/* Sort */}
-              <div className="relative">
-                <button onClick={() => { setShowSortMenu(v => !v); setShowFilterMenu(false) }} className={toolbarBtn}>
-                  <ArrowUpDown size={15} />
-                  {lang === 'de' ? 'Sortieren' : 'Sort'}
-                  <span className={cn('text-[10px]', dk ? 'text-slate-500' : 'text-slate-400')}>{sortDir === 'asc' ? '↑' : '↓'}</span>
+              {/* Only admins and editors can add hotels */}
+              {!viewOnly && (
+                <button
+                  onClick={() => setShowAddHotel(true)}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl shadow-lg shadow-blue-600/20 transition-all"
+                >
+                  <Plus size={18} />
+                  {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
                 </button>
-                {showSortMenu && (
-                  <div className={menuCls}>
-                    <span className={sectionLabel}>{lang === 'de' ? 'Sortieren nach' : 'Sort by'}</span>
-                    {([['name','Name'],['city','City'],['cost',lang==='de'?'Kosten':'Cost'],['nights',lang==='de'?'Nächte':'Nights']] as [SortBy,string][]).map(([v,label]) => (
-                      <button key={v} onClick={() => setSortBy(v)} className={menuBtn(sortBy === v)}>{label}</button>
-                    ))}
-                    <span className={sectionLabel}>{lang === 'de' ? 'Richtung' : 'Direction'}</span>
-                    <div className="flex gap-1">
-                      <button onClick={() => setSortDir('asc')}  className={cn(menuBtn(sortDir === 'asc'),  'flex-1 text-center')}>↑ {lang==='de'?'Aufst.':'Asc'}</button>
-                      <button onClick={() => setSortDir('desc')} className={cn(menuBtn(sortDir === 'desc'), 'flex-1 text-center')}>↓ {lang==='de'?'Abst.':'Desc'}</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-              {/* Export */}
-              <button onClick={() => setShowExportModal(true)} className={toolbarBtn}>
-                <Download size={15} />{lang === 'de' ? 'Export' : 'Export'}
-              </button>
-              {/* Share */}
-              <button onClick={() => setShowShareModal(true)} className={toolbarBtn}>
-                <Users size={15} />{lang === 'de' ? 'Teilen' : 'Share'}
-              </button>
-              {/* Add Hotel */}
-              <button
-                onClick={() => setAddingHotel(true)}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl flex items-center gap-2 text-sm"
-              >
-                <Plus size={16} />
-                {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
-              </button>
-            </div>
-          </div>
-
-          {/* Group tabs */}
-          {groupBy !== 'none' && groupTabs.length > 0 && (
-            <div className="flex gap-2 flex-wrap mb-4">
-              {groupTabs.map(tab => (
-                <button key={tab} onClick={() => setActiveGroupTab(tab)}
-                  className={cn(
-                    'px-4 py-1.5 rounded-full text-xs font-bold border transition-all',
-                    activeGroupTab === tab
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
-                  )}
-                >{tab}</button>
-              ))}
-            </div>
-          )}
-
-          {/* Error */}
-          {error && (
-            <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 mb-4">
-              <p className="text-red-400 text-sm font-bold mb-2">{error}</p>
-              <button onClick={loadHotels} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg">Retry</button>
-            </div>
-          )}
-
-          {/* Loading */}
-          {loading && !error && (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 size={32} className="animate-spin text-blue-500" />
-            </div>
-          )}
-
-          {/* New hotel inline row — name only */}
-          {addingHotel && (
-            <NewHotelRow
-              isDarkMode={dk} lang={lang}
-              onSave={h => { setHotels(prev => [h, ...prev]); setAddingHotel(false) }}
-              onCancel={() => setAddingHotel(false)}
-            />
-          )}
-
-          {/* Hotel list */}
-          {!loading && !error && (
-            <div className="space-y-2">
-              {visibleHotels.length === 0 && !addingHotel && (
-                <div className={cn('text-center py-16', dk ? 'text-slate-500' : 'text-slate-400')}>
-                  <Building2 size={40} className="mx-auto mb-3 opacity-30" />
-                  <p className="font-bold">{lang === 'de' ? 'Keine Hotels gefunden' : 'No hotels found'}</p>
-                  <p className="text-sm mt-1">{lang === 'de' ? 'Hotel hinzufügen oder Filter zurücksetzen' : 'Add a hotel or clear filters'}</p>
-                </div>
               )}
-              {visibleHotels.filter(h => h && h.id).map(hotel => (
+            </div>
+
+            {/* Hotel list */}
+            {filteredHotels.length === 0 ? (
+              <div className={cn('flex flex-col items-center justify-center py-24 rounded-2xl border', dk ? 'border-white/5 bg-white/2' : 'border-slate-200 bg-white')}>
+                <Building2 className={cn('mb-4', dk ? 'text-slate-700' : 'text-slate-300')} size={48} />
+                <p className={cn('font-black text-lg mb-2', dk ? 'text-slate-500' : 'text-slate-400')}>
+                  {searchQuery
+                    ? (lang === 'de' ? 'Keine Hotels gefunden' : 'No hotels found')
+                    : viewOnly
+                      ? (lang === 'de' ? 'Keine Hotels freigegeben' : 'No hotels shared with you')
+                      : (lang === 'de' ? 'Noch keine Hotels' : 'No hotels yet')}
+                </p>
+                {!searchQuery && !viewOnly && (
+                  <button onClick={() => setShowAddHotel(true)} className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold">
+                    {lang === 'de' ? 'Erstes Hotel erstellen' : 'Create your first hotel'}
+                  </button>
+                )}
+              </div>
+            ) : (
+              filteredHotels.map(hotel => (
                 <HotelRow
                   key={hotel.id}
-                  entry={hotel}
-                  isDarkMode={dk}
+                  hotel={hotel}
+                  theme={theme}
                   lang={lang}
-                  companyOptions={companyOptions}
-                  cityOptions={cityOptions}
-                  onUpdate={(id, updated) => setHotels(prev => prev.map(h => h.id === id ? { ...updated, durations: updated.durations ?? [] } : h))}
-                  onDelete={id => {
-                    deleteHotel(id).catch(console.error)
-                    setHotels(prev => prev.filter(h => h.id !== id))
-                  }}
+                  isSaving={savingIds.has(hotel.id)}
+                  isActive={hotel.id === activeHotelId}
+                  onActivate={() => setActiveHotelId(p => p === hotel.id ? null : hotel.id)}
+                  onUpdate={(data: any) => handleUpdateHotel(hotel.id, data)}
+                  onDelete={() => handleDeleteHotel(hotel.id)}
+                  onAddDuration={(data: any) => handleAddDuration(hotel.id, data)}
+                  onUpdateDuration={(durId: string, data: any) => handleUpdateDuration(hotel.id, durId, data)}
+                  onDeleteDuration={(durId: string) => handleDeleteDuration(hotel.id, durId)}
+                  onAddEmployee={(durId: string, slotIndex: number, data: any) => handleAddEmployee(hotel.id, durId, slotIndex, data)}
+                  onUpdateEmployee={(durId: string, empId: string, data: any) => handleUpdateEmployee(hotel.id, durId, empId, data)}
+                  onDeleteEmployee={(durId: string, empId: string) => handleDeleteEmployee(hotel.id, durId, empId)}
+                  viewOnly={viewOnly}
                 />
-              ))}
-            </div>
-          )}
-        </main>
-      </div>
+              ))
+            )}
+          </div>
+        )}
+      </main>
 
-      {showShareModal  && <ShareModal  theme={theme} lang={lang} onClose={() => setShowShareModal(false)}  />}
-      {showExportModal && <ExportModal theme={theme} lang={lang} hotels={visibleHotels} onClose={() => setShowExportModal(false)} />}
+      {showAddHotel && !viewOnly && (
+        <AddHotelModal
+          theme={theme} lang={lang}
+          onClose={() => setShowAddHotel(false)}
+          onAdd={handleAddHotel}
+        />
+      )}
+
+      {showExport && (
+        <ExportModal
+          theme={theme} lang={lang}
+          hotels={filteredHotels}
+          onClose={() => setShowExport(false)}
+        />
+      )}
     </div>
-  )
+  );
 }

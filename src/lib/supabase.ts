@@ -20,28 +20,66 @@ export async function getSession() {
   return data.session
 }
 
+// ─── Access check ─────────────────────────────────────────────────────────────
+// Returns:
+//   { role: 'admin' }                        — full access, owns their own data
+//   { role: 'editor', hotelIds: string[] }   — can edit only invited hotels
+//   { role: 'viewer', hotelIds: string[] }   — read-only on invited hotels
+//   { role: 'none' }                         — no access at all
+export type AccessLevel =
+  | { role: 'admin' }
+  | { role: 'editor'; hotelIds: string[] }
+  | { role: 'viewer'; hotelIds: string[] }
+  | { role: 'none' }
+
+export async function getMyAccessLevel(): Promise<AccessLevel> {
+  try {
+    const { data: { user }, error: authErr } = await supabase.auth.getUser()
+    if (authErr || !user) return { role: 'none' }
+
+    // Check profile role
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profile?.role === 'admin') return { role: 'admin' }
+
+    // Not an admin — check collaborator invites
+    const { data: collabs } = await supabase
+      .from('collaborators')
+      .select('hotel_id, role')
+      .eq('user_id', user.id)
+
+    if (!collabs || collabs.length === 0) return { role: 'none' }
+
+    // Determine highest permission level
+    const hasEditor = collabs.some((c: any) => c.role === 'editor')
+    const hotelIds  = collabs.map((c: any) => c.hotel_id).filter(Boolean)
+
+    return hasEditor
+      ? { role: 'editor', hotelIds }
+      : { role: 'viewer', hotelIds }
+  } catch {
+    return { role: 'none' }
+  }
+}
+
 // ─── Profiles ─────────────────────────────────────────────────────────────────
-// Always read from the profiles TABLE (source of truth for username/full_name)
-// and fall back to auth metadata only if the row doesn't exist yet.
 export async function getMyProfile() {
   try {
     const { data: { user }, error: authErr } = await supabase.auth.getUser()
     if (authErr || !user) return null
 
-    // Read from profiles table first
     const { data: row } = await supabase
       .from('profiles')
       .select('id, email, full_name, username, avatar_url, role')
       .eq('id', user.id)
       .maybeSingle()
 
-    const fullName = row?.full_name
-      ?? user.user_metadata?.full_name
-      ?? user.user_metadata?.name
-      ?? ''
-    const username = row?.username
-      ?? user.user_metadata?.username
-      ?? ''
+    const fullName   = row?.full_name  ?? user.user_metadata?.full_name  ?? user.user_metadata?.name ?? ''
+    const username   = row?.username   ?? user.user_metadata?.username   ?? ''
     const fontScale  = user.user_metadata?.fontScale  ?? 100
     const fontFamily = user.user_metadata?.fontFamily ?? 'inter'
 
@@ -59,12 +97,10 @@ export async function getMyProfile() {
   } catch { return null }
 }
 
-// Update profile: writes to BOTH auth metadata (for fontScale/fontFamily)
-// AND the profiles table row (for full_name / username).
 export async function updateMyProfile(updates: {
-  full_name?: string
-  fullName?:  string
-  username?:  string
+  full_name?:  string
+  fullName?:   string
+  username?:   string
   avatar_url?: string
   fontScale?:  number
   fontFamily?: string
@@ -74,29 +110,25 @@ export async function updateMyProfile(updates: {
 
   const fullName = updates.full_name ?? updates.fullName
 
-  // 1. Update auth user metadata (fontScale, fontFamily, full_name)
   const metaPatch: Record<string, any> = {}
-  if (fullName     !== undefined) metaPatch.full_name  = fullName
-  if (updates.username  !== undefined) metaPatch.username   = updates.username
-  if (updates.fontScale  !== undefined) metaPatch.fontScale  = updates.fontScale
-  if (updates.fontFamily !== undefined) metaPatch.fontFamily = updates.fontFamily
-  if (updates.avatar_url !== undefined) metaPatch.avatar_url = updates.avatar_url
+  if (fullName              !== undefined) metaPatch.full_name  = fullName
+  if (updates.username      !== undefined) metaPatch.username   = updates.username
+  if (updates.fontScale     !== undefined) metaPatch.fontScale  = updates.fontScale
+  if (updates.fontFamily    !== undefined) metaPatch.fontFamily = updates.fontFamily
+  if (updates.avatar_url    !== undefined) metaPatch.avatar_url = updates.avatar_url
 
   if (Object.keys(metaPatch).length > 0) {
     const { error: authErr } = await supabase.auth.updateUser({ data: metaPatch })
     if (authErr) throw authErr
   }
 
-  // 2. Update profiles table row
   const rowPatch: Record<string, any> = {}
-  if (fullName          !== undefined) rowPatch.full_name = fullName
-  if (updates.username  !== undefined) rowPatch.username  = updates.username
+  if (fullName           !== undefined) rowPatch.full_name  = fullName
+  if (updates.username   !== undefined) rowPatch.username   = updates.username
   if (updates.avatar_url !== undefined) rowPatch.avatar_url = updates.avatar_url
 
   if (Object.keys(rowPatch).length > 0) {
     await supabase.from('profiles').update(rowPatch).eq('id', user.id)
-    // If no row exists yet, insert one
-    // (handles edge case where trigger didn't fire)
   }
 
   return getMyProfile()
