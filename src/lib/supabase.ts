@@ -20,6 +20,111 @@ export async function getSession() {
   return data.session
 }
 
+// ─── Profiles ─────────────────────────────────────────────────────────────────
+/** Returns the auth user object (id, email) — no separate profiles table required */
+export async function getMyProfile() {
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) return null
+  return {
+    id:        user.id,
+    email:     user.email ?? '',
+    full_name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? '',
+    avatar_url: user.user_metadata?.avatar_url ?? null,
+  }
+}
+
+/** Update display name in auth user_metadata */
+export async function updateMyProfile(updates: { full_name?: string; avatar_url?: string }) {
+  const { error } = await supabase.auth.updateUser({ data: updates })
+  if (error) throw error
+}
+
+/**
+ * Search registered users by email prefix.
+ * Tries the `profiles` view/table if it exists; falls back to an empty array
+ * so the app never crashes if that table hasn't been created yet.
+ */
+export async function searchProfiles(query: string): Promise<any[]> {
+  if (!query || query.trim().length < 2) return []
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, email, full_name, avatar_url')
+      .ilike('email', `%${query.trim()}%`)
+      .limit(10)
+    if (error) return []
+    return data ?? []
+  } catch {
+    return []
+  }
+}
+
+// ─── Collaborators ─────────────────────────────────────────────────────────────
+/**
+ * Invite a user to collaborate.
+ * Upserts into a `collaborators` table (owner_id, user_id, role).
+ * Gracefully no-ops if the table doesn't exist yet.
+ */
+export async function inviteCollaborator(userId: string, role: 'viewer' | 'editor') {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+  const { error } = await supabase
+    .from('collaborators')
+    .upsert({
+      owner_id:   user.id,
+      user_id:    userId,
+      role,
+      invited_at: new Date().toISOString(),
+    }, { onConflict: 'owner_id,user_id' })
+  if (error) throw error
+}
+
+/** Change an existing collaborator's role */
+export async function updateCollaboratorPermission(userId: string, role: 'viewer' | 'editor') {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+  const { error } = await supabase
+    .from('collaborators')
+    .update({ role })
+    .eq('owner_id', user.id)
+    .eq('user_id', userId)
+  if (error) throw error
+}
+
+/** Remove a collaborator */
+export async function removeCollaborator(userId: string) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+  const { error } = await supabase
+    .from('collaborators')
+    .delete()
+    .eq('owner_id', user.id)
+    .eq('user_id', userId)
+  if (error) throw error
+}
+
+/** Fetch all collaborators for the current user's workspace */
+export async function getCollaborators(): Promise<any[]> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  try {
+    const { data, error } = await supabase
+      .from('collaborators')
+      .select('user_id, role, invited_at, profiles(id, email, full_name, avatar_url)')
+      .eq('owner_id', user.id)
+    if (error) return []
+    return (data ?? []).map((c: any) => ({
+      id:        c.user_id,
+      role:      c.role,
+      email:     c.profiles?.email     ?? '',
+      full_name: c.profiles?.full_name ?? '',
+      avatar_url: c.profiles?.avatar_url ?? null,
+    }))
+  } catch {
+    return []
+  }
+}
+
 // ─── Normalizers (snake_case DB → camelCase app) ──────────────────────────────
 function normalizeEmployee(e: any): any {
   if (!e) return null
