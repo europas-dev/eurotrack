@@ -429,3 +429,5 @@ export function HotelRow({
     </div>
   );
 }
+
+export default HotelRow;
