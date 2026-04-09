@@ -204,11 +204,16 @@ export async function getHotels() {
 }
 
 export async function createHotel(data: {
-  name: string; city: string; companyTag: string;
-  address?: string; contactPerson?: string; phone?: string
-  email?: string; webLink?: string; notes?: string
+  name: string
+  city?: string | null
+  companyTag?: string | null
+  address?: string | null
+  contactPerson?: string | null
+  phone?: string | null
+  email?: string | null
+  webLink?: string | null
+  notes?: string | null
 }) {
-  // Get current user for audit fields — non-fatal if unavailable
   let userEmail: string | null = null
   try {
     const { data: { user } } = await supabase.auth.getUser()
@@ -217,8 +222,8 @@ export async function createHotel(data: {
 
   const insertPayload: any = {
     name:          data.name,
-    city:          data.city,
-    companytag:    data.companyTag,
+    city:          data.city          ?? null,
+    companytag:    data.companyTag    ?? null,
     address:       data.address       ?? null,
     contactperson: data.contactPerson ?? null,
     phone:         data.phone         ?? null,
@@ -227,7 +232,6 @@ export async function createHotel(data: {
     notes:         data.notes         ?? null,
     lastupdatedat: new Date().toISOString(),
   }
-  // Only add lastupdatedby if we have a user — avoids not-null constraint errors
   if (userEmail) insertPayload.lastupdatedby = userEmail
 
   const { data: result, error } = await supabase
@@ -250,13 +254,13 @@ export async function updateHotel(id: string, data: any) {
 
   const updatePayload: any = {
     name:          data.name,
-    city:          data.city,
-    companytag:    data.companyTag    ?? data.companytag,
+    city:          data.city          ?? null,
+    companytag:    data.companyTag    ?? data.companytag    ?? null,
     address:       data.address       ?? null,
     contactperson: data.contactPerson ?? data.contactperson ?? null,
     phone:         data.phone         ?? null,
     email:         data.email         ?? null,
-    weblink:       data.webLink       ?? data.weblink ?? null,
+    weblink:       data.webLink       ?? data.weblink       ?? null,
     notes:         data.notes         ?? null,
     lastupdatedat: new Date().toISOString(),
   }

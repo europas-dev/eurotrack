@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Building2, ChevronDown, ChevronRight, Clock, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Building2, ChevronDown, ChevronRight, Clock, Loader2, Plus, Trash2, X } from 'lucide-react';
 import {
   cn, calcHotelFreeBeds, calcHotelTotalCost, calcHotelTotalNights,
   formatCurrency, formatDateDisplay, getDurationRowLabel, getDurationTabLabel, getEmployeeStatus
@@ -105,7 +105,6 @@ export function HotelRow({
     }
   }
 
-  /* ── pill colour by status ── */
   function employeePillCls(employee: any) {
     const status = getEmployeeStatus(employee?.checkIn, employee?.checkOut);
     if (status === 'ending-soon') return dk ? 'border-red-500 text-red-300'    : 'border-red-400 text-red-700 bg-red-50';
@@ -114,7 +113,6 @@ export function HotelRow({
     return dk ? 'border-white/20 text-slate-300' : 'border-slate-300 text-slate-700 bg-slate-50';
   }
 
-  /* ── last-updated display ── */
   const lastUpdatedLabel = useMemo(() => {
     const ts = localHotel.lastUpdatedAt || localHotel.updated_at;
     if (!ts) return null;
@@ -123,12 +121,11 @@ export function HotelRow({
   }, [localHotel.lastUpdatedAt, localHotel.updated_at, lang]);
 
   const narrowStatCls = cn('text-center flex-shrink-0 select-none');
-  const statNumCls   = cn('text-sm font-black leading-tight');
-  const statLblCls   = cn('text-[10px] uppercase tracking-wide leading-tight', dk ? 'text-slate-500' : 'text-slate-400');
+  const statNumCls    = cn('text-sm font-black leading-tight');
+  const statLblCls    = cn('text-[10px] uppercase tracking-wide leading-tight', dk ? 'text-slate-500' : 'text-slate-400');
 
   return (
     <div className="space-y-1">
-      {/* ━━ CARD ━━ */}
       <div className={cn(
         'rounded-2xl border overflow-hidden',
         dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200'
@@ -142,7 +139,6 @@ export function HotelRow({
           )}
           onClick={() => setOpen(o => !o)}
         >
-
           {/* COL 1 — chevron */}
           <div className="flex items-center justify-center flex-shrink-0 px-3" style={{ width: 40 }}>
             {open
@@ -150,7 +146,7 @@ export function HotelRow({
               : <ChevronRight size={16} className={dk ? 'text-slate-500' : 'text-slate-400'} />}
           </div>
 
-          {/* COL 2 — Hotel name + city (inline editable) */}
+          {/* COL 2 — Hotel name + city inline editable */}
           <div className="py-3 pr-3 flex-shrink-0" style={{ width: 180, minWidth: 120 }}>
             <p
               className={cn('text-sm font-black leading-snug break-words', dk ? 'text-white' : 'text-slate-900')}
@@ -167,7 +163,6 @@ export function HotelRow({
                 {localHotel.name}
               </span>
             </p>
-            {/* City — inline editable with datalist suggestions */}
             <p
               className={cn('text-[11px] uppercase tracking-widest leading-tight break-words mt-0.5', dk ? 'text-slate-500' : 'text-slate-400')}
               style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}
@@ -178,39 +173,31 @@ export function HotelRow({
                 options={cityOptions}
                 isDarkMode={dk}
                 hotelId={localHotel.id}
-                onChange={val => patchHotel({ city: val })}
+                onChange={val => patchHotel({ city: val || null })}
               />
             </p>
           </div>
 
-          {/* COL 3 — Company chips (inline editable) */}
+          {/* COL 3 — Company (select dropdown) */}
           <div className="py-3 pr-3 flex-shrink-0" style={{ width: 130, minWidth: 80 }}>
-            <CompanyInlineEdit
+            <CompanySelectEdit
               value={Array.isArray(localHotel.companyTag)
                 ? localHotel.companyTag[0] || ''
                 : localHotel.companyTag || ''}
               options={companyOptions}
               isDarkMode={dk}
-              hotelId={localHotel.id}
               onChange={val => patchHotel({ companyTag: val || null })}
             />
           </div>
 
           {/* COL 4 — Duration chips */}
           <div className="py-3 pr-3 flex-1 min-w-[180px]">
-            <div
-              className="grid gap-1"
-              style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}
-            >
+            <div className="grid gap-1" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
               {(localHotel.durations || []).map((d: any, i: number) => (
-                <span
-                  key={d.id || i}
-                  className={cn(
-                    'px-2 py-1 rounded-lg text-[10px] font-bold leading-tight',
-                    dk ? 'bg-white/5 text-slate-300 border border-white/10' : 'bg-slate-100 text-slate-700 border border-slate-200'
-                  )}
-                  style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}
-                >
+                <span key={d.id || i} className={cn(
+                  'px-2 py-1 rounded-lg text-[10px] font-bold leading-tight',
+                  dk ? 'bg-white/5 text-slate-300 border border-white/10' : 'bg-slate-100 text-slate-700 border border-slate-200'
+                )} style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>
                   {getDurationRowLabel(d, lang)}
                 </span>
               ))}
@@ -222,20 +209,14 @@ export function HotelRow({
 
           {/* COL 5 — Employees */}
           <div className="py-3 pr-3 flex-1 min-w-[160px]">
-            <div
-              className="grid gap-1"
-              style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}
-            >
+            <div className="grid gap-1" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
               {employees.slice(0, 16).map((emp: any) => (
-                <span
-                  key={emp.id}
-                  className={cn(
-                    'px-1.5 py-0.5 rounded border text-[10px] font-bold leading-tight',
-                    employeePillCls(emp)
-                  )}
-                  title={`${emp.name} (${formatDateDisplay(emp.checkIn, lang)} → ${formatDateDisplay(emp.checkOut, lang)})`}
-                  style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}
-                >
+                <span key={emp.id} className={cn(
+                  'px-1.5 py-0.5 rounded border text-[10px] font-bold leading-tight',
+                  employeePillCls(emp)
+                )}
+                title={`${emp.name} (${formatDateDisplay(emp.checkIn, lang)} → ${formatDateDisplay(emp.checkOut, lang)})`}
+                style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>
                   {emp.name}
                 </span>
               ))}
@@ -245,45 +226,43 @@ export function HotelRow({
             </div>
           </div>
 
-          {/* ── NARROW STAT COLUMNS ── */}
-
-          {/* COL 6 — Total Nights */}
+          {/* COL 6 — Nights */}
           <div className={cn(narrowStatCls, 'py-3 px-2 border-l', dk ? 'border-white/10' : 'border-slate-100')} style={{ width: 64 }}>
-            <p className={cn(statLblCls)}>🌙 {lang === 'de' ? 'Nächte' : 'Nights'}</p>
+            <p className={statLblCls}>🌙 {lang === 'de' ? 'Nächte' : 'Nights'}</p>
             <p className={cn(statNumCls, 'text-blue-400')}>{totalNights}</p>
           </div>
 
           {/* COL 7 — Free Beds */}
           <div className={cn(narrowStatCls, 'py-3 px-2 border-l', dk ? 'border-white/10' : 'border-slate-100')} style={{ width: 64 }}>
-            <p className={cn(statLblCls)}>{lang === 'de' ? 'Frei' : 'Free'}</p>
+            <p className={statLblCls}>{lang === 'de' ? 'Frei' : 'Free'}</p>
             <p className={cn(statNumCls, freeBeds > 0 ? 'text-red-400' : dk ? 'text-slate-500' : 'text-slate-300')}>{freeBeds}</p>
           </div>
 
           {/* COL 8 — Total Beds */}
           <div className={cn(narrowStatCls, 'py-3 px-2 border-l', dk ? 'border-white/10' : 'border-slate-100')} style={{ width: 64 }}>
-            <p className={cn(statLblCls)}>{lang === 'de' ? 'Betten' : 'Beds'}</p>
+            <p className={statLblCls}>{lang === 'de' ? 'Betten' : 'Beds'}</p>
             <p className={cn(statNumCls, dk ? 'text-slate-300' : 'text-slate-700')}>{totalBeds}</p>
           </div>
 
-          {/* COL 9 — Total Cost */}
+          {/* COL 9 — Cost */}
           <div className={cn(narrowStatCls, 'py-3 px-3 border-l', dk ? 'border-white/10' : 'border-slate-100')} style={{ width: 100 }}>
-            <p className={cn(statLblCls)}>{lang === 'de' ? 'Kosten' : 'Cost'}</p>
-            <p className={cn(statNumCls, dk ? 'text-white' : 'text-slate-900')} style={{ fontSize: 12 }}>
-              {formatCurrency(totalCost)}
-            </p>
+            <p className={statLblCls}>{lang === 'de' ? 'Kosten' : 'Cost'}</p>
+            <p className={cn(statNumCls, dk ? 'text-white' : 'text-slate-900')} style={{ fontSize: 12 }}>{formatCurrency(totalCost)}</p>
           </div>
 
           {/* COL 10 — Last Updated */}
           <div
             className={cn('py-3 px-2 border-l flex flex-col items-center justify-center flex-shrink-0', dk ? 'border-white/10' : 'border-slate-100')}
             style={{ width: 40 }}
-            title={lastUpdatedLabel ? (lang === 'de' ? `Zuletzt geändert: ${lastUpdatedLabel}` : `Last updated: ${lastUpdatedLabel}`) : (lang === 'de' ? 'Noch nicht gespeichert' : 'Not saved yet')}
+            title={lastUpdatedLabel
+              ? (lang === 'de' ? `Zuletzt geändert: ${lastUpdatedLabel}` : `Last updated: ${lastUpdatedLabel}`)
+              : (lang === 'de' ? 'Noch nicht gespeichert' : 'Not saved yet')}
           >
             {saving
               ? <Loader2 size={13} className="animate-spin text-blue-400" />
               : <Clock size={13} className={dk ? 'text-slate-600' : 'text-slate-300'} />}
           </div>
-        </div>{/* end main row */}
+        </div>
 
         {/* ━━ EXPANDED PANEL ━━ */}
         {open && (
@@ -323,27 +302,21 @@ export function HotelRow({
             {/* Duration tabs */}
             <div className="flex items-center gap-2 flex-wrap">
               {(localHotel.durations || []).map((d: any, i: number) => (
-                <button
-                  key={d.id || i}
-                  onClick={() => setActiveDurationTab(i)}
+                <button key={d.id || i} onClick={() => setActiveDurationTab(i)}
                   className={cn(
                     'px-3 py-2 rounded-lg text-xs font-bold border transition-all',
                     activeDurationTab === i
                       ? 'bg-blue-600 text-white border-blue-600'
                       : dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-                  )}
-                >
+                  )}>
                   {getDurationTabLabel(d, lang)}
                 </button>
               ))}
-              <button
-                onClick={addDuration}
-                disabled={creatingDuration}
+              <button onClick={addDuration} disabled={creatingDuration}
                 className={cn(
                   'px-3 py-2 rounded-lg text-xs font-bold border transition-all flex items-center gap-1',
                   dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-                )}
-              >
+                )}>
                 {creatingDuration ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
                 {lang === 'de' ? 'Neue Dauer' : 'Add duration'}
               </button>
@@ -356,10 +329,7 @@ export function HotelRow({
                 isDarkMode={dk}
                 lang={lang}
                 onUpdate={(id, updatedDuration) => {
-                  const next = {
-                    ...localHotel,
-                    durations: (localHotel.durations || []).map((d: any) => d.id === id ? updatedDuration : d),
-                  };
+                  const next = { ...localHotel, durations: (localHotel.durations || []).map((d: any) => d.id === id ? updatedDuration : d) };
                   setLocalHotel(next);
                   onUpdate(localHotel.id, next);
                 }}
@@ -372,14 +342,11 @@ export function HotelRow({
                 }}
               />
             ) : (
-              <button
-                onClick={addDuration}
-                disabled={creatingDuration}
+              <button onClick={addDuration} disabled={creatingDuration}
                 className={cn(
                   'w-full py-4 rounded-xl border-2 border-dashed text-sm font-bold',
                   dk ? 'border-white/10 text-slate-400 hover:border-blue-500/40 hover:text-blue-400' : 'border-slate-200 text-slate-500 hover:border-blue-400 hover:text-blue-500'
-                )}
-              >
+                )}>
                 {creatingDuration
                   ? (lang === 'de' ? 'Erstelle...' : 'Creating...')
                   : (lang === 'de' ? 'Erste Dauer hinzufügen' : 'Add first duration')}
@@ -388,25 +355,20 @@ export function HotelRow({
 
             {/* Actions bar */}
             <div className="flex items-center gap-2 pt-1 border-t" style={{ borderColor: dk ? 'rgba(255,255,255,0.06)' : '#f1f5f9' }}>
-              <button
-                onClick={addDuration}
-                disabled={creatingDuration}
+              <button onClick={addDuration} disabled={creatingDuration}
                 className={cn(
                   'px-3 py-2 rounded-lg text-xs font-bold border flex items-center gap-1',
                   dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-                )}
-              >
+                )}>
                 {creatingDuration ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
                 {lang === 'de' ? 'Dauer' : 'Duration'}
               </button>
               <div className="flex-1" />
-              <button
-                onClick={() => setConfirmDelete(true)}
+              <button onClick={() => setConfirmDelete(true)}
                 className={cn(
                   'px-3 py-2 rounded-lg text-xs font-bold border flex items-center gap-1',
                   dk ? 'border-red-500/20 text-red-400 hover:bg-red-500/10' : 'border-red-200 text-red-600 hover:bg-red-50'
-                )}
-              >
+                )}>
                 <Trash2 size={12} />
                 {lang === 'de' ? 'Hotel löschen' : 'Delete hotel'}
               </button>
@@ -426,10 +388,8 @@ export function HotelRow({
                 : 'This hotel and all related durations will be deleted permanently.'}
             </p>
             <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setConfirmDelete(false)}
-                className={cn('px-4 py-2 rounded-lg border text-sm font-bold', dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}
-              >
+              <button onClick={() => setConfirmDelete(false)}
+                className={cn('px-4 py-2 rounded-lg border text-sm font-bold', dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}>
                 {lang === 'de' ? 'Abbrechen' : 'Cancel'}
               </button>
               <button onClick={() => onDelete(localHotel.id)} className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold">
@@ -443,7 +403,7 @@ export function HotelRow({
   );
 }
 
-// ── City inline-edit with datalist ─────────────────────────────────────────
+// ── City inline-edit with datalist ────────────────────────────────────────────
 function CityInlineEdit({ value, options, isDarkMode, hotelId, onChange }: {
   value: string; options: string[]; isDarkMode: boolean; hotelId: string;
   onChange: (val: string) => void;
@@ -486,53 +446,150 @@ function CityInlineEdit({ value, options, isDarkMode, hotelId, onChange }: {
   );
 }
 
-// ── Company inline-edit with datalist ──────────────────────────────────────
-function CompanyInlineEdit({ value, options, isDarkMode, hotelId, onChange }: {
-  value: string; options: string[]; isDarkMode: boolean; hotelId: string;
+// ── Company select-or-add dropdown ────────────────────────────────────────────
+function CompanySelectEdit({ value, options, isDarkMode, onChange }: {
+  value: string; options: string[]; isDarkMode: boolean;
   onChange: (val: string) => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
-  const listId = `company-dl-${hotelId}`;
+  const dk = isDarkMode;
+  const [open, setOpen] = useState(false);
+  const [addingNew, setAddingNew] = useState(false);
+  const [newVal, setNewVal] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
 
-  if (!editing) {
-    return (
-      <div className="flex flex-wrap gap-1" onClick={e => { e.stopPropagation(); setDraft(value); setEditing(true); }}>
+  // Close when clicking outside
+  React.useEffect(() => {
+    if (!open) return;
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false); setAddingNew(false); setNewVal('');
+      }
+    }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [open]);
+
+  function select(val: string) {
+    onChange(val);
+    setOpen(false); setAddingNew(false); setNewVal('');
+  }
+
+  function confirmNew() {
+    const v = newVal.trim();
+    if (v) onChange(v);
+    setOpen(false); setAddingNew(false); setNewVal('');
+  }
+
+  return (
+    <div ref={ref} className="relative" onClick={e => e.stopPropagation()}>
+      {/* Trigger chip */}
+      <div
+        onClick={() => setOpen(o => !o)}
+        className="cursor-pointer"
+      >
         {value ? (
           <span className={cn(
-            'px-2 py-0.5 rounded-full text-[10px] font-bold cursor-text hover:opacity-80',
-            isDarkMode ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-700'
+            'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold hover:opacity-80 transition-opacity',
+            dk ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-700'
           )}>
             {value}
+            <X size={9} className="opacity-60" />
           </span>
         ) : (
-          <span className={cn('text-[10px] cursor-text', isDarkMode ? 'text-slate-600' : 'text-slate-300')}>—</span>
+          <span className={cn(
+            'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border border-dashed',
+            dk ? 'border-white/20 text-slate-500 hover:border-purple-500/50 hover:text-purple-400'
+               : 'border-slate-300 text-slate-400 hover:border-purple-400 hover:text-purple-600'
+          )}>
+            + {dk ? 'Firma' : 'Company'}
+          </span>
         )}
       </div>
-    );
-  }
-  return (
-    <span onClick={e => e.stopPropagation()}>
-      <input
-        autoFocus
-        list={listId}
-        value={draft}
-        onChange={e => setDraft(e.target.value)}
-        onBlur={() => { onChange(draft); setEditing(false); }}
-        onKeyDown={e => {
-          if (e.key === 'Enter') { onChange(draft); setEditing(false); }
-          if (e.key === 'Escape') setEditing(false);
-        }}
-        className={cn(
-          'text-[10px] outline-none border-b bg-transparent w-28',
-          isDarkMode ? 'border-blue-500 text-purple-300' : 'border-blue-500 text-purple-700'
-        )}
-      />
-      <datalist id={listId}>
-        {options.map(o => <option key={o} value={o} />)}
-      </datalist>
-    </span>
+
+      {/* Dropdown */}
+      {open && (
+        <div className={cn(
+          'absolute top-full mt-1 left-0 z-50 rounded-xl border shadow-xl min-w-[160px] py-1',
+          dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200'
+        )}>
+          {/* Clear option */}
+          {value && (
+            <button
+              onClick={() => select('')}
+              className={cn(
+                'w-full text-left px-3 py-1.5 text-[11px] font-bold transition-colors',
+                dk ? 'text-slate-500 hover:text-red-400 hover:bg-white/5' : 'text-slate-400 hover:text-red-500 hover:bg-red-50'
+              )}
+            >
+              ✕ {lang => lang === 'de' ? 'Leeren' : 'Clear'}
+            </button>
+          )}
+
+          {/* Existing options */}
+          {options.length > 0 && (
+            <>
+              <div className={cn('px-3 py-1 text-[9px] font-black uppercase tracking-widest', dk ? 'text-slate-600' : 'text-slate-400')}>
+                Existing
+              </div>
+              {options.map(opt => (
+                <button
+                  key={opt}
+                  onClick={() => select(opt)}
+                  className={cn(
+                    'w-full text-left px-3 py-1.5 text-[11px] font-bold transition-colors flex items-center gap-2',
+                    opt === value
+                      ? dk ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-50 text-purple-700'
+                      : dk ? 'text-slate-300 hover:bg-white/5' : 'text-slate-700 hover:bg-slate-50'
+                  )}
+                >
+                  {opt === value && <span className="text-purple-400">✓</span>}
+                  {opt}
+                </button>
+              ))}
+            </>
+          )}
+
+          {/* Divider */}
+          <div className={cn('my-1 border-t', dk ? 'border-white/10' : 'border-slate-100')} />
+
+          {/* Add new */}
+          {!addingNew ? (
+            <button
+              onClick={() => { setAddingNew(true); setNewVal(''); }}
+              className={cn(
+                'w-full text-left px-3 py-1.5 text-[11px] font-bold transition-colors flex items-center gap-1',
+                dk ? 'text-blue-400 hover:bg-white/5' : 'text-blue-600 hover:bg-blue-50'
+              )}
+            >
+              <Plus size={11} /> Add new company
+            </button>
+          ) : (
+            <div className="px-2 py-1.5 flex items-center gap-1">
+              <input
+                autoFocus
+                value={newVal}
+                onChange={e => setNewVal(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') confirmNew(); if (e.key === 'Escape') { setAddingNew(false); setNewVal(''); } }}
+                placeholder="Company name..."
+                className={cn(
+                  'flex-1 text-[11px] outline-none border-b bg-transparent py-0.5',
+                  dk ? 'border-blue-500 text-white placeholder-slate-600' : 'border-blue-500 text-slate-900 placeholder-slate-400'
+                )}
+              />
+              <button onClick={confirmNew} className="text-blue-500 hover:text-blue-400 p-0.5">
+                <Check size={12} />
+              </button>
+              <button onClick={() => { setAddingNew(false); setNewVal(''); }} className={cn('p-0.5', dk ? 'text-slate-500' : 'text-slate-400')}>
+                <X size={12} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
+
+import { Check } from 'lucide-react';
 
 export default HotelRow;
