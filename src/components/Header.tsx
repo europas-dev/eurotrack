@@ -11,7 +11,7 @@ import {
   Moon, Sun, Download, Settings, LogOut,
   X, Check, Loader2, Users, Search,
   User, Lock, UserPlus, Trash2, ChevronDown,
-  ChevronRight, Pencil, Shield, Type, Minus, Plus,
+  ChevronRight, Pencil, Shield, Minus, Plus,
   Mail, KeyRound, AtSign, Eye, EyeOff, HelpCircle,
   FileText, Info,
 } from 'lucide-react';
@@ -29,69 +29,63 @@ interface HeaderProps {
   userRole?: string;
 }
 
-// ─── Avatar presets ───────────────────────────────────────────────────────────
 const AVATARS = [
-  { id: 'fox',      emoji: '🦊', bg: '#f97316' },
-  { id: 'wolf',     emoji: '🐺', bg: '#3b82f6' },
-  { id: 'lion',     emoji: '🦁', bg: '#f59e0b' },
-  { id: 'bear',     emoji: '🐻', bg: '#92400e' },
-  { id: 'butterfly',emoji: '🦋', bg: '#a855f7' },
-  { id: 'dolphin',  emoji: '🐬', bg: '#06b6d4' },
-  { id: 'eagle',    emoji: '🦅', bg: '#1e3a5f' },
-  { id: 'cactus',   emoji: '🌵', bg: '#16a34a' },
-  { id: 'fire',     emoji: '🔥', bg: '#dc2626' },
-  { id: 'moon',     emoji: '🌙', bg: '#4f46e5' },
-  { id: 'lightning',emoji: '⚡', bg: '#ca8a04' },
-  { id: 'target',   emoji: '🎯', bg: '#475569' },
+  { id: 'fox',       emoji: '🦊', bg: '#f97316' },
+  { id: 'wolf',      emoji: '🐺', bg: '#3b82f6' },
+  { id: 'lion',      emoji: '🦁', bg: '#f59e0b' },
+  { id: 'bear',      emoji: '🐻', bg: '#92400e' },
+  { id: 'butterfly', emoji: '🦋', bg: '#a855f7' },
+  { id: 'dolphin',   emoji: '🐬', bg: '#06b6d4' },
+  { id: 'eagle',     emoji: '🦅', bg: '#1e3a5f' },
+  { id: 'cactus',    emoji: '🌵', bg: '#16a34a' },
+  { id: 'fire',      emoji: '🔥', bg: '#dc2626' },
+  { id: 'moon',      emoji: '🌙', bg: '#4f46e5' },
+  { id: 'lightning', emoji: '⚡', bg: '#ca8a04' },
+  { id: 'target',    emoji: '🎯', bg: '#475569' },
 ];
 
-// ─── Font options ─────────────────────────────────────────────────────────────
 const FONTS = [
-  { value: 'inter',        label: 'Inter',           family: 'Inter, sans-serif' },
-  { value: 'roboto',       label: 'Roboto',          family: 'Roboto, sans-serif' },
-  { value: 'open-sans',    label: 'Open Sans',       family: '"Open Sans", sans-serif' },
-  { value: 'dm-sans',      label: 'DM Sans',         family: '"DM Sans", sans-serif' },
-  { value: 'nunito',       label: 'Nunito',          family: 'Nunito, sans-serif' },
-  { value: 'poppins',      label: 'Poppins',         family: 'Poppins, sans-serif' },
-  { value: 'georgia',      label: 'Georgia',         family: 'Georgia, serif' },
-  { value: 'times',        label: 'Times New Roman', family: '"Times New Roman", serif' },
-  { value: 'playfair',     label: 'Playfair Display',family: '"Playfair Display", serif' },
-  { value: 'lora',         label: 'Lora',            family: 'Lora, serif' },
-  { value: 'jetbrains',    label: 'JetBrains Mono',  family: '"JetBrains Mono", monospace' },
+  { value: 'inter',        label: 'Inter',            family: 'Inter, sans-serif' },
+  { value: 'roboto',       label: 'Roboto',           family: 'Roboto, sans-serif' },
+  { value: 'open-sans',    label: 'Open Sans',        family: '"Open Sans", sans-serif' },
+  { value: 'dm-sans',      label: 'DM Sans',          family: '"DM Sans", sans-serif' },
+  { value: 'nunito',       label: 'Nunito',           family: 'Nunito, sans-serif' },
+  { value: 'poppins',      label: 'Poppins',          family: 'Poppins, sans-serif' },
+  { value: 'georgia',      label: 'Georgia',          family: 'Georgia, serif' },
+  { value: 'playfair',     label: 'Playfair Display', family: '"Playfair Display", serif' },
+  { value: 'lora',         label: 'Lora',             family: 'Lora, serif' },
+  { value: 'jetbrains',    label: 'JetBrains Mono',   family: '"JetBrains Mono", monospace' },
 ];
 
-// ─── Role shield config ───────────────────────────────────────────────────────
-function RoleShield({ role, lang }: { role: string; lang: string }) {
-  const configs: Record<string, { color: string; bg: string; border: string; icon: string; label: string }> = {
+const FONT_SIZES = [12, 13, 14, 15, 16, 17, 18, 19, 20];
+
+function RoleShield({ role }: { role: string }) {
+  const cfg: Record<string, { color: string; bg: string; border: string; icon: string; label: string }> = {
     superadmin: { color: 'text-yellow-400', bg: 'bg-yellow-400/10', border: 'border-yellow-400/30', icon: '👑', label: 'Super Admin' },
     admin:      { color: 'text-blue-400',   bg: 'bg-blue-400/10',   border: 'border-blue-400/30',   icon: '🛡️', label: 'Admin' },
     editor:     { color: 'text-green-400',  bg: 'bg-green-400/10',  border: 'border-green-400/30',  icon: '✏️', label: 'Editor' },
     viewer:     { color: 'text-slate-400',  bg: 'bg-slate-400/10',  border: 'border-slate-400/30',  icon: '👁️', label: 'Viewer' },
   };
-  const c = configs[role] ?? configs.viewer;
+  const c = cfg[role] ?? cfg.viewer;
   return (
-    <div className={cn('inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold', c.bg, c.border, c.color)}>
-      <Shield size={12} />
-      <span>{c.icon} {c.label}</span>
+    <div className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-bold', c.bg, c.border, c.color)}>
+      <Shield size={11} /><span>{c.icon} {c.label}</span>
     </div>
   );
 }
 
-// ─── Accordion ────────────────────────────────────────────────────────────────
 function Accordion({ title, icon: Icon, children, dk }: { title: string; icon: any; children: React.ReactNode; dk: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <div className={cn('rounded-xl border overflow-hidden', dk ? 'border-white/10' : 'border-slate-200')}>
-      <button
-        onClick={() => setOpen(o => !o)}
+      <button onClick={() => setOpen(o => !o)}
         className={cn('w-full flex items-center justify-between px-4 py-3 text-sm font-bold transition-all',
-          dk ? 'hover:bg-white/5 text-white' : 'hover:bg-slate-50 text-slate-900')}
-      >
+          dk ? 'hover:bg-white/5 text-white' : 'hover:bg-slate-50 text-slate-900')}>
         <span className="flex items-center gap-2"><Icon size={14} />{title}</span>
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
       </button>
       {open && (
-        <div className={cn('px-4 pb-4 pt-1 text-sm leading-relaxed', dk ? 'text-slate-400 border-t border-white/10' : 'text-slate-600 border-t border-slate-100')}>
+        <div className={cn('px-4 pb-4 pt-2 text-sm leading-relaxed', dk ? 'text-slate-400 border-t border-white/10' : 'text-slate-600 border-t border-slate-100')}>
           {children}
         </div>
       )}
@@ -99,7 +93,6 @@ function Accordion({ title, icon: Icon, children, dk }: { title: string; icon: a
   );
 }
 
-// ─── Section header ───────────────────────────────────────────────────────────
 function SectionLabel({ children, dk }: { children: React.ReactNode; dk: boolean }) {
   return (
     <p className={cn('text-[10px] font-black uppercase tracking-widest mb-2', dk ? 'text-slate-500' : 'text-slate-400')}>
@@ -122,29 +115,29 @@ export default function Header({
   const [showSettings, setShowSettings] = useState(false);
   const [settingsTab,  setSettingsTab]  = useState<'profile' | 'security' | 'access'>('profile');
 
-  // ── Profile state ──────────────────────────────────────────────────────────
-  const [profile,       setProfile]       = useState<any>(null);
-  const [editName,      setEditName]      = useState('');
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [profileMsg,    setProfileMsg]    = useState('');
-
-  // Avatar picker
+  // ── Profile ──────────────────────────────────────────────────────────────
+  const [profile,        setProfile]        = useState<any>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [editingName,    setEditingName]    = useState(false);
+  const [editName,       setEditName]       = useState('');
+  const [savingProfile,  setSavingProfile]  = useState(false);
+  const [profileMsg,     setProfileMsg]     = useState('');
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [selectedAvatar,   setSelectedAvatar]   = useState<string | null>(null);
 
-  // Personalization — applied live, persisted on change (no save button)
-  const [fontScale,    setFontScaleState]  = useState(100);
-  const [fontFamily,   setFontFamilyState] = useState('inter');
+  // ── Personalization ───────────────────────────────────────────────────────
+  const [fontFamily,       setFontFamilyState] = useState('inter');
+  const [fontSize,         setFontSizeState]   = useState(16);
+  const [savingPersonalize, setSavingPersonalize] = useState(false);
+  const [personalizeMsg,    setPersonalizeMsg]   = useState('');
 
-  // ── Security state ─────────────────────────────────────────────────────────
+  // ── Security ──────────────────────────────────────────────────────────────
   const [newUsername,     setNewUsername]     = useState('');
   const [usernameMsg,     setUsernameMsg]     = useState('');
   const [savingUsername,  setSavingUsername]  = useState(false);
-
   const [newEmail,        setNewEmail]        = useState('');
   const [emailMsg,        setEmailMsg]        = useState('');
   const [savingEmail,     setSavingEmail]     = useState(false);
-
   const [currentPass,     setCurrentPass]     = useState('');
   const [newPass,         setNewPass]         = useState('');
   const [confirmPass,     setConfirmPass]     = useState('');
@@ -155,7 +148,7 @@ export default function Header({
   const [resetMsg,        setResetMsg]        = useState('');
   const [sendingReset,    setSendingReset]    = useState(false);
 
-  // ── Access tab state ───────────────────────────────────────────────────────
+  // ── Access ────────────────────────────────────────────────────────────────
   const [accessSearch,    setAccessSearch]    = useState('');
   const [accessResults,   setAccessResults]   = useState<any[]>([]);
   const [accessSearching, setAccessSearching] = useState(false);
@@ -165,8 +158,11 @@ export default function Header({
   const [grantMsg,        setGrantMsg]        = useState('');
   const [collabs,         setCollabs]         = useState<any[]>([]);
   const [collabsLoading,  setCollabsLoading]  = useState(false);
+  // per-row pending role change
+  const [pendingRole,     setPendingRole]     = useState<Record<string, string>>({});
+  const [changingRole,    setChangingRole]    = useState<string | null>(null);
 
-  // ── Share modal state ──────────────────────────────────────────────────────
+  // ── Share ─────────────────────────────────────────────────────────────────
   const [shareSearch,     setShareSearch]     = useState('');
   const [shareResults,    setShareResults]    = useState<any[]>([]);
   const [shareSearching,  setShareSearching]  = useState(false);
@@ -175,73 +171,89 @@ export default function Header({
   const [sharing,         setSharing]         = useState<string | null>(null);
   const [shareCollabs,    setShareCollabs]    = useState<any[]>([]);
   const [shareCollabsLoading, setShareCollabsLoading] = useState(false);
+  const [pendingShareRole, setPendingShareRole] = useState<Record<string, string>>({});
+  const [changingShareRole, setChangingShareRole] = useState<string | null>(null);
 
-  const surface  = dk ? 'bg-[#0F172A] border-white/5 text-white' : 'bg-white border-slate-200 text-slate-900';
-  const inputCls = cn('w-full px-3 py-2 rounded-lg border text-sm outline-none transition-all',
-    dk ? 'bg-white/5 border-white/10 focus:border-blue-500 text-white placeholder-slate-500'
+  const surface    = dk ? 'bg-[#0F172A] border-white/5 text-white' : 'bg-white border-slate-200 text-slate-900';
+  const drawerBg   = dk ? 'bg-[#0F172A]' : 'bg-white';
+  const inputCls   = cn('w-full px-3 py-2 rounded-lg border text-sm outline-none transition-all',
+    dk ? 'bg-[#1E293B] border-white/10 focus:border-blue-500 text-white placeholder-slate-500'
        : 'bg-white border-slate-200 focus:border-blue-500 text-slate-900 placeholder-slate-400');
-  const iconBtn  = cn('p-2 rounded-lg transition-all relative',
+  const selectCls  = cn('w-full px-3 py-2 rounded-lg border text-sm outline-none transition-all cursor-pointer',
+    dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-blue-500'
+       : 'bg-white border-slate-200 text-slate-900 focus:border-blue-500');
+  const iconBtn    = cn('p-2 rounded-lg transition-all relative',
     dk ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900');
   const btnPrimary = 'flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-all';
 
   // ── Load profile ───────────────────────────────────────────────────────────
   useEffect(() => {
-    getMyProfile().then(p => {
-      if (!p) return;
-      setProfile(p);
-      setEditName(p.fullName || p.full_name || '');
-      setNewUsername(p.username || '');
-      setSelectedAvatar(p.avatar ?? null);
-      setFontScaleState(p.fontScale ?? 100);
-      setFontFamilyState(p.fontFamily ?? 'inter');
-      applyFont(p.fontFamily ?? 'inter', p.fontScale ?? 100);
-    });
+    setProfileLoading(true);
+    getMyProfile()
+      .then(p => {
+        if (!p) return;
+        setProfile(p);
+        setEditName(p.fullName || p.full_name || '');
+        setNewUsername(p.username || '');
+        setSelectedAvatar(p.avatar ?? null);
+        const fam  = p.fontFamily ?? 'inter';
+        const size = p.fontSize   ?? 16;
+        setFontFamilyState(fam);
+        setFontSizeState(size);
+        applyFont(fam, size);
+      })
+      .catch(() => {})
+      .finally(() => setProfileLoading(false));
   }, []);
 
-  function applyFont(family: string, scale: number) {
+  function applyFont(family: string, size: number) {
     const font = FONTS.find(f => f.value === family);
     if (font) document.documentElement.style.setProperty('--font-body', font.family);
-    document.documentElement.style.fontSize = `${scale}%`;
+    document.documentElement.style.setProperty('--font-size-base', `${size}px`);
+    document.documentElement.style.fontSize = `${size}px`;
   }
 
-  // Live-apply + persist font family immediately (no save button needed)
   function handleFontFamilyChange(value: string) {
     setFontFamilyState(value);
     const font = FONTS.find(f => f.value === value);
     if (font) document.documentElement.style.setProperty('--font-body', font.family);
-    updateMyProfile({ fontFamily: value }).catch(() => {});
   }
 
-  // Live-apply + persist font scale immediately (no save button needed)
-  function handleFontScaleChange(value: number) {
-    setFontScaleState(value);
-    document.documentElement.style.fontSize = `${value}%`;
-    updateMyProfile({ fontScale: value }).catch(() => {});
+  function handleFontSizeChange(value: number) {
+    const clamped = Math.min(20, Math.max(12, value));
+    setFontSizeState(clamped);
+    document.documentElement.style.setProperty('--font-size-base', `${clamped}px`);
+    document.documentElement.style.fontSize = `${clamped}px`;
   }
 
-  // Load collabs when access tab opens
+  async function handleSavePersonalization() {
+    setSavingPersonalize(true); setPersonalizeMsg('');
+    try {
+      await updateMyProfile({ fontFamily, fontSize });
+      setPersonalizeMsg(lang === 'de' ? '✓ Gespeichert' : '✓ Saved');
+      setTimeout(() => setPersonalizeMsg(''), 2500);
+    } catch (e: any) { setPersonalizeMsg(`Error: ${e.message}`); }
+    finally { setSavingPersonalize(false); }
+  }
+
+  // Load collabs
   useEffect(() => {
     if (showSettings && settingsTab === 'access') loadCollabs();
   }, [showSettings, settingsTab]);
-
-  // Load share collabs when share modal opens
-  useEffect(() => {
-    if (showShare) loadShareCollabs();
-  }, [showShare]);
+  useEffect(() => { if (showShare) loadShareCollabs(); }, [showShare]);
 
   async function loadCollabs() {
     setCollabsLoading(true);
-    try { setCollabs(await getCollaborators()); } catch {}
-    finally { setCollabsLoading(false); }
+    try { const c = await getCollaborators(); setCollabs(c); setPendingRole(Object.fromEntries(c.map((x: any) => [x.userId, x.role]))); }
+    catch {} finally { setCollabsLoading(false); }
   }
-
   async function loadShareCollabs() {
     setShareCollabsLoading(true);
-    try { setShareCollabs(await getCollaborators()); } catch {}
-    finally { setShareCollabsLoading(false); }
+    try { const c = await getCollaborators(); setShareCollabs(c); setPendingShareRole(Object.fromEntries(c.map((x: any) => [x.userId, x.role]))); }
+    catch {} finally { setShareCollabsLoading(false); }
   }
 
-  // ── Access search debounce ─────────────────────────────────────────────────
+  // Access search
   useEffect(() => {
     if (!accessSearch.trim()) { setAccessResults([]); setSelectedUser(null); return; }
     const t = setTimeout(async () => {
@@ -252,7 +264,7 @@ export default function Header({
     return () => clearTimeout(t);
   }, [accessSearch]);
 
-  // ── Share search debounce ──────────────────────────────────────────────────
+  // Share search
   useEffect(() => {
     if (!shareSearch.trim()) { setShareResults([]); return; }
     const t = setTimeout(async () => {
@@ -264,15 +276,12 @@ export default function Header({
   }, [shareSearch]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
-  // Save only covers avatar + display name (font/size persist live on change)
   async function handleSaveProfile() {
     setSavingProfile(true); setProfileMsg('');
     try {
-      const updated = await updateMyProfile({
-        full_name: editName,
-        avatar:    selectedAvatar,
-      });
+      const updated = await updateMyProfile({ full_name: editName, avatar: selectedAvatar });
       setProfile(updated);
+      setEditingName(false);
       setProfileMsg(lang === 'de' ? '✓ Gespeichert' : '✓ Saved');
       setTimeout(() => setProfileMsg(''), 2500);
     } catch (e: any) { setProfileMsg(`Error: ${e.message}`); }
@@ -294,9 +303,7 @@ export default function Header({
     setSavingEmail(true); setEmailMsg('');
     try {
       await updateMyEmail(newEmail);
-      setEmailMsg(lang === 'de'
-        ? '✓ Bestätigungslink gesendet — bitte E-Mail prüfen'
-        : '✓ Confirmation link sent — please check your email');
+      setEmailMsg(lang === 'de' ? '✓ Bestätigungslink gesendet' : '✓ Confirmation link sent — check your email');
     } catch (e: any) { setEmailMsg(`Error: ${e.message}`); }
     finally { setSavingEmail(false); }
   }
@@ -329,7 +336,7 @@ export default function Header({
     setGranting(true); setGrantMsg('');
     try {
       await grantUserAccess(selectedUser.id, grantRole);
-      setGrantMsg(lang === 'de' ? `✓ Zugriff erteilt an ${selectedUser.fullName || selectedUser.email}` : `✓ Access granted to ${selectedUser.fullName || selectedUser.email}`);
+      setGrantMsg(lang === 'de' ? `✓ Zugriff erteilt` : `✓ Access granted`);
       setSelectedUser(null); setAccessSearch(''); setAccessResults([]);
       await loadCollabs();
       setTimeout(() => setGrantMsg(''), 3000);
@@ -349,12 +356,28 @@ export default function Header({
     finally { setSharing(null); }
   }
 
-  async function handleChangeRole(userId: string, role: 'viewer' | 'editor' | 'admin') {
+  async function handleChangeCollabRole(userId: string) {
+    const role = pendingRole[userId] as any;
+    if (!role) return;
+    setChangingRole(userId);
     try {
       await updateCollaboratorPermission(userId, role);
       setCollabs(p => p.map(c => c.userId === userId ? { ...c, role } : c));
       setShareCollabs(p => p.map(c => c.userId === userId ? { ...c, role } : c));
     } catch {}
+    finally { setChangingRole(null); }
+  }
+
+  async function handleChangeShareCollabRole(userId: string) {
+    const role = pendingShareRole[userId] as any;
+    if (!role) return;
+    setChangingShareRole(userId);
+    try {
+      await updateCollaboratorPermission(userId, role);
+      setShareCollabs(p => p.map(c => c.userId === userId ? { ...c, role } : c));
+      setCollabs(p => p.map(c => c.userId === userId ? { ...c, role } : c));
+    } catch {}
+    finally { setChangingShareRole(null); }
   }
 
   async function handleRemove(userId: string) {
@@ -366,59 +389,27 @@ export default function Header({
   }
 
   // ── Avatar display ─────────────────────────────────────────────────────────
-  function AvatarDisplay({ size = 64, editable = false }: { size?: number; editable?: boolean }) {
+  function AvatarDisplay({ size = 64 }: { size?: number }) {
     const av = AVATARS.find(a => a.id === selectedAvatar);
     const initials = (profile?.fullName || profile?.full_name || profile?.email || '?')[0].toUpperCase();
     return (
-      <div className="relative inline-block" style={{ width: size, height: size }}>
-        <div
-          className="w-full h-full rounded-full flex items-center justify-center font-black select-none"
-          style={{
-            background: av ? av.bg : (dk ? '#334155' : '#e2e8f0'),
-            fontSize: size * 0.4,
-          }}
-        >
+      <div className="relative inline-block cursor-pointer group" style={{ width: size, height: size }}
+        onClick={() => setShowAvatarPicker(v => !v)}>
+        <div className="w-full h-full rounded-full flex items-center justify-center font-black select-none transition-all group-hover:opacity-80"
+          style={{ background: av ? av.bg : (dk ? '#334155' : '#e2e8f0'), fontSize: size * 0.4 }}>
           {av ? av.emoji : <span className={dk ? 'text-slate-300' : 'text-slate-600'}>{initials}</span>}
         </div>
-        {editable && (
-          <button
-            onClick={() => setShowAvatarPicker(true)}
-            className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center shadow-lg transition-all"
-          >
-            <Pencil size={10} className="text-white" />
-          </button>
-        )}
+        <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center shadow-md pointer-events-none">
+          <Pencil size={9} className="text-white" />
+        </div>
       </div>
     );
   }
 
-  // ── Role badge for collab list ─────────────────────────────────────────────
-  const RoleBadge = ({ role, userId, onChange }: { role: string; userId: string; onChange: (r: any) => void }) => (
-    <div className="relative group inline-block">
-      <button className={cn('flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold transition-all',
-        role === 'admin'  ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30' :
-        role === 'editor' ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' :
-                            'bg-slate-500/20 text-slate-400 hover:bg-slate-500/30')}>
-        {role === 'admin' ? '🛡️ Admin' : role === 'editor' ? '✏️ Editor' : '👁 Viewer'}
-        <ChevronDown size={10} />
-      </button>
-      <div className={cn('absolute top-full left-0 mt-1 rounded-lg border shadow-xl z-50 min-w-[110px] overflow-hidden opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all',
-        dk ? 'bg-[#1E293B] border-white/10' : 'bg-white border-slate-200')}>
-        {(['viewer', 'editor', 'admin'] as const).map(r => (
-          <button key={r} onClick={() => onChange(r)}
-            className={cn('w-full text-left px-3 py-2 text-xs font-bold transition-all',
-              r === role ? (dk ? 'bg-white/10 text-white' : 'bg-slate-100 text-slate-900')
-                         : (dk ? 'hover:bg-white/5 text-slate-400' : 'hover:bg-slate-50 text-slate-600'))}>
-            {r === 'admin' ? '🛡️ Admin' : r === 'editor' ? '✏️ Editor' : '👁 Viewer'}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-
-  const CollabRow = ({ c, onRole, onRemove }: any) => (
-    <div className={cn('flex items-center gap-3 px-4 py-3 rounded-xl border',
-      dk ? 'bg-white/3 border-white/8 hover:bg-white/5' : 'bg-slate-50 border-slate-200 hover:bg-slate-100')}>
+  // ── Collab row (settings access tab) ──────────────────────────────────────
+  const CollabRow = ({ c }: { c: any }) => (
+    <div className={cn('flex items-center gap-3 px-3 py-2.5 rounded-xl border',
+      dk ? 'bg-white/3 border-white/8' : 'bg-slate-50 border-slate-200')}>
       <div className={cn('w-8 h-8 rounded-full flex items-center justify-center font-black text-xs shrink-0',
         dk ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600')}>
         {(c.fullName || c.username || c.email || '?')[0].toUpperCase()}
@@ -431,19 +422,67 @@ export default function Header({
           {c.username ? `@${c.username} · ` : ''}{c.email}
         </p>
       </div>
-      <RoleBadge role={c.role} userId={c.userId} onChange={r => onRole(c.userId, r)} />
-      <button onClick={() => onRemove(c.userId)}
-        className={cn('p-1.5 rounded-lg transition-all',
+      <select
+        value={pendingRole[c.userId] ?? c.role}
+        onChange={e => setPendingRole(p => ({ ...p, [c.userId]: e.target.value }))}
+        className={cn('text-xs font-bold rounded-lg border px-2 py-1 outline-none transition-all',
+          dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
+        <option value="viewer">👁 Viewer</option>
+        <option value="editor">✏️ Editor</option>
+        <option value="admin">🛡️ Admin</option>
+      </select>
+      <button onClick={() => handleChangeCollabRole(c.userId)} disabled={changingRole === c.userId}
+        className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-all">
+        {changingRole === c.userId ? <Loader2 size={12} className="animate-spin" /> : (lang === 'de' ? 'Ändern' : 'Change')}
+      </button>
+      <button onClick={() => handleRemove(c.userId)}
+        className={cn('p-1.5 rounded-lg transition-all shrink-0',
           dk ? 'hover:bg-red-500/20 text-slate-500 hover:text-red-400' : 'hover:bg-red-50 text-slate-400 hover:text-red-500')}>
-        <Trash2 size={14} />
+        <Trash2 size={13} />
       </button>
     </div>
   );
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // Share collab row
+  const ShareCollabRow = ({ c }: { c: any }) => (
+    <div className={cn('flex items-center gap-3 px-3 py-2.5 rounded-xl border',
+      dk ? 'bg-white/3 border-white/8' : 'bg-slate-50 border-slate-200')}>
+      <div className={cn('w-8 h-8 rounded-full flex items-center justify-center font-black text-xs shrink-0',
+        dk ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600')}>
+        {(c.fullName || c.username || c.email || '?')[0].toUpperCase()}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={cn('text-sm font-bold truncate', dk ? 'text-white' : 'text-slate-900')}>
+          {c.fullName || c.username || c.email || 'Unknown'}
+        </p>
+        <p className={cn('text-xs truncate', dk ? 'text-slate-500' : 'text-slate-400')}>
+          {c.username ? `@${c.username} · ` : ''}{c.email}
+        </p>
+      </div>
+      <select
+        value={pendingShareRole[c.userId] ?? c.role}
+        onChange={e => setPendingShareRole(p => ({ ...p, [c.userId]: e.target.value }))}
+        className={cn('text-xs font-bold rounded-lg border px-2 py-1 outline-none transition-all',
+          dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
+        <option value="viewer">👁 Viewer</option>
+        <option value="editor">✏️ Editor</option>
+        <option value="admin">🛡️ Admin</option>
+      </select>
+      <button onClick={() => handleChangeShareCollabRole(c.userId)} disabled={changingShareRole === c.userId}
+        className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-all">
+        {changingShareRole === c.userId ? <Loader2 size={12} className="animate-spin" /> : (lang === 'de' ? 'Ändern' : 'Change')}
+      </button>
+      <button onClick={() => handleRemove(c.userId)}
+        className={cn('p-1.5 rounded-lg transition-all shrink-0',
+          dk ? 'hover:bg-red-500/20 text-slate-500 hover:text-red-400' : 'hover:bg-red-50 text-slate-400 hover:text-red-500')}>
+        <Trash2 size={13} />
+      </button>
+    </div>
+  );
+
   return (
     <>
-      {/* ── Main header bar ── */}
+      {/* ── Header bar ── */}
       <header className={cn('shrink-0 flex items-center gap-3 px-6 py-3 border-b', surface)}>
         <div className="text-xl font-black italic mr-2 whitespace-nowrap select-none">
           Euro<span className="text-yellow-400">Track.</span>
@@ -452,12 +491,9 @@ export default function Header({
         <div className="flex-1 relative max-w-xl">
           <Search size={15} className={cn('absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none',
             dk ? 'text-slate-500' : 'text-slate-400')} />
-          <input
-            type="text" value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+          <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
             placeholder={lang === 'de' ? 'Hotels durchsuchen...' : 'Search hotels...'}
-            className={cn(inputCls, 'pl-9 pr-9')}
-          />
+            className={cn(inputCls, 'pl-9 pr-9')} />
           {searchQuery && (
             <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2">
               <X size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} />
@@ -466,34 +502,27 @@ export default function Header({
         </div>
 
         <div className="flex items-center gap-1 ml-auto">
-          {/* Share — admin/superadmin only */}
           {isAdmin && (
             <button onClick={() => setShowShare(true)} className={iconBtn} title={lang === 'de' ? 'Zugang teilen' : 'Share Access'}>
               <Users size={18} />
             </button>
           )}
-
           <button onClick={() => setLang(lang === 'de' ? 'en' : 'de')}
             className={cn(iconBtn, 'text-xs font-black px-3')}>
             {lang === 'de' ? 'EN' : 'DE'}
           </button>
-
           {onExport && (
             <button onClick={onExport} className={iconBtn} title={lang === 'de' ? 'Exportieren' : 'Export'}>
               <Download size={18} />
             </button>
           )}
-
           <button onClick={toggleTheme} className={iconBtn}>
             {dk ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-
           <button onClick={() => { setShowSettings(true); setSettingsTab('profile'); }} className={iconBtn}>
             <Settings size={18} />
           </button>
-
-          <button
-            onClick={onSignOut}
+          <button onClick={onSignOut}
             className="ml-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-black rounded-lg text-sm transition-all">
             {lang === 'de' ? 'Abmelden' : 'Sign Out'}
           </button>
@@ -501,7 +530,7 @@ export default function Header({
       </header>
 
       {/* ════════════════════════════════════════════════════════════════
-          SHARE MODAL
+          SHARE MODAL — centered
       ════════════════════════════════════════════════════════════════ */}
       {showShare && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
@@ -511,7 +540,7 @@ export default function Header({
               <div>
                 <h2 className="text-lg font-black">{lang === 'de' ? 'Zugriff teilen' : 'Share Access'}</h2>
                 <p className={cn('text-xs mt-0.5', dk ? 'text-slate-500' : 'text-slate-400')}>
-                  {lang === 'de' ? 'Nutzer suchen und sofort Zugriff erteilen' : 'Search users and grant access instantly'}
+                  {lang === 'de' ? 'Nutzer suchen und Zugriff erteilen' : 'Search users and grant access'}
                 </p>
               </div>
               <button onClick={() => setShowShare(false)}
@@ -521,6 +550,7 @@ export default function Header({
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              {/* Search & grant */}
               <div>
                 <SectionLabel dk={dk}>{lang === 'de' ? 'Nutzer suchen' : 'Find user'}</SectionLabel>
                 <div className="relative mb-3">
@@ -533,14 +563,12 @@ export default function Header({
                   {(['viewer', 'editor'] as const).map(r => (
                     <button key={r} onClick={() => setShareRole(r)}
                       className={cn('px-3 py-1.5 rounded-lg text-xs font-bold border transition-all',
-                        shareRole === r
-                          ? 'bg-blue-600 text-white border-blue-600'
+                        shareRole === r ? 'bg-blue-600 text-white border-blue-600'
                           : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50')}>
                       {r === 'viewer' ? '👁 Viewer' : '✏️ Editor'}
                     </button>
                   ))}
                 </div>
-
                 {shareSearching && (
                   <div className="flex items-center gap-2 py-2">
                     <Loader2 size={14} className="animate-spin text-blue-500" />
@@ -549,13 +577,11 @@ export default function Header({
                     </span>
                   </div>
                 )}
-
                 {shareResults.length > 0 && (
                   <div className="space-y-1">
                     {shareResults.map(u => (
-                      <div key={u.id}
-                        className={cn('flex items-center gap-3 px-3 py-2.5 rounded-xl border',
-                          dk ? 'bg-white/3 border-white/8' : 'bg-slate-50 border-slate-200')}>
+                      <div key={u.id} className={cn('flex items-center gap-3 px-3 py-2.5 rounded-xl border',
+                        dk ? 'bg-white/3 border-white/8' : 'bg-slate-50 border-slate-200')}>
                         <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0',
                           dk ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-700')}>
                           {(u.fullName || u.username || u.email || '?')[0].toUpperCase()}
@@ -568,8 +594,7 @@ export default function Header({
                             {u.username ? `@${u.username}` : u.email}
                           </p>
                         </div>
-                        <button onClick={() => handleShareGrant(u.id)}
-                          disabled={sharing === u.id}
+                        <button onClick={() => handleShareGrant(u.id)} disabled={sharing === u.id}
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-all">
                           {sharing === u.id ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />}
                           {lang === 'de' ? 'Erteilen' : 'Grant'}
@@ -578,16 +603,14 @@ export default function Header({
                     ))}
                   </div>
                 )}
-
                 {shareMsg && (
-                  <p className={cn('text-xs font-bold mt-2',
-                    shareMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>
+                  <p className={cn('text-xs font-bold mt-2', shareMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>
                     {shareMsg}
                   </p>
                 )}
               </div>
 
-              {/* Current collaborators */}
+              {/* Current access */}
               <div>
                 <SectionLabel dk={dk}>{lang === 'de' ? 'Aktueller Zugriff' : 'Current Access'}</SectionLabel>
                 {shareCollabsLoading ? (
@@ -601,11 +624,7 @@ export default function Header({
                   </p>
                 ) : (
                   <div className="space-y-2">
-                    {shareCollabs.map(c => (
-                      <CollabRow key={c.userId} c={c}
-                        onRole={handleChangeRole}
-                        onRemove={handleRemove} />
-                    ))}
+                    {shareCollabs.map(c => <ShareCollabRow key={c.userId} c={c} />)}
                   </div>
                 )}
               </div>
@@ -615,16 +634,28 @@ export default function Header({
       )}
 
       {/* ════════════════════════════════════════════════════════════════
-          SETTINGS MODAL
+          SETTINGS DRAWER — slides in from right
       ════════════════════════════════════════════════════════════════ */}
+      {/* Backdrop */}
       {showSettings && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-          onClick={e => { if (e.target === e.currentTarget) setShowSettings(false); }}>
-          <div className={cn('w-full max-w-lg rounded-2xl border shadow-2xl overflow-hidden max-h-[90vh] flex flex-col', surface)}>
+        <div className="fixed inset-0 z-50 flex">
+          {/* Click-outside backdrop */}
+          <div className="flex-1 bg-black/50 backdrop-blur-sm" onClick={() => setShowSettings(false)} />
 
-            {/* Header */}
-            <div className={cn('flex items-center justify-between px-6 py-4 border-b shrink-0', dk ? 'border-white/10' : 'border-slate-200')}>
-              <h2 className="text-lg font-black">{lang === 'de' ? 'Einstellungen' : 'Settings'}</h2>
+          {/* Drawer panel */}
+          <div className={cn(
+            'relative w-full max-w-md h-full flex flex-col shadow-2xl border-l',
+            drawerBg,
+            dk ? 'border-white/10' : 'border-slate-200',
+          )}
+            style={{ animation: 'slideInRight 220ms cubic-bezier(0.16,1,0.3,1)' }}>
+
+            {/* Drawer header */}
+            <div className={cn('flex items-center justify-between px-6 py-4 border-b shrink-0',
+              dk ? 'border-white/10' : 'border-slate-200')}>
+              <h2 className={cn('text-lg font-black', dk ? 'text-white' : 'text-slate-900')}>
+                {lang === 'de' ? 'Einstellungen' : 'Settings'}
+              </h2>
               <button onClick={() => setShowSettings(false)}
                 className={cn('p-2 rounded-lg', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
                 <X size={18} />
@@ -634,8 +665,8 @@ export default function Header({
             {/* Tabs */}
             <div className={cn('flex border-b shrink-0', dk ? 'border-white/10' : 'border-slate-200')}>
               {([
-                { id: 'profile',  icon: User,   label: lang === 'de' ? 'Profil'    : 'Profile'   },
-                { id: 'security', icon: Lock,   label: lang === 'de' ? 'Sicherheit': 'Security'  },
+                { id: 'profile',  icon: User,  label: lang === 'de' ? 'Profil'     : 'Profile'  },
+                { id: 'security', icon: Lock,  label: lang === 'de' ? 'Sicherheit' : 'Security' },
                 ...(isAdmin ? [{ id: 'access', icon: Users, label: lang === 'de' ? 'Zugriff' : 'Access' }] : []),
               ] as const).map(({ id, icon: Icon, label }) => (
                 <button key={id} onClick={() => setSettingsTab(id as any)}
@@ -643,155 +674,220 @@ export default function Header({
                     settingsTab === id
                       ? 'border-blue-500 text-blue-500'
                       : cn('border-transparent', dk ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'))}>
-                  <Icon size={15} />{label}
+                  <Icon size={14} />{label}
                 </button>
               ))}
             </div>
 
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
 
-              {/* ── PROFILE TAB ── */}
+              {/* ─────────────────── PROFILE TAB ─────────────────── */}
               {settingsTab === 'profile' && (
                 <>
-                  {/* Identity card: avatar → name → @username → role badge */}
-                  <div className={cn('rounded-xl border p-5 space-y-4', dk ? 'border-white/10 bg-white/2' : 'border-slate-200 bg-slate-50')}>
+                  {profileLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 size={22} className="animate-spin text-blue-500" />
+                    </div>
+                  ) : (
+                    <>
+                      {/* Identity card */}
+                      <div className={cn('rounded-xl border p-4', dk ? 'border-white/10 bg-white/2' : 'border-slate-200 bg-slate-50')}>
+                        <div className="flex items-center gap-4">
+                          {/* Avatar — click to open picker */}
+                          <AvatarDisplay size={60} />
 
-                    {/* Avatar + identity info */}
-                    <div className="flex items-center gap-4">
-                      <AvatarDisplay size={64} editable />
-                      <div className="flex-1 min-w-0">
-                        <p className={cn('text-base font-black truncate', dk ? 'text-white' : 'text-slate-900')}>
-                          {profile?.fullName || profile?.full_name || '—'}
-                        </p>
-                        {profile?.username && (
-                          <p className={cn('text-sm truncate', dk ? 'text-slate-400' : 'text-slate-500')}>
-                            @{profile.username}
-                          </p>
+                          <div className="flex-1 min-w-0 space-y-1">
+                            {/* Display name — inline edit */}
+                            {editingName ? (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  autoFocus
+                                  type="text" value={editName}
+                                  onChange={e => setEditName(e.target.value)}
+                                  onKeyDown={e => { if (e.key === 'Enter') handleSaveProfile(); if (e.key === 'Escape') setEditingName(false); }}
+                                  className={cn('flex-1 px-2 py-1 rounded-lg border text-sm font-bold outline-none',
+                                    dk ? 'bg-[#1E293B] border-white/20 text-white' : 'bg-white border-slate-300 text-slate-900')}
+                                />
+                                <button onClick={handleSaveProfile} disabled={savingProfile}
+                                  className="p-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-all">
+                                  {savingProfile ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                                </button>
+                                <button onClick={() => setEditingName(false)}
+                                  className={cn('p-1.5 rounded-lg transition-all', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-200 text-slate-500')}>
+                                  <X size={12} />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 group">
+                                <span className={cn('text-sm font-black truncate', dk ? 'text-white' : 'text-slate-900')}>
+                                  {profile?.fullName || profile?.full_name || '—'}
+                                </span>
+                                <button onClick={() => setEditingName(true)}
+                                  className={cn('opacity-0 group-hover:opacity-100 p-1 rounded transition-all',
+                                    dk ? 'hover:bg-white/10 text-slate-500 hover:text-slate-300' : 'hover:bg-slate-200 text-slate-400 hover:text-slate-600')}>
+                                  <Pencil size={12} />
+                                </button>
+                              </div>
+                            )}
+                            {profileMsg && (
+                              <p className={cn('text-xs font-bold', profileMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>
+                                {profileMsg}
+                              </p>
+                            )}
+                            {profile?.username && (
+                              <p className={cn('text-xs', dk ? 'text-slate-500' : 'text-slate-400')}>
+                                @{profile.username}
+                              </p>
+                            )}
+                            <RoleShield role={userRole} />
+                          </div>
+                        </div>
+
+                        {/* Avatar picker grid */}
+                        {showAvatarPicker && (
+                          <div className={cn('mt-4 pt-4 border-t', dk ? 'border-white/10' : 'border-slate-200')}>
+                            <div className="flex items-center justify-between mb-3">
+                              <p className={cn('text-xs font-bold', dk ? 'text-slate-400' : 'text-slate-600')}>
+                                {lang === 'de' ? 'Avatar wählen' : 'Choose avatar'}
+                              </p>
+                              <button onClick={() => setShowAvatarPicker(false)}
+                                className={cn('p-1 rounded text-xs', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-200 text-slate-500')}>
+                                <X size={13} />
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-6 gap-2">
+                              {AVATARS.map(av => (
+                                <button key={av.id}
+                                  onClick={() => { setSelectedAvatar(av.id); setShowAvatarPicker(false); handleSaveProfile(); }}
+                                  className={cn('w-10 h-10 rounded-full flex items-center justify-center text-lg transition-all hover:scale-110',
+                                    selectedAvatar === av.id ? 'ring-2 ring-blue-500 ring-offset-2' : '')}
+                                  style={{ background: av.bg }}>
+                                  {av.emoji}
+                                </button>
+                              ))}
+                              {/* No avatar option */}
+                              <button
+                                onClick={() => { setSelectedAvatar(null); setShowAvatarPicker(false); handleSaveProfile(); }}
+                                className={cn('w-10 h-10 rounded-full flex items-center justify-center transition-all hover:scale-110',
+                                  !selectedAvatar ? 'ring-2 ring-blue-500 ring-offset-2' : '',
+                                  dk ? 'bg-slate-700' : 'bg-slate-200')}>
+                                <User size={15} className={dk ? 'text-slate-300' : 'text-slate-600'} />
+                              </button>
+                            </div>
+                          </div>
                         )}
-                        <div className="mt-1.5">
-                          <RoleShield role={userRole} lang={lang} />
+                      </div>
+
+                      {/* Personalization */}
+                      <div className={cn('rounded-xl border p-4 space-y-4', dk ? 'border-white/10' : 'border-slate-200')}>
+                        <SectionLabel dk={dk}>{lang === 'de' ? 'Personalisierung' : 'Personalization'}</SectionLabel>
+
+                        {/* Font family — native select, each option in its own font */}
+                        <div>
+                          <p className={cn('text-xs font-bold mb-1.5', dk ? 'text-slate-400' : 'text-slate-600')}>
+                            {lang === 'de' ? 'Schriftart' : 'Font Family'}
+                          </p>
+                          <select
+                            value={fontFamily}
+                            onChange={e => handleFontFamilyChange(e.target.value)}
+                            className={selectCls}>
+                            {FONTS.map(f => (
+                              <option key={f.value} value={f.value} style={{ fontFamily: f.family }}>
+                                {f.label}
+                              </option>
+                            ))}
+                          </select>
+                          {/* Live preview sentence */}
+                          <p className={cn('mt-2 text-sm px-3 py-2 rounded-lg border italic',
+                            dk ? 'border-white/10 text-slate-400 bg-white/3' : 'border-slate-200 text-slate-500 bg-slate-50')}
+                            style={{ fontFamily: FONTS.find(f => f.value === fontFamily)?.family }}>
+                            {lang === 'de' ? 'Die schnelle braune Katze springt.' : 'The quick brown fox jumps over.'}
+                          </p>
+                        </div>
+
+                        {/* Font size — px steps */}
+                        <div>
+                          <p className={cn('text-xs font-bold mb-1.5', dk ? 'text-slate-400' : 'text-slate-600')}>
+                            {lang === 'de' ? 'Schriftgröße' : 'Font Size'}
+                          </p>
+                          <div className="flex items-center gap-3">
+                            <button onClick={() => handleFontSizeChange(fontSize - 1)}
+                              className={cn('p-1.5 rounded-lg border transition-all',
+                                dk ? 'border-white/10 hover:bg-white/10 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-700')}>
+                              <Minus size={13} />
+                            </button>
+                            <div className={cn('flex-1 text-center text-sm font-black rounded-lg border py-1.5',
+                              dk ? 'border-white/10 text-white' : 'border-slate-200 text-slate-900')}>
+                              {fontSize}px
+                            </div>
+                            <button onClick={() => handleFontSizeChange(fontSize + 1)}
+                              className={cn('p-1.5 rounded-lg border transition-all',
+                                dk ? 'border-white/10 hover:bg-white/10 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-700')}>
+                              <Plus size={13} />
+                            </button>
+                          </div>
+                          <div className="flex justify-between mt-1 px-0.5">
+                            {FONT_SIZES.map(s => (
+                              <button key={s} onClick={() => handleFontSizeChange(s)}
+                                className={cn('text-[10px] font-bold transition-all',
+                                  fontSize === s
+                                    ? 'text-blue-500'
+                                    : dk ? 'text-slate-600 hover:text-slate-400' : 'text-slate-400 hover:text-slate-600')}>
+                                {s}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Save personalization */}
+                        <div className="flex items-center justify-between pt-1">
+                          {personalizeMsg && (
+                            <p className={cn('text-xs font-bold', personalizeMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>
+                              {personalizeMsg}
+                            </p>
+                          )}
+                          <button onClick={handleSavePersonalization} disabled={savingPersonalize}
+                            className={cn('flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ml-auto',
+                              dk ? 'border-white/10 hover:bg-white/10 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-700')}>
+                            {savingPersonalize ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                            {lang === 'de' ? 'Speichern' : 'Save'}
+                          </button>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Edit display name */}
-                    <div>
-                      <SectionLabel dk={dk}>{lang === 'de' ? 'Anzeigename' : 'Display Name'}</SectionLabel>
-                      <input
-                        type="text" value={editName}
-                        onChange={e => setEditName(e.target.value)}
-                        placeholder={lang === 'de' ? 'Dein Name...' : 'Your name...'}
-                        className={inputCls}
-                      />
-                    </div>
-
-                    {/* Save — only for avatar + name */}
-                    <div className="flex items-center justify-between pt-1">
-                      {profileMsg && (
-                        <p className={cn('text-xs font-bold', profileMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>
-                          {profileMsg}
-                        </p>
-                      )}
-                      <button
-                        onClick={handleSaveProfile}
-                        disabled={savingProfile}
-                        className={cn(btnPrimary, 'ml-auto')}>
-                        {savingProfile ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                        {lang === 'de' ? 'Speichern' : 'Save'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Avatar picker */}
-                  {showAvatarPicker && (
-                    <div className={cn('rounded-xl border p-4', dk ? 'border-white/10 bg-white/2' : 'border-slate-200 bg-slate-50')}>
-                      <div className="flex items-center justify-between mb-3">
-                        <SectionLabel dk={dk}>{lang === 'de' ? 'Avatar wählen' : 'Choose Avatar'}</SectionLabel>
-                        <button onClick={() => setShowAvatarPicker(false)}
-                          className={cn('p-1 rounded', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-200 text-slate-500')}>
-                          <X size={14} />
-                        </button>
+                      {/* Info accordions */}
+                      <div className="space-y-2">
+                        <Accordion title="FAQ" icon={HelpCircle} dk={dk}>
+                          <p>{lang === 'de'
+                            ? 'Hier finden Sie Antworten auf häufig gestellte Fragen zu EuroTrack.'
+                            : 'Find answers to frequently asked questions about EuroTrack here.'}</p>
+                        </Accordion>
+                        <Accordion title={lang === 'de' ? 'Datenschutz' : 'Privacy Policy'} icon={FileText} dk={dk}>
+                          <p>{lang === 'de'
+                            ? 'Ihre Daten werden sicher gespeichert und nicht an Dritte weitergegeben.'
+                            : 'Your data is stored securely and never shared with third parties.'}</p>
+                        </Accordion>
+                        <Accordion title={lang === 'de' ? 'Über EuroTrack' : 'About EuroTrack'} icon={Info} dk={dk}>
+                          <p>{lang === 'de'
+                            ? 'EuroTrack ist ein internes Hotel-Verwaltungstool für das Europa-Park-Team.'
+                            : 'EuroTrack is an internal hotel management tool for the Europa-Park team.'}</p>
+                        </Accordion>
                       </div>
-                      <div className="grid grid-cols-6 gap-2">
-                        {AVATARS.map(av => (
-                          <button key={av.id} onClick={() => { setSelectedAvatar(av.id); setShowAvatarPicker(false); }}
-                            className={cn('w-10 h-10 rounded-full flex items-center justify-center text-xl transition-all hover:scale-110',
-                              selectedAvatar === av.id ? 'ring-2 ring-blue-500 ring-offset-2' : '')}
-                            style={{ background: av.bg }}>
-                            {av.emoji}
-                          </button>
-                        ))}
-                        <button onClick={() => { setSelectedAvatar(null); setShowAvatarPicker(false); }}
-                          className={cn('w-10 h-10 rounded-full flex items-center justify-center text-xl transition-all hover:scale-110',
-                            !selectedAvatar ? 'ring-2 ring-blue-500 ring-offset-2' : '',
-                            dk ? 'bg-slate-700' : 'bg-slate-200')}>
-                          <User size={16} className={dk ? 'text-slate-300' : 'text-slate-600'} />
-                        </button>
-                      </div>
-                    </div>
+                    </>
                   )}
-
-                  {/* Appearance — font/size apply live, no save button */}
-                  <div className={cn('rounded-xl border p-4 space-y-4', dk ? 'border-white/10' : 'border-slate-200')}>
-                    <SectionLabel dk={dk}>{lang === 'de' ? 'Darstellung' : 'Appearance'}</SectionLabel>
-
-                    {/* Font family */}
-                    <div>
-                      <p className={cn('text-xs font-bold mb-2', dk ? 'text-slate-400' : 'text-slate-600')}>
-                        {lang === 'de' ? 'Schriftart' : 'Font'}
-                      </p>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {FONTS.map(f => (
-                          <button key={f.value} onClick={() => handleFontFamilyChange(f.value)}
-                            className={cn('px-3 py-2 rounded-lg border text-xs font-bold text-left transition-all',
-                              fontFamily === f.value
-                                ? 'bg-blue-600 text-white border-blue-600'
-                                : dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-100')}
-                            style={{ fontFamily: f.family }}>
-                            {f.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Font scale */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <p className={cn('text-xs font-bold', dk ? 'text-slate-400' : 'text-slate-600')}>
-                          {lang === 'de' ? 'Textgröße' : 'Text Size'}
-                        </p>
-                        <span className={cn('text-xs font-black', dk ? 'text-white' : 'text-slate-900')}>{fontScale}%</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <button onClick={() => handleFontScaleChange(Math.max(75, fontScale - 5))}
-                          className={cn('p-1.5 rounded-lg border transition-all',
-                            dk ? 'border-white/10 hover:bg-white/10 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-700')}>
-                          <Minus size={14} />
-                        </button>
-                        <input type="range" min={75} max={130} step={5} value={fontScale}
-                          onChange={e => handleFontScaleChange(Number(e.target.value))}
-                          className="flex-1 accent-blue-600 h-1.5 rounded-full" />
-                        <button onClick={() => handleFontScaleChange(Math.min(130, fontScale + 5))}
-                          className={cn('p-1.5 rounded-lg border transition-all',
-                            dk ? 'border-white/10 hover:bg-white/10 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-700')}>
-                          <Plus size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
                 </>
               )}
 
-              {/* ── SECURITY TAB ── */}
+              {/* ─────────────────── SECURITY TAB ─────────────────── */}
               {settingsTab === 'security' && (
                 <>
-                  {/* FIX: Current email shown at top of security tab */}
+                  {/* Current email info */}
                   {profile?.email && (
                     <div className={cn('rounded-xl border p-4', dk ? 'border-white/10 bg-white/2' : 'border-slate-200 bg-slate-50')}>
                       <SectionLabel dk={dk}>{lang === 'de' ? 'Aktuelle E-Mail' : 'Current Email'}</SectionLabel>
                       <div className="flex items-center gap-2">
-                        <Mail size={14} className={dk ? 'text-slate-400' : 'text-slate-500'} />
+                        <Mail size={13} className={dk ? 'text-slate-400' : 'text-slate-500'} />
                         <span className={cn('text-sm font-bold', dk ? 'text-white' : 'text-slate-900')}>
                           {profile.email}
                         </span>
@@ -803,7 +899,7 @@ export default function Header({
                   <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-white/10' : 'border-slate-200')}>
                     <SectionLabel dk={dk}>{lang === 'de' ? 'Benutzername ändern' : 'Change Username'}</SectionLabel>
                     <div className="relative">
-                      <AtSign size={14} className={cn('absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none', dk ? 'text-slate-500' : 'text-slate-400')} />
+                      <AtSign size={13} className={cn('absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none', dk ? 'text-slate-500' : 'text-slate-400')} />
                       <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)}
                         placeholder={lang === 'de' ? 'Neuer Benutzername...' : 'New username...'}
                         className={cn(inputCls, 'pl-8')} />
@@ -815,7 +911,7 @@ export default function Header({
                     )}
                     <button onClick={handleSaveUsername} disabled={savingUsername} className={btnPrimary}>
                       {savingUsername ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                      {lang === 'de' ? 'Benutzername speichern' : 'Save Username'}
+                      {lang === 'de' ? 'Speichern' : 'Save Username'}
                     </button>
                   </div>
 
@@ -823,7 +919,7 @@ export default function Header({
                   <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-white/10' : 'border-slate-200')}>
                     <SectionLabel dk={dk}>{lang === 'de' ? 'E-Mail ändern' : 'Change Email'}</SectionLabel>
                     <div className="relative">
-                      <Mail size={14} className={cn('absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none', dk ? 'text-slate-500' : 'text-slate-400')} />
+                      <Mail size={13} className={cn('absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none', dk ? 'text-slate-500' : 'text-slate-400')} />
                       <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)}
                         placeholder={lang === 'de' ? 'Neue E-Mail-Adresse...' : 'New email address...'}
                         className={cn(inputCls, 'pl-8')} />
@@ -847,9 +943,8 @@ export default function Header({
                         onChange={e => setCurrentPass(e.target.value)}
                         placeholder={lang === 'de' ? 'Aktuelles Passwort' : 'Current password'}
                         className={inputCls} />
-                      <button onClick={() => setShowCurrentPass(v => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2">
-                        {showCurrentPass ? <EyeOff size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} /> : <Eye size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} />}
+                      <button onClick={() => setShowCurrentPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {showCurrentPass ? <EyeOff size={13} className={dk ? 'text-slate-500' : 'text-slate-400'} /> : <Eye size={13} className={dk ? 'text-slate-500' : 'text-slate-400'} />}
                       </button>
                     </div>
                     <div className="relative">
@@ -857,9 +952,8 @@ export default function Header({
                         onChange={e => setNewPass(e.target.value)}
                         placeholder={lang === 'de' ? 'Neues Passwort' : 'New password'}
                         className={inputCls} />
-                      <button onClick={() => setShowNewPass(v => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2">
-                        {showNewPass ? <EyeOff size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} /> : <Eye size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} />}
+                      <button onClick={() => setShowNewPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {showNewPass ? <EyeOff size={13} className={dk ? 'text-slate-500' : 'text-slate-400'} /> : <Eye size={13} className={dk ? 'text-slate-500' : 'text-slate-400'} />}
                       </button>
                     </div>
                     <input type="password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)}
@@ -885,13 +979,13 @@ export default function Header({
                 </>
               )}
 
-              {/* ── ACCESS TAB ── */}
+              {/* ─────────────────── ACCESS TAB ─────────────────── */}
               {settingsTab === 'access' && isAdmin && (
                 <>
                   <div>
                     <SectionLabel dk={dk}>{lang === 'de' ? 'Nutzer suchen & Zugriff erteilen' : 'Find user & grant access'}</SectionLabel>
                     <div className="relative mb-3">
-                      <Search size={14} className={cn('absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none', dk ? 'text-slate-500' : 'text-slate-400')} />
+                      <Search size={13} className={cn('absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none', dk ? 'text-slate-500' : 'text-slate-400')} />
                       <input type="text" value={accessSearch} onChange={e => setAccessSearch(e.target.value)}
                         placeholder={lang === 'de' ? 'Benutzername oder E-Mail...' : 'Username or email...'}
                         className={cn(inputCls, 'pl-9')} />
@@ -899,7 +993,7 @@ export default function Header({
 
                     {accessSearching && (
                       <div className="flex items-center gap-2 py-2">
-                        <Loader2 size={14} className="animate-spin text-blue-500" />
+                        <Loader2 size={13} className="animate-spin text-blue-500" />
                         <span className={cn('text-xs', dk ? 'text-slate-400' : 'text-slate-500')}>
                           {lang === 'de' ? 'Suche...' : 'Searching...'}
                         </span>
@@ -937,20 +1031,15 @@ export default function Header({
                           </p>
                           <button onClick={() => setSelectedUser(null)}
                             className={cn('p-1 rounded', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-blue-100 text-slate-500')}>
-                            <X size={14} />
+                            <X size={13} />
                           </button>
                         </div>
-                        <div className="flex gap-2">
-                          {(['viewer', 'editor', 'admin'] as const).map(r => (
-                            <button key={r} onClick={() => setGrantRole(r)}
-                              className={cn('px-3 py-1.5 rounded-lg text-xs font-bold border transition-all',
-                                grantRole === r
-                                  ? 'bg-blue-600 text-white border-blue-600'
-                                  : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-white')}>
-                              {r === 'admin' ? '🛡️ Admin' : r === 'editor' ? '✏️ Editor' : '👁 Viewer'}
-                            </button>
-                          ))}
-                        </div>
+                        <select value={grantRole} onChange={e => setGrantRole(e.target.value as any)}
+                          className={selectCls}>
+                          <option value="viewer">👁 Viewer</option>
+                          <option value="editor">✏️ Editor</option>
+                          <option value="admin">🛡️ Admin</option>
+                        </select>
                         {grantMsg && (
                           <p className={cn('text-xs font-bold', grantMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>
                             {grantMsg}
@@ -977,11 +1066,7 @@ export default function Header({
                       </p>
                     ) : (
                       <div className="space-y-2">
-                        {collabs.map(c => (
-                          <CollabRow key={c.userId} c={c}
-                            onRole={handleChangeRole}
-                            onRemove={handleRemove} />
-                        ))}
+                        {collabs.map(c => <CollabRow key={c.userId} c={c} />)}
                       </div>
                     )}
                   </div>
@@ -992,6 +1077,14 @@ export default function Header({
           </div>
         </div>
       )}
+
+      {/* Drawer slide-in animation */}
+      <style>{`
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0.6; }
+          to   { transform: translateX(0);    opacity: 1;   }
+        }
+      `}</style>
     </>
   );
 }
