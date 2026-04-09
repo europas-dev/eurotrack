@@ -26,17 +26,37 @@ export async function getMyProfile() {
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) return null
   return {
-    id:        user.id,
-    email:     user.email ?? '',
-    full_name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? '',
+    id:         user.id,
+    email:      user.email ?? '',
+    full_name:  user.user_metadata?.full_name ?? user.user_metadata?.name ?? '',
+    fullName:   user.user_metadata?.full_name ?? user.user_metadata?.name ?? '',
     avatar_url: user.user_metadata?.avatar_url ?? null,
+    fontScale:  user.user_metadata?.fontScale  ?? 100,
+    fontFamily: user.user_metadata?.fontFamily ?? 'inter',
   }
 }
 
-/** Update display name in auth user_metadata */
-export async function updateMyProfile(updates: { full_name?: string; avatar_url?: string }) {
-  const { error } = await supabase.auth.updateUser({ data: updates })
+/** Update display name / preferences in auth user_metadata */
+export async function updateMyProfile(updates: {
+  full_name?: string
+  fullName?: string
+  avatar_url?: string
+  fontScale?: number
+  fontFamily?: string
+}) {
+  const { data, error } = await supabase.auth.updateUser({ data: updates })
   if (error) throw error
+  const user = data.user
+  if (!user) return null
+  return {
+    id:         user.id,
+    email:      user.email ?? '',
+    full_name:  user.user_metadata?.full_name ?? '',
+    fullName:   user.user_metadata?.full_name ?? '',
+    avatar_url: user.user_metadata?.avatar_url ?? null,
+    fontScale:  user.user_metadata?.fontScale  ?? 100,
+    fontFamily: user.user_metadata?.fontFamily ?? 'inter',
+  }
 }
 
 /**
@@ -53,46 +73,63 @@ export async function searchProfiles(query: string): Promise<any[]> {
       .ilike('email', `%${query.trim()}%`)
       .limit(10)
     if (error) return []
-    return data ?? []
+    return (data ?? []).map((p: any) => ({
+      ...p,
+      fullName: p.full_name ?? '',
+    }))
   } catch {
     return []
   }
 }
 
-// ─── Collaborators ─────────────────────────────────────────────────────────────
+// ─── Collaborators ────────────────────────────────────────────────────────────
 /**
- * Invite a user to collaborate.
- * Upserts into a `collaborators` table (owner_id, user_id, role).
- * Gracefully no-ops if the table doesn't exist yet.
+ * Invite a user to collaborate on a hotel (or the whole workspace).
+ * hotelId is optional — pass null/undefined for workspace-level sharing.
+ * Gracefully no-ops if the collaborators table doesn't exist yet.
  */
-export async function inviteCollaborator(userId: string, role: 'viewer' | 'editor') {
+export async function inviteCollaborator(
+  hotelId: string | null,
+  userId: string,
+  role: 'viewer' | 'editor'
+): Promise<any> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('collaborators')
     .upsert({
       owner_id:   user.id,
+      hotel_id:   hotelId ?? null,
       user_id:    userId,
       role,
       invited_at: new Date().toISOString(),
-    }, { onConflict: 'owner_id,user_id' })
+    }, { onConflict: 'owner_id,user_id,hotel_id' })
+    .select()
+    .single()
   if (error) throw error
+  return data
 }
 
 /** Change an existing collaborator's role */
-export async function updateCollaboratorPermission(userId: string, role: 'viewer' | 'editor') {
+export async function updateCollaboratorPermission(
+  collaboratorId: string,
+  role: 'viewer' | 'editor'
+): Promise<any> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('collaborators')
     .update({ role })
     .eq('owner_id', user.id)
-    .eq('user_id', userId)
+    .eq('id', collaboratorId)
+    .select()
+    .single()
   if (error) throw error
+  return data
 }
 
-/** Remove a collaborator */
-export async function removeCollaborator(userId: string) {
+/** Remove a collaborator by their user_id (for the current owner) */
+export async function removeCollaborator(userId: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
   const { error } = await supabase
@@ -104,21 +141,31 @@ export async function removeCollaborator(userId: string) {
 }
 
 /** Fetch all collaborators for the current user's workspace */
-export async function getCollaborators(): Promise<any[]> {
+export async function getCollaborators(hotelId?: string | null): Promise<any[]> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
   try {
-    const { data, error } = await supabase
+    let q = supabase
       .from('collaborators')
-      .select('user_id, role, invited_at, profiles(id, email, full_name, avatar_url)')
+      .select('id, user_id, role, invited_at, hotel_id, profiles(id, email, full_name, avatar_url)')
       .eq('owner_id', user.id)
+    if (hotelId) q = q.eq('hotel_id', hotelId)
+    const { data, error } = await q
     if (error) return []
     return (data ?? []).map((c: any) => ({
-      id:        c.user_id,
+      id:        c.id,
+      userId:    c.user_id,
       role:      c.role,
+      hotelId:   c.hotel_id,
       email:     c.profiles?.email     ?? '',
+      fullName:  c.profiles?.full_name ?? '',
       full_name: c.profiles?.full_name ?? '',
       avatar_url: c.profiles?.avatar_url ?? null,
+      profile: {
+        id:       c.user_id,
+        email:    c.profiles?.email     ?? '',
+        fullName: c.profiles?.full_name ?? '',
+      },
     }))
   } catch {
     return []
@@ -150,9 +197,9 @@ function normalizeDuration(d: any): any {
     nightlyPrices:        d.nightlyprices        ?? d.nightlyPrices        ?? {},
     autoDistribute:       d.autodistribute       ?? d.autoDistribute       ?? false,
     useBruttoNetto:       d.usebruttonetto       ?? d.useBruttoNetto       ?? false,
-    brutto:               d.brutto               ?? d.brutto,
-    netto:                d.netto                ?? d.netto,
-    mwst:                 d.mwst                 ?? d.mwst,
+    brutto:               d.brutto               ?? null,
+    netto:                d.netto                ?? null,
+    mwst:                 d.mwst                 ?? null,
     hasDiscount:          d.hasdiscount          ?? d.hasDiscount          ?? false,
     discountType:         d.discounttype         ?? d.discountType         ?? 'percentage',
     discountValue:        d.discountvalue        ?? d.discountValue        ?? 0,

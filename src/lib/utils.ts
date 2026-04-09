@@ -127,6 +127,34 @@ export function getDurationTotal(d: Duration): number {
   return calcDurationPrice(d).total
 }
 
+/**
+ * Returns the cost of a duration that falls within a given year + month (0-indexed).
+ * Prorates based on the overlap between the duration's date range and the calendar month.
+ */
+export function getDurationCostForMonth(d: Duration, year: number, month: number): number {
+  if (!d.startDate || !d.endDate) return 0
+
+  // Month boundaries (UTC midnight)
+  const monthStart = new Date(Date.UTC(year, month, 1))
+  const monthEnd   = new Date(Date.UTC(year, month + 1, 1))
+
+  const dStart = new Date(d.startDate)
+  const dEnd   = new Date(d.endDate)
+
+  // No overlap
+  if (dEnd <= monthStart || dStart >= monthEnd) return 0
+
+  const overlapStart = dStart > monthStart ? dStart : monthStart
+  const overlapEnd   = dEnd   < monthEnd   ? dEnd   : monthEnd
+
+  const overlapNights = Math.max(0, (overlapEnd.getTime() - overlapStart.getTime()) / 86400000)
+  const totalNights   = calculateNights(d.startDate, d.endDate)
+  if (totalNights === 0) return 0
+
+  const total = getDurationTotal(d)
+  return (overlapNights / totalNights) * total
+}
+
 // ─── Hotel aggregates ─────────────────────────────────────────────────────────
 export function calcHotelTotalNights(hotel: Hotel): number {
   return (hotel.durations ?? []).reduce((s, d) => s + calculateNights(d.startDate, d.endDate), 0)
