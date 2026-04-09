@@ -34,9 +34,7 @@ export default function App() {
   const [theme,         setTheme]        = useState<Theme>('dark');
   const [lang,          setLang]         = useState<Language>('en');
   const [offlineBanner, setOfflineBanner] = useState(!navigator.onLine);
-  const pollRef        = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Track whether superadmin is navigating back to home (not signing out)
-  const superadminBackRef = useRef(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const dk = theme === 'dark';
 
@@ -72,28 +70,31 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // On mount: check existing session once, then stop loading
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        resolveAccess();
+        resolveAccess().finally(() => setLoading(false));
       } else {
         setView('landing');
+        setLoading(false);
       }
+    }).catch(() => {
+      setView('landing');
       setLoading(false);
     });
 
+    // Only react to explicit sign-in / sign-out events after initial load
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+      if (event === 'SIGNED_IN') {
         if (session?.user) await resolveAccess();
       } else if (event === 'SIGNED_OUT') {
-        // If superadmin is navigating back to home (not actually signing out), ignore this event
-        if (superadminBackRef.current) {
-          superadminBackRef.current = false;
-          return;
-        }
         stopPoll();
         setAccessLevel(null);
         setView('landing');
+        setLoading(false);
       }
+      // TOKEN_REFRESHED and INITIAL_SESSION are intentionally ignored
+      // to prevent re-triggering resolveAccess and causing loading flicker
     });
 
     const handleOnline  = () => setOfflineBanner(false);
@@ -116,30 +117,30 @@ export default function App() {
     }
   }, [view, startPendingPoll, stopPoll]);
 
-  // Full sign out — goes to landing
   async function handleSignOut() {
     stopPoll();
     await supabase.auth.signOut();
     setAccessLevel(null);
     setView('landing');
+    setLoading(false);
   }
 
-  // Superadmin leaving dashboard/user-management — goes back to two-card home, stays logged in
   function handleSuperadminBack() {
     setView('superadmin-home');
   }
 
-  // ── Loading ──────────────────────────────────────────────────────────────────
+  // ── Loading splash ────────────────────────────────────────────────────────
   if (loading) return (
     <div className="min-h-screen bg-[#020617] flex items-center justify-center">
       <div className="text-center">
         <div className="text-3xl font-black italic mb-4">Euro<span className="text-yellow-400">Track.</span></div>
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4" />
+        <p className="text-slate-500 text-sm">Loading…</p>
       </div>
     </div>
   );
 
-  // ── Landing ──────────────────────────────────────────────────────────────────
+  // ── Landing ───────────────────────────────────────────────────────────────
   if (view === 'landing') return (
     <Landing
       onLogin={()       => setView('login')}
@@ -150,7 +151,7 @@ export default function App() {
     />
   );
 
-  // ── Auth ─────────────────────────────────────────────────────────────────────
+  // ── Auth ──────────────────────────────────────────────────────────────────
   if (view === 'login' || view === 'signup' || view === 'admin-login') return (
     <Auth
       initialMode='login'
@@ -159,7 +160,7 @@ export default function App() {
     />
   );
 
-  // ── Pending ──────────────────────────────────────────────────────────────────
+  // ── Pending ───────────────────────────────────────────────────────────────
   if (view === 'pending' || accessLevel?.role === 'pending') return (
     <div className={cn('min-h-screen flex flex-col items-center justify-center p-8',
       dk ? 'bg-[#020617] text-white' : 'bg-slate-100 text-slate-900')}>
@@ -196,7 +197,7 @@ export default function App() {
     </div>
   );
 
-  // ── Superadmin home ────────────────────────────────────────────────────────
+  // ── Superadmin home ───────────────────────────────────────────────────────
   if (view === 'superadmin-home' && accessLevel?.role === 'superadmin') return (
     <SuperAdminHome
       onDashboard={()      => setView('dashboard')}
@@ -223,7 +224,7 @@ export default function App() {
     </div>
   );
 
-  // ── Dashboard ──────────────────────────────────────────────────────────────────
+  // ── Dashboard ─────────────────────────────────────────────────────────────
   const isViewOnly = accessLevel?.role === 'viewer';
 
   return (
@@ -249,7 +250,6 @@ export default function App() {
             viewOnly={isViewOnly}
             accessLevel={accessLevel}
             onSignOut={
-              // Superadmin clicking sign out from dashboard goes back to two-card home
               accessLevel?.role === 'superadmin'
                 ? handleSuperadminBack
                 : handleSignOut

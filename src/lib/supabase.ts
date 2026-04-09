@@ -70,7 +70,7 @@ export async function getAllUsers(): Promise<any[]> {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, full_name, username, avatar_url, role, created_at')
+    .select('id, email, full_name, username, role, created_at')
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -98,7 +98,7 @@ export async function getMyProfile() {
 
     const { data: row } = await supabase
       .from('profiles')
-      .select('id, email, full_name, username, avatar_url, role')
+      .select('id, email, full_name, username, role')
       .eq('id', user.id)
       .maybeSingle()
 
@@ -113,7 +113,7 @@ export async function getMyProfile() {
       full_name:  fullName,
       fullName,
       username,
-      avatar_url: row?.avatar_url ?? user.user_metadata?.avatar_url ?? null,
+      avatar_url: user.user_metadata?.avatar_url ?? null,
       fontScale,
       fontFamily,
       role:       (row?.role as UserRole) ?? 'pending',
@@ -149,7 +149,6 @@ export async function updateMyProfile(updates: {
   const rowPatch: Record<string, any> = {}
   if (fullName           !== undefined) rowPatch.full_name  = fullName
   if (updates.username   !== undefined) rowPatch.username   = updates.username
-  if (updates.avatar_url !== undefined) rowPatch.avatar_url = updates.avatar_url
 
   if (Object.keys(rowPatch).length > 0) {
     await supabase.from('profiles').update(rowPatch).eq('id', user.id)
@@ -164,12 +163,12 @@ export async function searchProfiles(query: string): Promise<any[]> {
     const { data: { user } } = await supabase.auth.getUser()
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, email, full_name, username, avatar_url, role')
+      .select('id, email, full_name, username, role')
       .or(`email.ilike.%${query.trim()}%,full_name.ilike.%${query.trim()}%,username.ilike.%${query.trim()}%`)
       .neq('id', user?.id ?? '')
       .limit(10)
     if (error) return []
-    return (data ?? []).map((p: any) => ({ ...p, fullName: p.full_name ?? '' }))
+    return (data ?? []).map((p: any) => ({ ...p, fullName: p.full_name ?? '', avatar_url: null }))
   } catch { return [] }
 }
 
@@ -212,7 +211,7 @@ export async function getCollaborators(): Promise<any[]> {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, email, full_name, avatar_url, role, created_at')
+      .select('id, email, full_name, role, created_at')
       .in('role', ['admin', 'editor', 'viewer'])
       .order('created_at', { ascending: true })
     if (error) return []
@@ -223,7 +222,7 @@ export async function getCollaborators(): Promise<any[]> {
       email:      p.email     ?? '',
       fullName:   p.full_name ?? '',
       full_name:  p.full_name ?? '',
-      avatar_url: p.avatar_url ?? null,
+      avatar_url: null,
     }))
   } catch { return [] }
 }

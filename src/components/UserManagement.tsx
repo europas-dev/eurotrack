@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { getAllUsers, setUserRole, UserRole } from '../lib/supabase';
 import { cn } from '../lib/utils';
-import { Users, LogOut, Shield, Crown, Eye, Edit3, Clock, Sun, Moon, Globe, ArrowLeft } from 'lucide-react';
+import { Users, Shield, Crown, Eye, Edit3, Clock, Sun, Moon, Globe, ArrowLeft } from 'lucide-react';
 
 interface Props {
   theme: 'dark' | 'light';
@@ -21,7 +21,7 @@ const ROLE_LABELS: Record<UserRole, { en: string; de: string; color: string; ico
   pending:    { en: 'Pending',     de: 'Ausstehend',  color: 'text-amber-400 bg-amber-400/10 border-amber-400/20',  icon: <Clock size={12} /> },
 };
 
-export default function UserManagement({ theme, lang, toggleTheme, setLang, onSignOut, onBack }: Props) {
+export default function UserManagement({ theme, lang, toggleTheme, setLang, onBack }: Props) {
   const dk = theme === 'dark';
   const [users, setUsers]     = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +40,7 @@ export default function UserManagement({ theme, lang, toggleTheme, setLang, onSi
     try {
       await setUserRole(userId, newRole);
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
-    } catch (e) {
+    } catch {
       alert('Failed to update role');
     } finally {
       setSaving(null);
@@ -83,10 +83,6 @@ export default function UserManagement({ theme, lang, toggleTheme, setLang, onSi
           </button>
           <button onClick={toggleTheme} className={cn('p-2 rounded-lg', dk ? 'hover:bg-white/5 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
             {dk ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
-          <button onClick={onSignOut} className={cn('flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold', dk ? 'hover:bg-white/5 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
-            <LogOut size={14} />
-            {lang === 'de' ? 'Abmelden' : 'Sign Out'}
           </button>
         </div>
       </header>
@@ -178,7 +174,7 @@ export default function UserManagement({ theme, lang, toggleTheme, setLang, onSi
                                 dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
                               )}
                             >
-                              <option value="admin">{lang === 'de' ? 'Admin' : 'Admin'}</option>
+                              <option value="admin">Admin</option>
                               <option value="editor">{lang === 'de' ? 'Bearbeiter' : 'Editor'}</option>
                               <option value="viewer">{lang === 'de' ? 'Betrachter' : 'Viewer'}</option>
                               <option value="pending">{lang === 'de' ? 'Ausstehend' : 'Pending'}</option>
