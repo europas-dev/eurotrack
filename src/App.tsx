@@ -10,7 +10,7 @@ import SuperAdminHome from './components/SuperAdminHome';
 import { cn } from './lib/utils';
 import { LogOut, Clock, RefreshCw } from 'lucide-react';
 
-type View = 'landing' | 'login' | 'signup' | 'admin-login' | 'dashboard' | 'superadmin-home' | 'user-management';
+type View = 'landing' | 'login' | 'signup' | 'admin-login' | 'dashboard' | 'superadmin-home' | 'user-management' | 'pending';
 type Theme    = 'dark' | 'light';
 type Language = 'de' | 'en';
 
@@ -34,7 +34,9 @@ export default function App() {
   const [theme,         setTheme]        = useState<Theme>('dark');
   const [lang,          setLang]         = useState<Language>('en');
   const [offlineBanner, setOfflineBanner] = useState(!navigator.onLine);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollRef        = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Track whether superadmin is navigating back to home (not signing out)
+  const superadminBackRef = useRef(false);
 
   const dk = theme === 'dark';
 
@@ -55,14 +57,11 @@ export default function App() {
     }
   }, []);
 
-  // Poll every 8 seconds while on the pending screen so a superadmin
-  // granting access is reflected immediately without requiring re-login.
   const startPendingPoll = useCallback(() => {
-    if (pollRef.current) return; // already polling
+    if (pollRef.current) return;
     pollRef.current = setInterval(async () => {
       const role = await resolveAccess();
       if (role && role !== 'pending') {
-        // Promoted — stop polling
         if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
       }
     }, 8000);
@@ -86,6 +85,11 @@ export default function App() {
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
         if (session?.user) await resolveAccess();
       } else if (event === 'SIGNED_OUT') {
+        // If superadmin is navigating back to home (not actually signing out), ignore this event
+        if (superadminBackRef.current) {
+          superadminBackRef.current = false;
+          return;
+        }
         stopPoll();
         setAccessLevel(null);
         setView('landing');
@@ -104,15 +108,15 @@ export default function App() {
     };
   }, [resolveAccess, stopPoll]);
 
-  // Start / stop the pending poll whenever the view changes
   useEffect(() => {
-    if ((view as string) === 'pending') {
+    if (view === 'pending') {
       startPendingPoll();
     } else {
       stopPoll();
     }
   }, [view, startPendingPoll, stopPoll]);
 
+  // Full sign out — goes to landing
   async function handleSignOut() {
     stopPoll();
     await supabase.auth.signOut();
@@ -120,7 +124,12 @@ export default function App() {
     setView('landing');
   }
 
-  // ── Loading splash ────────────────────────────────────────────────────────
+  // Superadmin leaving dashboard/user-management — goes back to two-card home, stays logged in
+  function handleSuperadminBack() {
+    setView('superadmin-home');
+  }
+
+  // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading) return (
     <div className="min-h-screen bg-[#020617] flex items-center justify-center">
       <div className="text-center">
@@ -130,7 +139,7 @@ export default function App() {
     </div>
   );
 
-  // ── Landing page ─────────────────────────────────────────────────────────
+  // ── Landing ──────────────────────────────────────────────────────────────────
   if (view === 'landing') return (
     <Landing
       onLogin={()       => setView('login')}
@@ -141,7 +150,7 @@ export default function App() {
     />
   );
 
-  // ── Auth screens ─────────────────────────────────────────────────────────
+  // ── Auth ─────────────────────────────────────────────────────────────────────
   if (view === 'login' || view === 'signup' || view === 'admin-login') return (
     <Auth
       initialMode='login'
@@ -150,8 +159,8 @@ export default function App() {
     />
   );
 
-  // ── Pending approval (polls every 8s automatically) ───────────────────────
-  if ((view as string) === 'pending' || accessLevel?.role === 'pending') return (
+  // ── Pending ──────────────────────────────────────────────────────────────────
+  if (view === 'pending' || accessLevel?.role === 'pending') return (
     <div className={cn('min-h-screen flex flex-col items-center justify-center p-8',
       dk ? 'bg-[#020617] text-white' : 'bg-slate-100 text-slate-900')}>
       <div className={cn('w-full max-w-md p-10 rounded-[2.5rem] border shadow-2xl text-center',
@@ -167,20 +176,17 @@ export default function App() {
             ? 'Ihr Konto wurde erstellt, wartet aber noch auf die Freigabe durch einen Administrator.'
             : 'Your account has been created but is awaiting approval by an administrator.'}
         </p>
-        {/* Checking automatically */}
         <div className={cn('flex items-center justify-center gap-2 text-xs mb-8', dk ? 'text-slate-500' : 'text-slate-400')}>
           <RefreshCw size={12} className="animate-spin" />
           {lang === 'de' ? 'Wird automatisch geprüft…' : 'Checking automatically…'}
         </div>
         <div className="flex gap-3 justify-center">
-          <button
-            onClick={() => resolveAccess()}
+          <button onClick={() => resolveAccess()}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-all">
             <RefreshCw size={14} />
             {lang === 'de' ? 'Jetzt prüfen' : 'Check Now'}
           </button>
-          <button
-            onClick={handleSignOut}
+          <button onClick={handleSignOut}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-600 hover:bg-slate-700 text-white text-sm font-bold rounded-xl transition-all">
             <LogOut size={14} />
             {lang === 'de' ? 'Abmelden' : 'Sign Out'}
@@ -190,18 +196,18 @@ export default function App() {
     </div>
   );
 
-  // ── Superadmin home — two-card picker ────────────────────────────────────
+  // ── Superadmin home ────────────────────────────────────────────────────────
   if (view === 'superadmin-home' && accessLevel?.role === 'superadmin') return (
     <SuperAdminHome
-      onDashboard={()       => setView('dashboard')}
-      onUserManagement={()  => setView('user-management')}
+      onDashboard={()      => setView('dashboard')}
+      onUserManagement={() => setView('user-management')}
       onSignOut={handleSignOut}
       lang={lang}
       theme={theme}
     />
   );
 
-  // ── Superadmin — User Management panel ───────────────────────────────────
+  // ── User Management ───────────────────────────────────────────────────────
   if (view === 'user-management' && accessLevel?.role === 'superadmin') return (
     <div className={cn('flex flex-col h-screen overflow-hidden',
       dk ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-900')}>
@@ -211,22 +217,14 @@ export default function App() {
           toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
           setLang={setLang}
           onSignOut={handleSignOut}
-          onBack={() => setView('superadmin-home')}
+          onBack={handleSuperadminBack}
         />
       </ErrorBoundary>
     </div>
   );
 
-  // ── Dashboard (admin / editor / viewer / superadmin visiting dashboard) ──
+  // ── Dashboard ──────────────────────────────────────────────────────────────────
   const isViewOnly = accessLevel?.role === 'viewer';
-
-  const handleDashboardSignOut = async () => {
-    if (accessLevel?.role === 'superadmin') {
-      setView('superadmin-home');
-    } else {
-      await handleSignOut();
-    }
-  };
 
   return (
     <div className={cn('flex flex-col h-screen overflow-hidden',
@@ -250,7 +248,12 @@ export default function App() {
             offlineMode={offlineBanner}
             viewOnly={isViewOnly}
             accessLevel={accessLevel}
-            onSignOut={handleDashboardSignOut}
+            onSignOut={
+              // Superadmin clicking sign out from dashboard goes back to two-card home
+              accessLevel?.role === 'superadmin'
+                ? handleSuperadminBack
+                : handleSignOut
+            }
           />
         </ErrorBoundary>
       </div>
