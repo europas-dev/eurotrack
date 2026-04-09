@@ -1,18 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { supabase } from './lib/supabase';
-import type { AccessLevel } from './lib/supabase';
-import {
-  getHotels, createHotel, updateHotel, deleteHotel,
-  createDuration, updateDuration, deleteDuration,
-  createEmployee, updateEmployee, deleteEmployee,
-  getCollaborators,
-} from './lib/supabase';
-import Header from './components/Header';
-import HotelRow from './components/HotelRow';
-import AddHotelModal from './components/AddHotelModal';
-import ExportModal from './components/ExportModal';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { getHotels, signOut, deleteHotel, createHotel } from './lib/supabase';
 import { cn } from './lib/utils';
-import { Plus, Building2, Loader2, TriangleAlert } from 'lucide-react';
+import type { AccessLevel } from './lib/supabase';
+import { Plus, Building2, Check, X, Loader2, Filter, ArrowUpDown, Download } from 'lucide-react';
+import Header from './components/Header';
+import Sidebar from './components/Sidebar';
+import { HotelRow } from './components/HotelRow';
 
 interface DashboardProps {
   theme: 'dark' | 'light';
@@ -25,269 +18,348 @@ interface DashboardProps {
   accessLevel?: AccessLevel | null;
 }
 
-export default function Dashboard({
-  theme, lang, toggleTheme, setLang,
-  offlineMode = false,
-  onToggleOfflineMode,
-  viewOnly = false,
-  accessLevel,
-}: DashboardProps) {
-  const dk = theme === 'dark';
+function NewHotelRow({ isDarkMode, lang, onSave, onCancel }: {
+  isDarkMode: boolean; lang: 'de' | 'en';
+  onSave: (hotel: any) => void; onCancel: () => void;
+}) {
+  const [name, setName] = useState('');
+  const [city, setCity] = useState('');
+  const [tag, setTag] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+  const nameRef = useRef<HTMLInputElement>(null);
+  const dk = isDarkMode;
 
-  const [hotels,         setHotels]         = useState<any[]>([]);
-  const [loading,        setLoading]        = useState(true);
-  const [error,          setError]          = useState<string | null>(null);
-  const [searchQuery,    setSearchQuery]    = useState('');
-  const [showAddHotel,   setShowAddHotel]   = useState(false);
-  const [showExport,     setShowExport]     = useState(false);
-  const [collaborators,  setCollaborators]  = useState<any[]>([]);
-  const [activeHotelId,  setActiveHotelId]  = useState<string | null>(null);
-  const [savingIds,      setSavingIds]      = useState<Set<string>>(new Set());
-  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  useEffect(() => { nameRef.current?.focus(); }, []);
+  const canSave = name.trim().length > 0;
 
-  // Hotels visible to this user
-  const visibleHotels = React.useMemo(() => {
-    // superadmin and admin both see everything
-    if (!accessLevel || accessLevel.role === 'admin' || accessLevel.role === 'superadmin') return hotels;
-    if (accessLevel.role === 'editor' || accessLevel.role === 'viewer') {
-      return hotels.filter(h => accessLevel.hotelIds.includes(h.id));
+  const handleSave = async () => {
+    if (!canSave) return;
+    setErr('');
+    try {
+      setSaving(true);
+      const newHotel = await createHotel({ name: name.trim(), city: city.trim() || null, companyTag: tag.trim() || null });
+      onSave({ ...newHotel, durations: [] });
+    } catch (e: any) {
+      setErr(e?.message || 'Failed to save');
+      setSaving(false);
     }
-    return hotels; // fallback: show all
-  }, [hotels, accessLevel]);
+  };
 
-  const filteredHotels = React.useMemo(() => {
-    if (!searchQuery.trim()) return visibleHotels;
-    const q = searchQuery.toLowerCase();
-    return visibleHotels.filter(h =>
-      h.name?.toLowerCase().includes(q) ||
-      h.city?.toLowerCase().includes(q) ||
-      (Array.isArray(h.companyTag) ? h.companyTag : []).some((t: string) => t?.toLowerCase().includes(q))
-    );
-  }, [visibleHotels, searchQuery]);
+  const ic = cn('px-3 py-2 rounded-lg text-sm outline-none border transition-all',
+    dk ? 'bg-white/5 border-white/10 focus:border-blue-500 text-white placeholder-slate-600'
+       : 'bg-white border-slate-200 focus:border-blue-500 text-slate-900 placeholder-slate-400');
 
-  const activeHotel = hotels.find(h => h.id === activeHotelId) ?? null;
+  return (
+    <div className={cn('mb-2 rounded-xl border px-4 py-3 space-y-2',
+      dk ? 'bg-[#0B1224] border-blue-500/40' : 'bg-white border-blue-400')}>
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="w-8 h-8 bg-blue-600/30 rounded-lg flex items-center justify-center flex-shrink-0">
+          <Building2 size={16} className="text-blue-400" />
+        </div>
+        <input ref={nameRef} type="text" value={name} onChange={e => setName(e.target.value)}
+          placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel name...'}
+          onKeyDown={e => e.key === 'Enter' && handleSave()} className={cn(ic, 'w-52')} />
+        <input type="text" value={city} onChange={e => setCity(e.target.value)}
+          placeholder={lang === 'de' ? 'Stadt...' : 'City...'}
+          onKeyDown={e => e.key === 'Enter' && handleSave()} className={cn(ic, 'w-36')} />
+        <input type="text" value={tag} onChange={e => setTag(e.target.value)}
+          placeholder="Company tag..."
+          onKeyDown={e => e.key === 'Enter' && handleSave()} className={cn(ic, 'w-36')} />
+        <button onClick={handleSave} disabled={saving || !canSave}
+          className="p-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-lg transition-all flex-shrink-0">
+          {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+        </button>
+        <button onClick={onCancel}
+          className={cn('p-2 rounded-lg transition-all flex-shrink-0',
+            dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
+          <X size={16} />
+        </button>
+      </div>
+      {err && <p className="text-red-400 text-xs font-bold px-1">{err}</p>}
+    </div>
+  );
+}
+
+export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly = false, accessLevel }: DashboardProps) {
+  const [hotels, setHotels] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [selectedYear, setSelectedYear] = useState(2026);
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [addingHotel, setAddingHotel] = useState(false);
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const [filterPaid, setFilterPaid] = useState<'all' | 'paid' | 'unpaid'>('all');
+  const [filterFreeBeds, setFilterFreeBeds] = useState(false);
+  const [sortBy, setSortBy] = useState<'name' | 'cost' | 'nights' | 'city'>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const monthNames = lang === 'de'
+    ? ['Januar','Februar','M\u00e4rz','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']
+    : ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
   useEffect(() => { loadHotels(); }, []);
 
   async function loadHotels() {
     try {
-      setLoading(true); setError(null);
+      setLoading(true); setError('');
       const data = await getHotels();
-      setHotels(data);
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to load hotels');
-    } finally { setLoading(false); }
+      setHotels(data || []);
+    } catch (err: any) { setError(err.message || 'Failed to load'); }
+    finally { setLoading(false); }
   }
 
-  useEffect(() => {
-    getCollaborators(activeHotelId ?? undefined).then(setCollaborators).catch(() => {});
-  }, [activeHotelId]);
+  const calcCost = (h: any) => (h.durations || []).reduce((s: number, d: any) => {
+    const n = Math.max(0, Math.ceil((new Date(d.endDate || 0).getTime() - new Date(d.startDate || 0).getTime()) / 86400000));
+    return s + n * (d.pricePerNightPerRoom || 0) * (d.numberOfRooms || 1);
+  }, 0);
 
-  // ── Guarded write helper — blocks all mutations in viewOnly mode ─────────────
-  function guardWrite<T extends any[]>(fn: (...args: T) => Promise<void>) {
-    return async (...args: T) => {
-      if (viewOnly) return;
-      await fn(...args);
-    };
-  }
+  const calcNights = (h: any) => (h.durations || []).reduce((s: number, d: any) =>
+    s + Math.max(0, Math.ceil((new Date(d.endDate || 0).getTime() - new Date(d.startDate || 0).getTime()) / 86400000)), 0);
 
-  // ── Hotel CRUD ───────────────────────────────────────────────────────────────
-  const handleAddHotel = guardWrite(async (data: any) => {
-    const hotel = await createHotel(data);
-    setHotels(p => [hotel, ...p]);
-  });
+  const calcFreeBeds = (h: any) => (h.durations || []).reduce((s: number, d: any) =>
+    s + (d.employees || []).filter((e: any) => e === null).length, 0);
 
-  const handleUpdateHotel = guardWrite(async (id: string, data: any) => {
-    setHotels(p => p.map(h => h.id === id ? { ...h, ...data } : h));
-    clearTimeout(saveTimers.current[id]);
-    setSavingIds(p => new Set([...p, id]));
-    saveTimers.current[id] = setTimeout(async () => {
-      try { await updateHotel(id, data); }
-      catch (e) { console.error('Hotel save failed', e); }
-      finally { setSavingIds(p => { const n = new Set(p); n.delete(id); return n; }); }
-    }, 600);
-  });
+  // Hotels visible to this user based on role
+  const visibleHotels = useMemo(() => {
+    if (!accessLevel || accessLevel.role === 'admin' || accessLevel.role === 'superadmin') return hotels;
+    if (accessLevel.role === 'editor' || accessLevel.role === 'viewer') {
+      return hotels.filter(h => accessLevel.hotelIds.includes(h.id));
+    }
+    return hotels;
+  }, [hotels, accessLevel]);
 
-  const handleDeleteHotel = guardWrite(async (id: string) => {
-    setHotels(p => p.filter(h => h.id !== id));
-    if (activeHotelId === id) setActiveHotelId(null);
-    await deleteHotel(id);
-  });
+  const handleExport = () => {
+    const rows = [
+      ['Hotel', 'City', 'Company', 'Bookings', 'Total Nights', 'Free Beds', 'Total Cost (EUR)'],
+      ...filtered.map(h => [h.name, h.city, h.companyTag,
+        (h.durations || []).length, calcNights(h), calcFreeBeds(h),
+        calcCost(h).toFixed(2)])
+    ];
+    const csv = rows.map(r => r.map((v: any) => `"${v}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `eurotrack-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
-  // ── Duration CRUD ────────────────────────────────────────────────────────────
-  const handleAddDuration = guardWrite(async (hotelId: string, data: any) => {
-    const dur = await createDuration({ ...data, hotelId });
-    setHotels(p => p.map(h => h.id === hotelId
-      ? { ...h, durations: [...(h.durations ?? []), dur] }
-      : h));
-  });
+  const filtered = useMemo(() => {
+    let list = visibleHotels.filter(h => {
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const tags = Array.isArray(h.companyTag) ? h.companyTag.join(' ') : (h.companyTag || '');
+        if (!h.name?.toLowerCase().includes(q) && !h.city?.toLowerCase().includes(q) && !tags.toLowerCase().includes(q)) return false;
+      }
+      if (filterFreeBeds && calcFreeBeds(h) === 0) return false;
+      if (filterPaid === 'paid' && !(h.durations || []).every((d: any) => d.isPaid)) return false;
+      if (filterPaid === 'unpaid' && (h.durations || []).every((d: any) => d.isPaid)) return false;
+      return true;
+    });
+    return [...list].sort((a, b) => {
+      let va: any, vb: any;
+      if (sortBy === 'name') { va = a.name?.toLowerCase(); vb = b.name?.toLowerCase(); }
+      else if (sortBy === 'city') { va = a.city?.toLowerCase(); vb = b.city?.toLowerCase(); }
+      else if (sortBy === 'cost') { va = calcCost(a); vb = calcCost(b); }
+      else { va = calcNights(a); vb = calcNights(b); }
+      return (va < vb ? -1 : va > vb ? 1 : 0) * (sortDir === 'asc' ? 1 : -1);
+    });
+  }, [visibleHotels, searchQuery, filterFreeBeds, filterPaid, sortBy, sortDir]);
 
-  const handleUpdateDuration = guardWrite(async (hotelId: string, durId: string, data: any) => {
-    setHotels(p => p.map(h => h.id === hotelId
-      ? { ...h, durations: (h.durations ?? []).map((d: any) => d.id === durId ? { ...d, ...data } : d) }
-      : h));
-    clearTimeout(saveTimers.current[durId]);
-    setSavingIds(p => new Set([...p, durId]));
-    saveTimers.current[durId] = setTimeout(async () => {
-      try { await updateDuration(durId, data); }
-      catch (e) { console.error('Duration save failed', e); }
-      finally { setSavingIds(p => { const n = new Set(p); n.delete(durId); return n; }); }
-    }, 600);
-  });
+  const totalSpend = visibleHotels.reduce((s, h) => s + calcCost(h), 0);
+  const freeBeds = visibleHotels.reduce((s, h) => s + calcFreeBeds(h), 0);
+  const dk = theme === 'dark';
 
-  const handleDeleteDuration = guardWrite(async (hotelId: string, durId: string) => {
-    setHotels(p => p.map(h => h.id === hotelId
-      ? { ...h, durations: (h.durations ?? []).filter((d: any) => d.id !== durId) }
-      : h));
-    await deleteDuration(durId);
-  });
+  const menuCls = cn('absolute top-full mt-1 right-0 z-50 rounded-xl border shadow-xl p-3 min-w-[200px] space-y-1',
+    dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200');
+  const menuLabel = cn('text-[10px] font-bold uppercase tracking-widest mb-2 block px-1',
+    dk ? 'text-slate-500' : 'text-slate-400');
+  const menuBtn = (active: boolean) => cn('w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-all',
+    active ? 'bg-blue-600 text-white' : dk ? 'hover:bg-white/5 text-slate-300' : 'hover:bg-slate-100 text-slate-700');
 
-  // ── Employee CRUD ────────────────────────────────────────────────────────────
-  const handleAddEmployee = guardWrite(async (hotelId: string, durId: string, slotIndex: number, data: any) => {
-    const emp = await createEmployee(durId, slotIndex, data);
-    setHotels(p => p.map(h => h.id === hotelId
-      ? { ...h, durations: (h.durations ?? []).map((d: any) => d.id === durId
-          ? { ...d, employees: [...(d.employees ?? []), emp] } : d) } : h));
-  });
-
-  const handleUpdateEmployee = guardWrite(async (hotelId: string, durId: string, empId: string, data: any) => {
-    setHotels(p => p.map(h => h.id === hotelId
-      ? { ...h, durations: (h.durations ?? []).map((d: any) => d.id === durId
-          ? { ...d, employees: (d.employees ?? []).map((e: any) => e.id === empId ? { ...e, ...data } : e) } : d) } : h));
-    clearTimeout(saveTimers.current[empId]);
-    saveTimers.current[empId] = setTimeout(async () => {
-      try { await updateEmployee(empId, data); }
-      catch (e) { console.error('Employee save failed', e); }
-    }, 600);
-  });
-
-  const handleDeleteEmployee = guardWrite(async (hotelId: string, durId: string, empId: string) => {
-    setHotels(p => p.map(h => h.id === hotelId
-      ? { ...h, durations: (h.durations ?? []).map((d: any) => d.id === durId
-          ? { ...d, employees: (d.employees ?? []).filter((e: any) => e.id !== empId) } : d) } : h));
-    await deleteEmployee(empId);
-  });
-
-  const handleSignOut = async () => { await supabase.auth.signOut(); };
-
-  // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className={cn('flex flex-col h-full', dk ? 'bg-[#020617]' : 'bg-slate-50')}>
-      <Header
-        theme={theme} lang={lang}
-        toggleTheme={toggleTheme} setLang={setLang}
-        searchQuery={searchQuery} setSearchQuery={setSearchQuery}
-        onSignOut={handleSignOut}
-        onExport={() => setShowExport(true)}
-        activeHotelIdForShare={activeHotelId}
-        activeHotelNameForShare={activeHotel?.name ?? null}
-        collaborators={collaborators}
-        onCollaboratorsChanged={setCollaborators}
-        viewOnly={viewOnly}
-      />
+    <div className={cn('min-h-screen flex', dk ? 'bg-[#020617]' : 'bg-slate-50')}>
+      <Sidebar theme={theme} lang={lang} selectedYear={selectedYear} setSelectedYear={setSelectedYear}
+        selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth}
+        collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        hotels={hotels} />
 
-      <main className="flex-1 min-h-0 overflow-y-auto px-4 md:px-8 py-6">
-        {loading ? (
-          <div className="flex items-center justify-center h-48">
-            <Loader2 className="animate-spin text-blue-500" size={32} />
-          </div>
-        ) : error ? (
-          <div className="flex items-center justify-center h-48">
-            <div className="text-center">
-              <TriangleAlert className="text-red-400 mx-auto mb-2" size={32} />
-              <p className="text-red-400 font-bold">{error}</p>
-              <button onClick={loadHotels} className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold">
-                {lang === 'de' ? 'Erneut versuchen' : 'Retry'}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4 max-w-7xl mx-auto">
+      <div className="flex-1 flex flex-col min-w-0">
+        <Header theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang}
+          searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+          onExport={handleExport}
+          onSignOut={async () => { try { await signOut(); window.location.reload(); } catch(e) {} }} />
 
-            {/* Top bar */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className={cn('text-2xl font-black', dk ? 'text-white' : 'text-slate-900')}>
-                  {lang === 'de' ? 'Hotels' : 'Hotels'}
-                </h1>
-                <p className={cn('text-sm', dk ? 'text-slate-500' : 'text-slate-400')}>
-                  {filteredHotels.length} {lang === 'de' ? 'Hotels' : 'hotels'}
-                  {viewOnly && (
-                    <span className="ml-2 px-2 py-0.5 bg-blue-500/10 text-blue-400 text-xs font-bold rounded-full border border-blue-500/20">
-                      {lang === 'de' ? 'Nur Ansicht' : 'View only'}
+        {/* Stats Bar */}
+        <div className={cn('px-8 py-4 border-b', dk ? 'bg-[#0F172A] border-white/5' : 'bg-white border-slate-200')}>
+          <div className="flex items-center gap-10">
+            {[
+              { label: lang === 'de' ? 'Freie Betten' : 'Free Beds', value: String(freeBeds), cls: freeBeds > 0 ? 'text-amber-400' : 'text-green-400' },
+              { label: lang === 'de' ? 'Gesamt' : 'Total Spent', value: '\u20ac' + totalSpend.toLocaleString('de-DE', { minimumFractionDigits: 0 }), cls: 'text-blue-400' },
+              { label: 'Hotels', value: String(visibleHotels.length), cls: dk ? 'text-white' : 'text-slate-900' },
+            ].map(({ label, value, cls }) => (
+              <div key={label}>
+                <p className={cn('text-[10px] font-bold uppercase tracking-widest mb-1', dk ? 'text-slate-500' : 'text-slate-400')}>{label}</p>
+                <p className={cn('text-2xl font-black', cls)}>{value}</p>
+              </div>
+            ))}
+            {viewOnly && (
+              <span className="ml-4 px-2 py-0.5 bg-blue-500/10 text-blue-400 text-xs font-bold rounded-full border border-blue-500/20">
+                {lang === 'de' ? 'Nur Ansicht' : 'View only'}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <main className="flex-1 p-6 overflow-y-auto">
+          {/* Toolbar */}
+          <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
+            <h2 className={cn('text-xl font-black', dk ? 'text-white' : 'text-slate-900')}>
+              {selectedMonth === null ? 'Dashboard' : monthNames[selectedMonth] + ' ' + selectedYear}
+            </h2>
+            <div className="flex items-center gap-2">
+
+              {/* Filter */}
+              <div className="relative">
+                <button onClick={() => { setShowFilterMenu(!showFilterMenu); setShowSortMenu(false); }}
+                  className={cn('px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all',
+                    (filterPaid !== 'all' || filterFreeBeds) ? 'bg-blue-600 text-white border-blue-600'
+                    : dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-100')}>
+                  <Filter size={15} />
+                  {lang === 'de' ? 'Filter' : 'Filter'}
+                  {(filterPaid !== 'all' || filterFreeBeds) && (
+                    <span className="bg-white/30 rounded-full w-4 h-4 text-[9px] flex items-center justify-center">
+                      {(filterPaid !== 'all' ? 1 : 0) + (filterFreeBeds ? 1 : 0)}
                     </span>
                   )}
-                </p>
+                </button>
+                {showFilterMenu && (
+                  <div className={menuCls}>
+                    <label className={menuLabel}>{lang === 'de' ? 'Zahlung' : 'Payment'}</label>
+                    {(['all', 'paid', 'unpaid'] as const).map(v => (
+                      <button key={v} onClick={() => setFilterPaid(v)} className={menuBtn(filterPaid === v)}>
+                        {v === 'all' ? (lang === 'de' ? 'Alle Hotels' : 'All hotels')
+                          : v === 'paid' ? (lang === 'de' ? '\u2713 Vollst\u00e4ndig bezahlt' : '\u2713 Fully paid')
+                          : (lang === 'de' ? '\u26a0 Unbezahlt' : '\u26a0 Has unpaid')}
+                      </button>
+                    ))}
+                    <div className={cn('border-t my-2', dk ? 'border-white/10' : 'border-slate-100')} />
+                    <button onClick={() => setFilterFreeBeds(!filterFreeBeds)} className={menuBtn(filterFreeBeds)}>
+                      \uD83D\uDECF {lang === 'de' ? 'Freie Betten' : 'Has free beds'}
+                    </button>
+                    <button onClick={() => { setFilterPaid('all'); setFilterFreeBeds(false); setShowFilterMenu(false); }}
+                      className={cn('w-full text-left px-3 py-1.5 rounded text-xs mt-1 transition-all',
+                        dk ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-600')}>
+                      {lang === 'de' ? 'Filter zur\u00fccksetzen' : 'Clear filters'}
+                    </button>
+                  </div>
+                )}
               </div>
+
+              {/* Sort */}
+              <div className="relative">
+                <button onClick={() => { setShowSortMenu(!showSortMenu); setShowFilterMenu(false); }}
+                  className={cn('px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all',
+                    dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-100')}>
+                  <ArrowUpDown size={15} />
+                  {lang === 'de' ? 'Sortieren' : 'Sort'}
+                  <span className={cn('text-[10px] font-normal', dk ? 'text-slate-500' : 'text-slate-400')}>
+                    {sortBy} {sortDir === 'asc' ? '\u2191' : '\u2193'}
+                  </span>
+                </button>
+                {showSortMenu && (
+                  <div className={menuCls}>
+                    <label className={menuLabel}>{lang === 'de' ? 'Sortieren nach' : 'Sort by'}</label>
+                    {([['name','Name'],['city','City'],['cost','Total Cost'],['nights','Total Nights']] as const).map(([v, label]) => (
+                      <button key={v} onClick={() => setSortBy(v as any)} className={menuBtn(sortBy === v)}>{label}</button>
+                    ))}
+                    <div className={cn('border-t my-2', dk ? 'border-white/10' : 'border-slate-100')} />
+                    <label className={menuLabel}>{lang === 'de' ? 'Richtung' : 'Direction'}</label>
+                    <div className="flex gap-2">
+                      <button onClick={() => setSortDir('asc')} className={cn(menuBtn(sortDir === 'asc'), 'flex-1 text-center')}>\u2191 Asc</button>
+                      <button onClick={() => setSortDir('desc')} className={cn(menuBtn(sortDir === 'desc'), 'flex-1 text-center')}>\u2193 Desc</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Export */}
+              <button onClick={handleExport}
+                className={cn('px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all',
+                  dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-100')}>
+                <Download size={15} />
+                {lang === 'de' ? 'Export' : 'Export CSV'}
+              </button>
+
+              {/* Add Hotel — hidden in viewOnly mode */}
               {!viewOnly && (
-                <button
-                  onClick={() => setShowAddHotel(true)}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl shadow-lg shadow-blue-600/20 transition-all"
-                >
-                  <Plus size={18} />
-                  {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
+                <button onClick={() => setAddingHotel(true)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl flex items-center gap-2 text-sm">
+                  <Plus size={16} />
+                  {lang === 'de' ? 'Hotel hinzuf\u00fcgen' : 'Add Hotel'}
                 </button>
               )}
             </div>
-
-            {/* Hotel list */}
-            {filteredHotels.length === 0 ? (
-              <div className={cn('flex flex-col items-center justify-center py-24 rounded-2xl border', dk ? 'border-white/5 bg-white/2' : 'border-slate-200 bg-white')}>
-                <Building2 className={cn('mb-4', dk ? 'text-slate-700' : 'text-slate-300')} size={48} />
-                <p className={cn('font-black text-lg mb-2', dk ? 'text-slate-500' : 'text-slate-400')}>
-                  {searchQuery
-                    ? (lang === 'de' ? 'Keine Hotels gefunden' : 'No hotels found')
-                    : viewOnly
-                      ? (lang === 'de' ? 'Keine Hotels freigegeben' : 'No hotels shared with you')
-                      : (lang === 'de' ? 'Noch keine Hotels' : 'No hotels yet')}
-                </p>
-                {!searchQuery && !viewOnly && (
-                  <button onClick={() => setShowAddHotel(true)} className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold">
-                    {lang === 'de' ? 'Erstes Hotel erstellen' : 'Create your first hotel'}
-                  </button>
-                )}
-              </div>
-            ) : (
-              filteredHotels.map(hotel => (
-                <HotelRow
-                  key={hotel.id}
-                  hotel={hotel}
-                  theme={theme}
-                  lang={lang}
-                  isSaving={savingIds.has(hotel.id)}
-                  isActive={hotel.id === activeHotelId}
-                  onActivate={() => setActiveHotelId(p => p === hotel.id ? null : hotel.id)}
-                  onUpdate={(data: any) => handleUpdateHotel(hotel.id, data)}
-                  onDelete={() => handleDeleteHotel(hotel.id)}
-                  onAddDuration={(data: any) => handleAddDuration(hotel.id, data)}
-                  onUpdateDuration={(durId: string, data: any) => handleUpdateDuration(hotel.id, durId, data)}
-                  onDeleteDuration={(durId: string) => handleDeleteDuration(hotel.id, durId)}
-                  onAddEmployee={(durId: string, slotIndex: number, data: any) => handleAddEmployee(hotel.id, durId, slotIndex, data)}
-                  onUpdateEmployee={(durId: string, empId: string, data: any) => handleUpdateEmployee(hotel.id, durId, empId, data)}
-                  onDeleteEmployee={(durId: string, empId: string) => handleDeleteEmployee(hotel.id, durId, empId)}
-                  viewOnly={viewOnly}
-                />
-              ))
-            )}
           </div>
-        )}
-      </main>
 
-      {showAddHotel && !viewOnly && (
-        <AddHotelModal
-          theme={theme} lang={lang}
-          onClose={() => setShowAddHotel(false)}
-          onAdd={handleAddHotel}
-        />
-      )}
+          {(showFilterMenu || showSortMenu) && (
+            <div className="fixed inset-0 z-40" onClick={() => { setShowFilterMenu(false); setShowSortMenu(false); }} />
+          )}
 
-      {showExport && (
-        <ExportModal
-          theme={theme} lang={lang}
-          hotels={filteredHotels}
-          onClose={() => setShowExport(false)}
-        />
-      )}
+          {loading ? (
+            <div className="text-center py-20">
+              <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4" />
+              <p className={dk ? 'text-slate-400' : 'text-slate-600'}>Loading...</p>
+            </div>
+          ) : error ? (
+            <div className="p-5 bg-red-600/10 border border-red-600/20 rounded-xl">
+              <p className="text-red-400 font-bold text-sm mb-1">Error: {error}</p>
+              <button onClick={loadHotels} className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-sm">Retry</button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {addingHotel && !viewOnly && (
+                <NewHotelRow isDarkMode={dk} lang={lang} onSave={h => { setHotels(p => [h, ...p]); setAddingHotel(false); }}
+                  onCancel={() => setAddingHotel(false)} />
+              )}
+              {filtered.length === 0 && !addingHotel ? (
+                <div className={cn('text-center py-20 rounded-2xl border-2 border-dashed',
+                  dk ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}>
+                  <div className={cn('w-16 h-16 rounded-full mx-auto mb-5 flex items-center justify-center',
+                    dk ? 'bg-blue-600/20' : 'bg-blue-100')}>
+                    <Building2 size={32} className="text-blue-500" />
+                  </div>
+                  <h3 className={cn('text-xl font-bold mb-2', dk ? 'text-white' : 'text-slate-900')}>
+                    {lang === 'de' ? 'Noch keine Hotels' : 'No Hotels Yet'}
+                  </h3>
+                  <p className={cn('text-sm mb-6', dk ? 'text-slate-500' : 'text-slate-400')}>
+                    {lang === 'de' ? 'Klicken Sie auf Hotel hinzuf\u00fcgen' : 'Click Add Hotel to get started'}
+                  </p>
+                  {!viewOnly && (
+                    <button onClick={() => setAddingHotel(true)}
+                      className="px-7 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl inline-flex items-center gap-2 text-sm">
+                      <Plus size={18} />
+                      {lang === 'de' ? 'Hotel hinzuf\u00fcgen' : 'Add Hotel'}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                filtered.map(hotel => (
+                  <HotelRow key={hotel.id} entry={hotel} isDarkMode={dk}
+                    viewOnly={viewOnly}
+                    onDelete={id => { if (!viewOnly) { deleteHotel(id); setHotels(p => p.filter(h => h.id !== id)); } }}
+                    onUpdate={(id: string, u: any) => { if (!viewOnly) setHotels(p => p.map(h => h.id === id ? { ...h, ...u } : h)); }} />
+                ))
+              )}
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
