@@ -1,8 +1,7 @@
 // src/App.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { supabase } from './lib/supabase';
 import { getMyAccessLevel, AccessLevel } from './lib/supabase';
-import { offlineSync } from './lib/offlineSync';
 import Landing from './components/Landing';
 import Auth from './components/Auth';
 import Dashboard from './Dashboard';
@@ -10,10 +9,10 @@ import UserManagement from './components/UserManagement';
 import { cn } from './lib/utils';
 import { LogOut, Clock, LayoutDashboard, Users } from 'lucide-react';
 
-type View        = 'landing' | 'login' | 'signup' | 'dashboard';
-type AdminTab    = 'dashboard' | 'users';
-type Theme       = 'dark' | 'light';
-type Language    = 'de' | 'en';
+type View     = 'landing' | 'login' | 'signup' | 'dashboard';
+type AdminTab = 'dashboard' | 'users';
+type Theme    = 'dark' | 'light';
+type Language = 'de' | 'en';
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: string }> {
   state = { error: '' };
@@ -29,60 +28,63 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
 }
 
 export default function App() {
-  const [view, setView]                   = useState<View>('landing');
-  const [adminTab, setAdminTab]           = useState<AdminTab>('dashboard');
-  const [loading, setLoading]             = useState(true);
-  const [accessLevel, setAccessLevel]     = useState<AccessLevel | null>(null);
-  const [theme, setTheme]                 = useState<Theme>('dark');
-  const [lang, setLang]                   = useState<Language>('en');
-  const [offlineBanner, setOfflineBanner] = useState(!navigator.onLine);
-  const [offlineMode, setOfflineMode]     = useState(false);
-  const [syncMsg, setSyncMsg]             = useState('');
+  const [view,         setView]        = useState<View>('landing');
+  const [adminTab,     setAdminTab]    = useState<AdminTab>('dashboard');
+  const [loading,      setLoading]     = useState(true);
+  const [accessLevel,  setAccessLevel] = useState<AccessLevel | null>(null);
+  const [theme,        setTheme]       = useState<Theme>('dark');
+  const [lang,         setLang]        = useState<Language>('en');
+  const [offlineBanner,setOfflineBanner] = useState(!navigator.onLine);
+  const [offlineMode,  setOfflineMode] = useState(false);
+  const [syncMsg,      setSyncMsg]     = useState('');
 
   const dk = theme === 'dark';
 
+  // Resolve access level without ever logging the user out mid-session
+  const resolveAccess = useCallback(async () => {
+    try {
+      const access = await getMyAccessLevel();
+      setAccessLevel(access);
+      setView('dashboard');
+    } catch {
+      // network blip — keep the current session, don't log out
+    }
+  }, []);
+
   useEffect(() => {
-    checkAuth();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session) {
-        const access = await getMyAccessLevel();
-        setAccessLevel(access);
-        setView('dashboard');
+    // Initial auth check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        resolveAccess();
       } else {
+        setView('landing');
+      }
+      setLoading(false);
+    });
+
+    // Listen for auth changes (login / logout / token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        if (session?.user) {
+          await resolveAccess();
+        }
+      } else if (event === 'SIGNED_OUT') {
         setAccessLevel(null);
         setView('landing');
       }
+      // INITIAL_SESSION — already handled above, ignore
     });
-    const unsub = offlineSync.subscribe((status) => {
-      if (status === 'offline')      { setOfflineBanner(true);  setSyncMsg(''); }
-      else if (status === 'saving')  { setOfflineBanner(false); setSyncMsg('Syncing...'); }
-      else if (status === 'saved')   { setOfflineBanner(false); setSyncMsg(''); }
-      else if (status === 'failed')  { setSyncMsg('⚠ Sync failed'); setTimeout(() => setSyncMsg(''), 4000); }
-    });
+
     const handleOnline  = () => setOfflineBanner(false);
     const handleOffline = () => setOfflineBanner(true);
     window.addEventListener('online',  handleOnline);
     window.addEventListener('offline', handleOffline);
     return () => {
-      subscription.unsubscribe(); unsub();
+      subscription.unsubscribe();
       window.removeEventListener('online',  handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
-
-  async function checkAuth() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const access = await getMyAccessLevel();
-        setAccessLevel(access);
-        setView('dashboard');
-      } else {
-        setView('landing');
-      }
-    } catch { setView('landing'); }
-    finally { setLoading(false); }
-  }
+  }, [resolveAccess]);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -116,20 +118,18 @@ export default function App() {
     />
   );
 
-  // ── Pending ───────────────────────────────────────────────────────────────
+  // Pending approval
   if (accessLevel?.role === 'pending') return (
     <div className={cn('min-h-screen flex flex-col items-center justify-center p-8', dk ? 'bg-[#020617] text-white' : 'bg-slate-100 text-slate-900')}>
       <div className={cn('w-full max-w-md p-10 rounded-[2.5rem] border shadow-2xl text-center', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
         <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
           <Clock className="text-amber-400" size={32} />
         </div>
-        <h2 className="text-2xl font-black mb-3">
-          {lang === 'de' ? 'Zugang ausstehend' : 'Access Pending'}
-        </h2>
+        <h2 className="text-2xl font-black mb-3">{lang === 'de' ? 'Zugang ausstehend' : 'Access Pending'}</h2>
         <p className={cn('text-sm mb-8 leading-relaxed', dk ? 'text-slate-400' : 'text-slate-500')}>
           {lang === 'de'
-            ? 'Ihr Konto wurde erstellt, wartet aber noch auf die Freigabe. Bitte kontaktieren Sie Ihren Administrator.'
-            : 'Your account has been created but is waiting for approval. Please contact your administrator.'}
+            ? 'Ihr Konto wurde erstellt, wartet aber noch auf die Freigabe.'
+            : 'Your account has been created but is waiting for approval.'}
         </p>
         <button
           onClick={handleSignOut}
@@ -142,103 +142,73 @@ export default function App() {
     </div>
   );
 
-  // ── Superadmin: tab bar + either panel ────────────────────────────────────
-  if (accessLevel?.role === 'superadmin') {
-    const isOffline  = offlineMode || offlineBanner;
-    return (
-      <div className={cn('flex flex-col h-screen overflow-hidden', dk ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-900')}>
-
-        {/* Superadmin tab switcher */}
-        <div className={cn('shrink-0 flex items-center gap-1 px-4 py-2 border-b', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
-          <button
-            onClick={() => setAdminTab('dashboard')}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all',
-              adminTab === 'dashboard'
-                ? 'bg-blue-600 text-white'
-                : (dk ? 'text-slate-400 hover:bg-white/5' : 'text-slate-500 hover:bg-slate-100')
-            )}
-          >
-            <LayoutDashboard size={14} />
-            {lang === 'de' ? 'Dashboard' : 'Dashboard'}
-          </button>
-          <button
-            onClick={() => setAdminTab('users')}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all',
-              adminTab === 'users'
-                ? 'bg-yellow-500 text-black'
-                : (dk ? 'text-slate-400 hover:bg-white/5' : 'text-slate-500 hover:bg-slate-100')
-            )}
-          >
-            <Users size={14} />
-            {lang === 'de' ? 'Benutzerverwaltung' : 'User Management'}
-          </button>
-        </div>
-
-        {isOffline && (
-          <div className="bg-amber-500 text-black text-xs font-bold text-center py-1.5 px-4 shrink-0">
-            📡 {lang === 'de' ? 'Offline' : 'Offline'}
-          </div>
-        )}
-        {syncMsg && (
-          <div className={cn('text-white text-xs font-bold text-center py-1.5 shrink-0', syncMsg.startsWith('⚠') ? 'bg-amber-600' : 'bg-green-600')}>
-            {syncMsg}
-          </div>
-        )}
-
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <ErrorBoundary>
-            {adminTab === 'users' ? (
-              <UserManagement
-                theme={theme} lang={lang}
-                toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
-                setLang={setLang}
-                onSignOut={handleSignOut}
-              />
-            ) : (
-              <Dashboard
-                theme={theme} lang={lang}
-                toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
-                setLang={setLang}
-                offlineMode={isOffline}
-                onToggleOfflineMode={() => setOfflineMode(v => !v)}
-                viewOnly={false}
-                accessLevel={accessLevel}
-              />
-            )}
-          </ErrorBoundary>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Admin / Editor / Viewer ──────────────────────────────────────────────
   const isOffline  = offlineMode || offlineBanner;
   const isViewOnly = accessLevel?.role === 'viewer';
 
+  // Superadmin tab layout
+  if (accessLevel?.role === 'superadmin') return (
+    <div className={cn('flex flex-col h-screen overflow-hidden', dk ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-900')}>
+      <div className={cn('shrink-0 flex items-center gap-1 px-4 py-2 border-b', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
+        <button
+          onClick={() => setAdminTab('dashboard')}
+          className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all',
+            adminTab === 'dashboard' ? 'bg-blue-600 text-white' : (dk ? 'text-slate-400 hover:bg-white/5' : 'text-slate-500 hover:bg-slate-100'))}>
+          <LayoutDashboard size={14} />
+          {lang === 'de' ? 'Dashboard' : 'Dashboard'}
+        </button>
+        <button
+          onClick={() => setAdminTab('users')}
+          className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all',
+            adminTab === 'users' ? 'bg-yellow-500 text-black' : (dk ? 'text-slate-400 hover:bg-white/5' : 'text-slate-500 hover:bg-slate-100'))}>
+          <Users size={14} />
+          {lang === 'de' ? 'Benutzerverwaltung' : 'User Management'}
+        </button>
+      </div>
+      {isOffline && (
+        <div className="bg-amber-500 text-black text-xs font-bold text-center py-1.5 px-4 shrink-0">\uD83D\uDCE1 Offline</div>
+      )}
+      {syncMsg && (
+        <div className={cn('text-white text-xs font-bold text-center py-1.5 shrink-0', syncMsg.startsWith('\u26a0') ? 'bg-amber-600' : 'bg-green-600')}>{syncMsg}</div>
+      )}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <ErrorBoundary>
+          {adminTab === 'users' ? (
+            <UserManagement
+              theme={theme} lang={lang}
+              toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
+              setLang={setLang}
+              onSignOut={handleSignOut}
+            />
+          ) : (
+            <Dashboard
+              theme={theme} lang={lang}
+              toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
+              setLang={setLang}
+              offlineMode={isOffline}
+              viewOnly={false}
+              accessLevel={accessLevel}
+            />
+          )}
+        </ErrorBoundary>
+      </div>
+    </div>
+  );
+
+  // Admin / Editor / Viewer
   return (
     <div className={cn('flex flex-col h-screen overflow-hidden', dk ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-900')}>
       {isViewOnly && (
-        <div className="bg-blue-600 text-white text-xs font-bold text-center py-1.5 px-4 shrink-0 flex items-center justify-center gap-2">
-          <span>👁</span>
-          {lang === 'de' ? 'Nur-Lesen-Modus — Sie können keine Änderungen vornehmen' : 'View-only mode — you cannot make changes'}
+        <div className="bg-blue-600 text-white text-xs font-bold text-center py-1.5 px-4 shrink-0">
+          \uD83D\uDC41 {lang === 'de' ? 'Nur-Lesen-Modus' : 'View-only mode'}
         </div>
       )}
       {isOffline && (
-        <div className="bg-amber-500 text-black text-xs font-bold text-center py-1.5 px-4 shrink-0 flex items-center justify-center gap-3">
-          <span>📡 {lang === 'de' ? 'Offline — Änderungen werden lokal gespeichert' : 'Offline — changes saved locally'}</span>
-          {offlineMode && (
-            <button onClick={() => setOfflineMode(false)} className="underline text-black/70 hover:text-black">
-              {lang === 'de' ? 'Wieder verbinden' : 'Go online'}
-            </button>
-          )}
+        <div className="bg-amber-500 text-black text-xs font-bold text-center py-1.5 px-4 shrink-0">
+          \uD83D\uDCE1 {lang === 'de' ? 'Offline' : 'Offline'}
         </div>
       )}
       {syncMsg && (
-        <div className={cn('text-white text-xs font-bold text-center py-1.5 px-4 shrink-0', syncMsg.startsWith('⚠') ? 'bg-amber-600' : 'bg-green-600')}>
-          {syncMsg}
-        </div>
+        <div className={cn('text-white text-xs font-bold text-center py-1.5 px-4 shrink-0', syncMsg.startsWith('\u26a0') ? 'bg-amber-600' : 'bg-green-600')}>{syncMsg}</div>
       )}
       <div className="flex-1 min-h-0 overflow-hidden">
         <ErrorBoundary>
@@ -247,7 +217,6 @@ export default function App() {
             toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
             setLang={setLang}
             offlineMode={isOffline}
-            onToggleOfflineMode={() => setOfflineMode(v => !v)}
             viewOnly={isViewOnly}
             accessLevel={accessLevel}
           />
