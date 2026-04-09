@@ -8,11 +8,12 @@ import Auth from './components/Auth';
 import Dashboard from './Dashboard';
 import UserManagement from './components/UserManagement';
 import { cn } from './lib/utils';
-import { AlertTriangle, LogOut, Clock } from 'lucide-react';
+import { LogOut, Clock, LayoutDashboard, Users } from 'lucide-react';
 
-type View     = 'landing' | 'login' | 'signup' | 'dashboard';
-type Theme    = 'dark' | 'light';
-type Language = 'de' | 'en';
+type View        = 'landing' | 'login' | 'signup' | 'dashboard';
+type AdminTab    = 'dashboard' | 'users';
+type Theme       = 'dark' | 'light';
+type Language    = 'de' | 'en';
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: string }> {
   state = { error: '' };
@@ -29,6 +30,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
 
 export default function App() {
   const [view, setView]                   = useState<View>('landing');
+  const [adminTab, setAdminTab]           = useState<AdminTab>('dashboard');
   const [loading, setLoading]             = useState(true);
   const [accessLevel, setAccessLevel]     = useState<AccessLevel | null>(null);
   const [theme, setTheme]                 = useState<Theme>('dark');
@@ -114,21 +116,7 @@ export default function App() {
     />
   );
 
-  // ── Superadmin: User Management panel ────────────────────────────────────────
-  if (accessLevel?.role === 'superadmin') return (
-    <div className={cn('flex flex-col h-screen overflow-hidden', dk ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-900')}>
-      <ErrorBoundary>
-        <UserManagement
-          theme={theme} lang={lang}
-          toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
-          setLang={setLang}
-          onSignOut={handleSignOut}
-        />
-      </ErrorBoundary>
-    </div>
-  );
-
-  // ── Pending: no access yet ─────────────────────────────────────────────────
+  // ── Pending ───────────────────────────────────────────────────────────────
   if (accessLevel?.role === 'pending') return (
     <div className={cn('min-h-screen flex flex-col items-center justify-center p-8', dk ? 'bg-[#020617] text-white' : 'bg-slate-100 text-slate-900')}>
       <div className={cn('w-full max-w-md p-10 rounded-[2.5rem] border shadow-2xl text-center', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
@@ -154,7 +142,78 @@ export default function App() {
     </div>
   );
 
-  // ── Dashboard (admin / editor / viewer) ───────────────────────────────────
+  // ── Superadmin: tab bar + either panel ────────────────────────────────────
+  if (accessLevel?.role === 'superadmin') {
+    const isOffline  = offlineMode || offlineBanner;
+    return (
+      <div className={cn('flex flex-col h-screen overflow-hidden', dk ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-900')}>
+
+        {/* Superadmin tab switcher */}
+        <div className={cn('shrink-0 flex items-center gap-1 px-4 py-2 border-b', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
+          <button
+            onClick={() => setAdminTab('dashboard')}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all',
+              adminTab === 'dashboard'
+                ? 'bg-blue-600 text-white'
+                : (dk ? 'text-slate-400 hover:bg-white/5' : 'text-slate-500 hover:bg-slate-100')
+            )}
+          >
+            <LayoutDashboard size={14} />
+            {lang === 'de' ? 'Dashboard' : 'Dashboard'}
+          </button>
+          <button
+            onClick={() => setAdminTab('users')}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all',
+              adminTab === 'users'
+                ? 'bg-yellow-500 text-black'
+                : (dk ? 'text-slate-400 hover:bg-white/5' : 'text-slate-500 hover:bg-slate-100')
+            )}
+          >
+            <Users size={14} />
+            {lang === 'de' ? 'Benutzerverwaltung' : 'User Management'}
+          </button>
+        </div>
+
+        {isOffline && (
+          <div className="bg-amber-500 text-black text-xs font-bold text-center py-1.5 px-4 shrink-0">
+            📡 {lang === 'de' ? 'Offline' : 'Offline'}
+          </div>
+        )}
+        {syncMsg && (
+          <div className={cn('text-white text-xs font-bold text-center py-1.5 shrink-0', syncMsg.startsWith('⚠') ? 'bg-amber-600' : 'bg-green-600')}>
+            {syncMsg}
+          </div>
+        )}
+
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <ErrorBoundary>
+            {adminTab === 'users' ? (
+              <UserManagement
+                theme={theme} lang={lang}
+                toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
+                setLang={setLang}
+                onSignOut={handleSignOut}
+              />
+            ) : (
+              <Dashboard
+                theme={theme} lang={lang}
+                toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
+                setLang={setLang}
+                offlineMode={isOffline}
+                onToggleOfflineMode={() => setOfflineMode(v => !v)}
+                viewOnly={false}
+                accessLevel={accessLevel}
+              />
+            )}
+          </ErrorBoundary>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Admin / Editor / Viewer ──────────────────────────────────────────────
   const isOffline  = offlineMode || offlineBanner;
   const isViewOnly = accessLevel?.role === 'viewer';
 
