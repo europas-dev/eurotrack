@@ -41,7 +41,6 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
     try {
       let emailToUse = loginId.trim();
       if (!isEmail(emailToUse)) {
-        // Treat as username — look up email
         const { data: profile, error: pErr } = await supabase
           .from('profiles').select('email').eq('username', emailToUse).maybeSingle();
         if (pErr || !profile?.email)
@@ -67,7 +66,6 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
       const email    = regEmail.trim();
       const password = regPass;
 
-      // Validation
       if (!name)     throw new Error(lang === 'de' ? 'Name erforderlich.'           : 'Full name is required.');
       if (!username) throw new Error(lang === 'de' ? 'Benutzername erforderlich.'   : 'Username is required.');
       if (username.length < 3) throw new Error(lang === 'de' ? 'Benutzername mindestens 3 Zeichen.' : 'Username must be at least 3 characters.');
@@ -75,15 +73,12 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
       if (!email || !isEmail(email)) throw new Error(lang === 'de' ? 'Gültige E-Mail erforderlich.' : 'Valid email is required.');
       if (password.length < 6) throw new Error(lang === 'de' ? 'Passwort mindestens 6 Zeichen.' : 'Password must be at least 6 characters.');
 
-      // Check username uniqueness
       const { data: existingUser } = await supabase.from('profiles').select('id').eq('username', username).maybeSingle();
       if (existingUser) throw new Error(lang === 'de' ? 'Dieser Benutzername ist bereits vergeben.' : 'This username is already taken.');
 
-      // Check email uniqueness (best effort)
       const { data: existingEmail } = await supabase.from('profiles').select('id').eq('email', email).maybeSingle();
       if (existingEmail) throw new Error(lang === 'de' ? 'Diese E-Mail ist bereits registriert.' : 'This email is already registered.');
 
-      // Create Supabase auth user
       const { data, error } = await supabase.auth.signUp({
         email, password,
         options: { data: { full_name: name, username } },
@@ -91,10 +86,10 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
       if (error) throw error;
       if (!data.user) throw new Error(lang === 'de' ? 'Registrierung fehlgeschlagen.' : 'Signup failed — please try again.');
 
-      // Save profile row
+      // New users default to 'pending' — superadmin must approve them
       try {
         await supabase.from('profiles').upsert(
-          { id: data.user.id, email, username, full_name: name, role: 'admin' },
+          { id: data.user.id, email, username, full_name: name, role: 'pending' },
           { onConflict: 'id' }
         );
       } catch (profileErr) {
@@ -105,8 +100,8 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
         // Logged in immediately — auth state change handles redirect
       } else {
         setSuccess(lang === 'de'
-          ? 'Konto erstellt! Bitte bestätige deine E-Mail und melde dich dann an.'
-          : 'Account created! Please confirm your email then log in.');
+          ? 'Konto erstellt! Bitte bestätige deine E-Mail. Nach der Bestätigung musst du auf die Freigabe durch einen Administrator warten.'
+          : 'Account created! Please confirm your email. After confirmation, you will need to wait for administrator approval.');
         setMode('login');
       }
     } catch (err: any) {
@@ -154,7 +149,6 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
           </div>
         )}
 
-        {/* ── LOGIN FORM ── */}
         {mode === 'login' && (
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="relative">
@@ -182,10 +176,8 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
           </form>
         )}
 
-        {/* ── SIGNUP FORM ── */}
         {mode === 'signup' && (
           <form onSubmit={handleSignup} className="space-y-4">
-            {/* Full Name */}
             <div className="relative">
               <User className="absolute left-4 top-4 opacity-30" size={20} />
               <input type="text"
@@ -193,7 +185,6 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
                 required value={regName} onChange={e => setRegName(e.target.value)}
                 autoComplete="name" className={inputClass} />
             </div>
-            {/* Username */}
             <div className="relative">
               <AtSign className="absolute left-4 top-4 opacity-30" size={20} />
               <input type="text"
@@ -204,15 +195,12 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
             <p className={cn('text-[11px] -mt-2 px-1', isDark ? 'text-slate-500' : 'text-slate-400')}>
               {lang === 'de' ? 'Buchstaben, Zahlen, _ . — zum Einloggen verwendet' : 'Letters, numbers, _ . only — used to log in'}
             </p>
-            {/* Email */}
             <div className="relative">
               <Mail className="absolute left-4 top-4 opacity-30" size={20} />
-              <input type="email"
-                placeholder="Email"
+              <input type="email" placeholder="Email"
                 required value={regEmail} onChange={e => setRegEmail(e.target.value)}
                 autoComplete="email" className={inputClass} />
             </div>
-            {/* Password */}
             <div className="relative">
               <Lock className="absolute left-4 top-4 opacity-30" size={20} />
               <input type={showPass ? 'text' : 'password'}

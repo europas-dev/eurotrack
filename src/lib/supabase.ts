@@ -26,11 +26,10 @@ export type UserRole = 'superadmin' | 'admin' | 'editor' | 'viewer' | 'pending'
 export type AccessLevel =
   | { role: 'superadmin' }
   | { role: 'admin' }
-  | { role: 'editor'; hotelIds: string[]; ownerId: string }
-  | { role: 'viewer'; hotelIds: string[]; ownerId: string }
+  | { role: 'editor' }
+  | { role: 'viewer' }
   | { role: 'pending' }
 
-// Race a promise against a timeout
 function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
   return Promise.race([
     promise,
@@ -41,10 +40,8 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
 export async function getMyAccessLevel(): Promise<AccessLevel> {
   try {
     const { data: { user }, error: authErr } = await supabase.auth.getUser()
-    // Not authenticated at all — send to login, not admin
     if (authErr || !user) return { role: 'pending' }
 
-    // Fetch this user's profile role
     const profileResult = await withTimeout(
       supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
       3000,
@@ -55,34 +52,13 @@ export async function getMyAccessLevel(): Promise<AccessLevel> {
 
     if (role === 'superadmin') return { role: 'superadmin' }
     if (role === 'admin')      return { role: 'admin' }
+    if (role === 'editor')     return { role: 'editor' }
+    if (role === 'viewer')     return { role: 'viewer' }
 
-    // Check if this user was invited as a collaborator by someone
-    const collabResult = await withTimeout(
-      supabase
-        .from('collaborators')
-        .select('hotel_id, role, owner_id')
-        .eq('user_id', user.id),
-      3000,
-      { data: [], error: null }
-    )
-
-    const collabs = (collabResult.data as any[]) ?? []
-    if (collabs.length > 0) {
-      const hasEditor = collabs.some((c: any) => c.role === 'editor')
-      const hotelIds  = collabs.map((c: any) => c.hotel_id).filter(Boolean)
-      // ownerId = the admin who invited this user — used to filter hotels
-      const ownerId   = collabs[0]?.owner_id ?? ''
-      return hasEditor
-        ? { role: 'editor', hotelIds, ownerId }
-        : { role: 'viewer', hotelIds, ownerId }
-    }
-
-    // Profile exists but has no recognised role → pending approval
-    // (do NOT fall back to admin — that's the security hole)
+    // No recognised role → pending
     return { role: 'pending' }
 
   } catch {
-    // Any unexpected crash → pending, never admin
     return { role: 'pending' }
   }
 }
@@ -179,10 +155,9 @@ export async function searchProfiles(query: string): Promise<any[]> {
   if (!query || query.trim().length < 2) return []
   try {
     const { data: { user } } = await supabase.auth.getUser()
-    // Exclude the current user from search results
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, email, full_name, username, avatar_url')
+      .select('id, email, full_name, username, avatar_url, role')
       .or(`email.ilike.%${query.trim()}%,full_name.ilike.%${query.trim()}%,username.ilike.%${query.trim()}%`)
       .neq('id', user?.id ?? '')
       .limit(10)
@@ -191,68 +166,61 @@ export async function searchProfiles(query: string): Promise<any[]> {
   } catch { return [] }
 }
 
-// ─── Collaborators ────────────────────────────────────────────────────────────
-// Signature: inviteCollaborator(userId, role)
-// hotel_id is always null — invites give access to the entire dashboard
+// ─── Collaborators (invite existing users as editor or viewer) ─────────────────
+// Only admin and superadmin can call these.
 export async function inviteCollaborator(userId: string, role: 'viewer' | 'editor'): Promise<any> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
+  // For a company-wide system, set role directly on the profiles table
   const { data, error } = await supabase
-    .from('collaborators')
-    .upsert({
-      owner_id:   user.id,
-      hotel_id:   null,          // null = access to entire dashboard
-      user_id:    userId,
-      role,
-      invited_at: new Date().toISOString(),
-    }, { onConflict: 'owner_id,user_id,hotel_id' })
+    .from('profiles')
+    .update({ role })
+    .eq('id', userId)
     .select().single()
   if (error) throw error
   return data
 }
 
-export async function updateCollaboratorPermission(userId: string, role: 'viewer' | 'editor'): Promise<any> {
+export async function updateCollaboratorPermission(userId: string, role: 'viewer' | 'editor' | 'admin'): Promise<any> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
-    .from('collaborators')
+    .from('profiles')
     .update({ role })
-    .eq('owner_id', user.id)
-    .eq('user_id', userId)
+    .eq('id', userId)
     .select().single()
   if (error) throw error
   return data
 }
 
 export async function removeCollaborator(userId: string): Promise<void> {
+  // Removing = setting back to pending so superadmin can reassign
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
   const { error } = await supabase
-    .from('collaborators')
-    .delete()
-    .eq('owner_id', user.id)
-    .eq('user_id', userId)
+    .from('profiles')
+    .update({ role: 'pending' })
+    .eq('id', userId)
   if (error) throw error
 }
 
 export async function getCollaborators(): Promise<any[]> {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return []
+    // Returns all non-superadmin, non-pending users (i.e. people with actual access)
     const { data, error } = await supabase
-      .from('collaborators')
-      .select('id, user_id, role, invited_at, hotel_id, profiles(id, email, full_name, avatar_url)')
-      .eq('owner_id', user.id)
+      .from('profiles')
+      .select('id, email, full_name, avatar_url, role, created_at')
+      .in('role', ['admin', 'editor', 'viewer'])
+      .order('created_at', { ascending: true })
     if (error) return []
-    return (data ?? []).map((c: any) => ({
-      id:         c.id,
-      userId:     c.user_id,
-      role:       c.role,
-      hotelId:    c.hotel_id,
-      email:      c.profiles?.email     ?? '',
-      fullName:   c.profiles?.full_name ?? '',
-      full_name:  c.profiles?.full_name ?? '',
-      avatar_url: c.profiles?.avatar_url ?? null,
+    return (data ?? []).map((p: any) => ({
+      id:         p.id,
+      userId:     p.id,
+      role:       p.role,
+      email:      p.email     ?? '',
+      fullName:   p.full_name ?? '',
+      full_name:  p.full_name ?? '',
+      avatar_url: p.avatar_url ?? null,
     }))
   } catch { return [] }
 }
@@ -334,21 +302,14 @@ function normalizeHotel(h: any): any {
   }
 }
 
-// ─── Hotels ───────────────────────────────────────────────────────────────────
-// getHotels: returns only hotels owned by the current user.
-// For collaborators, pass ownerId to see that owner's hotels instead.
-export async function getHotels(ownerId?: string) {
+// ─── Hotels — company-wide, no owner filter ───────────────────────────────────
+export async function getHotels() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
-
-  // Use ownerId if provided (collaborator viewing someone else's hotels),
-  // otherwise use the current user's own id.
-  const targetOwnerId = ownerId ?? user.id
 
   const { data, error } = await supabase
     .from('hotels')
     .select('*, durations(*, employees(*))')
-    .eq('owner_id', targetOwnerId)
     .order('created_at', { ascending: false })
   if (error) throw error
   return (data ?? []).map(normalizeHotel).filter(Boolean)
@@ -373,7 +334,6 @@ export async function createHotel(data: {
     : (data.companyTag ? [data.companyTag] : [])
 
   const insertPayload: any = {
-    owner_id:      user.id,           // ← every hotel is owned by the creator
     name:          data.name,
     city:          data.city          ?? null,
     companytag:    serialiseCompanyTag(tags),

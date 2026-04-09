@@ -6,11 +6,11 @@ import Landing from './components/Landing';
 import Auth from './components/Auth';
 import Dashboard from './Dashboard';
 import UserManagement from './components/UserManagement';
+import SuperAdminHome from './components/SuperAdminHome';
 import { cn } from './lib/utils';
-import { LogOut, Clock, LayoutDashboard, Users } from 'lucide-react';
+import { LogOut, Clock } from 'lucide-react';
 
-type View     = 'landing' | 'login' | 'signup' | 'dashboard';
-type AdminTab = 'dashboard' | 'users';
+type View = 'landing' | 'login' | 'signup' | 'admin-login' | 'dashboard' | 'superadmin-home' | 'user-management';
 type Theme    = 'dark' | 'light';
 type Language = 'de' | 'en';
 
@@ -29,7 +29,6 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
 
 export default function App() {
   const [view,          setView]         = useState<View>('landing');
-  const [adminTab,      setAdminTab]     = useState<AdminTab>('dashboard');
   const [loading,       setLoading]      = useState(true);
   const [accessLevel,   setAccessLevel]  = useState<AccessLevel | null>(null);
   const [theme,         setTheme]        = useState<Theme>('dark');
@@ -38,19 +37,24 @@ export default function App() {
 
   const dk = theme === 'dark';
 
-  // Resolve access level — never triggers a loading flash mid-session
+  // After login, route to the correct view based on role
   const resolveAccess = useCallback(async () => {
     try {
       const access = await getMyAccessLevel();
       setAccessLevel(access);
-      setView('dashboard');
+      if (access.role === 'superadmin') {
+        setView('superadmin-home'); // superadmin sees the two-card home first
+      } else if (access.role === 'pending') {
+        setView('dashboard'); // pending screen is rendered inside dashboard route
+      } else {
+        setView('dashboard'); // admin / editor / viewer go straight to dashboard
+      }
     } catch {
-      // network blip — keep current session, do not blank the screen
+      // network blip — keep current state
     }
   }, []);
 
   useEffect(() => {
-    // One-time initial auth check on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         resolveAccess();
@@ -60,9 +64,6 @@ export default function App() {
       setLoading(false);
     });
 
-    // Only react to genuine login / logout events.
-    // TOKEN_REFRESHED is intentionally excluded — it fires silently every ~55 min
-    // and used to cause the entire dashboard to blank + reload.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
         if (session?.user) await resolveAccess();
@@ -70,8 +71,6 @@ export default function App() {
         setAccessLevel(null);
         setView('landing');
       }
-      // INITIAL_SESSION — already handled by getSession() above, ignore.
-      // TOKEN_REFRESHED — intentionally ignored (no screen blank).
     });
 
     const handleOnline  = () => setOfflineBanner(false);
@@ -91,6 +90,7 @@ export default function App() {
     setView('landing');
   }
 
+  // ── Loading splash ────────────────────────────────────────────────────────
   if (loading) return (
     <div className="min-h-screen bg-[#020617] flex items-center justify-center">
       <div className="text-center">
@@ -100,24 +100,27 @@ export default function App() {
     </div>
   );
 
+  // ── Landing page ─────────────────────────────────────────────────────────
   if (view === 'landing') return (
     <Landing
-      onLogin={()    => setView('login')}
-      onRegister={() => setView('signup')}
+      onLogin={()       => setView('login')}
+      onRegister={()    => setView('signup')}
+      onAdminLogin={()  => setView('admin-login')}
       lang={lang} setLang={setLang}
       isDarkMode={dk} toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
     />
   );
 
-  if (view === 'login' || view === 'signup') return (
+  // ── Auth screens ─────────────────────────────────────────────────────────
+  if (view === 'login' || view === 'signup' || view === 'admin-login') return (
     <Auth
-      initialMode={view === 'signup' ? 'signup' : 'login'}
+      initialMode='login'
       onBack={() => setView('landing')}
       lang={lang} theme={theme}
     />
   );
 
-  // Pending approval
+  // ── Pending approval ──────────────────────────────────────────────────────
   if (accessLevel?.role === 'pending') return (
     <div className={cn('min-h-screen flex flex-col items-center justify-center p-8',
       dk ? 'bg-[#020617] text-white' : 'bg-slate-100 text-slate-900')}>
@@ -131,8 +134,8 @@ export default function App() {
         </h2>
         <p className={cn('text-sm mb-8 leading-relaxed', dk ? 'text-slate-400' : 'text-slate-500')}>
           {lang === 'de'
-            ? 'Ihr Konto wurde erstellt, wartet aber noch auf die Freigabe.'
-            : 'Your account has been created but is waiting for approval.'}
+            ? 'Ihr Konto wurde erstellt, wartet aber noch auf die Freigabe durch einen Administrator.'
+            : 'Your account has been created but is awaiting approval by an administrator.'}
         </p>
         <button
           onClick={handleSignOut}
@@ -144,70 +147,45 @@ export default function App() {
     </div>
   );
 
-  const isViewOnly = accessLevel?.role === 'viewer';
+  // ── Superadmin home — two-card picker ────────────────────────────────────
+  if (view === 'superadmin-home' && accessLevel?.role === 'superadmin') return (
+    <SuperAdminHome
+      onDashboard={()       => setView('dashboard')}
+      onUserManagement={()  => setView('user-management')}
+      onSignOut={handleSignOut}
+      lang={lang}
+      theme={theme}
+    />
+  );
 
-  // For collaborators (editor/viewer), pass the owner's id so Dashboard
-  // fetches ONLY that owner's hotels — not the collaborator's own (empty) list.
-  const hotelOwnerId =
-    (accessLevel?.role === 'editor' || accessLevel?.role === 'viewer')
-      ? (accessLevel as any).ownerId
-      : undefined;
-
-  // Superadmin: tab layout with Dashboard + User Management
-  if (accessLevel?.role === 'superadmin') return (
+  // ── Superadmin — User Management panel ───────────────────────────────────
+  if (view === 'user-management' && accessLevel?.role === 'superadmin') return (
     <div className={cn('flex flex-col h-screen overflow-hidden',
       dk ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-900')}>
-      {/* Offline banner */}
-      {offlineBanner && (
-        <div className="bg-amber-500 text-black text-xs font-bold text-center py-1.5 px-4 shrink-0">📡 Offline</div>
-      )}
-      {/* Admin tab bar */}
-      <div className={cn('shrink-0 flex items-center gap-1 px-4 py-2 border-b',
-        dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
-        <button
-          onClick={() => setAdminTab('dashboard')}
-          className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all',
-            adminTab === 'dashboard'
-              ? 'bg-blue-600 text-white'
-              : dk ? 'text-slate-400 hover:bg-white/5' : 'text-slate-500 hover:bg-slate-100')}>
-          <LayoutDashboard size={14} />
-          Dashboard
-        </button>
-        <button
-          onClick={() => setAdminTab('users')}
-          className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all',
-            adminTab === 'users'
-              ? 'bg-yellow-500 text-black'
-              : dk ? 'text-slate-400 hover:bg-white/5' : 'text-slate-500 hover:bg-slate-100')}>
-          <Users size={14} />
-          {lang === 'de' ? 'Benutzerverwaltung' : 'User Management'}
-        </button>
-      </div>
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <ErrorBoundary>
-          {adminTab === 'users' ? (
-            <UserManagement
-              theme={theme} lang={lang}
-              toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
-              setLang={setLang}
-              onSignOut={handleSignOut}
-            />
-          ) : (
-            <Dashboard
-              theme={theme} lang={lang}
-              toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
-              setLang={setLang}
-              offlineMode={offlineBanner}
-              viewOnly={false}
-              accessLevel={accessLevel}
-            />
-          )}
-        </ErrorBoundary>
-      </div>
+      <ErrorBoundary>
+        <UserManagement
+          theme={theme} lang={lang}
+          toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
+          setLang={setLang}
+          onSignOut={handleSignOut}
+          onBack={() => setView('superadmin-home')}
+        />
+      </ErrorBoundary>
     </div>
   );
 
-  // Admin / Editor / Viewer
+  // ── Dashboard (admin / editor / viewer / superadmin visiting dashboard) ──
+  const isViewOnly = accessLevel?.role === 'viewer';
+
+  // When superadmin signs out from dashboard, go back to superadmin-home
+  const handleDashboardSignOut = async () => {
+    if (accessLevel?.role === 'superadmin') {
+      setView('superadmin-home');
+    } else {
+      await handleSignOut();
+    }
+  };
+
   return (
     <div className={cn('flex flex-col h-screen overflow-hidden',
       dk ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-900')}>
@@ -230,7 +208,7 @@ export default function App() {
             offlineMode={offlineBanner}
             viewOnly={isViewOnly}
             accessLevel={accessLevel}
-            hotelOwnerId={hotelOwnerId}
+            onSignOut={handleDashboardSignOut}
           />
         </ErrorBoundary>
       </div>
