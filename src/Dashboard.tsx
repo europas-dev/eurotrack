@@ -233,24 +233,26 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang }: Dashboa
     a.click()
     URL.revokeObjectURL(url)
   }
-
-  function handleExportCSV() {
-    const rows = [
-      ['Hotel','City','Company','Durations','Total Nights','Free Beds','Total Cost (EUR)'],
-      ...filtered.map((h: any) => [
-        h.name ?? '', h.city ?? '', h.companyTag ?? '',
-        h.durations?.length ?? 0,
-        calcNights(h), calcFreeBeds(h),
-        calcCost(h).toFixed(2)
-      ])
-    ]
-    const csv = rows.map((r: any[]) =>
-      r.map((v: any) => `"${String(v).replace(/"/g, '""')}"`).join(',')
-    ).join('
+    function handleExportCSV() {
+  const rows = [
+    ['Hotel','City','Company','Durations','Total Nights','Free Beds','Total Cost (EUR)'],
+    ...filtered.map((h: any) => [
+      h.name ?? '', h.city ?? '', h.companyTag ?? '',
+      h.durations?.length ?? 0,
+      calcNights(h), calcFreeBeds(h),
+      calcCost(h).toFixed(2)
+    ])
+  ]
+  const csv = rows.map((r: any[]) =>
+    r.map((v: any) => `"${String(v).replace(/"/g, '""')}"`).join(',')
+  ).join('
 ')
-    triggerDownload(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `eurotrack-${new Date().toISOString().split('T')[0]}.csv`)
-    setShowExportMenu(false)
-  }
+  triggerDownload(
+    new Blob([csv], { type: 'text/csv;charset=utf-8' }),
+    `eurotrack-${new Date().toISOString().split('T')[0]}.csv`
+  )
+  setShowExportMenu(false)
+}
 
   function handleExportXLSX() {
     // Stub — replace with SheetJS when installed
