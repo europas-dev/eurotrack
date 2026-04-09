@@ -34,9 +34,10 @@ interface DashboardProps {
 }
 
 // ─── Inline new-hotel row ─────────────────────────────────────────────────────
-function NewHotelRow({ isDarkMode, lang, onSave, onCancel }: {
+function NewHotelRow({ isDarkMode, lang, onSave, onCancel, companyOptions, cityOptions }: {
   isDarkMode: boolean; lang: Language
   onSave: (hotel: any) => void; onCancel: () => void
+  companyOptions: string[]; cityOptions: string[]
 }) {
   const dk = isDarkMode
   const [name, setName] = useState('')
@@ -46,16 +47,20 @@ function NewHotelRow({ isDarkMode, lang, onSave, onCancel }: {
   const [err, setErr] = useState('')
   const nameRef = useRef<HTMLInputElement>(null)
   useEffect(() => { nameRef.current?.focus() }, [])
-  const canSave = name.trim().length > 0 && city.trim().length > 0 && tag.trim().length > 0
+  // Only hotel name is required
+  const canSave = name.trim().length > 0
 
   async function handleSave() {
     if (!canSave) return
     setErr('')
     try {
       setSaving(true)
-      const newHotel = await createHotel({ name: name.trim(), city: city.trim(), companyTag: tag.trim() })
+      const newHotel = await createHotel({
+        name: name.trim(),
+        city: city.trim() || null,
+        companyTag: tag.trim() || null,
+      })
       if (!newHotel || !newHotel.id) throw new Error('Hotel creation returned no data')
-      // Always guarantee durations array exists so HotelRow never crashes
       onSave({ ...newHotel, durations: newHotel.durations ?? [] })
     } catch (e: any) {
       setErr(e?.message || 'Failed to create hotel')
@@ -76,15 +81,39 @@ function NewHotelRow({ isDarkMode, lang, onSave, onCancel }: {
         <div className="w-8 h-8 bg-blue-600/30 rounded-lg flex items-center justify-center flex-shrink-0">
           <Building2 size={16} className="text-blue-400" />
         </div>
-        <input ref={nameRef} value={name} onChange={e => setName(e.target.value)}
+        {/* Hotel name — required */}
+        <input
+          ref={nameRef} value={name} onChange={e => setName(e.target.value)}
           placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel name...'}
-          onKeyDown={e => e.key === 'Enter' && handleSave()} className={cn(ic, 'w-52')} />
-        <input value={city} onChange={e => setCity(e.target.value)}
-          placeholder={lang === 'de' ? 'Stadt...' : 'City...'}
-          onKeyDown={e => e.key === 'Enter' && handleSave()} className={cn(ic, 'w-36')} />
-        <input value={tag} onChange={e => setTag(e.target.value)}
-          placeholder={lang === 'de' ? 'Firma...' : 'Company...'}
-          onKeyDown={e => e.key === 'Enter' && handleSave()} className={cn(ic, 'w-36')} />
+          onKeyDown={e => e.key === 'Enter' && handleSave()}
+          className={cn(ic, 'w-52')}
+        />
+        {/* City — optional, with datalist */}
+        <div className="relative">
+          <input
+            list="new-hotel-city-list"
+            value={city} onChange={e => setCity(e.target.value)}
+            placeholder={lang === 'de' ? 'Stadt (optional)' : 'City (optional)'}
+            onKeyDown={e => e.key === 'Enter' && handleSave()}
+            className={cn(ic, 'w-36')}
+          />
+          <datalist id="new-hotel-city-list">
+            {cityOptions.map(x => <option key={x} value={x} />)}
+          </datalist>
+        </div>
+        {/* Company — optional, with datalist */}
+        <div className="relative">
+          <input
+            list="new-hotel-company-list"
+            value={tag} onChange={e => setTag(e.target.value)}
+            placeholder={lang === 'de' ? 'Firma (optional)' : 'Company (optional)'}
+            onKeyDown={e => e.key === 'Enter' && handleSave()}
+            className={cn(ic, 'w-36')}
+          />
+          <datalist id="new-hotel-company-list">
+            {companyOptions.map(x => <option key={x} value={x} />)}
+          </datalist>
+        </div>
         <button onClick={handleSave} disabled={saving || !canSave}
           className="p-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-lg">
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
@@ -137,14 +166,12 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
     try {
       setLoading(true); setError('')
       const raw = await getHotels()
-      // Guarantee every hotel has a durations array so HotelRow never crashes
       setHotels((raw ?? []).map((h: any) => ({ ...h, durations: h.durations ?? [] })))
     }
     catch (e: any) { setError(e.message || 'Failed to load') }
     finally { setLoading(false) }
   }
 
-  // Derived: unique company/city lists for autocomplete
   const companyOptions = useMemo(() => Array.from(new Set(hotels.map((h: any) => h.companyTag).filter(Boolean))).sort() as string[], [hotels])
   const cityOptions    = useMemo(() => Array.from(new Set(hotels.map((h: any) => h.city).filter(Boolean))).sort() as string[], [hotels])
 
@@ -424,6 +451,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
           {addingHotel && (
             <NewHotelRow
               isDarkMode={dk} lang={lang}
+              companyOptions={companyOptions}
+              cityOptions={cityOptions}
               onSave={h => { setHotels(prev => [h, ...prev]); setAddingHotel(false) }}
               onCancel={() => setAddingHotel(false)}
             />

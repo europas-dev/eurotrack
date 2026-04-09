@@ -15,7 +15,6 @@ interface HotelRowProps {
   cityOptions?: string[];
   onDelete: (id: string) => void;
   onUpdate: (id: string, updated: any) => void;
-  onAddBelow?: (afterHotelId: string) => void;
 }
 
 export function HotelRow({
@@ -26,7 +25,6 @@ export function HotelRow({
   cityOptions = [],
   onDelete,
   onUpdate,
-  onAddBelow,
 }: HotelRowProps) {
   const dk = isDarkMode;
   const [open, setOpen] = useState(false);
@@ -145,14 +143,14 @@ export function HotelRow({
           onClick={() => setOpen(o => !o)}
         >
 
-          {/* COL 1 — chevron (narrow, 40px) */}
+          {/* COL 1 — chevron */}
           <div className="flex items-center justify-center flex-shrink-0 px-3" style={{ width: 40 }}>
             {open
               ? <ChevronDown  size={16} className={dk ? 'text-blue-400' : 'text-blue-600'} />
               : <ChevronRight size={16} className={dk ? 'text-slate-500' : 'text-slate-400'} />}
           </div>
 
-          {/* COL 2 — Hotel name + city (wraps, min 160px) */}
+          {/* COL 2 — Hotel name + city (inline editable) */}
           <div className="py-3 pr-3 flex-shrink-0" style={{ width: 180, minWidth: 120 }}>
             <p
               className={cn('text-sm font-black leading-snug break-words', dk ? 'text-white' : 'text-slate-900')}
@@ -169,46 +167,36 @@ export function HotelRow({
                 {localHotel.name}
               </span>
             </p>
+            {/* City — inline editable with datalist suggestions */}
             <p
               className={cn('text-[11px] uppercase tracking-widest leading-tight break-words mt-0.5', dk ? 'text-slate-500' : 'text-slate-400')}
               style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}
               onClick={e => e.stopPropagation()}
             >
-              <span
-                contentEditable
-                suppressContentEditableWarning
-                onBlur={e => patchHotel({ city: e.currentTarget.textContent || '' })}
-                className="outline-none cursor-text focus:underline"
-              >
-                {localHotel.city}
-              </span>
+              <CityInlineEdit
+                value={localHotel.city || ''}
+                options={cityOptions}
+                isDarkMode={dk}
+                hotelId={localHotel.id}
+                onChange={val => patchHotel({ city: val })}
+              />
             </p>
           </div>
 
-          {/* COL 3 — Company chips (wraps, min 100px) */}
+          {/* COL 3 — Company chips (inline editable) */}
           <div className="py-3 pr-3 flex-shrink-0" style={{ width: 130, minWidth: 80 }}>
-            <div className="flex flex-wrap gap-1">
-              {(Array.isArray(localHotel.companyTag)
-                ? localHotel.companyTag
-                : localHotel.companyTag ? [localHotel.companyTag] : []
-              ).map((c: string, i: number) => (
-                <span
-                  key={i}
-                  className={cn(
-                    'px-2 py-0.5 rounded-full text-[10px] font-bold break-words',
-                    dk ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-700'
-                  )}
-                >
-                  {c}
-                </span>
-              ))}
-              {!localHotel.companyTag && (
-                <span className={cn('text-[10px]', dk ? 'text-slate-600' : 'text-slate-300')}>—</span>
-              )}
-            </div>
+            <CompanyInlineEdit
+              value={Array.isArray(localHotel.companyTag)
+                ? localHotel.companyTag[0] || ''
+                : localHotel.companyTag || ''}
+              options={companyOptions}
+              isDarkMode={dk}
+              hotelId={localHotel.id}
+              onChange={val => patchHotel({ companyTag: val || null })}
+            />
           </div>
 
-          {/* COL 4 — Duration chips (2 per line, wraps) */}
+          {/* COL 4 — Duration chips */}
           <div className="py-3 pr-3 flex-1 min-w-[180px]">
             <div
               className="grid gap-1"
@@ -232,7 +220,7 @@ export function HotelRow({
             </div>
           </div>
 
-          {/* COL 5 — Employees (4 per line, wraps) */}
+          {/* COL 5 — Employees */}
           <div className="py-3 pr-3 flex-1 min-w-[160px]">
             <div
               className="grid gap-1"
@@ -257,7 +245,7 @@ export function HotelRow({
             </div>
           </div>
 
-          {/* ── NARROW STAT COLUMNS (right side, fixed widths, single-line) ── */}
+          {/* ── NARROW STAT COLUMNS ── */}
 
           {/* COL 6 — Total Nights */}
           <div className={cn(narrowStatCls, 'py-3 px-2 border-l', dk ? 'border-white/10' : 'border-slate-100')} style={{ width: 64 }}>
@@ -277,7 +265,7 @@ export function HotelRow({
             <p className={cn(statNumCls, dk ? 'text-slate-300' : 'text-slate-700')}>{totalBeds}</p>
           </div>
 
-          {/* COL 9 — Total Cost (Brutto or total) */}
+          {/* COL 9 — Total Cost */}
           <div className={cn(narrowStatCls, 'py-3 px-3 border-l', dk ? 'border-white/10' : 'border-slate-100')} style={{ width: 100 }}>
             <p className={cn(statLblCls)}>{lang === 'de' ? 'Kosten' : 'Cost'}</p>
             <p className={cn(statNumCls, dk ? 'text-white' : 'text-slate-900')} style={{ fontSize: 12 }}>
@@ -285,7 +273,7 @@ export function HotelRow({
             </p>
           </div>
 
-          {/* COL 10 — Last Updated (clock icon + tooltip) */}
+          {/* COL 10 — Last Updated */}
           <div
             className={cn('py-3 px-2 border-l flex flex-col items-center justify-center flex-shrink-0', dk ? 'border-white/10' : 'border-slate-100')}
             style={{ width: 40 }}
@@ -303,34 +291,7 @@ export function HotelRow({
             className={cn('border-t p-4 space-y-4', dk ? 'border-white/10 bg-white/[0.02]' : 'border-slate-200 bg-slate-50/50')}
             onClick={e => e.stopPropagation()}
           >
-
-            {/* Hotel name / City / Company — inline editable inputs */}
-            <div className="flex items-center gap-3 flex-wrap">
-              {[
-                { key: 'name',       label: lang === 'de' ? 'Hotelname'  : 'Hotel name', placeholder: 'Hotel...',                                  width: 'w-44', list: undefined },
-                { key: 'city',       label: lang === 'de' ? 'Stadt'      : 'City',       placeholder: lang === 'de' ? 'Stadt...' : 'City...',       width: 'w-36', list: `city-list-${localHotel.id}` },
-                { key: 'companyTag', label: lang === 'de' ? 'Firma'      : 'Company',    placeholder: lang === 'de' ? 'Firma...' : 'Company...',    width: 'w-36', list: `company-list-${localHotel.id}` },
-              ].map(({ key, label, placeholder, width, list }) => (
-                <div key={key} className="flex flex-col gap-0.5">
-                  <label className={cn('text-[10px] font-bold uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')}>{label}</label>
-                  <input
-                    list={list}
-                    className={cn(inputCls, width)}
-                    value={(localHotel as any)[key] || ''}
-                    onChange={e => patchHotel({ [key]: e.target.value })}
-                    placeholder={placeholder}
-                  />
-                </div>
-              ))}
-              <datalist id={`city-list-${localHotel.id}`}>
-                {cityOptions.map(x => <option key={x} value={x} />)}
-              </datalist>
-              <datalist id={`company-list-${localHotel.id}`}>
-                {companyOptions.map(x => <option key={x} value={x} />)}
-              </datalist>
-            </div>
-
-            {/* Single row: Address / Contact person / Phone / Email / Website */}
+            {/* Address / Contact / Phone / Email / Website */}
             <div className="flex items-end gap-3 flex-wrap">
               {[
                 { key: 'address',       label: lang === 'de' ? 'Adresse'         : 'Address',        placeholder: lang === 'de' ? 'Adresse...'         : 'Address...',        width: 'w-44' },
@@ -454,20 +415,6 @@ export function HotelRow({
         )}
       </div>
 
-      {/* Add hotel below */}
-      <div className="flex justify-center">
-        <button
-          onClick={() => onAddBelow?.(localHotel.id)}
-          className={cn(
-            'px-3 py-1 rounded-full text-[11px] flex items-center gap-1 transition-all',
-            dk ? 'text-slate-500 hover:text-blue-400' : 'text-slate-400 hover:text-blue-500'
-          )}
-        >
-          <Plus size={11} />
-          {lang === 'de' ? 'Hotel darunter hinzufügen' : 'Add hotel below'}
-        </button>
-      </div>
-
       {/* Delete confirm */}
       {confirmDelete && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4">
@@ -493,6 +440,98 @@ export function HotelRow({
         </div>
       )}
     </div>
+  );
+}
+
+// ── City inline-edit with datalist ─────────────────────────────────────────
+function CityInlineEdit({ value, options, isDarkMode, hotelId, onChange }: {
+  value: string; options: string[]; isDarkMode: boolean; hotelId: string;
+  onChange: (val: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const listId = `city-dl-${hotelId}`;
+
+  if (!editing) {
+    return (
+      <span
+        onClick={e => { e.stopPropagation(); setDraft(value); setEditing(true); }}
+        className="cursor-text hover:underline outline-none"
+      >
+        {value || <span className={isDarkMode ? 'text-slate-600' : 'text-slate-300'}>—</span>}
+      </span>
+    );
+  }
+  return (
+    <span onClick={e => e.stopPropagation()}>
+      <input
+        autoFocus
+        list={listId}
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={() => { onChange(draft); setEditing(false); }}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { onChange(draft); setEditing(false); }
+          if (e.key === 'Escape') setEditing(false);
+        }}
+        className={cn(
+          'text-[11px] uppercase tracking-widest outline-none border-b bg-transparent w-28',
+          isDarkMode ? 'border-blue-500 text-slate-300' : 'border-blue-500 text-slate-500'
+        )}
+      />
+      <datalist id={listId}>
+        {options.map(o => <option key={o} value={o} />)}
+      </datalist>
+    </span>
+  );
+}
+
+// ── Company inline-edit with datalist ──────────────────────────────────────
+function CompanyInlineEdit({ value, options, isDarkMode, hotelId, onChange }: {
+  value: string; options: string[]; isDarkMode: boolean; hotelId: string;
+  onChange: (val: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const listId = `company-dl-${hotelId}`;
+
+  if (!editing) {
+    return (
+      <div className="flex flex-wrap gap-1" onClick={e => { e.stopPropagation(); setDraft(value); setEditing(true); }}>
+        {value ? (
+          <span className={cn(
+            'px-2 py-0.5 rounded-full text-[10px] font-bold cursor-text hover:opacity-80',
+            isDarkMode ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-700'
+          )}>
+            {value}
+          </span>
+        ) : (
+          <span className={cn('text-[10px] cursor-text', isDarkMode ? 'text-slate-600' : 'text-slate-300')}>—</span>
+        )}
+      </div>
+    );
+  }
+  return (
+    <span onClick={e => e.stopPropagation()}>
+      <input
+        autoFocus
+        list={listId}
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={() => { onChange(draft); setEditing(false); }}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { onChange(draft); setEditing(false); }
+          if (e.key === 'Escape') setEditing(false);
+        }}
+        className={cn(
+          'text-[10px] outline-none border-b bg-transparent w-28',
+          isDarkMode ? 'border-blue-500 text-purple-300' : 'border-blue-500 text-purple-700'
+        )}
+      />
+      <datalist id={listId}>
+        {options.map(o => <option key={o} value={o} />)}
+      </datalist>
+    </span>
   );
 }
 
