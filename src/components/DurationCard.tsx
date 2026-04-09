@@ -34,16 +34,23 @@ export default function DurationCard({
 
   useEffect(() => { setLocal(duration); }, [duration]);
 
-  const totalBeds = getTotalBeds(local.roomType, local.numberOfRooms);
-  const nights = calculateNights(local.startDate, local.endDate);
+  const roomCount   = Math.max(1, Number(local.numberOfRooms || 1));
+  const totalBeds   = getTotalBeds(local.roomType, local.numberOfRooms);
+  const nights      = calculateNights(local.startDate, local.endDate);
   const nightlyPrices = local.nightlyPrices || {};
-  const allNights = useMemo(() => getNightsBetween(local.startDate, local.endDate), [local.startDate, local.endDate]);
-  const gaps = getDurationGapInfo(local);
-  const total = getDurationTotal(local);
+  const allNights   = useMemo(() => getNightsBetween(local.startDate, local.endDate), [local.startDate, local.endDate]);
+  const gaps        = getDurationGapInfo(local);
+  const total       = getDurationTotal(local);
+  const isWG        = (local.roomType || 'DZ') === 'WG';
+
+  /* beds per WG room — for WG, each room = 1 bookable bed; can be overridden */
+  const bedsPerWGRoom = Math.max(1, Number(local.bedsPerRoom || 1));
 
   const inputCls = cn(
     'px-3 py-2 rounded-lg text-sm outline-none border transition-all',
-    dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
+    dk
+      ? 'bg-white/5 border-white/10 text-white placeholder-slate-600'
+      : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
   );
   const labelCls = cn('text-[10px] font-bold uppercase tracking-widest', dk ? 'text-slate-400' : 'text-slate-500');
 
@@ -63,6 +70,14 @@ export default function DurationCard({
     const next = { ...local, ...changes };
     setLocal(next);
     queueSave(next);
+  }
+
+  /* When user enters price-per-bed-per-night for WG:
+     pricePerNightPerRoom = pricePerBedPerNight * bedsPerWGRoom */
+  function patchPricePerBed(rawValue: string) {
+    const perBed = normalizeNumberInput(rawValue);
+    const perRoom = perBed * bedsPerWGRoom;
+    patch({ pricePerBedPerNight: perBed, pricePerNightPerRoom: perRoom });
   }
 
   function onEmployeeUpdated(slotIndex: number, employee: any | null) {
@@ -88,9 +103,9 @@ export default function DurationCard({
     setTotalFocused(false);
   }
 
-  const mwstRate  = local.mwst   != null ? Number(local.mwst)   : null;
-  const bruttoVal = local.brutto != null ? Number(local.brutto) : null;
-  const nettoVal  = local.netto  != null ? Number(local.netto)  : null;
+  const mwstRate    = local.mwst   != null ? Number(local.mwst)   : null;
+  const bruttoVal   = local.brutto != null ? Number(local.brutto) : null;
+  const nettoVal    = local.netto  != null ? Number(local.netto)  : null;
   let derivedNetto:  number | null = null;
   let derivedBrutto: number | null = null;
   if (local.useBruttoNetto) {
@@ -98,12 +113,10 @@ export default function DurationCard({
     else if (nettoVal != null && mwstRate != null) derivedBrutto = nettoVal * (1 + mwstRate / 100);
   }
 
-  const roomCount = Math.max(1, Number(local.numberOfRooms || 1));
-
   return (
     <div className={cn('rounded-2xl border p-4 space-y-4', dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')}>
 
-      {/* Row 1: Dates / room type / count / nights / beds / actions */}
+      {/* ── Row 1: Dates / room type / count / nights / beds / actions ── */}
       <div className="flex items-center gap-3 flex-wrap">
         <input type="date" value={local.startDate || ''} onChange={e => patch({ startDate: e.target.value })} className={cn(inputCls, 'w-40')} />
         <input type="date" value={local.endDate   || ''} onChange={e => patch({ endDate:   e.target.value })} className={cn(inputCls, 'w-40')} />
@@ -120,6 +133,18 @@ export default function DurationCard({
           <div className={cn('px-3 py-2 text-sm font-bold min-w-[52px] text-center', dk ? 'bg-white/5 text-white' : 'bg-slate-50 text-slate-900')}>{roomCount}</div>
           <button onClick={() => patch({ numberOfRooms: roomCount + 1 })} className={cn('px-3 py-2', dk ? 'hover:bg-white/10' : 'hover:bg-slate-50')}><Plus size={14} /></button>
         </div>
+
+        {/* WG: beds-per-room stepper */}
+        {isWG && (
+          <div className="flex flex-col gap-0.5">
+            <label className={labelCls}>{lang === 'de' ? 'Betten / Zimmer' : 'Beds / room'}</label>
+            <div className={cn('flex items-center rounded-lg border overflow-hidden', dk ? 'border-white/10' : 'border-slate-200')}>
+              <button onClick={() => patch({ bedsPerRoom: Math.max(1, bedsPerWGRoom - 1) })} className={cn('px-3 py-2', dk ? 'hover:bg-white/10' : 'hover:bg-slate-50')}><Minus size={14} /></button>
+              <div className={cn('px-3 py-2 text-sm font-bold min-w-[40px] text-center', dk ? 'bg-white/5 text-white' : 'bg-slate-50 text-slate-900')}>{bedsPerWGRoom}</div>
+              <button onClick={() => patch({ bedsPerRoom: bedsPerWGRoom + 1 })} className={cn('px-3 py-2', dk ? 'hover:bg-white/10' : 'hover:bg-slate-50')}><Plus size={14} /></button>
+            </div>
+          </div>
+        )}
 
         <div className={cn('text-sm font-bold', dk ? 'text-slate-300' : 'text-slate-700')}>
           {nights} {lang === 'de' ? 'Nächte' : 'nights'}
@@ -148,8 +173,10 @@ export default function DurationCard({
         </div>
       </div>
 
-      {/* Row 2: Price / night / room + Reverse-calc + toggles */}
+      {/* ── Row 2: Price fields ── */}
       <div className="flex items-end gap-4 flex-wrap">
+
+        {/* Price / night / room (always shown) */}
         <div className="flex flex-col gap-1">
           <label className={labelCls}>{lang === 'de' ? 'Preis / Nacht / Zimmer' : 'Price / night / room'}</label>
           <input
@@ -160,6 +187,28 @@ export default function DurationCard({
           />
         </div>
 
+        {/* Price / bed / night — only shown for WG */}
+        {isWG && (
+          <div className="flex flex-col gap-1">
+            <label className={labelCls}>
+              {lang === 'de' ? 'Preis / Bett / Nacht' : 'Price / bed / night'}
+            </label>
+            <input
+              type="number" min={0} step="0.01"
+              value={local.pricePerBedPerNight ?? ''}
+              placeholder={lang === 'de' ? 'Pro Bett...' : 'Per bed...'}
+              onChange={e => patchPricePerBed(e.target.value)}
+              className={cn(inputCls, 'w-28')}
+            />
+            {local.pricePerBedPerNight > 0 && (
+              <span className={cn('text-[10px]', dk ? 'text-slate-500' : 'text-slate-400')}>
+                = {formatCurrency(Number(local.pricePerBedPerNight) * bedsPerWGRoom)}{lang === 'de' ? '/Zimmer' : '/room'}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Reverse calc: enter total → auto-compute per-night */}
         <div className="flex flex-col gap-1">
           <label className={labelCls}>{lang === 'de' ? 'Oder Gesamtpreis eingeben' : 'Or enter total'}</label>
           <input
@@ -216,7 +265,7 @@ export default function DurationCard({
         </button>
       </div>
 
-      {/* Row 3: Brutto / Netto / MwSt */}
+      {/* ── Row 3: Brutto / Netto / MwSt ── */}
       <div className="flex items-end gap-3 flex-wrap">
         <button
           onClick={() => patch({ useBruttoNetto: !local.useBruttoNetto })}
@@ -258,7 +307,6 @@ export default function DurationCard({
                 className={cn(inputCls, 'w-28')}
               />
             </div>
-
             <div className={cn('self-end px-3 py-2 rounded-lg border text-xs font-bold', dk ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-slate-50')}>
               {bruttoVal != null && derivedNetto != null && (
                 <span className={dk ? 'text-green-400' : 'text-green-700'}>Netto: {formatCurrency(derivedNetto)}</span>
@@ -279,7 +327,7 @@ export default function DurationCard({
         )}
       </div>
 
-      {/* Row 4: Deposit */}
+      {/* ── Row 4: Deposit ── */}
       <div className="flex items-end gap-3 flex-wrap">
         <button
           onClick={() => patch({ depositEnabled: !local.depositEnabled })}
@@ -288,7 +336,6 @@ export default function DurationCard({
         >
           {lang === 'de' ? 'Kaution / Anzahlung' : 'Deposit'}
         </button>
-
         {local.depositEnabled && (
           <div className="flex flex-col gap-1">
             <label className={labelCls}>{lang === 'de' ? 'Betrag (€)' : 'Amount (€)'}</label>
@@ -303,7 +350,7 @@ export default function DurationCard({
         )}
       </div>
 
-      {/* Row 5: Invoice No. + Booking ref */}
+      {/* ── Row 5: Invoice No. + Booking ref ── */}
       <div className="flex items-end gap-3 flex-wrap">
         <div className="flex flex-col gap-1">
           <label className={labelCls}>{lang === 'de' ? 'Rechnungs-Nr.' : 'Invoice No.'}</label>
@@ -327,7 +374,7 @@ export default function DurationCard({
         </div>
       </div>
 
-      {/* Total bar */}
+      {/* ── Total bar ── */}
       <div className={cn('flex items-center justify-end gap-4 px-4 py-3 rounded-xl border',
         dk ? 'border-white/10 bg-white/[0.03]' : 'border-slate-200 bg-slate-50')}>
         {local.useBruttoNetto && (
@@ -336,12 +383,17 @@ export default function DurationCard({
             {derivedNetto != null ? ` · Netto: ${formatCurrency(derivedNetto)}` : ''}
           </span>
         )}
+        {isWG && local.pricePerBedPerNight > 0 && (
+          <span className={cn('text-xs', dk ? 'text-slate-400' : 'text-slate-500')}>
+            {formatCurrency(Number(local.pricePerBedPerNight))}{lang === 'de' ? ' / Bett / Nacht' : ' / bed / night'}
+          </span>
+        )}
         <span className={cn('text-base font-black', dk ? 'text-white' : 'text-slate-900')}>
           {lang === 'de' ? 'Gesamt:' : 'Total:'} {formatCurrency(total)}
         </span>
       </div>
 
-      {/* Night calendar */}
+      {/* ── Night calendar ── */}
       {showCalendar && local.startDate && local.endDate && (
         <div className={cn('rounded-xl border p-3', dk ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200')}>
           <div className="flex items-center justify-between mb-3">
@@ -376,7 +428,7 @@ export default function DurationCard({
         </div>
       )}
 
-      {/* Bed assignments */}
+      {/* ── Bed assignments ── */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <p className={cn('text-xs font-bold uppercase tracking-widest', dk ? 'text-slate-400' : 'text-slate-500')}>
@@ -421,7 +473,7 @@ export default function DurationCard({
         </div>
       </div>
 
-      {/* Delete confirm modal */}
+      {/* ── Delete confirm modal ── */}
       {confirmDelete && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4">
           <div className={cn('w-full max-w-md rounded-2xl border p-5', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
