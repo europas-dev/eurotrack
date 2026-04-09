@@ -2,7 +2,8 @@ import React, { useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, ChevronRight, Clock, Loader2, Plus, Trash2, X } from 'lucide-react';
 import {
   cn, calcHotelFreeBeds, calcHotelTotalCost, calcHotelTotalNights,
-  formatCurrency, formatDateDisplay, getDurationRowLabel, getDurationTabLabel, getEmployeeStatus
+  formatCurrency, formatDateDisplay, getDurationRowLabel, getDurationTabLabel, getEmployeeStatus,
+  getTotalBeds,
 } from '../lib/utils';
 import { createDuration, updateHotel } from '../lib/supabase';
 import DurationCard from './DurationCard';
@@ -45,13 +46,7 @@ export function HotelRow({
   const freeBeds    = useMemo(() => calcHotelFreeBeds(localHotel),    [localHotel]);
   const totalBeds   = useMemo(() =>
     (localHotel.durations || []).reduce((acc: number, d: any) => {
-      const rt = d.roomType || 'DZ';
-      const n  = Number(d.numberOfRooms || 1);
-      if (rt === 'EZ') return acc + n;
-      if (rt === 'DZ') return acc + n * 2;
-      if (rt === 'TZ') return acc + n * 3;
-      if (rt === 'WG') return acc + n;
-      return acc + n * 2;
+      return acc + getTotalBeds(d.roomType || 'DZ', Number(d.numberOfRooms || 1), d.bedsPerRoom);
     }, 0)
   , [localHotel]);
 
