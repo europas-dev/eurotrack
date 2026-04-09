@@ -233,6 +233,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           onExport={handleExport}
           onSignOut={onSignOut}
           viewOnly={viewOnly}
+          userRole={accessLevel?.role ?? 'viewer'}
         />
 
         {/* Stats bar */}
