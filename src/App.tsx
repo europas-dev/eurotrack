@@ -43,7 +43,6 @@ export default function App() {
   const [lang,          setLang]          = useState<Language>('en');
   const [offlineBanner, setOfflineBanner] = useState(!navigator.onLine);
   const pollRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-  const initDone = useRef(false);
 
   const dk = theme === 'dark';
 
@@ -83,27 +82,21 @@ export default function App() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }, []);
 
-  useEffect(() => {
-    if (initDone.current) return;
-    initDone.current = true;
-
+ useEffect(() => {
     let cancelled = false;
 
+    // ── Single init: check existing session, then always setLoading(false) ──
     (async () => {
       try {
-        // FIX: also timeout the getSession call itself
-        const sessionResult = await withTimeout(
-          supabase.auth.getSession(),
-          5000,
-          { data: { session: null }, error: new Error('timeout') } as any
-        );
+        const { data: { session }, error } = await supabase.auth.getSession();
         if (cancelled) return;
-        const { data: { session }, error } = sessionResult;
+        
         if (error || !session?.user) {
           setView('landing');
-          setLoading(false);
           return;
         }
+        
+        // Session exists — resolve role
         await resolveAccess();
       } catch {
         if (!cancelled) setView('landing');
@@ -112,9 +105,11 @@ export default function App() {
       }
     })();
 
+    // ── Auth state listener (only for subsequent sign-in / sign-out) ──
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (cancelled) return;
       if (event === 'SIGNED_IN' && session?.user) {
+        setLoading(true);
         await resolveAccess();
         setLoading(false);
       } else if (event === 'SIGNED_OUT') {
