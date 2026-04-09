@@ -127,6 +127,7 @@ export function getDurationTotal(d: Duration): number {
   return calcDurationPrice(d).total
 }
 
+// ─── Monthly cost (prorated by overlap) ───────────────────────────────────────
 /**
  * Returns the cost of a duration that falls within a given year + month (0-indexed).
  * Prorates based on the overlap between the duration's date range and the calendar month.
