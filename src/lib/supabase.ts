@@ -21,7 +21,6 @@ export async function getSession() {
 }
 
 // ─── Profiles ─────────────────────────────────────────────────────────────────
-/** Returns the auth user object (id, email) — no separate profiles table required */
 export async function getMyProfile() {
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) return null
@@ -36,7 +35,6 @@ export async function getMyProfile() {
   }
 }
 
-/** Update display name / preferences in auth user_metadata */
 export async function updateMyProfile(updates: {
   full_name?: string
   fullName?: string
@@ -59,11 +57,6 @@ export async function updateMyProfile(updates: {
   }
 }
 
-/**
- * Search registered users by email prefix.
- * Tries the `profiles` view/table if it exists; falls back to an empty array
- * so the app never crashes if that table hasn't been created yet.
- */
 export async function searchProfiles(query: string): Promise<any[]> {
   if (!query || query.trim().length < 2) return []
   try {
@@ -83,11 +76,6 @@ export async function searchProfiles(query: string): Promise<any[]> {
 }
 
 // ─── Collaborators ────────────────────────────────────────────────────────────
-/**
- * Invite a user to collaborate on a hotel (or the whole workspace).
- * hotelId is optional — pass null/undefined for workspace-level sharing.
- * Gracefully no-ops if the collaborators table doesn't exist yet.
- */
 export async function inviteCollaborator(
   hotelId: string | null,
   userId: string,
@@ -110,7 +98,6 @@ export async function inviteCollaborator(
   return data
 }
 
-/** Change an existing collaborator's role */
 export async function updateCollaboratorPermission(
   collaboratorId: string,
   role: 'viewer' | 'editor'
@@ -128,7 +115,6 @@ export async function updateCollaboratorPermission(
   return data
 }
 
-/** Remove a collaborator by their user_id (for the current owner) */
 export async function removeCollaborator(userId: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
@@ -140,7 +126,6 @@ export async function removeCollaborator(userId: string): Promise<void> {
   if (error) throw error
 }
 
-/** Fetch all collaborators for the current user's workspace */
 export async function getCollaborators(hotelId?: string | null): Promise<any[]> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
@@ -232,7 +217,8 @@ export async function getHotels() {
   const { data, error } = await supabase
     .from('hotels')
     .select('*, durations(*, employees(*))')
-    .order('createdat', { ascending: false })
+    // Use created_at (Supabase default column name) — NOT createdat
+    .order('created_at', { ascending: false })
   if (error) throw error
   return (data ?? []).map(normalizeHotel)
 }

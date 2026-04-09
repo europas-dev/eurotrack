@@ -12,7 +12,7 @@ import {
 import type { FilterPaid, FilterDeposit, FilterFree, GroupBy } from './lib/types'
 import {
   Plus, Building2, Check, X, Loader2,
-  Filter, ArrowUpDown, Download, Users, Share2
+  Filter, ArrowUpDown, Download, Users, WifiOff, Wifi
 } from 'lucide-react'
 import Header    from './components/Header'
 import Sidebar   from './components/Sidebar'
@@ -29,6 +29,8 @@ interface DashboardProps {
   lang: Language
   toggleTheme: () => void
   setLang: (l: Language) => void
+  offlineMode?: boolean
+  onToggleOfflineMode?: () => void
 }
 
 // ─── Inline new-hotel row ─────────────────────────────────────────────────────
@@ -94,7 +96,7 @@ function NewHotelRow({ isDarkMode, lang, onSave, onCancel }: {
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-export default function Dashboard({ theme, lang, toggleTheme, setLang }: DashboardProps) {
+export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMode = false, onToggleOfflineMode }: DashboardProps) {
   const dk = theme === 'dark'
 
   const [hotels,  setHotels]  = useState<any[]>([])
@@ -185,9 +187,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang }: Dashboa
 
   const activeFilters = [filterPaid !== 'all', filterDeposit !== 'all', filterFree !== 'none'].filter(Boolean).length
 
-  const cityOptions    = Array.from(new Set(hotels.map(h => h.city).filter(Boolean))) as string[]
-  const companyOptions = Array.from(new Set(hotels.map(h => h.companyTag).filter(Boolean))) as string[]
-
   // Shared menu styles
   const menuCls = cn(
     'absolute top-full mt-1 right-0 z-50 rounded-xl border shadow-xl p-3 min-w-[240px]',
@@ -204,7 +203,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang }: Dashboa
   )
 
   return (
-    <div className={cn('min-h-screen flex', dk ? 'bg-[#020617]' : 'bg-slate-50')}>
+    <div className={cn('h-full flex', dk ? 'bg-[#020617]' : 'bg-slate-50')}>
       <Sidebar
         theme={theme} lang={lang}
         selectedYear={selectedYear} setSelectedYear={setSelectedYear}
@@ -213,7 +212,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang }: Dashboa
         hotels={hotels}
       />
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header
           theme={theme} lang={lang}
           toggleTheme={toggleTheme} setLang={setLang}
@@ -235,6 +234,28 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang }: Dashboa
               <p className={cn('text-xl font-black', cls)}>{value}</p>
             </div>
           ))}
+
+          {/* Offline mode toggle button — right side of KPI bar */}
+          <div className="ml-auto">
+            <button
+              onClick={onToggleOfflineMode}
+              title={offlineMode
+                ? (lang === 'de' ? 'Online gehen' : 'Go online')
+                : (lang === 'de' ? 'Offline-Modus aktivieren' : 'Enable offline mode')}
+              className={cn(
+                'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all',
+                offlineMode
+                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-400 hover:bg-amber-500/30'
+                  : dk ? 'border-white/10 text-slate-500 hover:bg-white/5 hover:text-slate-300'
+                       : 'border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-700'
+              )}
+            >
+              {offlineMode
+                ? <><WifiOff size={13} /> {lang === 'de' ? 'Offline' : 'Offline'}</>
+                : <><Wifi    size={13} /> {lang === 'de' ? 'Offline-Modus' : 'Offline Mode'}</>
+              }
+            </button>
+          </div>
         </div>
 
         {/* Main */}
@@ -326,13 +347,13 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang }: Dashboa
                 {showSortMenu && (
                   <div className={menuCls}>
                     <span className={sectionLabel}>{lang === 'de' ? 'Sortieren nach' : 'Sort by'}</span>
-                    {([['name','Name'],['city','City'],['cost','Kosten'],['nights','Nächte']] as [SortBy,string][]).map(([v,label]) => (
+                    {([['name','Name'],['city','City'],['cost',lang==='de'?'Kosten':'Cost'],['nights',lang==='de'?'Nächte':'Nights']] as [SortBy,string][]).map(([v,label]) => (
                       <button key={v} onClick={() => setSortBy(v)} className={menuBtn(sortBy === v)}>{label}</button>
                     ))}
                     <span className={sectionLabel}>{lang === 'de' ? 'Richtung' : 'Direction'}</span>
                     <div className="flex gap-1">
-                      <button onClick={() => setSortDir('asc')}  className={cn(menuBtn(sortDir === 'asc'),  'flex-1 text-center')}>↑ Asc</button>
-                      <button onClick={() => setSortDir('desc')} className={cn(menuBtn(sortDir === 'desc'), 'flex-1 text-center')}>↓ Desc</button>
+                      <button onClick={() => setSortDir('asc')}  className={cn(menuBtn(sortDir === 'asc'),  'flex-1 text-center')}>↑ {lang==='de'?'Aufst.':'Asc'}</button>
+                      <button onClick={() => setSortDir('desc')} className={cn(menuBtn(sortDir === 'desc'), 'flex-1 text-center')}>↓ {lang==='de'?'Abst.':'Desc'}</button>
                     </div>
                   </div>
                 )}
@@ -359,96 +380,68 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang }: Dashboa
             </div>
           </div>
 
-          {/* Click-away backdrop */}
-          {(showFilterMenu || showSortMenu) && (
-            <div className="fixed inset-0 z-40" onClick={() => { setShowFilterMenu(false); setShowSortMenu(false) }} />
-          )}
-
-          {/* Group-by tabs */}
+          {/* Group tabs */}
           {groupBy !== 'none' && groupTabs.length > 0 && (
-            <div className={cn('flex gap-0 mb-4 border-b overflow-x-auto', dk ? 'border-white/10' : 'border-slate-200')}>
+            <div className="flex gap-2 flex-wrap mb-4">
               {groupTabs.map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveGroupTab(tab)}
                   className={cn(
-                    'px-5 py-2 text-sm font-bold border-b-2 -mb-px transition-all whitespace-nowrap',
+                    'px-4 py-1.5 rounded-full text-xs font-bold border transition-all',
                     activeGroupTab === tab
-                      ? 'border-blue-500 text-blue-500'
-                      : dk ? 'border-transparent text-slate-400 hover:text-slate-200' : 'border-transparent text-slate-500 hover:text-slate-800'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
                   )}
                 >
                   {tab}
-                  <span className={cn(
-                    'ml-2 text-[10px] font-black px-1.5 py-0.5 rounded-full',
-                    activeGroupTab === tab ? 'bg-blue-500/20 text-blue-400' : dk ? 'bg-white/5 text-slate-500' : 'bg-slate-100 text-slate-400'
-                  )}>
-                    {filtered.filter((h: any) => (h[groupBy === 'company' ? 'companyTag' : 'city'] || '—') === tab).length}
-                  </span>
                 </button>
               ))}
             </div>
           )}
 
-          {/* Loading */}
-          {loading && (
-            <div className="text-center py-20">
-              <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4" />
-              <p className={dk ? 'text-slate-400' : 'text-slate-600'}>
-                {lang === 'de' ? 'Lädt...' : 'Loading...'}
-              </p>
+          {/* Error */}
+          {error && (
+            <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 mb-4">
+              <p className="text-red-400 text-sm font-bold mb-2">{error}</p>
+              <button onClick={loadHotels} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg">Retry</button>
             </div>
           )}
 
-          {/* Error */}
-          {!loading && error && (
-            <div className="p-5 bg-red-600/10 border border-red-600/20 rounded-xl">
-              <p className="text-red-400 font-bold text-sm mb-1">{error}</p>
-              <button onClick={loadHotels} className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-sm">
-                {lang === 'de' ? 'Erneut versuchen' : 'Retry'}
-              </button>
+          {/* Loading */}
+          {loading && !error && (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 size={32} className="animate-spin text-blue-500" />
             </div>
+          )}
+
+          {/* New hotel row */}
+          {addingHotel && (
+            <NewHotelRow
+              isDarkMode={dk} lang={lang}
+              onSave={h => { setHotels(prev => [h, ...prev]); setAddingHotel(false) }}
+              onCancel={() => setAddingHotel(false)}
+            />
           )}
 
           {/* Hotel list */}
           {!loading && !error && (
             <div className="space-y-2">
-              {addingHotel && (
-                <NewHotelRow isDarkMode={dk} lang={lang}
-                  onSave={h => { setHotels(p => [h, ...p]); setAddingHotel(false) }}
-                  onCancel={() => setAddingHotel(false)}
-                />
-              )}
-
               {visibleHotels.length === 0 && !addingHotel && (
-                <div className={cn('text-center py-20 rounded-2xl border-2 border-dashed', dk ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}>
-                  <div className={cn('w-16 h-16 rounded-full mx-auto mb-5 flex items-center justify-center', dk ? 'bg-blue-600/20' : 'bg-blue-100')}>
-                    <Building2 size={32} className="text-blue-500" />
-                  </div>
-                  <h3 className={cn('text-xl font-bold mb-2', dk ? 'text-white' : 'text-slate-900')}>
-                    {lang === 'de' ? 'Keine Hotels gefunden' : 'No Hotels Found'}
-                  </h3>
-                  <p className={cn('text-sm mb-6', dk ? 'text-slate-500' : 'text-slate-400')}>
-                    {lang === 'de' ? 'Filter anpassen oder Hotel hinzufügen' : 'Adjust filters or add a hotel'}
-                  </p>
-                  <button onClick={() => setAddingHotel(true)}
-                    className="px-7 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl inline-flex items-center gap-2 text-sm">
-                    <Plus size={18} />
-                    {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
-                  </button>
+                <div className={cn('text-center py-16', dk ? 'text-slate-500' : 'text-slate-400')}>
+                  <Building2 size={40} className="mx-auto mb-3 opacity-30" />
+                  <p className="font-bold">{lang === 'de' ? 'Keine Hotels gefunden' : 'No hotels found'}</p>
+                  <p className="text-sm mt-1">{lang === 'de' ? 'Hotel hinzufügen oder Filter zurücksetzen' : 'Add a hotel or clear filters'}</p>
                 </div>
               )}
-
               {visibleHotels.map(hotel => (
                 <HotelRow
                   key={hotel.id}
-                  entry={hotel}
-                  isDarkMode={dk}
+                  hotel={hotel}
+                  theme={theme}
                   lang={lang}
-                  cityOptions={cityOptions}
-                  companyOptions={companyOptions}
-                  onDelete={id => { deleteHotel(id); setHotels(p => p.filter(h => h.id !== id)) }}
-                  onUpdate={(id: string, u: any) => setHotels(p => p.map(h => h.id === id ? { ...h, ...u } : h))}
+                  onUpdate={updated => setHotels(prev => prev.map(h => h.id === updated.id ? updated : h))}
+                  onDelete={id => setHotels(prev => prev.filter(h => h.id !== id))}
                 />
               ))}
             </div>
@@ -456,8 +449,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang }: Dashboa
         </main>
       </div>
 
-      {showShareModal  && <ShareModal  isDarkMode={dk} lang={lang} onClose={() => setShowShareModal(false)} />}
-      {showExportModal && <ExportModal isDarkMode={dk} lang={lang} hotels={visibleHotels} onClose={() => setShowExportModal(false)} />}
+      {/* Modals */}
+      {showShareModal  && <ShareModal  theme={theme} lang={lang} onClose={() => setShowShareModal(false)}  />}
+      {showExportModal && <ExportModal theme={theme} lang={lang} hotels={visibleHotels} onClose={() => setShowExportModal(false)} />}
     </div>
   )
 }
