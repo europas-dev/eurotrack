@@ -14,14 +14,14 @@ import {
   Plus, Building2, Check, X, Loader2,
   Filter, ArrowUpDown, Download, Users, WifiOff, Wifi
 } from 'lucide-react'
-import Header    from './components/Header'
-import Sidebar   from './components/Sidebar'
-import HotelRow  from './components/HotelRow'
-import ShareModal  from './components/ShareModal'
-import ExportModal from './components/ExportModal'
+import Header     from './components/Header'
+import Sidebar    from './components/Sidebar'
+import HotelRow   from './components/HotelRow'
+import ShareModal   from './components/ShareModal'
+import ExportModal  from './components/ExportModal'
 
-type SortBy = 'name' | 'city' | 'cost' | 'nights'
-type Theme = 'dark' | 'light'
+type SortBy   = 'name' | 'city' | 'cost' | 'nights'
+type Theme    = 'dark' | 'light'
 type Language = 'de' | 'en'
 
 interface DashboardProps {
@@ -54,9 +54,10 @@ function NewHotelRow({ isDarkMode, lang, onSave, onCancel }: {
     try {
       setSaving(true)
       const newHotel = await createHotel({ name: name.trim(), city: city.trim(), companyTag: tag.trim() })
-      onSave({ ...newHotel, durations: [] })
+      if (!newHotel || !newHotel.id) throw new Error('Hotel creation returned no data')
+      onSave(newHotel)
     } catch (e: any) {
-      setErr(e?.message || 'Failed')
+      setErr(e?.message || 'Failed to create hotel')
       setSaving(false)
     }
   }
@@ -68,7 +69,8 @@ function NewHotelRow({ isDarkMode, lang, onSave, onCancel }: {
   )
 
   return (
-    <div className={cn('mb-2 rounded-xl border px-4 py-3 space-y-2', dk ? 'bg-[#0B1224] border-blue-500/40' : 'bg-white border-blue-400')}>
+    <div className={cn('mb-2 rounded-xl border px-4 py-3 space-y-2',
+      dk ? 'bg-[#0B1224] border-blue-500/40' : 'bg-white border-blue-400')}>
       <div className="flex items-center gap-2 flex-wrap">
         <div className="w-8 h-8 bg-blue-600/30 rounded-lg flex items-center justify-center flex-shrink-0">
           <Building2 size={16} className="text-blue-400" />
@@ -86,7 +88,8 @@ function NewHotelRow({ isDarkMode, lang, onSave, onCancel }: {
           className="p-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-lg">
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
         </button>
-        <button onClick={onCancel} className={cn('p-2 rounded-lg', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
+        <button onClick={onCancel}
+          className={cn('p-2 rounded-lg', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
           <X size={16} />
         </button>
       </div>
@@ -115,16 +118,11 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
 
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Filters
   const [filterPaid,    setFilterPaid]    = useState<FilterPaid>('all')
   const [filterDeposit, setFilterDeposit] = useState<FilterDeposit>('all')
   const [filterFree,    setFilterFree]    = useState<FilterFree>('none')
-
-  // Group by
-  const [groupBy, setGroupBy]             = useState<GroupBy>('none')
+  const [groupBy,       setGroupBy]       = useState<GroupBy>('none')
   const [activeGroupTab, setActiveGroupTab] = useState<string | null>(null)
-
-  // Sort
   const [sortBy,  setSortBy]  = useState<SortBy>('name')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
@@ -140,14 +138,18 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
     finally { setLoading(false) }
   }
 
-  // ── Filtered + sorted list ───────────────────────────────────────────────────
+  // Derived: unique company/city lists for autocomplete
+  const companyOptions = useMemo(() => Array.from(new Set(hotels.map((h: any) => h.companyTag).filter(Boolean))).sort() as string[], [hotels])
+  const cityOptions    = useMemo(() => Array.from(new Set(hotels.map((h: any) => h.city).filter(Boolean))).sort() as string[], [hotels])
+
   const filtered = useMemo(() => {
-    let list = hotels.filter(h => {
+    let list = (hotels ?? []).filter(h => {
+      if (!h || !h.id) return false
       if (!hotelMatchesSearch(h, searchQuery)) return false
-      if (filterPaid    === 'paid'       && !h.durations.every((d: any) => d.isPaid))          return false
-      if (filterPaid    === 'unpaid'     &&  h.durations.every((d: any) => d.isPaid))          return false
-      if (filterDeposit === 'deposit'    && !h.durations.some((d: any) => d.depositEnabled))   return false
-      if (filterDeposit === 'no-deposit' &&  h.durations.some((d: any) => d.depositEnabled))   return false
+      if (filterPaid    === 'paid'       && !(h.durations ?? []).every((d: any) => d?.isPaid))          return false
+      if (filterPaid    === 'unpaid'     &&  (h.durations ?? []).every((d: any) => d?.isPaid))          return false
+      if (filterDeposit === 'deposit'    && !(h.durations ?? []).some((d: any) => d?.depositEnabled))   return false
+      if (filterDeposit === 'no-deposit' &&  (h.durations ?? []).some((d: any) => d?.depositEnabled))   return false
       if (filterFree    === 'today'      && !hotelHasFreeBedsToday(h))    return false
       if (filterFree    === 'tomorrow'   && !hotelHasFreeBedsTomorrow(h)) return false
       if (filterFree    === 'in5days'    && !hotelHasFreeBedsIn5Days(h))  return false
@@ -166,7 +168,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
     })
   }, [hotels, searchQuery, filterPaid, filterDeposit, filterFree, sortBy, sortDir])
 
-  // ── Group tabs ───────────────────────────────────────────────────────────────
   const groupTabs = useMemo(() => {
     if (groupBy === 'none') return []
     const key = groupBy === 'company' ? 'companyTag' : 'city'
@@ -181,13 +182,10 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
 
   useEffect(() => { setActiveGroupTab(groupTabs[0] ?? null) }, [groupBy, groupTabs.length])
 
-  // ── KPIs ─────────────────────────────────────────────────────────────────────
-  const totalSpend = hotels.reduce((s, h) => s + calcHotelTotalCost(h), 0)
-  const freeBeds   = hotels.reduce((s, h) => s + calcHotelFreeBeds(h), 0)
-
+  const totalSpend = (hotels ?? []).reduce((s, h) => s + calcHotelTotalCost(h), 0)
+  const freeBeds   = (hotels ?? []).reduce((s, h) => s + calcHotelFreeBeds(h), 0)
   const activeFilters = [filterPaid !== 'all', filterDeposit !== 'all', filterFree !== 'none'].filter(Boolean).length
 
-  // Shared menu styles
   const menuCls = cn(
     'absolute top-full mt-1 right-0 z-50 rounded-xl border shadow-xl p-3 min-w-[240px]',
     dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200'
@@ -225,7 +223,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
         {/* KPI bar */}
         <div className={cn('px-8 py-3 border-b flex items-center gap-10', dk ? 'bg-[#0F172A] border-white/5' : 'bg-white border-slate-200')}>
           {[
-            { label: lang === 'de' ? 'Freie Betten' : 'Free Beds', value: String(freeBeds),  cls: freeBeds > 0 ? 'text-amber-400' : 'text-green-400' },
+            { label: lang === 'de' ? 'Freie Betten' : 'Free Beds', value: String(freeBeds), cls: freeBeds > 0 ? 'text-amber-400' : 'text-green-400' },
             { label: lang === 'de' ? 'Gesamt'       : 'Total',     value: formatCurrency(totalSpend), cls: 'text-blue-400' },
             { label: 'Hotels',                                       value: String(hotels.length), cls: dk ? 'text-white' : 'text-slate-900' },
           ].map(({ label, value, cls }) => (
@@ -235,7 +233,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
             </div>
           ))}
 
-          {/* Offline mode toggle button — right side of KPI bar */}
           <div className="ml-auto">
             <button
               onClick={onToggleOfflineMode}
@@ -268,7 +265,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
             </h2>
 
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Filter button */}
+
+              {/* Filter */}
               <div className="relative">
                 <button
                   onClick={() => { setShowFilterMenu(v => !v); setShowSortMenu(false) }}
@@ -280,7 +278,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
                   )}
                 >
                   <Filter size={15} />
-                  {lang === 'de' ? 'Filter' : 'Filter'}
+                  Filter
                   {(activeFilters > 0 || groupBy !== 'none') && (
                     <span className="bg-white/30 rounded-full w-5 h-5 text-[9px] font-black flex items-center justify-center">
                       {activeFilters + (groupBy !== 'none' ? 1 : 0)}
@@ -329,7 +327,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
                     <div className={cn('border-t mt-3 mb-1', dk ? 'border-white/10' : 'border-slate-100')} />
                     <button
                       onClick={() => { setFilterPaid('all'); setFilterDeposit('all'); setFilterFree('none'); setGroupBy('none'); setShowFilterMenu(false) }}
-                      className={cn('w-full text-left px-3 py-1 rounded text-xs font-bold transition-all mt-1', dk ? 'text-slate-500 hover:text-red-400' : 'text-slate-400 hover:text-red-500')}
+                      className={cn('w-full text-left px-3 py-1 rounded text-xs font-bold transition-all mt-1',
+                        dk ? 'text-slate-500 hover:text-red-400' : 'text-slate-400 hover:text-red-500')}
                     >
                       {lang === 'de' ? '✕  Alle Filter zurücksetzen' : '✕  Clear all filters'}
                     </button>
@@ -337,7 +336,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
                 )}
               </div>
 
-              {/* Sort button */}
+              {/* Sort */}
               <div className="relative">
                 <button onClick={() => { setShowSortMenu(v => !v); setShowFilterMenu(false) }} className={toolbarBtn}>
                   <ArrowUpDown size={15} />
@@ -415,7 +414,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
             </div>
           )}
 
-          {/* New hotel row */}
+          {/* New hotel inline row */}
           {addingHotel && (
             <NewHotelRow
               isDarkMode={dk} lang={lang}
@@ -434,14 +433,19 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
                   <p className="text-sm mt-1">{lang === 'de' ? 'Hotel hinzufügen oder Filter zurücksetzen' : 'Add a hotel or clear filters'}</p>
                 </div>
               )}
-              {visibleHotels.map(hotel => (
+              {visibleHotels.filter(h => h && h.id).map(hotel => (
                 <HotelRow
                   key={hotel.id}
                   hotel={hotel}
-                  theme={theme}
+                  isDarkMode={dk}
                   lang={lang}
-                  onUpdate={updated => setHotels(prev => prev.map(h => h.id === updated.id ? updated : h))}
-                  onDelete={id => setHotels(prev => prev.filter(h => h.id !== id))}
+                  companyOptions={companyOptions}
+                  cityOptions={cityOptions}
+                  onUpdate={(id, updated) => setHotels(prev => prev.map(h => h.id === id ? updated : h))}
+                  onDelete={id => {
+                    deleteHotel(id).catch(console.error)
+                    setHotels(prev => prev.filter(h => h.id !== id))
+                  }}
                 />
               ))}
             </div>
@@ -449,7 +453,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
         </main>
       </div>
 
-      {/* Modals */}
       {showShareModal  && <ShareModal  theme={theme} lang={lang} onClose={() => setShowShareModal(false)}  />}
       {showExportModal && <ExportModal theme={theme} lang={lang} hotels={visibleHotels} onClose={() => setShowExportModal(false)} />}
     </div>

@@ -22,25 +22,24 @@ export async function getSession() {
 
 // ─── Profiles ─────────────────────────────────────────────────────────────────
 export async function getMyProfile() {
-  const { data: { user }, error } = await supabase.auth.getUser()
-  if (error || !user) return null
-  return {
-    id:         user.id,
-    email:      user.email ?? '',
-    full_name:  user.user_metadata?.full_name ?? user.user_metadata?.name ?? '',
-    fullName:   user.user_metadata?.full_name ?? user.user_metadata?.name ?? '',
-    avatar_url: user.user_metadata?.avatar_url ?? null,
-    fontScale:  user.user_metadata?.fontScale  ?? 100,
-    fontFamily: user.user_metadata?.fontFamily ?? 'inter',
-  }
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) return null
+    return {
+      id:         user.id,
+      email:      user.email ?? '',
+      full_name:  user.user_metadata?.full_name ?? user.user_metadata?.name ?? '',
+      fullName:   user.user_metadata?.full_name ?? user.user_metadata?.name ?? '',
+      avatar_url: user.user_metadata?.avatar_url ?? null,
+      fontScale:  user.user_metadata?.fontScale  ?? 100,
+      fontFamily: user.user_metadata?.fontFamily ?? 'inter',
+    }
+  } catch { return null }
 }
 
 export async function updateMyProfile(updates: {
-  full_name?: string
-  fullName?: string
-  avatar_url?: string
-  fontScale?: number
-  fontFamily?: string
+  full_name?: string; fullName?: string
+  avatar_url?: string; fontScale?: number; fontFamily?: string
 }) {
   const { data, error } = await supabase.auth.updateUser({ data: updates })
   if (error) throw error
@@ -66,21 +65,12 @@ export async function searchProfiles(query: string): Promise<any[]> {
       .ilike('email', `%${query.trim()}%`)
       .limit(10)
     if (error) return []
-    return (data ?? []).map((p: any) => ({
-      ...p,
-      fullName: p.full_name ?? '',
-    }))
-  } catch {
-    return []
-  }
+    return (data ?? []).map((p: any) => ({ ...p, fullName: p.full_name ?? '' }))
+  } catch { return [] }
 }
 
 // ─── Collaborators ────────────────────────────────────────────────────────────
-export async function inviteCollaborator(
-  hotelId: string | null,
-  userId: string,
-  role: 'viewer' | 'editor'
-): Promise<any> {
+export async function inviteCollaborator(hotelId: string | null, userId: string, role: 'viewer' | 'editor'): Promise<any> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
@@ -92,16 +82,12 @@ export async function inviteCollaborator(
       role,
       invited_at: new Date().toISOString(),
     }, { onConflict: 'owner_id,user_id,hotel_id' })
-    .select()
-    .single()
+    .select().single()
   if (error) throw error
   return data
 }
 
-export async function updateCollaboratorPermission(
-  collaboratorId: string,
-  role: 'viewer' | 'editor'
-): Promise<any> {
+export async function updateCollaboratorPermission(collaboratorId: string, role: 'viewer' | 'editor'): Promise<any> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
@@ -109,8 +95,7 @@ export async function updateCollaboratorPermission(
     .update({ role })
     .eq('owner_id', user.id)
     .eq('id', collaboratorId)
-    .select()
-    .single()
+    .select().single()
   if (error) throw error
   return data
 }
@@ -127,9 +112,9 @@ export async function removeCollaborator(userId: string): Promise<void> {
 }
 
 export async function getCollaborators(hotelId?: string | null): Promise<any[]> {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
   try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return []
     let q = supabase
       .from('collaborators')
       .select('id, user_id, role, invited_at, hotel_id, profiles(id, email, full_name, avatar_url)')
@@ -146,20 +131,14 @@ export async function getCollaborators(hotelId?: string | null): Promise<any[]> 
       fullName:  c.profiles?.full_name ?? '',
       full_name: c.profiles?.full_name ?? '',
       avatar_url: c.profiles?.avatar_url ?? null,
-      profile: {
-        id:       c.user_id,
-        email:    c.profiles?.email     ?? '',
-        fullName: c.profiles?.full_name ?? '',
-      },
+      profile: { id: c.user_id, email: c.profiles?.email ?? '', fullName: c.profiles?.full_name ?? '' },
     }))
-  } catch {
-    return []
-  }
+  } catch { return [] }
 }
 
-// ─── Normalizers (snake_case DB → camelCase app) ──────────────────────────────
+// ─── Normalizers ──────────────────────────────────────────────────────────────
 function normalizeEmployee(e: any): any {
-  if (!e) return null
+  if (!e || typeof e !== 'object') return null
   return {
     ...e,
     durationId: e.durationid ?? e.durationId,
@@ -170,6 +149,7 @@ function normalizeEmployee(e: any): any {
 }
 
 function normalizeDuration(d: any): any {
+  if (!d || typeof d !== 'object') return null
   return {
     ...d,
     hotelId:              d.hotelid              ?? d.hotelId,
@@ -194,21 +174,22 @@ function normalizeDuration(d: any): any {
     depositEnabled:       d.depositenabled       ?? d.depositEnabled       ?? false,
     depositAmount:        d.depositamount        ?? d.depositAmount,
     extensionNote:        d.extensionnote        ?? d.extensionNote,
-    employees: (d.employees ?? []).map(normalizeEmployee),
+    employees: (d.employees ?? []).map(normalizeEmployee).filter(Boolean),
   }
 }
 
 function normalizeHotel(h: any): any {
+  if (!h || typeof h !== 'object') return null
   return {
     ...h,
-    companyTag:     h.companytag     ?? h.companyTag,
-    contactPerson:  h.contactperson  ?? h.contactPerson,
-    webLink:        h.weblink        ?? h.webLink,
-    phone:          h.phone          ?? h.phone,
-    notes:          h.notes          ?? h.notes,
-    lastUpdatedBy:  h.lastupdatedby  ?? h.lastUpdatedBy,
-    lastUpdatedAt:  h.lastupdatedat  ?? h.lastUpdatedAt,
-    durations: (h.durations ?? []).map(normalizeDuration),
+    companyTag:    h.companytag    ?? h.companyTag    ?? '',
+    contactPerson: h.contactperson ?? h.contactPerson ?? '',
+    webLink:       h.weblink       ?? h.webLink       ?? '',
+    phone:         h.phone         ?? '',
+    notes:         h.notes         ?? '',
+    lastUpdatedBy: h.lastupdatedby ?? h.lastUpdatedBy ?? '',
+    lastUpdatedAt: h.lastupdatedat ?? h.lastUpdatedAt ?? '',
+    durations: (h.durations ?? []).map(normalizeDuration).filter(Boolean),
   }
 }
 
@@ -217,10 +198,9 @@ export async function getHotels() {
   const { data, error } = await supabase
     .from('hotels')
     .select('*, durations(*, employees(*))')
-    // Use created_at (Supabase default column name) — NOT createdat
     .order('created_at', { ascending: false })
   if (error) throw error
-  return (data ?? []).map(normalizeHotel)
+  return (data ?? []).map(normalizeHotel).filter(Boolean)
 }
 
 export async function createHotel(data: {
@@ -228,47 +208,61 @@ export async function createHotel(data: {
   address?: string; contactPerson?: string; phone?: string
   email?: string; webLink?: string; notes?: string
 }) {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
+  // Get current user for audit fields — non-fatal if unavailable
+  let userEmail: string | null = null
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    userEmail = user?.email ?? user?.id ?? null
+  } catch { /* continue without user info */ }
+
+  const insertPayload: any = {
+    name:          data.name,
+    city:          data.city,
+    companytag:    data.companyTag,
+    address:       data.address       ?? null,
+    contactperson: data.contactPerson ?? null,
+    phone:         data.phone         ?? null,
+    email:         data.email         ?? null,
+    weblink:       data.webLink       ?? null,
+    notes:         data.notes         ?? null,
+    lastupdatedat: new Date().toISOString(),
+  }
+  // Only add lastupdatedby if we have a user — avoids not-null constraint errors
+  if (userEmail) insertPayload.lastupdatedby = userEmail
+
   const { data: result, error } = await supabase
     .from('hotels')
-    .insert({
-      name:          data.name,
-      city:          data.city,
-      companytag:    data.companyTag,
-      address:       data.address       ?? null,
-      contactperson: data.contactPerson ?? null,
-      phone:         data.phone         ?? null,
-      email:         data.email         ?? null,
-      weblink:       data.webLink       ?? null,
-      notes:         data.notes         ?? null,
-      userid:        user.id,
-      lastupdatedby: user.email ?? user.id,
-      lastupdatedat: new Date().toISOString(),
-    })
+    .insert(insertPayload)
     .select().single()
+
   if (error) throw error
+  if (!result) throw new Error('Hotel created but no data returned — check RLS policies')
+
   return normalizeHotel({ ...result, durations: [] })
 }
 
 export async function updateHotel(id: string, data: any) {
-  const { data: { user } } = await supabase.auth.getUser()
-  const { error } = await supabase
-    .from('hotels')
-    .update({
-      name:          data.name,
-      city:          data.city,
-      companytag:    data.companyTag    ?? data.companytag,
-      address:       data.address       ?? null,
-      contactperson: data.contactPerson ?? data.contactperson ?? null,
-      phone:         data.phone         ?? null,
-      email:         data.email         ?? null,
-      weblink:       data.webLink       ?? data.weblink ?? null,
-      notes:         data.notes         ?? null,
-      lastupdatedby: user?.email        ?? user?.id ?? null,
-      lastupdatedat: new Date().toISOString(),
-    })
-    .eq('id', id)
+  let userEmail: string | null = null
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    userEmail = user?.email ?? user?.id ?? null
+  } catch { /* continue */ }
+
+  const updatePayload: any = {
+    name:          data.name,
+    city:          data.city,
+    companytag:    data.companyTag    ?? data.companytag,
+    address:       data.address       ?? null,
+    contactperson: data.contactPerson ?? data.contactperson ?? null,
+    phone:         data.phone         ?? null,
+    email:         data.email         ?? null,
+    weblink:       data.webLink       ?? data.weblink ?? null,
+    notes:         data.notes         ?? null,
+    lastupdatedat: new Date().toISOString(),
+  }
+  if (userEmail) updatePayload.lastupdatedby = userEmail
+
+  const { error } = await supabase.from('hotels').update(updatePayload).eq('id', id)
   if (error) throw error
 }
 
@@ -307,6 +301,7 @@ export async function createDuration(data: any) {
     })
     .select().single()
   if (error) throw error
+  if (!result) throw new Error('Duration created but no data returned')
   return normalizeDuration({ ...result, employees: [] })
 }
 
