@@ -75,12 +75,33 @@ export async function getAllUsers(): Promise<any[]> {
   return (data ?? []).map((p: any) => ({ ...p, fullName: p.full_name ?? '' }))
 }
 
+/**
+ * setUserRole — uses a service-role-bypass RPC if available,
+ * otherwise falls back to a direct profiles UPDATE.
+ * The direct UPDATE only works if the RLS policy for profiles allows
+ * superadmins to update other rows (see SQL note below).
+ *
+ * Required RLS policy on profiles (run once in Supabase SQL editor):
+ *
+ *   CREATE POLICY "superadmin can update any profile role"
+ *   ON profiles FOR UPDATE
+ *   USING (EXISTS (
+ *     SELECT 1 FROM profiles me
+ *     WHERE me.id = auth.uid() AND me.role = 'superadmin'
+ *   ))
+ *   WITH CHECK (true);
+ */
 export async function setUserRole(userId: string, role: UserRole): Promise<void> {
+  // Try RPC first (if you have a Postgres function set up)
+  const { error: rpcErr } = await supabase.rpc('set_user_role', { target_id: userId, new_role: role })
+  if (!rpcErr) return
+
+  // Fallback: direct UPDATE — requires the RLS policy above
   const { error } = await supabase
     .from('profiles')
     .update({ role })
     .eq('id', userId)
-  if (error) throw error
+  if (error) throw new Error(error.message)
 }
 
 // ─── Profiles ─────────────────────────────────────────────────────────────────
@@ -91,15 +112,16 @@ export async function getMyProfile() {
 
     const { data: row } = await supabase
       .from('profiles')
-      .select('id, email, full_name, username, role')
+      .select('id, email, full_name, username, role, font_family, font_size, avatar')
       .eq('id', user.id)
       .maybeSingle()
 
     const fullName   = row?.full_name  ?? user.user_metadata?.full_name  ?? user.user_metadata?.name ?? ''
     const username   = row?.username   ?? user.user_metadata?.username   ?? ''
-    const fontScale  = user.user_metadata?.fontScale  ?? 100
-    const fontFamily = user.user_metadata?.fontFamily ?? 'inter'
-    const avatar     = user.user_metadata?.avatar     ?? null
+    // Prefer profiles table values; fall back to auth metadata for migration compat
+    const fontFamily = row?.font_family ?? user.user_metadata?.fontFamily ?? 'inter'
+    const fontSize   = row?.font_size   ?? user.user_metadata?.fontSize   ?? 16
+    const avatar     = row?.avatar      ?? user.user_metadata?.avatar     ?? null
 
     return {
       id:         user.id,
@@ -109,46 +131,57 @@ export async function getMyProfile() {
       username,
       avatar_url: user.user_metadata?.avatar_url ?? null,
       avatar,
-      fontScale,
       fontFamily,
+      fontSize,
       role:       (row?.role as UserRole) ?? 'pending',
     }
   } catch { return null }
 }
 
 export async function updateMyProfile(updates: {
-  full_name?:  string
-  fullName?:   string
-  username?:   string
-  avatar_url?: string
-  avatar?:     string | null
-  fontScale?:  number
-  fontFamily?: string
+  full_name?:   string
+  fullName?:    string
+  username?:    string
+  avatar_url?:  string
+  avatar?:      string | null
+  fontFamily?:  string
+  fontSize?:    number
+  // legacy compat
+  fontScale?:   number
 }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
   const fullName = updates.full_name ?? updates.fullName
 
+  // ── 1. Update profiles table (canonical store) ──────────────────────────
+  const rowPatch: Record<string, any> = {}
+  if (fullName              !== undefined) rowPatch.full_name   = fullName
+  if (updates.username      !== undefined) rowPatch.username    = updates.username
+  if (updates.avatar        !== undefined) rowPatch.avatar      = updates.avatar
+  if (updates.fontFamily    !== undefined) rowPatch.font_family = updates.fontFamily
+  if (updates.fontSize      !== undefined) rowPatch.font_size   = updates.fontSize
+
+  if (Object.keys(rowPatch).length > 0) {
+    const { error: rowErr } = await supabase
+      .from('profiles')
+      .update(rowPatch)
+      .eq('id', user.id)
+    // Log but don't throw — the column might not exist yet; auth metadata is the fallback
+    if (rowErr) console.warn('[updateMyProfile] profiles update warn:', rowErr.message)
+  }
+
+  // ── 2. Mirror to auth user_metadata for fallback ────────────────────────
   const metaPatch: Record<string, any> = {}
   if (fullName              !== undefined) metaPatch.full_name  = fullName
   if (updates.username      !== undefined) metaPatch.username   = updates.username
-  if (updates.fontScale     !== undefined) metaPatch.fontScale  = updates.fontScale
-  if (updates.fontFamily    !== undefined) metaPatch.fontFamily = updates.fontFamily
-  if (updates.avatar_url    !== undefined) metaPatch.avatar_url = updates.avatar_url
   if (updates.avatar        !== undefined) metaPatch.avatar     = updates.avatar
+  if (updates.fontFamily    !== undefined) metaPatch.fontFamily = updates.fontFamily
+  if (updates.fontSize      !== undefined) metaPatch.fontSize   = updates.fontSize
 
   if (Object.keys(metaPatch).length > 0) {
     const { error: authErr } = await supabase.auth.updateUser({ data: metaPatch })
-    if (authErr) throw authErr
-  }
-
-  const rowPatch: Record<string, any> = {}
-  if (fullName           !== undefined) rowPatch.full_name  = fullName
-  if (updates.username   !== undefined) rowPatch.username   = updates.username
-
-  if (Object.keys(rowPatch).length > 0) {
-    await supabase.from('profiles').update(rowPatch).eq('id', user.id)
+    if (authErr) console.warn('[updateMyProfile] auth metadata warn:', authErr.message)
   }
 
   return getMyProfile()
@@ -164,7 +197,6 @@ export async function updateMyUsername(newUsername: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  // Check uniqueness
   const { data: existing } = await supabase
     .from('profiles')
     .select('id')
@@ -173,14 +205,12 @@ export async function updateMyUsername(newUsername: string): Promise<void> {
     .maybeSingle()
   if (existing) throw new Error('This username is already taken')
 
-  // Update profiles table (used for login lookup)
   const { error: dbErr } = await supabase
     .from('profiles')
     .update({ username: trimmed })
     .eq('id', user.id)
   if (dbErr) throw dbErr
 
-  // Also update auth metadata so getMyProfile stays in sync
   await supabase.auth.updateUser({ data: { username: trimmed } })
 }
 
@@ -192,7 +222,6 @@ export async function updateMyEmail(newEmail: string): Promise<void> {
 
   const { error } = await supabase.auth.updateUser({ email: trimmed })
   if (error) throw error
-  // Also update profiles.email so username-login lookup keeps working after confirmation
   const { data: { user } } = await supabase.auth.getUser()
   if (user) {
     await supabase.from('profiles').update({ email: trimmed }).eq('id', user.id)
@@ -206,7 +235,6 @@ export async function updateMyPassword(
 ): Promise<void> {
   if (newPassword.length < 6) throw new Error('New password must be at least 6 characters')
 
-  // Re-authenticate by signing in with current credentials
   const { data: { user } } = await supabase.auth.getUser()
   if (!user?.email) throw new Error('Could not determine current email')
 
@@ -226,16 +254,21 @@ export async function sendPasswordReset(email: string): Promise<void> {
   if (error) throw error
 }
 
-// ─── Access: grant user access (admin/superadmin) ────────────────────────────
+// ─── Access: grant/change user access (admin/superadmin) ────────────────────
 export async function grantUserAccess(
   userId: string,
   role: 'viewer' | 'editor' | 'admin'
 ): Promise<void> {
+  // Try RPC first (bypasses RLS)
+  const { error: rpcErr } = await supabase.rpc('set_user_role', { target_id: userId, new_role: role })
+  if (!rpcErr) return
+
+  // Fallback: direct UPDATE
   const { error } = await supabase
     .from('profiles')
     .update({ role })
     .eq('id', userId)
-  if (error) throw error
+  if (error) throw new Error(error.message)
 }
 
 export async function searchProfiles(query: string): Promise<any[]> {
@@ -255,32 +288,19 @@ export async function searchProfiles(query: string): Promise<any[]> {
 
 // ─── Collaborators ────────────────────────────────────────────────────────────
 export async function inviteCollaborator(userId: string, role: 'viewer' | 'editor'): Promise<any> {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({ role })
-    .eq('id', userId)
-    .select().single()
-  if (error) throw error
-  return data
+  return grantUserAccess(userId, role)
 }
 
 export async function updateCollaboratorPermission(userId: string, role: 'viewer' | 'editor' | 'admin'): Promise<any> {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({ role })
-    .eq('id', userId)
-    .select().single()
-  if (error) throw error
-  return data
+  await grantUserAccess(userId, role)
 }
 
 export async function removeCollaborator(userId: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
+  // Try RPC first
+  const { error: rpcErr } = await supabase.rpc('set_user_role', { target_id: userId, new_role: 'pending' })
+  if (!rpcErr) return
   const { error } = await supabase
     .from('profiles')
     .update({ role: 'pending' })

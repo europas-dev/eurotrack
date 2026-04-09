@@ -27,7 +27,6 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
   }
 }
 
-// FIX: wrap any promise with a timeout so we never hang forever
 function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
   return Promise.race([
     promise,
@@ -43,6 +42,8 @@ export default function App() {
   const [lang,          setLang]          = useState<Language>('en');
   const [offlineBanner, setOfflineBanner] = useState(!navigator.onLine);
   const pollRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Guard: prevent onAuthStateChange from re-running init after the first load
+  const initialised = useRef(false);
 
   const dk = theme === 'dark';
 
@@ -54,10 +55,9 @@ export default function App() {
 
   const resolveAccess = useCallback(async (): Promise<string | null> => {
     try {
-      // FIX: 6-second timeout — if Supabase hangs, fall back to 'pending' instead of spinning forever
       const access = await withTimeout(
         getMyAccessLevel(),
-        6000,
+        8000,
         { role: 'pending' } as AccessLevel
       );
       setAccessLevel(access);
@@ -82,32 +82,36 @@ export default function App() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }, []);
 
- useEffect(() => {
+  useEffect(() => {
     let cancelled = false;
 
-    // ── Single init: check existing session, then always setLoading(false) ──
+    // ── Single init: check session once, then ALWAYS call setLoading(false) ──
     (async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (cancelled) return;
-        
         if (error || !session?.user) {
           setView('landing');
           return;
         }
-        
-        // Session exists — resolve role
         await resolveAccess();
       } catch {
         if (!cancelled) setView('landing');
       } finally {
-        if (!cancelled) setLoading(false);
+        // ✅ CRITICAL: always release the loading spinner
+        if (!cancelled) {
+          setLoading(false);
+          initialised.current = true;
+        }
       }
     })();
 
-    // ── Auth state listener (only for subsequent sign-in / sign-out) ──
+    // ── Auth state listener — only respond AFTER init is complete ──────────
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (cancelled) return;
+      // Skip the initial SIGNED_IN that fires on page load (handled above)
+      if (!initialised.current) return;
+
       if (event === 'SIGNED_IN' && session?.user) {
         setLoading(true);
         await resolveAccess();
@@ -117,6 +121,9 @@ export default function App() {
         setAccessLevel(null);
         setView('landing');
         setLoading(false);
+      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+        // Silent token refresh — don't show loading, just keep current view
+        // No-op: access level hasn't changed
       }
     });
 
@@ -132,7 +139,8 @@ export default function App() {
       window.removeEventListener('online',  handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [resolveAccess, stopPoll]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // ✅ empty deps — run once only, avoids re-subscribe loops
 
   useEffect(() => {
     if (view === 'pending') startPendingPoll();
@@ -159,8 +167,8 @@ export default function App() {
 
   if (view === 'landing') return (
     <Landing
-      onLogin={()      => setView('login')}
-      onRegister={()   => setView('signup')}
+      onLogin={()       => setView('login')}
+      onRegister={()    => setView('signup')}
       onAdminLogin={()  => setView('admin-login')}
       lang={lang} setLang={setLang}
       isDarkMode={dk} toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
