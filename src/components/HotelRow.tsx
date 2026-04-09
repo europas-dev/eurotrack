@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Building2, ChevronDown, ChevronRight, Clock, Loader2, Plus, Trash2 } from 'lucide-react';
 import {
-  cn, calcHotelFreeBeds, calcHotelTotalBeds, calcHotelTotalCost, calcHotelTotalNights,
+  cn, calcHotelFreeBeds, calcHotelTotalCost, calcHotelTotalNights,
   formatCurrency, formatDateDisplay, getDurationRowLabel, getDurationTabLabel, getEmployeeStatus
 } from '../lib/utils';
 import { createDuration, updateHotel } from '../lib/supabase';
@@ -40,15 +40,17 @@ export function HotelRow({
   const totalNights = useMemo(() => calcHotelTotalNights(localHotel), [localHotel]);
   const totalCost   = useMemo(() => calcHotelTotalCost(localHotel),   [localHotel]);
   const freeBeds    = useMemo(() => calcHotelFreeBeds(localHotel),    [localHotel]);
-  const totalBeds   = useMemo(() => calcHotelTotalBeds ? calcHotelTotalBeds(localHotel) : (localHotel.durations || []).reduce((acc: number, d: any) => {
-    const rt = d.roomType || 'DZ';
-    const n  = Number(d.numberOfRooms || 1);
-    if (rt === 'EZ') return acc + n;
-    if (rt === 'DZ') return acc + n * 2;
-    if (rt === 'TZ') return acc + n * 3;
-    if (rt === 'WG') return acc + n;
-    return acc + n;
-  }, 0), [localHotel]);
+  const totalBeds   = useMemo(() =>
+    (localHotel.durations || []).reduce((acc: number, d: any) => {
+      const rt = d.roomType || 'DZ';
+      const n  = Number(d.numberOfRooms || 1);
+      if (rt === 'EZ') return acc + n;
+      if (rt === 'DZ') return acc + n * 2;
+      if (rt === 'TZ') return acc + n * 3;
+      if (rt === 'WG') return acc + n;
+      return acc + n * 2;
+    }, 0)
+  , [localHotel]);
 
   const employees = useMemo(() =>
     (localHotel.durations || []).flatMap((d: any) => (d.employees || []).filter(Boolean))
@@ -134,10 +136,7 @@ export function HotelRow({
         dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200'
       )}>
 
-        {/* ━━ MAIN ROW ━━
-            Layout: table-like with fixed-width narrow columns on the right,
-            and flexible wrapping columns on the left.
-            Row height grows with content – no truncation on text columns. */}
+        {/* ━━ MAIN ROW ━━ */}
         <div
           className={cn(
             'flex items-stretch gap-0 cursor-pointer select-none',
@@ -155,7 +154,6 @@ export function HotelRow({
 
           {/* COL 2 — Hotel name + city (wraps, min 160px) */}
           <div className="py-3 pr-3 flex-shrink-0" style={{ width: 180, minWidth: 120 }}>
-            {/* inline edit: click text to edit, stop propagation */}
             <p
               className={cn('text-sm font-black leading-snug break-words', dk ? 'text-white' : 'text-slate-900')}
               style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}
