@@ -29,7 +29,7 @@ interface HeaderProps {
   userRole?: string;
 }
 
-// ─── Avatar presets ─────────────────────────────────────────────────────────────────────────────────
+// ─── Avatar presets ───────────────────────────────────────────────────────────
 const AVATARS = [
   { id: 'fox',      emoji: '🦊', bg: '#f97316' },
   { id: 'wolf',     emoji: '🐺', bg: '#3b82f6' },
@@ -45,7 +45,7 @@ const AVATARS = [
   { id: 'target',   emoji: '🎯', bg: '#475569' },
 ];
 
-// ─── Font options ────────────────────────────────────────────────────────────────────────────────
+// ─── Font options ─────────────────────────────────────────────────────────────
 const FONTS = [
   { value: 'inter',        label: 'Inter',           family: 'Inter, sans-serif' },
   { value: 'roboto',       label: 'Roboto',          family: 'Roboto, sans-serif' },
@@ -60,7 +60,7 @@ const FONTS = [
   { value: 'jetbrains',    label: 'JetBrains Mono',  family: '"JetBrains Mono", monospace' },
 ];
 
-// ─── Role shield config ─────────────────────────────────────────────────────────────────────────
+// ─── Role shield config ───────────────────────────────────────────────────────
 function RoleShield({ role, lang }: { role: string; lang: string }) {
   const configs: Record<string, { color: string; bg: string; border: string; icon: string; label: string }> = {
     superadmin: { color: 'text-yellow-400', bg: 'bg-yellow-400/10', border: 'border-yellow-400/30', icon: '👑', label: 'Super Admin' },
@@ -77,7 +77,7 @@ function RoleShield({ role, lang }: { role: string; lang: string }) {
   );
 }
 
-// ─── Accordion ───────────────────────────────────────────────────────────────────────────────────────
+// ─── Accordion ────────────────────────────────────────────────────────────────
 function Accordion({ title, icon: Icon, children, dk }: { title: string; icon: any; children: React.ReactNode; dk: boolean }) {
   const [open, setOpen] = useState(false);
   return (
@@ -99,7 +99,7 @@ function Accordion({ title, icon: Icon, children, dk }: { title: string; icon: a
   );
 }
 
-// ─── Section header ────────────────────────────────────────────────────────────────────────────────────────────
+// ─── Section header ───────────────────────────────────────────────────────────
 function SectionLabel({ children, dk }: { children: React.ReactNode; dk: boolean }) {
   return (
     <p className={cn('text-[10px] font-black uppercase tracking-widest mb-2', dk ? 'text-slate-500' : 'text-slate-400')}>
@@ -122,21 +122,21 @@ export default function Header({
   const [showSettings, setShowSettings] = useState(false);
   const [settingsTab,  setSettingsTab]  = useState<'profile' | 'security' | 'access'>('profile');
 
-  // ── Profile state ────────────────────────────────────────────────────────────────────────
-  const [profile,      setProfile]      = useState<any>(null);
-  const [editName,     setEditName]     = useState('');
+  // ── Profile state ──────────────────────────────────────────────────────────
+  const [profile,       setProfile]       = useState<any>(null);
+  const [editName,      setEditName]      = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
-  const [profileMsg,   setProfileMsg]   = useState('');
+  const [profileMsg,    setProfileMsg]    = useState('');
 
   // Avatar picker
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [selectedAvatar,   setSelectedAvatar]   = useState<string | null>(null);
 
-  // Personalization (live-applied, not saved via profile save button)
+  // Personalization — applied live, persisted on change (no save button)
   const [fontScale,    setFontScaleState]  = useState(100);
   const [fontFamily,   setFontFamilyState] = useState('inter');
 
-  // ── Security state ────────────────────────────────────────────────────────────────────────
+  // ── Security state ─────────────────────────────────────────────────────────
   const [newUsername,     setNewUsername]     = useState('');
   const [usernameMsg,     setUsernameMsg]     = useState('');
   const [savingUsername,  setSavingUsername]  = useState(false);
@@ -155,7 +155,7 @@ export default function Header({
   const [resetMsg,        setResetMsg]        = useState('');
   const [sendingReset,    setSendingReset]    = useState(false);
 
-  // ── Access tab state ────────────────────────────────────────────────────────────────────────
+  // ── Access tab state ───────────────────────────────────────────────────────
   const [accessSearch,    setAccessSearch]    = useState('');
   const [accessResults,   setAccessResults]   = useState<any[]>([]);
   const [accessSearching, setAccessSearching] = useState(false);
@@ -166,7 +166,7 @@ export default function Header({
   const [collabs,         setCollabs]         = useState<any[]>([]);
   const [collabsLoading,  setCollabsLoading]  = useState(false);
 
-  // ── Share modal state ──────────────────────────────────────────────────────────────────────
+  // ── Share modal state ──────────────────────────────────────────────────────
   const [shareSearch,     setShareSearch]     = useState('');
   const [shareResults,    setShareResults]    = useState<any[]>([]);
   const [shareSearching,  setShareSearching]  = useState(false);
@@ -184,7 +184,7 @@ export default function Header({
     dk ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900');
   const btnPrimary = 'flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-all';
 
-  // ── Load profile ───────────────────────────────────────────────────────────────────────────
+  // ── Load profile ───────────────────────────────────────────────────────────
   useEffect(() => {
     getMyProfile().then(p => {
       if (!p) return;
@@ -204,20 +204,18 @@ export default function Header({
     document.documentElement.style.fontSize = `${scale}%`;
   }
 
-  // Live-apply font family when changed
+  // Live-apply + persist font family immediately (no save button needed)
   function handleFontFamilyChange(value: string) {
     setFontFamilyState(value);
     const font = FONTS.find(f => f.value === value);
     if (font) document.documentElement.style.setProperty('--font-body', font.family);
-    // Persist immediately
     updateMyProfile({ fontFamily: value }).catch(() => {});
   }
 
-  // Live-apply font scale when changed
+  // Live-apply + persist font scale immediately (no save button needed)
   function handleFontScaleChange(value: number) {
     setFontScaleState(value);
     document.documentElement.style.fontSize = `${value}%`;
-    // Persist immediately
     updateMyProfile({ fontScale: value }).catch(() => {});
   }
 
@@ -243,7 +241,7 @@ export default function Header({
     finally { setShareCollabsLoading(false); }
   }
 
-  // ── Access search debounce ─────────────────────────────────────────────────────────────────────
+  // ── Access search debounce ─────────────────────────────────────────────────
   useEffect(() => {
     if (!accessSearch.trim()) { setAccessResults([]); setSelectedUser(null); return; }
     const t = setTimeout(async () => {
@@ -254,7 +252,7 @@ export default function Header({
     return () => clearTimeout(t);
   }, [accessSearch]);
 
-  // ── Share search debounce ──────────────────────────────────────────────────────────────────────
+  // ── Share search debounce ──────────────────────────────────────────────────
   useEffect(() => {
     if (!shareSearch.trim()) { setShareResults([]); return; }
     const t = setTimeout(async () => {
@@ -265,14 +263,14 @@ export default function Header({
     return () => clearTimeout(t);
   }, [shareSearch]);
 
-  // ── Handlers ─────────────────────────────────────────────────────────────────────────────────────────────
-  // Save only avatar + name (font/size are persisted live on change)
+  // ── Handlers ───────────────────────────────────────────────────────────────
+  // Save only covers avatar + display name (font/size persist live on change)
   async function handleSaveProfile() {
     setSavingProfile(true); setProfileMsg('');
     try {
       const updated = await updateMyProfile({
-        full_name:  editName,
-        avatar:     selectedAvatar,
+        full_name: editName,
+        avatar:    selectedAvatar,
       });
       setProfile(updated);
       setProfileMsg(lang === 'de' ? '✓ Gespeichert' : '✓ Saved');
@@ -367,7 +365,7 @@ export default function Header({
     } catch {}
   }
 
-  // ── Avatar display ──────────────────────────────────────────────────────────────────────────────────
+  // ── Avatar display ─────────────────────────────────────────────────────────
   function AvatarDisplay({ size = 64, editable = false }: { size?: number; editable?: boolean }) {
     const av = AVATARS.find(a => a.id === selectedAvatar);
     const initials = (profile?.fullName || profile?.full_name || profile?.email || '?')[0].toUpperCase();
@@ -394,7 +392,7 @@ export default function Header({
     );
   }
 
-  // ── Role badge for collab list ────────────────────────────────────────────────────────────────────
+  // ── Role badge for collab list ─────────────────────────────────────────────
   const RoleBadge = ({ role, userId, onChange }: { role: string; userId: string; onChange: (r: any) => void }) => (
     <div className="relative group inline-block">
       <button className={cn('flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold transition-all',
@@ -442,7 +440,7 @@ export default function Header({
     </div>
   );
 
-  // ── Render ─────────────────────────────────────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
       {/* ── Main header bar ── */}
@@ -653,28 +651,31 @@ export default function Header({
             {/* Body */}
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
 
-              {/* ────────────────────────────────────── PROFILE TAB */}
+              {/* ── PROFILE TAB ── */}
               {settingsTab === 'profile' && (
                 <>
-                  {/* Identity card: avatar + name + @username + role */}
+                  {/* Identity card: avatar → name → @username → role badge */}
                   <div className={cn('rounded-xl border p-5 space-y-4', dk ? 'border-white/10 bg-white/2' : 'border-slate-200 bg-slate-50')}>
-                    {/* Avatar row */}
+
+                    {/* Avatar + identity info */}
                     <div className="flex items-center gap-4">
                       <AvatarDisplay size={64} editable />
                       <div className="flex-1 min-w-0">
                         <p className={cn('text-base font-black truncate', dk ? 'text-white' : 'text-slate-900')}>
                           {profile?.fullName || profile?.full_name || '—'}
                         </p>
-                        <p className={cn('text-sm truncate', dk ? 'text-slate-400' : 'text-slate-500')}>
-                          {profile?.username ? `@${profile.username}` : ''}
-                        </p>
+                        {profile?.username && (
+                          <p className={cn('text-sm truncate', dk ? 'text-slate-400' : 'text-slate-500')}>
+                            @{profile.username}
+                          </p>
+                        )}
                         <div className="mt-1.5">
                           <RoleShield role={userRole} lang={lang} />
                         </div>
                       </div>
                     </div>
 
-                    {/* Edit name */}
+                    {/* Edit display name */}
                     <div>
                       <SectionLabel dk={dk}>{lang === 'de' ? 'Anzeigename' : 'Display Name'}</SectionLabel>
                       <input
@@ -685,7 +686,7 @@ export default function Header({
                       />
                     </div>
 
-                    {/* Save button — only for identity card */}
+                    {/* Save — only for avatar + name */}
                     <div className="flex items-center justify-between pt-1">
                       {profileMsg && (
                         <p className={cn('text-xs font-bold', profileMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>
@@ -731,7 +732,7 @@ export default function Header({
                     </div>
                   )}
 
-                  {/* Personalization — live preview, no save button needed */}
+                  {/* Appearance — font/size apply live, no save button */}
                   <div className={cn('rounded-xl border p-4 space-y-4', dk ? 'border-white/10' : 'border-slate-200')}>
                     <SectionLabel dk={dk}>{lang === 'de' ? 'Darstellung' : 'Appearance'}</SectionLabel>
 
@@ -782,10 +783,10 @@ export default function Header({
                 </>
               )}
 
-              {/* ────────────────────────────────────── SECURITY TAB */}
+              {/* ── SECURITY TAB ── */}
               {settingsTab === 'security' && (
                 <>
-                  {/* Current email display */}
+                  {/* FIX: Current email shown at top of security tab */}
                   {profile?.email && (
                     <div className={cn('rounded-xl border p-4', dk ? 'border-white/10 bg-white/2' : 'border-slate-200 bg-slate-50')}>
                       <SectionLabel dk={dk}>{lang === 'de' ? 'Aktuelle E-Mail' : 'Current Email'}</SectionLabel>
@@ -884,7 +885,7 @@ export default function Header({
                 </>
               )}
 
-              {/* ────────────────────────────────────── ACCESS TAB */}
+              {/* ── ACCESS TAB ── */}
               {settingsTab === 'access' && isAdmin && (
                 <>
                   <div>
