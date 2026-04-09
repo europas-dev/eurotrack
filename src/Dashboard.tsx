@@ -47,11 +47,12 @@ export default function Dashboard({
 
   // Hotels visible to this user
   const visibleHotels = React.useMemo(() => {
-    if (!accessLevel || accessLevel.role === 'admin') return hotels;
+    // superadmin and admin both see everything
+    if (!accessLevel || accessLevel.role === 'admin' || accessLevel.role === 'superadmin') return hotels;
     if (accessLevel.role === 'editor' || accessLevel.role === 'viewer') {
       return hotels.filter(h => accessLevel.hotelIds.includes(h.id));
     }
-    return [];
+    return hotels; // fallback: show all
   }, [hotels, accessLevel]);
 
   const filteredHotels = React.useMemo(() => {
@@ -218,7 +219,6 @@ export default function Dashboard({
                   )}
                 </p>
               </div>
-              {/* Only admins and editors can add hotels */}
               {!viewOnly && (
                 <button
                   onClick={() => setShowAddHotel(true)}
