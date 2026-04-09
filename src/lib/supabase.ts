@@ -30,35 +30,34 @@ export type AccessLevel =
   | { role: 'viewer' }
   | { role: 'pending' }
 
-function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>(resolve => setTimeout(() => resolve(fallback), ms)),
-  ])
-}
-
 export async function getMyAccessLevel(): Promise<AccessLevel> {
   try {
     const { data: { user }, error: authErr } = await supabase.auth.getUser()
     if (authErr || !user) return { role: 'pending' }
 
-    const profileResult = await withTimeout(
-      supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
-      3000,
-      { data: null, error: new Error('timeout') }
-    )
+    // No timeout wrapper — let Supabase respond naturally
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle()
 
-    const role = (profileResult.data as any)?.role as UserRole | null
+    if (error) {
+      console.error('[getMyAccessLevel] DB error:', error.message)
+      return { role: 'pending' }
+    }
+
+    const role = (data as any)?.role as UserRole | null
+    console.log('[getMyAccessLevel] role from DB:', role)
 
     if (role === 'superadmin') return { role: 'superadmin' }
     if (role === 'admin')      return { role: 'admin' }
     if (role === 'editor')     return { role: 'editor' }
     if (role === 'viewer')     return { role: 'viewer' }
 
-    // No recognised role → pending
     return { role: 'pending' }
-
-  } catch {
+  } catch (e) {
+    console.error('[getMyAccessLevel] unexpected error:', e)
     return { role: 'pending' }
   }
 }
@@ -166,12 +165,10 @@ export async function searchProfiles(query: string): Promise<any[]> {
   } catch { return [] }
 }
 
-// ─── Collaborators (invite existing users as editor or viewer) ─────────────────
-// Only admin and superadmin can call these.
+// ─── Collaborators ────────────────────────────────────────────────────────────
 export async function inviteCollaborator(userId: string, role: 'viewer' | 'editor'): Promise<any> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
-  // For a company-wide system, set role directly on the profiles table
   const { data, error } = await supabase
     .from('profiles')
     .update({ role })
@@ -194,7 +191,6 @@ export async function updateCollaboratorPermission(userId: string, role: 'viewer
 }
 
 export async function removeCollaborator(userId: string): Promise<void> {
-  // Removing = setting back to pending so superadmin can reassign
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
   const { error } = await supabase
@@ -206,7 +202,6 @@ export async function removeCollaborator(userId: string): Promise<void> {
 
 export async function getCollaborators(): Promise<any[]> {
   try {
-    // Returns all non-superadmin, non-pending users (i.e. people with actual access)
     const { data, error } = await supabase
       .from('profiles')
       .select('id, email, full_name, avatar_url, role, created_at')
@@ -302,11 +297,10 @@ function normalizeHotel(h: any): any {
   }
 }
 
-// ─── Hotels — company-wide, no owner filter ───────────────────────────────────
+// ─── Hotels — company-wide ────────────────────────────────────────────────────
 export async function getHotels() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
-
   const { data, error } = await supabase
     .from('hotels')
     .select('*, durations(*, employees(*))')
