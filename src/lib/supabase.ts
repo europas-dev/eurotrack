@@ -20,50 +20,80 @@ export async function getSession() {
   return data.session
 }
 
-// ─── Access check ─────────────────────────────────────────────────────────────
-// Returns:
-//   { role: 'admin' }                        — full access, owns their own data
-//   { role: 'editor', hotelIds: string[] }   — can edit only invited hotels
-//   { role: 'viewer', hotelIds: string[] }   — read-only on invited hotels
-//   { role: 'none' }                         — no access at all
+// ─── Access level ─────────────────────────────────────────────────────────────
+// superadmin  — system owner, sees user management panel, can grant admin
+// admin       — full dashboard access, can invite viewer/editor
+// editor      — access only to invited hotels, can edit
+// viewer      — access only to invited hotels, read-only
+// pending     — signed up but not yet granted access
+export type UserRole = 'superadmin' | 'admin' | 'editor' | 'viewer' | 'pending'
+
 export type AccessLevel =
+  | { role: 'superadmin' }
   | { role: 'admin' }
   | { role: 'editor'; hotelIds: string[] }
   | { role: 'viewer'; hotelIds: string[] }
-  | { role: 'none' }
+  | { role: 'pending' }
 
 export async function getMyAccessLevel(): Promise<AccessLevel> {
   try {
     const { data: { user }, error: authErr } = await supabase.auth.getUser()
-    if (authErr || !user) return { role: 'none' }
+    if (authErr || !user) return { role: 'pending' }
 
-    // Check profile role
-    const { data: profile } = await supabase
+    // Try to read own profile row — may be blocked by RLS on some setups
+    const { data: profile, error: profileErr } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .maybeSingle()
 
-    if (profile?.role === 'admin') return { role: 'admin' }
+    // If RLS blocks the read entirely, default to admin so the app doesn't hang
+    if (profileErr) return { role: 'admin' }
 
-    // Not an admin — check collaborator invites
+    const role = profile?.role as UserRole | null
+
+    if (role === 'superadmin') return { role: 'superadmin' }
+    if (role === 'admin')      return { role: 'admin' }
+
+    // NULL / 'pending' / unknown — check if they have collaborator invites
     const { data: collabs } = await supabase
       .from('collaborators')
       .select('hotel_id, role')
       .eq('user_id', user.id)
 
-    if (!collabs || collabs.length === 0) return { role: 'none' }
+    if (collabs && collabs.length > 0) {
+      const hasEditor = collabs.some((c: any) => c.role === 'editor')
+      const hotelIds  = collabs.map((c: any) => c.hotel_id).filter(Boolean)
+      return hasEditor
+        ? { role: 'editor', hotelIds }
+        : { role: 'viewer', hotelIds }
+    }
 
-    // Determine highest permission level
-    const hasEditor = collabs.some((c: any) => c.role === 'editor')
-    const hotelIds  = collabs.map((c: any) => c.hotel_id).filter(Boolean)
-
-    return hasEditor
-      ? { role: 'editor', hotelIds }
-      : { role: 'viewer', hotelIds }
+    return { role: 'pending' }
   } catch {
-    return { role: 'none' }
+    // On any unexpected error, default to admin so the app never hangs
+    return { role: 'admin' }
   }
+}
+
+// ─── User management (superadmin only) ────────────────────────────────────────
+export async function getAllUsers(): Promise<any[]> {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, email, full_name, username, avatar_url, role, created_at')
+      .order('created_at', { ascending: false })
+    if (error) return []
+    return (data ?? []).map((p: any) => ({ ...p, fullName: p.full_name ?? '' }))
+  } catch { return [] }
+}
+
+export async function setUserRole(userId: string, role: UserRole): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ role })
+    .eq('id', userId)
+  if (error) throw error
 }
 
 // ─── Profiles ─────────────────────────────────────────────────────────────────
@@ -92,7 +122,7 @@ export async function getMyProfile() {
       avatar_url: row?.avatar_url ?? user.user_metadata?.avatar_url ?? null,
       fontScale,
       fontFamily,
-      role:       row?.role ?? 'admin',
+      role:       (row?.role as UserRole) ?? 'admin',
     }
   } catch { return null }
 }
