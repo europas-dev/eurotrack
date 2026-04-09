@@ -136,6 +136,31 @@ export async function getCollaborators(hotelId?: string | null): Promise<any[]> 
   } catch { return [] }
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Normalise companyTag: always return string[] internally
+function normaliseCompanyTag(raw: any): string[] {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw.filter(Boolean)
+  if (typeof raw === 'string') {
+    // could be a JSON-encoded array like '["A","B"]'
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) return parsed.filter(Boolean)
+    } catch {}
+    return raw ? [raw] : []
+  }
+  return []
+}
+
+// Serialise string[] → what goes into Supabase
+// We store as text (comma-separated) so it works with a plain text column.
+// If your column is jsonb, change this to: return tags
+function serialiseCompanyTag(tags: string[]): string | null {
+  if (!tags || tags.length === 0) return null
+  // Store as JSON array string so we can reliably round-trip multiple values
+  return JSON.stringify(tags)
+}
+
 // ─── Normalizers ──────────────────────────────────────────────────────────────
 function normalizeEmployee(e: any): any {
   if (!e || typeof e !== 'object') return null
@@ -180,9 +205,11 @@ function normalizeDuration(d: any): any {
 
 function normalizeHotel(h: any): any {
   if (!h || typeof h !== 'object') return null
+  // companyTag is always string[] inside the app
+  const rawTag = h.companytag ?? h.companyTag ?? null
   return {
     ...h,
-    companyTag:    h.companytag    ?? h.companyTag    ?? '',
+    companyTag:    normaliseCompanyTag(rawTag),
     contactPerson: h.contactperson ?? h.contactPerson ?? '',
     webLink:       h.weblink       ?? h.webLink       ?? '',
     phone:         h.phone         ?? '',
@@ -206,7 +233,7 @@ export async function getHotels() {
 export async function createHotel(data: {
   name: string
   city?: string | null
-  companyTag?: string | null
+  companyTag?: string[] | string | null
   address?: string | null
   contactPerson?: string | null
   phone?: string | null
@@ -218,12 +245,16 @@ export async function createHotel(data: {
   try {
     const { data: { user } } = await supabase.auth.getUser()
     userEmail = user?.email ?? user?.id ?? null
-  } catch { /* continue without user info */ }
+  } catch { /* continue */ }
+
+  const tags = Array.isArray(data.companyTag)
+    ? data.companyTag
+    : (data.companyTag ? [data.companyTag] : [])
 
   const insertPayload: any = {
     name:          data.name,
     city:          data.city          ?? null,
-    companytag:    data.companyTag    ?? null,
+    companytag:    serialiseCompanyTag(tags),
     address:       data.address       ?? null,
     contactperson: data.contactPerson ?? null,
     phone:         data.phone         ?? null,
@@ -241,7 +272,6 @@ export async function createHotel(data: {
 
   if (error) throw error
   if (!result) throw new Error('Hotel created but no data returned — check RLS policies')
-
   return normalizeHotel({ ...result, durations: [] })
 }
 
@@ -252,15 +282,21 @@ export async function updateHotel(id: string, data: any) {
     userEmail = user?.email ?? user?.id ?? null
   } catch { /* continue */ }
 
+  // companyTag inside the app is always string[]; serialise before saving
+  const rawTag = data.companyTag ?? data.companytag ?? null
+  const tags = Array.isArray(rawTag)
+    ? rawTag
+    : (rawTag ? [rawTag] : [])
+
   const updatePayload: any = {
     name:          data.name,
     city:          data.city          ?? null,
-    companytag:    data.companyTag    ?? data.companytag    ?? null,
+    companytag:    serialiseCompanyTag(tags),
     address:       data.address       ?? null,
     contactperson: data.contactPerson ?? data.contactperson ?? null,
     phone:         data.phone         ?? null,
     email:         data.email         ?? null,
-    weblink:       data.webLink       ?? data.weblink       ?? null,
+    weblink:       data.webLink       ?? data.weblink ?? null,
     notes:         data.notes         ?? null,
     lastupdatedat: new Date().toISOString(),
   }

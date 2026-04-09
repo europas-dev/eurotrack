@@ -14,11 +14,11 @@ import {
   Plus, Building2, Check, X, Loader2,
   Filter, ArrowUpDown, Download, Users, WifiOff, Wifi
 } from 'lucide-react'
-import Header     from './components/Header'
-import Sidebar    from './components/Sidebar'
-import HotelRow   from './components/HotelRow'
-import ShareModal   from './components/ShareModal'
-import ExportModal  from './components/ExportModal'
+import Header from './components/Header'
+import Sidebar from './components/Sidebar'
+import HotelRow from './components/HotelRow'
+import ShareModal from './components/ShareModal'
+import ExportModal from './components/ExportModal'
 
 type SortBy   = 'name' | 'city' | 'cost' | 'nights'
 type Theme    = 'dark' | 'light'
@@ -34,32 +34,25 @@ interface DashboardProps {
 }
 
 // ─── Inline new-hotel row ─────────────────────────────────────────────────────
-function NewHotelRow({ isDarkMode, lang, onSave, onCancel, companyOptions, cityOptions }: {
+// Only hotel name is entered here. City and company are set inline after creation.
+function NewHotelRow({ isDarkMode, lang, onSave, onCancel }: {
   isDarkMode: boolean; lang: Language
   onSave: (hotel: any) => void; onCancel: () => void
-  companyOptions: string[]; cityOptions: string[]
 }) {
   const dk = isDarkMode
   const [name, setName] = useState('')
-  const [city, setCity] = useState('')
-  const [tag,  setTag]  = useState('')
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
   const nameRef = useRef<HTMLInputElement>(null)
   useEffect(() => { nameRef.current?.focus() }, [])
-  // Only hotel name is required
-  const canSave = name.trim().length > 0
 
   async function handleSave() {
-    if (!canSave) return
+    const trimmed = name.trim()
+    if (!trimmed) return
     setErr('')
     try {
       setSaving(true)
-      const newHotel = await createHotel({
-        name: name.trim(),
-        city: city.trim() || null,
-        companyTag: tag.trim() || null,
-      })
+      const newHotel = await createHotel({ name: trimmed })
       if (!newHotel || !newHotel.id) throw new Error('Hotel creation returned no data')
       onSave({ ...newHotel, durations: newHotel.durations ?? [] })
     } catch (e: any) {
@@ -77,53 +70,36 @@ function NewHotelRow({ isDarkMode, lang, onSave, onCancel, companyOptions, cityO
   return (
     <div className={cn('mb-2 rounded-xl border px-4 py-3 space-y-2',
       dk ? 'bg-[#0B1224] border-blue-500/40' : 'bg-white border-blue-400')}>
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-2">
         <div className="w-8 h-8 bg-blue-600/30 rounded-lg flex items-center justify-center flex-shrink-0">
           <Building2 size={16} className="text-blue-400" />
         </div>
-        {/* Hotel name — required */}
         <input
-          ref={nameRef} value={name} onChange={e => setName(e.target.value)}
-          placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel name...'}
-          onKeyDown={e => e.key === 'Enter' && handleSave()}
-          className={cn(ic, 'w-52')}
+          ref={nameRef}
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder={lang === 'de' ? 'Hotelname eingeben...' : 'Enter hotel name...'}
+          onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onCancel() }}
+          className={cn(ic, 'flex-1')}
         />
-        {/* City — optional, with datalist */}
-        <div className="relative">
-          <input
-            list="new-hotel-city-list"
-            value={city} onChange={e => setCity(e.target.value)}
-            placeholder={lang === 'de' ? 'Stadt (optional)' : 'City (optional)'}
-            onKeyDown={e => e.key === 'Enter' && handleSave()}
-            className={cn(ic, 'w-36')}
-          />
-          <datalist id="new-hotel-city-list">
-            {cityOptions.map(x => <option key={x} value={x} />)}
-          </datalist>
-        </div>
-        {/* Company — optional, with datalist */}
-        <div className="relative">
-          <input
-            list="new-hotel-company-list"
-            value={tag} onChange={e => setTag(e.target.value)}
-            placeholder={lang === 'de' ? 'Firma (optional)' : 'Company (optional)'}
-            onKeyDown={e => e.key === 'Enter' && handleSave()}
-            className={cn(ic, 'w-36')}
-          />
-          <datalist id="new-hotel-company-list">
-            {companyOptions.map(x => <option key={x} value={x} />)}
-          </datalist>
-        </div>
-        <button onClick={handleSave} disabled={saving || !canSave}
-          className="p-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-lg">
+        <button
+          onClick={handleSave}
+          disabled={saving || !name.trim()}
+          className="p-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-lg"
+        >
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
         </button>
-        <button onClick={onCancel}
-          className={cn('p-2 rounded-lg', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
+        <button
+          onClick={onCancel}
+          className={cn('p-2 rounded-lg', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}
+        >
           <X size={16} />
         </button>
       </div>
       {err && <p className="text-red-400 text-xs font-bold px-1">{err}</p>}
+      <p className={cn('text-[10px] px-1', dk ? 'text-slate-600' : 'text-slate-400')}>
+        {lang === 'de' ? 'Stadt und Firma können danach direkt in der Zeile bearbeitet werden.' : 'City and company can be edited inline after creation.'}
+      </p>
     </div>
   )
 }
@@ -172,8 +148,18 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
     finally { setLoading(false) }
   }
 
-  const companyOptions = useMemo(() => Array.from(new Set(hotels.map((h: any) => h.companyTag).filter(Boolean))).sort() as string[], [hotels])
-  const cityOptions    = useMemo(() => Array.from(new Set(hotels.map((h: any) => h.city).filter(Boolean))).sort() as string[], [hotels])
+  // All unique company tags across all hotels (flattened from arrays)
+  const companyOptions = useMemo(() =>
+    Array.from(new Set(
+      hotels.flatMap((h: any) =>
+        Array.isArray(h.companyTag) ? h.companyTag : (h.companyTag ? [h.companyTag] : [])
+      ).filter(Boolean)
+    )).sort() as string[]
+  , [hotels])
+
+  const cityOptions = useMemo(() =>
+    Array.from(new Set(hotels.map((h: any) => h.city).filter(Boolean))).sort() as string[]
+  , [hotels])
 
   const filtered = useMemo(() => {
     let list = (hotels ?? []).filter(h => {
@@ -203,14 +189,25 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
 
   const groupTabs = useMemo(() => {
     if (groupBy === 'none') return []
-    const key = groupBy === 'company' ? 'companyTag' : 'city'
-    return Array.from(new Set(filtered.map((h: any) => h[key] || '—'))).sort() as string[]
+    if (groupBy === 'company') {
+      return Array.from(new Set(
+        filtered.flatMap((h: any) =>
+          Array.isArray(h.companyTag) ? h.companyTag : (h.companyTag ? [h.companyTag] : ['—'])
+        )
+      )).sort() as string[]
+    }
+    return Array.from(new Set(filtered.map((h: any) => h.city || '—'))).sort() as string[]
   }, [filtered, groupBy])
 
   const visibleHotels = useMemo(() => {
     if (groupBy === 'none' || !activeGroupTab) return filtered
-    const key = groupBy === 'company' ? 'companyTag' : 'city'
-    return filtered.filter((h: any) => (h[key] || '—') === activeGroupTab)
+    if (groupBy === 'company') {
+      return filtered.filter((h: any) => {
+        const tags = Array.isArray(h.companyTag) ? h.companyTag : (h.companyTag ? [h.companyTag] : [])
+        return tags.includes(activeGroupTab) || (tags.length === 0 && activeGroupTab === '—')
+      })
+    }
+    return filtered.filter((h: any) => (h.city || '—') === activeGroupTab)
   }, [filtered, groupBy, activeGroupTab])
 
   useEffect(() => { setActiveGroupTab(groupTabs[0] ?? null) }, [groupBy, groupTabs.length])
@@ -265,13 +262,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
               <p className={cn('text-xl font-black', cls)}>{value}</p>
             </div>
           ))}
-
           <div className="ml-auto">
             <button
               onClick={onToggleOfflineMode}
-              title={offlineMode
-                ? (lang === 'de' ? 'Online gehen' : 'Go online')
-                : (lang === 'de' ? 'Offline-Modus aktivieren' : 'Enable offline mode')}
               className={cn(
                 'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all',
                 offlineMode
@@ -281,7 +274,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
               )}
             >
               {offlineMode
-                ? <><WifiOff size={13} /> {lang === 'de' ? 'Offline' : 'Offline'}</>
+                ? <><WifiOff size={13} /> Offline</>
                 : <><Wifi    size={13} /> {lang === 'de' ? 'Offline-Modus' : 'Offline Mode'}</>
               }
             </button>
@@ -290,15 +283,12 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
 
         {/* Main */}
         <main className="flex-1 p-6 overflow-y-auto">
-
           {/* Toolbar */}
           <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
             <h2 className={cn('text-xl font-black', dk ? 'text-white' : 'text-slate-900')}>
               {selectedMonth !== null ? `${monthNames[selectedMonth]} ${selectedYear}` : 'Dashboard'}
             </h2>
-
             <div className="flex items-center gap-2 flex-wrap">
-
               {/* Filter */}
               <div className="relative">
                 <button
@@ -318,7 +308,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
                     </span>
                   )}
                 </button>
-
                 {showFilterMenu && (
                   <div className={menuCls}>
                     <span className={sectionLabel}>{lang === 'de' ? 'Zahlung' : 'Payment'}</span>
@@ -327,14 +316,12 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
                         {{ all: lang==='de'?'Alle':'All', paid: lang==='de'?'Bezahlt':'Paid', unpaid: lang==='de'?'Unbezahlt':'Unpaid' }[v]}
                       </button>
                     ))}
-
                     <span className={sectionLabel}>{lang === 'de' ? 'Kaution' : 'Deposit'}</span>
                     {(['all','deposit','no-deposit'] as FilterDeposit[]).map(v => (
                       <button key={v} onClick={() => setFilterDeposit(v)} className={menuBtn(filterDeposit === v)}>
                         {{ all: lang==='de'?'Alle':'All', deposit: lang==='de'?'Mit Kaution':'With deposit', 'no-deposit': lang==='de'?'Ohne Kaution':'No deposit' }[v]}
                       </button>
                     ))}
-
                     <span className={sectionLabel}>{lang === 'de' ? 'Freie Betten' : 'Availability'}</span>
                     {([
                       ['none',    lang==='de'?'Alle':'All'],
@@ -345,9 +332,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
                     ] as [FilterFree,string][]).map(([v,label]) => (
                       <button key={v} onClick={() => setFilterFree(v as FilterFree)} className={menuBtn(filterFree === v)}>{label}</button>
                     ))}
-
                     <div className={cn('border-t mt-3 mb-2', dk ? 'border-white/10' : 'border-slate-100')} />
-
                     <span className={sectionLabel}>{lang === 'de' ? 'Gruppieren nach' : 'Group by'}</span>
                     {([
                       ['none',    lang==='de'?'Kein Gruppieren':'No grouping'],
@@ -356,7 +341,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
                     ] as [GroupBy,string][]).map(([v,label]) => (
                       <button key={v} onClick={() => setGroupBy(v as GroupBy)} className={menuBtn(groupBy === v)}>{label}</button>
                     ))}
-
                     <div className={cn('border-t mt-3 mb-1', dk ? 'border-white/10' : 'border-slate-100')} />
                     <button
                       onClick={() => { setFilterPaid('all'); setFilterDeposit('all'); setFilterFree('none'); setGroupBy('none'); setShowFilterMenu(false) }}
@@ -368,7 +352,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
                   </div>
                 )}
               </div>
-
               {/* Sort */}
               <div className="relative">
                 <button onClick={() => { setShowSortMenu(v => !v); setShowFilterMenu(false) }} className={toolbarBtn}>
@@ -390,22 +373,19 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
                   </div>
                 )}
               </div>
-
               {/* Export */}
               <button onClick={() => setShowExportModal(true)} className={toolbarBtn}>
-                <Download size={15} />
-                {lang === 'de' ? 'Export' : 'Export'}
+                <Download size={15} />{lang === 'de' ? 'Export' : 'Export'}
               </button>
-
               {/* Share */}
               <button onClick={() => setShowShareModal(true)} className={toolbarBtn}>
-                <Users size={15} />
-                {lang === 'de' ? 'Teilen' : 'Share'}
+                <Users size={15} />{lang === 'de' ? 'Teilen' : 'Share'}
               </button>
-
               {/* Add Hotel */}
-              <button onClick={() => setAddingHotel(true)}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl flex items-center gap-2 text-sm">
+              <button
+                onClick={() => setAddingHotel(true)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl flex items-center gap-2 text-sm"
+              >
                 <Plus size={16} />
                 {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
               </button>
@@ -416,18 +396,14 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
           {groupBy !== 'none' && groupTabs.length > 0 && (
             <div className="flex gap-2 flex-wrap mb-4">
               {groupTabs.map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveGroupTab(tab)}
+                <button key={tab} onClick={() => setActiveGroupTab(tab)}
                   className={cn(
                     'px-4 py-1.5 rounded-full text-xs font-bold border transition-all',
                     activeGroupTab === tab
                       ? 'bg-blue-600 text-white border-blue-600'
                       : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
                   )}
-                >
-                  {tab}
-                </button>
+                >{tab}</button>
               ))}
             </div>
           )}
@@ -447,12 +423,10 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, offlineMo
             </div>
           )}
 
-          {/* New hotel inline row */}
+          {/* New hotel inline row — name only */}
           {addingHotel && (
             <NewHotelRow
               isDarkMode={dk} lang={lang}
-              companyOptions={companyOptions}
-              cityOptions={cityOptions}
               onSave={h => { setHotels(prev => [h, ...prev]); setAddingHotel(false) }}
               onCancel={() => setAddingHotel(false)}
             />
