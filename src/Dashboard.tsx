@@ -21,29 +21,28 @@ interface DashboardProps {
 export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly = false, accessLevel }: DashboardProps) {
   const dk = theme === 'dark';
 
-  const [hotels,         setHotels]         = useState<any[]>([]);
-  const [loading,        setLoading]        = useState(true);
-  const [error,          setError]          = useState('');
-  const [selectedYear,   setSelectedYear]   = useState(new Date().getFullYear());
-  const [selectedMonth,  setSelectedMonth]  = useState<number | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [searchQuery,    setSearchQuery]    = useState('');
-  const [addingHotel,    setAddingHotel]    = useState(false);
-  const [newHotelName,   setNewHotelName]   = useState('');
-  const [newHotelCity,   setNewHotelCity]   = useState('');
-  const [newHotelTag,    setNewHotelTag]    = useState('');
-  const [newHotelSaving, setNewHotelSaving] = useState(false);
-  const [newHotelErr,    setNewHotelErr]    = useState('');
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
-  const [showSortMenu,   setShowSortMenu]   = useState(false);
-  const [filterPaid,     setFilterPaid]     = useState<'all' | 'paid' | 'unpaid'>('all');
-  const [filterFreeBeds, setFilterFreeBeds] = useState(false);
-  const [sortBy,         setSortBy]         = useState<'name' | 'cost' | 'nights' | 'city'>('name');
-  const [sortDir,        setSortDir]        = useState<'asc' | 'desc'>('asc');
+  const [hotels,            setHotels]            = useState<any[]>([]);
+  const [loading,           setLoading]           = useState(true);
+  const [error,             setError]             = useState('');
+  const [selectedYear,      setSelectedYear]      = useState(new Date().getFullYear());
+  const [selectedMonth,     setSelectedMonth]     = useState<number | null>(null);
+  const [sidebarCollapsed,  setSidebarCollapsed]  = useState(false);
+  const [searchQuery,       setSearchQuery]       = useState('');
+  const [addingHotel,       setAddingHotel]       = useState(false);
+  const [newHotelName,      setNewHotelName]      = useState('');
+  const [newHotelCity,      setNewHotelCity]      = useState('');
+  const [newHotelSaving,    setNewHotelSaving]    = useState(false);
+  const [newHotelErr,       setNewHotelErr]       = useState('');
+  const [showFilterMenu,    setShowFilterMenu]    = useState(false);
+  const [showSortMenu,      setShowSortMenu]      = useState(false);
+  const [filterPaid,        setFilterPaid]        = useState<'all' | 'paid' | 'unpaid'>('all');
+  const [filterFreeBeds,    setFilterFreeBeds]    = useState(false);
+  const [sortBy,            setSortBy]            = useState<'name' | 'cost' | 'nights' | 'city'>('name');
+  const [sortDir,           setSortDir]           = useState<'asc' | 'desc'>('asc');
   const newHotelNameRef = useRef<HTMLInputElement>(null);
 
   const monthNames = lang === 'de'
-    ? ['Januar','Februar','M\u00e4rz','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']
+    ? ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']
     : ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
   useEffect(() => { loadHotels(); }, []);
@@ -61,50 +60,45 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     finally { setLoading(false); }
   }
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
+  // ── Stat helpers (scoped to selected year + month) ────────────────────────
   const calcCost = (h: any) => (h.durations || []).reduce((s: number, d: any) => {
-    if (selectedMonth !== null) {
-      // cost for selected month only
-      const start = new Date(d.startDate || 0);
-      const end   = new Date(d.endDate   || 0);
-      const ms    = new Date(selectedYear, selectedMonth, 1);
-      const me    = new Date(selectedYear, selectedMonth + 1, 0);
-      if (end < ms || start > me) return s;
-      const from = start < ms ? ms : start;
-      const to   = end   > me ? me : end;
-      const nights = Math.max(0, Math.ceil((to.getTime() - from.getTime()) / 86400000));
-      return s + nights * (d.pricePerNightPerRoom || 0) * (d.numberOfRooms || 1);
-    }
-    // All months in selected year
     const start = new Date(d.startDate || 0);
     const end   = new Date(d.endDate   || 0);
-    const ys    = new Date(selectedYear, 0, 1);
-    const ye    = new Date(selectedYear, 11, 31);
-    if (end < ys || start > ye) return s;
-    const from = start < ys ? ys : start;
-    const to   = end   > ye ? ye : end;
+    let from: Date, to: Date;
+    if (selectedMonth !== null) {
+      const ms = new Date(selectedYear, selectedMonth, 1);
+      const me = new Date(selectedYear, selectedMonth + 1, 0);
+      if (end < ms || start > me) return s;
+      from = start < ms ? ms : start;
+      to   = end   > me ? me : end;
+    } else {
+      const ys = new Date(selectedYear, 0, 1);
+      const ye = new Date(selectedYear, 11, 31);
+      if (end < ys || start > ye) return s;
+      from = start < ys ? ys : start;
+      to   = end   > ye ? ye : end;
+    }
     const nights = Math.max(0, Math.ceil((to.getTime() - from.getTime()) / 86400000));
     return s + nights * (d.pricePerNightPerRoom || 0) * (d.numberOfRooms || 1);
   }, 0);
 
   const calcNights = (h: any) => (h.durations || []).reduce((s: number, d: any) => {
-    if (selectedMonth !== null) {
-      const start = new Date(d.startDate || 0);
-      const end   = new Date(d.endDate   || 0);
-      const ms    = new Date(selectedYear, selectedMonth, 1);
-      const me    = new Date(selectedYear, selectedMonth + 1, 0);
-      if (end < ms || start > me) return s;
-      const from = start < ms ? ms : start;
-      const to   = end   > me ? me : end;
-      return s + Math.max(0, Math.ceil((to.getTime() - from.getTime()) / 86400000));
-    }
     const start = new Date(d.startDate || 0);
     const end   = new Date(d.endDate   || 0);
-    const ys    = new Date(selectedYear, 0, 1);
-    const ye    = new Date(selectedYear, 11, 31);
-    if (end < ys || start > ye) return s;
-    const from = start < ys ? ys : start;
-    const to   = end   > ye ? ye : end;
+    let from: Date, to: Date;
+    if (selectedMonth !== null) {
+      const ms = new Date(selectedYear, selectedMonth, 1);
+      const me = new Date(selectedYear, selectedMonth + 1, 0);
+      if (end < ms || start > me) return s;
+      from = start < ms ? ms : start;
+      to   = end   > me ? me : end;
+    } else {
+      const ys = new Date(selectedYear, 0, 1);
+      const ye = new Date(selectedYear, 11, 31);
+      if (end < ys || start > ye) return s;
+      from = start < ys ? ys : start;
+      to   = end   > ye ? ye : end;
+    }
     return s + Math.max(0, Math.ceil((to.getTime() - from.getTime()) / 86400000));
   }, 0);
 
@@ -120,68 +114,76 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     return hotels;
   }, [hotels, accessLevel]);
 
+  // ── Derived options for autocomplete in HotelRow ─────────────────────────
+  const companyOptions = useMemo(() => {
+    const set = new Set<string>();
+    hotels.forEach(h => {
+      if (Array.isArray(h.companyTag)) h.companyTag.forEach((t: string) => t && set.add(t));
+      else if (h.companyTag) set.add(h.companyTag);
+    });
+    return Array.from(set);
+  }, [hotels]);
+
+  const cityOptions = useMemo(() => {
+    const set = new Set<string>();
+    hotels.forEach(h => { if (h.city) set.add(h.city); });
+    return Array.from(set);
+  }, [hotels]);
+
   // ── Filter + Sort ────────────────────────────────────────────────────────
+  // NOTE: Hotels are ALWAYS shown regardless of year/month.
+  // Year + month selection only affects the STATS BAR numbers (cost, nights).
+  // Filtering by year/month would hide hotels the user can still see — removed.
   const filtered = useMemo(() => {
     let list = visibleHotels.filter(h => {
       // search
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const tags = Array.isArray(h.companyTag) ? h.companyTag.join(' ') : (h.companyTag || '');
-        if (!h.name?.toLowerCase().includes(q) && !h.city?.toLowerCase().includes(q) && !tags.toLowerCase().includes(q)) return false;
-      }
-      // year/month filter — only show hotels that have durations in the selected period
-      if (selectedMonth !== null) {
-        const ms = new Date(selectedYear, selectedMonth, 1);
-        const me = new Date(selectedYear, selectedMonth + 1, 0);
-        const hasInMonth = (h.durations || []).some((d: any) => {
-          const s = new Date(d.startDate || 0);
-          const e = new Date(d.endDate   || 0);
-          return e >= ms && s <= me;
-        });
-        if (!hasInMonth) return false;
-      } else {
-        // year filter
-        const ys = new Date(selectedYear, 0, 1);
-        const ye = new Date(selectedYear, 11, 31);
-        const hasInYear = (h.durations || []).some((d: any) => {
-          const s = new Date(d.startDate || 0);
-          const e = new Date(d.endDate   || 0);
-          return e >= ys && s <= ye;
-        });
-        if (!hasInYear && (h.durations || []).length > 0) return false;
+        if (!h.name?.toLowerCase().includes(q) &&
+            !h.city?.toLowerCase().includes(q) &&
+            !tags.toLowerCase().includes(q)) return false;
       }
       // paid filter
       if (filterFreeBeds && calcFreeBeds(h) === 0) return false;
-      if (filterPaid === 'paid'   && !(h.durations || []).every((d: any) => d.isPaid))    return false;
-      if (filterPaid === 'unpaid' &&  (h.durations || []).every((d: any) => d.isPaid))    return false;
+      if (filterPaid === 'paid'   && !(h.durations || []).every((d: any) => d.isPaid)) return false;
+      if (filterPaid === 'unpaid' &&  (h.durations || []).every((d: any) => d.isPaid)) return false;
       return true;
     });
     return [...list].sort((a, b) => {
       let va: any, vb: any;
-      if      (sortBy === 'name')   { va = a.name?.toLowerCase();  vb = b.name?.toLowerCase(); }
-      else if (sortBy === 'city')   { va = a.city?.toLowerCase();  vb = b.city?.toLowerCase(); }
-      else if (sortBy === 'cost')   { va = calcCost(a);            vb = calcCost(b); }
-      else                          { va = calcNights(a);          vb = calcNights(b); }
+      if      (sortBy === 'name')   { va = a.name?.toLowerCase(); vb = b.name?.toLowerCase(); }
+      else if (sortBy === 'city')   { va = a.city?.toLowerCase(); vb = b.city?.toLowerCase(); }
+      else if (sortBy === 'cost')   { va = calcCost(a);           vb = calcCost(b); }
+      else                          { va = calcNights(a);         vb = calcNights(b); }
       return (va < vb ? -1 : va > vb ? 1 : 0) * (sortDir === 'asc' ? 1 : -1);
     });
   }, [visibleHotels, searchQuery, filterFreeBeds, filterPaid, sortBy, sortDir, selectedYear, selectedMonth]);
 
+  // Stats bar — scoped to selected year/month
   const totalSpend = filtered.reduce((s, h) => s + calcCost(h), 0);
-  const freeBeds   = filtered.reduce((s, h) => s + calcFreeBeds(h), 0);
+  const totalNights = filtered.reduce((s, h) => s + calcNights(h), 0);
+  const freeBeds    = filtered.reduce((s, h) => s + calcFreeBeds(h), 0);
 
   // ── Export ───────────────────────────────────────────────────────────────
   const handleExport = () => {
     const rows = [
       ['Hotel', 'City', 'Company', 'Bookings', 'Total Nights', 'Free Beds', 'Total Cost (EUR)'],
-      ...filtered.map(h => [h.name, h.city, Array.isArray(h.companyTag) ? h.companyTag.join(', ') : (h.companyTag || ''),
-        (h.durations || []).length, calcNights(h), calcFreeBeds(h), calcCost(h).toFixed(2)])
+      ...filtered.map(h => [
+        h.name, h.city,
+        Array.isArray(h.companyTag) ? h.companyTag.join(', ') : (h.companyTag || ''),
+        (h.durations || []).length, calcNights(h), calcFreeBeds(h),
+        calcCost(h).toFixed(2),
+      ])
     ];
     const csv = rows.map(r => r.map((v: any) => `"${v}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `eurotrack-${selectedYear}${selectedMonth !== null ? '-' + String(selectedMonth + 1).padStart(2, '0') : ''}-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `eurotrack-${selectedYear}${
+      selectedMonth !== null ? '-' + String(selectedMonth + 1).padStart(2, '0') : ''
+    }-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -189,13 +191,12 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   // ── Inline add hotel ─────────────────────────────────────────────────────
   async function handleSaveNewHotel() {
     if (!newHotelName.trim()) return;
-    setNewHotelErr('');
-    setNewHotelSaving(true);
+    setNewHotelErr(''); setNewHotelSaving(true);
     try {
-      const hotel = await createHotel({ name: newHotelName.trim(), city: newHotelCity.trim() || null, companyTag: newHotelTag.trim() || null });
+      const hotel = await createHotel({ name: newHotelName.trim(), city: newHotelCity.trim() || null, companyTag: null });
       setHotels(p => [{ ...hotel, durations: [] }, ...p]);
       setAddingHotel(false);
-      setNewHotelName(''); setNewHotelCity(''); setNewHotelTag('');
+      setNewHotelName(''); setNewHotelCity('');
     } catch (e: any) {
       setNewHotelErr(e?.message || 'Failed to save');
     } finally { setNewHotelSaving(false); }
@@ -203,7 +204,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
   function cancelAddHotel() {
     setAddingHotel(false);
-    setNewHotelName(''); setNewHotelCity(''); setNewHotelTag(''); setNewHotelErr('');
+    setNewHotelName(''); setNewHotelCity(''); setNewHotelErr('');
   }
 
   // ── UI helpers ───────────────────────────────────────────────────────────
@@ -211,7 +212,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200');
   const menuLabel = cn('text-[10px] font-bold uppercase tracking-widest mb-2 block px-1',
     dk ? 'text-slate-500' : 'text-slate-400');
-  const menuBtn = (active: boolean) => cn('w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-all',
+  const menuBtn = (active: boolean) => cn(
+    'w-full text-left px-3 py-2 rounded-lg text-xs font-bold transition-all',
     active ? 'bg-blue-600 text-white' : dk ? 'hover:bg-white/5 text-slate-300' : 'hover:bg-slate-100 text-slate-700');
   const ic = cn('px-3 py-2 rounded-lg text-sm outline-none border transition-all',
     dk ? 'bg-white/5 border-white/10 focus:border-blue-500 text-white placeholder-slate-600'
@@ -219,6 +221,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
   return (
     <div className={cn('flex h-screen overflow-hidden', dk ? 'bg-[#020617]' : 'bg-slate-50')}>
+
       {/* Sidebar */}
       <Sidebar
         theme={theme} lang={lang}
@@ -236,23 +239,34 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           searchQuery={searchQuery} setSearchQuery={setSearchQuery}
           onExport={handleExport}
           onSignOut={async () => { try { await signOut(); window.location.reload(); } catch(e) {} }}
+          viewOnly={viewOnly}
         />
 
         {/* Stats bar */}
         <div className={cn('px-8 py-3 border-b shrink-0', dk ? 'bg-[#0F172A] border-white/5' : 'bg-white border-slate-200')}>
-          <div className="flex items-center gap-10">
+          <div className="flex items-center gap-10 flex-wrap">
             {[
-              { label: lang === 'de' ? 'Freie Betten' : 'Free Beds', value: String(freeBeds), cls: freeBeds > 0 ? 'text-amber-400' : 'text-green-400' },
-              { label: lang === 'de' ? 'Gesamt' : 'Total Spent', value: '\u20ac' + totalSpend.toLocaleString('de-DE', { minimumFractionDigits: 0 }), cls: 'text-blue-400' },
-              { label: 'Hotels', value: String(filtered.length), cls: dk ? 'text-white' : 'text-slate-900' },
+              { label: lang === 'de' ? 'Freie Betten'  : 'Free Beds',    value: String(freeBeds),   cls: freeBeds > 0 ? 'text-amber-400' : 'text-green-400' },
+              { label: lang === 'de' ? 'Gesamt'        : 'Total Spent',  value: '€' + totalSpend.toLocaleString('de-DE', { minimumFractionDigits: 0 }), cls: 'text-blue-400' },
+              { label: lang === 'de' ? 'Nächte'        : 'Total Nights', value: '🌙 ' + totalNights, cls: dk ? 'text-slate-300' : 'text-slate-700' },
+              { label: 'Hotels',                                           value: String(filtered.length), cls: dk ? 'text-white' : 'text-slate-900' },
             ].map(({ label, value, cls }) => (
               <div key={label}>
                 <p className={cn('text-[10px] font-bold uppercase tracking-widest mb-0.5', dk ? 'text-slate-500' : 'text-slate-400')}>{label}</p>
                 <p className={cn('text-xl font-black', cls)}>{value}</p>
               </div>
             ))}
+            {/* Period label */}
+            <div className="ml-auto">
+              <p className={cn('text-[10px] font-bold uppercase tracking-widest mb-0.5', dk ? 'text-slate-500' : 'text-slate-400')}>
+                {lang === 'de' ? 'Zeitraum' : 'Period'}
+              </p>
+              <p className={cn('text-sm font-black', dk ? 'text-slate-300' : 'text-slate-700')}>
+                {selectedMonth !== null ? `${monthNames[selectedMonth]} ${selectedYear}` : `${selectedYear}`}
+              </p>
+            </div>
             {viewOnly && (
-              <span className="ml-4 px-2 py-0.5 bg-blue-500/10 text-blue-400 text-xs font-bold rounded-full border border-blue-500/20">
+              <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-xs font-bold rounded-full border border-blue-500/20">
                 {lang === 'de' ? 'Nur Ansicht' : 'View only'}
               </span>
             )}
@@ -261,13 +275,15 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
         {/* Scrollable main */}
         <main className="flex-1 overflow-y-auto p-6">
+
           {/* Toolbar */}
           <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
             <h2 className={cn('text-xl font-black', dk ? 'text-white' : 'text-slate-900')}>
-              {selectedMonth === null
-                ? `${lang === 'de' ? 'Dashboard' : 'Dashboard'} ${selectedYear}`
-                : `${monthNames[selectedMonth]} ${selectedYear}`}
+              {selectedMonth !== null
+                ? `${monthNames[selectedMonth]} ${selectedYear}`
+                : `${lang === 'de' ? 'Dashboard' : 'Dashboard'} ${selectedYear}`}
             </h2>
+
             <div className="flex items-center gap-2 flex-wrap">
 
               {/* Filter */}
@@ -291,20 +307,20 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                     <label className={menuLabel}>{lang === 'de' ? 'Zahlung' : 'Payment'}</label>
                     {(['all', 'paid', 'unpaid'] as const).map(v => (
                       <button key={v} onClick={() => setFilterPaid(v)} className={menuBtn(filterPaid === v)}>
-                        {v === 'all'    ? (lang === 'de' ? 'Alle Hotels'            : 'All hotels')
-                          : v === 'paid' ? (lang === 'de' ? '\u2713 Vollst\u00e4ndig bezahlt' : '\u2713 Fully paid')
-                          :               (lang === 'de' ? '\u26a0 Unbezahlt'      : '\u26a0 Has unpaid')}
+                        {v === 'all'    ? (lang === 'de' ? 'Alle Hotels'           : 'All hotels')
+                          : v === 'paid' ? (lang === 'de' ? '✓ Vollständig bezahlt' : '✓ Fully paid')
+                          :               (lang === 'de' ? '⚠ Hat Offene'          : '⚠ Has unpaid')}
                       </button>
                     ))}
                     <div className={cn('border-t my-2', dk ? 'border-white/10' : 'border-slate-100')} />
                     <button onClick={() => setFilterFreeBeds(v => !v)} className={menuBtn(filterFreeBeds)}>
-                      \uD83D\uDECF {lang === 'de' ? 'Freie Betten' : 'Has free beds'}
+                      🛏 {lang === 'de' ? 'Freie Betten' : 'Has free beds'}
                     </button>
                     <button
                       onClick={() => { setFilterPaid('all'); setFilterFreeBeds(false); setShowFilterMenu(false); }}
                       className={cn('w-full text-left px-3 py-1.5 rounded text-xs mt-1 transition-all',
                         dk ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-600')}>
-                      {lang === 'de' ? 'Filter zur\u00fccksetzen' : 'Clear filters'}
+                      {lang === 'de' ? 'Filter zurücksetzen' : 'Clear filters'}
                     </button>
                   </div>
                 )}
@@ -319,20 +335,26 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                   <ArrowUpDown size={15} />
                   {lang === 'de' ? 'Sortieren' : 'Sort'}
                   <span className={cn('text-[10px] font-normal', dk ? 'text-slate-500' : 'text-slate-400')}>
-                    {sortBy} {sortDir === 'asc' ? '\u2191' : '\u2193'}
+                    {sortBy === 'name' ? 'Name' : sortBy === 'city' ? 'City' : sortBy === 'cost' ? 'Cost' : 'Nights'}{' '}
+                    {sortDir === 'asc' ? '↑' : '↓'}
                   </span>
                 </button>
                 {showSortMenu && (
                   <div className={menuCls}>
                     <label className={menuLabel}>{lang === 'de' ? 'Sortieren nach' : 'Sort by'}</label>
-                    {([['name','Name'],['city','City'],['cost','Total Cost'],['nights','Total Nights']] as const).map(([v, label]) => (
-                      <button key={v} onClick={() => setSortBy(v as any)} className={menuBtn(sortBy === v)}>{label}</button>
+                    {([
+                      ['name',   'Name'],
+                      ['city',   'City'],
+                      ['cost',   'Total Cost'],
+                      ['nights', 'Total Nights'],
+                    ] as const).map(([v, label]) => (
+                      <button key={v} onClick={() => setSortBy(v)} className={menuBtn(sortBy === v)}>{label}</button>
                     ))}
                     <div className={cn('border-t my-2', dk ? 'border-white/10' : 'border-slate-100')} />
                     <label className={menuLabel}>{lang === 'de' ? 'Richtung' : 'Direction'}</label>
                     <div className="flex gap-2">
-                      <button onClick={() => setSortDir('asc')}  className={cn(menuBtn(sortDir === 'asc'),  'flex-1 text-center')}>\u2191 Asc</button>
-                      <button onClick={() => setSortDir('desc')} className={cn(menuBtn(sortDir === 'desc'), 'flex-1 text-center')}>\u2193 Desc</button>
+                      <button onClick={() => setSortDir('asc')}  className={cn(menuBtn(sortDir === 'asc'),  'flex-1 text-center')}>↑ Asc</button>
+                      <button onClick={() => setSortDir('desc')} className={cn(menuBtn(sortDir === 'desc'), 'flex-1 text-center')}>↓ Desc</button>
                     </div>
                   </div>
                 )}
@@ -353,7 +375,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                   onClick={() => setAddingHotel(true)}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl flex items-center gap-2 text-sm transition-all">
                   <Plus size={16} />
-                  {lang === 'de' ? 'Hotel hinzuf\u00fcgen' : 'Add Hotel'}
+                  {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
                 </button>
               )}
             </div>
@@ -377,7 +399,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           ) : (
             <div className="space-y-2">
 
-              {/* Inline add-hotel row — shown when addingHotel=true */}
+              {/* Inline add-hotel row */}
               {addingHotel && !viewOnly && (
                 <div className={cn('rounded-xl border px-4 py-3 space-y-2',
                   dk ? 'bg-[#0B1224] border-blue-500/40' : 'bg-white border-blue-400')}>
@@ -395,15 +417,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                     <input
                       type="text" value={newHotelCity}
                       onChange={e => setNewHotelCity(e.target.value)}
-                      placeholder={lang === 'de' ? 'Stadt...' : 'City...'}
+                      placeholder={lang === 'de' ? 'Stadt (optional)' : 'City (optional)'}
                       onKeyDown={e => e.key === 'Enter' && handleSaveNewHotel()}
-                      className={cn(ic, 'w-36')} />
-                    <input
-                      type="text" value={newHotelTag}
-                      onChange={e => setNewHotelTag(e.target.value)}
-                      placeholder="Company tag..."
-                      onKeyDown={e => e.key === 'Enter' && handleSaveNewHotel()}
-                      className={cn(ic, 'w-36')} />
+                      className={cn(ic, 'w-40')} />
                     <button
                       onClick={handleSaveNewHotel}
                       disabled={newHotelSaving || !newHotelName.trim()}
@@ -429,21 +445,17 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                     <Building2 size={32} className="text-blue-500" />
                   </div>
                   <h3 className={cn('text-xl font-bold mb-2', dk ? 'text-white' : 'text-slate-900')}>
-                    {selectedMonth !== null
-                      ? (lang === 'de' ? 'Keine Hotels in diesem Monat' : 'No hotels in this month')
-                      : (lang === 'de' ? 'Noch keine Hotels' : 'No Hotels Yet')}
+                    {lang === 'de' ? 'Noch keine Hotels' : 'No Hotels Yet'}
                   </h3>
                   <p className={cn('text-sm mb-6', dk ? 'text-slate-500' : 'text-slate-400')}>
-                    {selectedMonth !== null
-                      ? (lang === 'de' ? 'Keine Buchungen f\u00fcr diesen Zeitraum' : 'No bookings for this period')
-                      : (lang === 'de' ? 'Klicken Sie auf Hotel hinzuf\u00fcgen' : 'Click Add Hotel to get started')}
+                    {lang === 'de' ? 'Klicken Sie auf Hotel hinzufügen' : 'Click Add Hotel to get started'}
                   </p>
-                  {!viewOnly && selectedMonth === null && (
+                  {!viewOnly && (
                     <button
                       onClick={() => setAddingHotel(true)}
                       className="px-7 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl inline-flex items-center gap-2 text-sm">
                       <Plus size={18} />
-                      {lang === 'de' ? 'Hotel hinzuf\u00fcgen' : 'Add Hotel'}
+                      {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
                     </button>
                   )}
                 </div>
@@ -453,7 +465,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                     key={hotel.id}
                     entry={hotel}
                     isDarkMode={dk}
-                    viewOnly={viewOnly}
+                    lang={lang}
+                    companyOptions={companyOptions}
+                    cityOptions={cityOptions}
                     onDelete={(id: string) => {
                       if (!viewOnly) { deleteHotel(id); setHotels(p => p.filter(h => h.id !== id)); }
                     }}
