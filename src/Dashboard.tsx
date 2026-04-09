@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { getHotels, signOut, deleteHotel, createHotel } from './lib/supabase';
+import { getHotels, deleteHotel, createHotel } from './lib/supabase';
 import { cn } from './lib/utils';
 import type { AccessLevel } from './lib/supabase';
 import { Plus, Building2, Check, X, Loader2, Filter, ArrowUpDown, Download } from 'lucide-react';
@@ -16,9 +16,10 @@ interface DashboardProps {
   onToggleOfflineMode?: () => void;
   viewOnly?: boolean;
   accessLevel?: AccessLevel | null;
+  onSignOut?: () => void;
 }
 
-export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly = false, accessLevel }: DashboardProps) {
+export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly = false, accessLevel, onSignOut }: DashboardProps) {
   const dk = theme === 'dark';
 
   const [hotels,            setHotels]            = useState<any[]>([]);
@@ -114,7 +115,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     return hotels;
   }, [hotels, accessLevel]);
 
-  // ── Derived options for autocomplete in HotelRow ─────────────────────────
   const companyOptions = useMemo(() => {
     const set = new Set<string>();
     hotels.forEach(h => {
@@ -131,12 +131,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   }, [hotels]);
 
   // ── Filter + Sort ────────────────────────────────────────────────────────
-  // NOTE: Hotels are ALWAYS shown regardless of year/month.
-  // Year + month selection only affects the STATS BAR numbers (cost, nights).
-  // Filtering by year/month would hide hotels the user can still see — removed.
   const filtered = useMemo(() => {
     let list = visibleHotels.filter(h => {
-      // search
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const tags = Array.isArray(h.companyTag) ? h.companyTag.join(' ') : (h.companyTag || '');
@@ -144,7 +140,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             !h.city?.toLowerCase().includes(q) &&
             !tags.toLowerCase().includes(q)) return false;
       }
-      // paid filter
       if (filterFreeBeds && calcFreeBeds(h) === 0) return false;
       if (filterPaid === 'paid'   && !(h.durations || []).every((d: any) => d.isPaid)) return false;
       if (filterPaid === 'unpaid' &&  (h.durations || []).every((d: any) => d.isPaid)) return false;
@@ -160,8 +155,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     });
   }, [visibleHotels, searchQuery, filterFreeBeds, filterPaid, sortBy, sortDir, selectedYear, selectedMonth]);
 
-  // Stats bar — scoped to selected year/month
-  const totalSpend = filtered.reduce((s, h) => s + calcCost(h), 0);
+  const totalSpend  = filtered.reduce((s, h) => s + calcCost(h), 0);
   const totalNights = filtered.reduce((s, h) => s + calcNights(h), 0);
   const freeBeds    = filtered.reduce((s, h) => s + calcFreeBeds(h), 0);
 
@@ -207,7 +201,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     setNewHotelName(''); setNewHotelCity(''); setNewHotelErr('');
   }
 
-  // ── UI helpers ───────────────────────────────────────────────────────────
   const menuCls = cn('absolute top-full mt-1 right-0 z-50 rounded-xl border shadow-xl p-3 min-w-[200px] space-y-1',
     dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200');
   const menuLabel = cn('text-[10px] font-bold uppercase tracking-widest mb-2 block px-1',
@@ -238,7 +231,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           toggleTheme={toggleTheme} setLang={setLang}
           searchQuery={searchQuery} setSearchQuery={setSearchQuery}
           onExport={handleExport}
-          onSignOut={async () => { try { await signOut(); window.location.reload(); } catch(e) {} }}
+          onSignOut={onSignOut}
           viewOnly={viewOnly}
         />
 
@@ -256,7 +249,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                 <p className={cn('text-xl font-black', cls)}>{value}</p>
               </div>
             ))}
-            {/* Period label */}
             <div className="ml-auto">
               <p className={cn('text-[10px] font-bold uppercase tracking-widest mb-0.5', dk ? 'text-slate-500' : 'text-slate-400')}>
                 {lang === 'de' ? 'Zeitraum' : 'Period'}

@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { getAllUsers, setUserRole, UserRole } from '../lib/supabase';
 import { cn } from '../lib/utils';
-import { Users, LogOut, Shield, Crown, Eye, Edit3, Clock, Sun, Moon, Globe } from 'lucide-react';
+import { Users, LogOut, Shield, Crown, Eye, Edit3, Clock, Sun, Moon, Globe, ArrowLeft } from 'lucide-react';
 
 interface Props {
   theme: 'dark' | 'light';
@@ -10,6 +10,7 @@ interface Props {
   toggleTheme: () => void;
   setLang: (l: 'de' | 'en') => void;
   onSignOut: () => void;
+  onBack: () => void;
 }
 
 const ROLE_LABELS: Record<UserRole, { en: string; de: string; color: string; icon: React.ReactNode }> = {
@@ -20,15 +21,18 @@ const ROLE_LABELS: Record<UserRole, { en: string; de: string; color: string; ico
   pending:    { en: 'Pending',     de: 'Ausstehend',  color: 'text-amber-400 bg-amber-400/10 border-amber-400/20',  icon: <Clock size={12} /> },
 };
 
-export default function UserManagement({ theme, lang, toggleTheme, setLang, onSignOut }: Props) {
+export default function UserManagement({ theme, lang, toggleTheme, setLang, onSignOut, onBack }: Props) {
   const dk = theme === 'dark';
-  const [users, setUsers]       = useState<any[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [saving, setSaving]     = useState<string | null>(null);
-  const [search, setSearch]     = useState('');
+  const [users, setUsers]     = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving]   = useState<string | null>(null);
+  const [search, setSearch]   = useState('');
+  const [dbError, setDbError] = useState('');
 
   useEffect(() => {
-    getAllUsers().then(u => { setUsers(u); setLoading(false); });
+    getAllUsers()
+      .then(u => { setUsers(u); setLoading(false); })
+      .catch(e => { setDbError(String(e)); setLoading(false); });
   }, []);
 
   async function handleRoleChange(userId: string, newRole: UserRole) {
@@ -56,6 +60,11 @@ export default function UserManagement({ theme, lang, toggleTheme, setLang, onSi
       {/* Header */}
       <header className={cn('shrink-0 flex items-center justify-between px-6 py-4 border-b', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
         <div className="flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className={cn('p-2 rounded-lg mr-1 transition-all', dk ? 'hover:bg-white/5 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
+            <ArrowLeft size={16} />
+          </button>
           <div className="w-8 h-8 bg-yellow-400/10 border border-yellow-400/20 rounded-lg flex items-center justify-center">
             <Crown className="text-yellow-400" size={16} />
           </div>
@@ -110,6 +119,13 @@ export default function UserManagement({ theme, lang, toggleTheme, setLang, onSi
             className={cn('w-full px-4 py-2.5 rounded-xl border text-sm', dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400')}
           />
 
+          {/* Error */}
+          {dbError && (
+            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+              <p className="text-red-400 text-xs font-mono">{dbError}</p>
+            </div>
+          )}
+
           {/* User table */}
           {loading ? (
             <div className="flex justify-center py-16">
@@ -132,14 +148,16 @@ export default function UserManagement({ theme, lang, toggleTheme, setLang, onSi
                     const info = ROLE_LABELS[role];
                     const isSaving = saving === user.id;
                     return (
-                      <tr key={user.id} className={cn('border-b transition-colors', i % 2 === 0 ? (dk ? 'bg-transparent' : 'bg-white') : (dk ? 'bg-white/2' : 'bg-slate-50/50'), dk ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50')}>
+                      <tr key={user.id} className={cn('border-b transition-colors',
+                        i % 2 === 0 ? (dk ? 'bg-transparent' : 'bg-white') : (dk ? 'bg-white/2' : 'bg-slate-50/50'),
+                        dk ? 'border-white/5 hover:bg-white/5' : 'border-slate-100 hover:bg-slate-50')}>
                         <td className="px-4 py-3">
                           <div className="font-bold">{user.full_name || user.username || '—'}</div>
                           {user.username && user.full_name && (
                             <div className={cn('text-xs', dk ? 'text-slate-500' : 'text-slate-400')}>@{user.username}</div>
                           )}
                         </td>
-                        <td className={cn('px-4 py-3', dk ? 'text-slate-400' : 'text-slate-500')}>{user.email}</td>
+                        <td className={cn('px-4 py-3', dk ? 'text-slate-400' : 'text-slate-500')}>{user.email || '—'}</td>
                         <td className="px-4 py-3">
                           <span className={cn('inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold border', info.color)}>
                             {info.icon}
@@ -176,6 +194,11 @@ export default function UserManagement({ theme, lang, toggleTheme, setLang, onSi
                       <td colSpan={4} className={cn('px-4 py-12 text-center', dk ? 'text-slate-600' : 'text-slate-400')}>
                         <Users className="mx-auto mb-2 opacity-30" size={32} />
                         <div className="font-bold">{lang === 'de' ? 'Keine Benutzer gefunden' : 'No users found'}</div>
+                        {!dbError && (
+                          <div className="text-xs mt-1 opacity-60">
+                            {lang === 'de' ? 'Prüfen Sie die RLS-Richtlinien in Supabase' : 'Check RLS policies in Supabase'}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )}

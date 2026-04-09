@@ -35,7 +35,6 @@ export async function getMyAccessLevel(): Promise<AccessLevel> {
     const { data: { user }, error: authErr } = await supabase.auth.getUser()
     if (authErr || !user) return { role: 'pending' }
 
-    // No timeout wrapper — let Supabase respond naturally
     const { data, error } = await supabase
       .from('profiles')
       .select('role')
@@ -64,14 +63,23 @@ export async function getMyAccessLevel(): Promise<AccessLevel> {
 
 // ─── User management (superadmin only) ────────────────────────────────────────
 export async function getAllUsers(): Promise<any[]> {
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, email, full_name, username, avatar_url, role, created_at')
-      .order('created_at', { ascending: false })
-    if (error) return []
-    return (data ?? []).map((p: any) => ({ ...p, fullName: p.full_name ?? '' }))
-  } catch { return [] }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  console.log('[getAllUsers] fetching all profiles as user:', user.id)
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, email, full_name, username, avatar_url, role, created_at')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('[getAllUsers] DB error:', error.message, error.code, error.details)
+    throw new Error(error.message)
+  }
+
+  console.log('[getAllUsers] returned rows:', data?.length ?? 0, data)
+  return (data ?? []).map((p: any) => ({ ...p, fullName: p.full_name ?? '' }))
 }
 
 export async function setUserRole(userId: string, role: UserRole): Promise<void> {
