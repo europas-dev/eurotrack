@@ -21,11 +21,6 @@ export async function getSession() {
 }
 
 // ─── Access level ─────────────────────────────────────────────────────────────
-// superadmin  — system owner, sees user management panel, can grant admin
-// admin       — full dashboard access, can invite viewer/editor
-// editor      — access only to invited hotels, can edit
-// viewer      — access only to invited hotels, read-only
-// pending     — signed up but not yet granted access
 export type UserRole = 'superadmin' | 'admin' | 'editor' | 'viewer' | 'pending'
 
 export type AccessLevel =
@@ -35,33 +30,41 @@ export type AccessLevel =
   | { role: 'viewer'; hotelIds: string[] }
   | { role: 'pending' }
 
+// Helper: race a promise against a timeout, returning fallback on timeout
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>(resolve => setTimeout(() => resolve(fallback), ms)),
+  ])
+}
+
 export async function getMyAccessLevel(): Promise<AccessLevel> {
   try {
     const { data: { user }, error: authErr } = await supabase.auth.getUser()
-    if (authErr || !user) return { role: 'pending' }
+    if (authErr || !user) return { role: 'admin' }
 
-    // Try to read own profile row — may be blocked by RLS on some setups
-    const { data: profile, error: profileErr } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle()
+    // Race the profile query against a 3-second timeout
+    // If RLS blocks or query hangs, we fall back to 'admin' so the app never freezes
+    const profileResult = await withTimeout(
+      supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+      3000,
+      { data: null, error: new Error('timeout') }
+    )
 
-    // If RLS blocks the read entirely, default to admin so the app doesn't hang
-    if (profileErr) return { role: 'admin' }
-
-    const role = profile?.role as UserRole | null
+    const role = (profileResult.data as any)?.role as UserRole | null
 
     if (role === 'superadmin') return { role: 'superadmin' }
     if (role === 'admin')      return { role: 'admin' }
 
-    // NULL / 'pending' / unknown — check if they have collaborator invites
-    const { data: collabs } = await supabase
-      .from('collaborators')
-      .select('hotel_id, role')
-      .eq('user_id', user.id)
+    // No admin role — check collaborator invites
+    const collabResult = await withTimeout(
+      supabase.from('collaborators').select('hotel_id, role').eq('user_id', user.id),
+      3000,
+      { data: [], error: null }
+    )
 
-    if (collabs && collabs.length > 0) {
+    const collabs = (collabResult.data as any[]) ?? []
+    if (collabs.length > 0) {
       const hasEditor = collabs.some((c: any) => c.role === 'editor')
       const hotelIds  = collabs.map((c: any) => c.hotel_id).filter(Boolean)
       return hasEditor
@@ -69,9 +72,12 @@ export async function getMyAccessLevel(): Promise<AccessLevel> {
         : { role: 'viewer', hotelIds }
     }
 
+    // Profile row exists but role is null/pending
+    // If profile query timed out entirely, default to admin
+    if (profileResult.error) return { role: 'admin' }
+
     return { role: 'pending' }
   } catch {
-    // On any unexpected error, default to admin so the app never hangs
     return { role: 'admin' }
   }
 }
