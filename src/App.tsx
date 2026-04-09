@@ -27,14 +27,12 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
   }
 }
 
-// Race getMyAccessLevel against a 6-second timeout to prevent infinite loading
-async function getAccessLevelWithTimeout(timeoutMs = 6000): Promise<AccessLevel | null> {
+// FIX: wrap any promise with a timeout so we never hang forever
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
   return Promise.race([
-    getMyAccessLevel(),
-    new Promise<null>((_, reject) =>
-      setTimeout(() => reject(new Error('Access level check timed out')), timeoutMs)
-    ),
-  ]).catch(() => null);
+    promise,
+    new Promise<T>(resolve => setTimeout(() => resolve(fallback), ms)),
+  ]);
 }
 
 export default function App() {
@@ -57,8 +55,12 @@ export default function App() {
 
   const resolveAccess = useCallback(async (): Promise<string | null> => {
     try {
-      const access = await getAccessLevelWithTimeout();
-      if (!access) return null;
+      // FIX: 6-second timeout — if Supabase hangs, fall back to 'pending' instead of spinning forever
+      const access = await withTimeout(
+        getMyAccessLevel(),
+        6000,
+        { role: 'pending' } as AccessLevel
+      );
       setAccessLevel(access);
       applyRole(access.role);
       return access.role;
@@ -89,19 +91,20 @@ export default function App() {
 
     (async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        // FIX: also timeout the getSession call itself
+        const sessionResult = await withTimeout(
+          supabase.auth.getSession(),
+          5000,
+          { data: { session: null }, error: new Error('timeout') } as any
+        );
         if (cancelled) return;
+        const { data: { session }, error } = sessionResult;
         if (error || !session?.user) {
           setView('landing');
           setLoading(false);
           return;
         }
-        // Session exists — resolve role with timeout, then stop loading
-        const role = await resolveAccess();
-        // If timeout/error occurred and role is null, fall back to landing
-        if (!cancelled && !role) {
-          setView('landing');
-        }
+        await resolveAccess();
       } catch {
         if (!cancelled) setView('landing');
       } finally {
@@ -112,8 +115,7 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (cancelled) return;
       if (event === 'SIGNED_IN' && session?.user) {
-        const role = await resolveAccess();
-        if (!cancelled && !role) setView('landing');
+        await resolveAccess();
         setLoading(false);
       } else if (event === 'SIGNED_OUT') {
         stopPoll();
@@ -150,7 +152,6 @@ export default function App() {
     setLoading(false);
   }
 
-  // ── Loading splash ───────────────────────────────────────────────────────────────────────
   if (loading) return (
     <div className="min-h-screen bg-[#020617] flex items-center justify-center">
       <div className="text-center">
@@ -161,7 +162,6 @@ export default function App() {
     </div>
   );
 
-  // ── Landing ────────────────────────────────────────────────────────────────────────────────────────
   if (view === 'landing') return (
     <Landing
       onLogin={()      => setView('login')}
@@ -172,7 +172,6 @@ export default function App() {
     />
   );
 
-  // ── Auth ───────────────────────────────────────────────────────────────────────────────────────────
   if (view === 'login' || view === 'signup' || view === 'admin-login') return (
     <Auth
       initialMode='login'
@@ -181,7 +180,6 @@ export default function App() {
     />
   );
 
-  // ── Pending ───────────────────────────────────────────────────────────────────────────────────────
   if (view === 'pending' || accessLevel?.role === 'pending') return (
     <div className={cn('min-h-screen flex flex-col items-center justify-center p-8',
       dk ? 'bg-[#020617] text-white' : 'bg-slate-100 text-slate-900')}>
@@ -218,7 +216,6 @@ export default function App() {
     </div>
   );
 
-  // ── Superadmin home ──────────────────────────────────────────────────────────────────────────────
   if (view === 'superadmin-home' && accessLevel?.role === 'superadmin') return (
     <SuperAdminHome
       onDashboard={()      => setView('dashboard')}
@@ -229,7 +226,6 @@ export default function App() {
     />
   );
 
-  // ── User Management ─────────────────────────────────────────────────────────────────────────────
   if (view === 'user-management' && accessLevel?.role === 'superadmin') return (
     <div className={cn('flex flex-col h-screen overflow-hidden',
       dk ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-900')}>
@@ -245,7 +241,6 @@ export default function App() {
     </div>
   );
 
-  // ── Dashboard ──────────────────────────────────────────────────────────────────────────────────────
   const isViewOnly = accessLevel?.role === 'viewer';
   return (
     <div className={cn('flex flex-col h-screen overflow-hidden',

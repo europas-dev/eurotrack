@@ -61,7 +61,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     finally { setLoading(false); }
   }
 
-  // ── Stat helpers (scoped to selected year + month) ────────────────────────
   const calcCost = (h: any) => (h.durations || []).reduce((s: number, d: any) => {
     const start = new Date(d.startDate || 0);
     const end   = new Date(d.endDate   || 0);
@@ -106,7 +105,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const calcFreeBeds = (h: any) => (h.durations || []).reduce((s: number, d: any) =>
     s + (d.employees || []).filter((e: any) => e === null).length, 0);
 
-  // ── Role-based hotel visibility ──────────────────────────────────────────
   const visibleHotels = useMemo(() => {
     if (!accessLevel || accessLevel.role === 'admin' || accessLevel.role === 'superadmin') return hotels;
     if (accessLevel.role === 'editor' || accessLevel.role === 'viewer') {
@@ -130,7 +128,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     return Array.from(set);
   }, [hotels]);
 
-  // ── Filter + Sort ────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     let list = visibleHotels.filter(h => {
       if (searchQuery) {
@@ -159,7 +156,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const totalNights = filtered.reduce((s, h) => s + calcNights(h), 0);
   const freeBeds    = filtered.reduce((s, h) => s + calcFreeBeds(h), 0);
 
-  // ── Export ───────────────────────────────────────────────────────────────
   const handleExport = () => {
     const rows = [
       ['Hotel', 'City', 'Company', 'Bookings', 'Total Nights', 'Free Beds', 'Total Cost (EUR)'],
@@ -182,7 +178,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     URL.revokeObjectURL(url);
   };
 
-  // ── Inline add hotel ─────────────────────────────────────────────────────
   async function handleSaveNewHotel() {
     if (!newHotelName.trim()) return;
     setNewHotelErr(''); setNewHotelSaving(true);
@@ -215,7 +210,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   return (
     <div className={cn('flex h-screen overflow-hidden', dk ? 'bg-[#020617]' : 'bg-slate-50')}>
 
-      {/* Sidebar */}
       <Sidebar
         theme={theme} lang={lang}
         selectedYear={selectedYear} setSelectedYear={setSelectedYear}
@@ -224,8 +218,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         hotels={visibleHotels}
       />
 
-      {/* Main area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* FIX: pass userRole so Header shows Share button and Access tab for admin/superadmin */}
         <Header
           theme={theme} lang={lang}
           toggleTheme={toggleTheme} setLang={setLang}
@@ -236,7 +230,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           userRole={accessLevel?.role ?? 'viewer'}
         />
 
-        {/* Stats bar */}
         <div className={cn('px-8 py-3 border-b shrink-0', dk ? 'bg-[#0F172A] border-white/5' : 'bg-white border-slate-200')}>
           <div className="flex items-center gap-10 flex-wrap">
             {[
@@ -266,10 +259,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           </div>
         </div>
 
-        {/* Scrollable main */}
         <main className="flex-1 overflow-y-auto p-6">
 
-          {/* Toolbar */}
           <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
             <h2 className={cn('text-xl font-black', dk ? 'text-white' : 'text-slate-900')}>
               {selectedMonth !== null
@@ -279,7 +270,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
             <div className="flex items-center gap-2 flex-wrap">
 
-              {/* Filter */}
               <div className="relative">
                 <button
                   onClick={() => { setShowFilterMenu(v => !v); setShowSortMenu(false); }}
@@ -319,7 +309,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                 )}
               </div>
 
-              {/* Sort */}
               <div className="relative">
                 <button
                   onClick={() => { setShowSortMenu(v => !v); setShowFilterMenu(false); }}
@@ -353,7 +342,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                 )}
               </div>
 
-              {/* Export */}
               <button
                 onClick={handleExport}
                 className={cn('px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all',
@@ -362,7 +350,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                 {lang === 'de' ? 'Export' : 'Export CSV'}
               </button>
 
-              {/* Add Hotel */}
               {!viewOnly && (
                 <button
                   onClick={() => setAddingHotel(true)}
@@ -374,7 +361,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             </div>
           </div>
 
-          {/* Close menus on outside click */}
           {(showFilterMenu || showSortMenu) && (
             <div className="fixed inset-0 z-40" onClick={() => { setShowFilterMenu(false); setShowSortMenu(false); }} />
           )}
@@ -392,7 +378,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           ) : (
             <div className="space-y-2">
 
-              {/* Inline add-hotel row */}
               {addingHotel && !viewOnly && (
                 <div className={cn('rounded-xl border px-4 py-3 space-y-2',
                   dk ? 'bg-[#0B1224] border-blue-500/40' : 'bg-white border-blue-400')}>
