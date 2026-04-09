@@ -62,8 +62,7 @@ export default function App() {
 
     // Only react to genuine login / logout events.
     // TOKEN_REFRESHED is intentionally excluded — it fires silently every ~55 min
-    // and used to cause the entire dashboard to blank + reload. Supabase keeps the
-    // session alive automatically; we do not need to re-fetch access on each refresh.
+    // and used to cause the entire dashboard to blank + reload.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
         if (session?.user) await resolveAccess();
@@ -147,6 +146,13 @@ export default function App() {
 
   const isViewOnly = accessLevel?.role === 'viewer';
 
+  // For collaborators (editor/viewer), pass the owner's id so Dashboard
+  // fetches ONLY that owner's hotels — not the collaborator's own (empty) list.
+  const hotelOwnerId =
+    (accessLevel?.role === 'editor' || accessLevel?.role === 'viewer')
+      ? (accessLevel as any).ownerId
+      : undefined;
+
   // Superadmin: tab layout with Dashboard + User Management
   if (accessLevel?.role === 'superadmin') return (
     <div className={cn('flex flex-col h-screen overflow-hidden',
@@ -224,6 +230,7 @@ export default function App() {
             offlineMode={offlineBanner}
             viewOnly={isViewOnly}
             accessLevel={accessLevel}
+            hotelOwnerId={hotelOwnerId}
           />
         </ErrorBoundary>
       </div>
