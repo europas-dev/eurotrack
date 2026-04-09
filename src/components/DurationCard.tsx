@@ -6,7 +6,7 @@ import {
   getNightsBetween, getTotalBeds, normalizeNumberInput
 } from '../lib/utils';
 import { deleteDuration, updateDuration } from '../lib/supabase';
-import EmployeeSlot from './EmployeeSlot';
+import { EmployeeSlot } from './EmployeeSlot';
 
 interface DurationCardProps {
   duration: any;
