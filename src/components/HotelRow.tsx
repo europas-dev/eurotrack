@@ -9,6 +9,7 @@ import {
   formatCurrency,
   formatDateDisplay,
   getDurationTabLabel,
+  getDurationTotal,
   getEmployeeStatus,
 } from '../lib/utils'
 import { createDuration, updateHotel } from '../lib/supabase'
@@ -94,23 +95,37 @@ function getBedCapacity(roomType: string, numberOfRooms: number): number {
   return numberOfRooms
 }
 
+// Uses getDurationTotal (which calls calcDurationPrice) so discounts,
+// manual nightly prices, and Brutto/Netto mode are all respected.
 function getDisplayCost(hotel: any): { amount: number; label: string } {
-  let brutto = 0, netto = 0, plain = 0
+  let totalBrutto = 0
+  let totalNetto  = 0
+  let totalPlain  = 0
+  let hasBruttoMode = false
+  let hasNettoMode  = false
+
   for (const d of hotel?.durations ?? []) {
     if (d.useBruttoNetto) {
-      if (d.brutto != null) brutto += d.brutto
-      else if (d.netto != null && d.mwst != null) brutto += d.netto * (1 + d.mwst / 100)
-      if (d.netto != null) netto += d.netto
-      else if (d.brutto != null && d.mwst != null) netto += d.brutto / (1 + d.mwst / 100)
+      hasBruttoMode = true
+      const total = getDurationTotal(d)  // calcDurationPrice handles all cases
+      // Determine if result was brutto-based or netto-based
+      const hasBrutto = d.brutto != null && d.brutto > 0
+      const hasMwst   = d.mwst   != null && d.mwst   >= 0
+      if (hasBrutto) {
+        totalBrutto += total
+      } else {
+        hasNettoMode = true
+        totalNetto  += total
+      }
     } else {
-      if (!d.startDate || !d.endDate) continue
-      const n = Math.max(0, Math.ceil((new Date(d.endDate).getTime() - new Date(d.startDate).getTime()) / 86400000))
-      plain += n * (d.pricePerNightPerRoom || 0) * (d.numberOfRooms || 1)
+      // Simple mode — getDurationTotal already handles discounts + manual prices
+      totalPlain += getDurationTotal(d)
     }
   }
-  if (brutto > 0) return { amount: brutto, label: 'Brutto' }
-  if (netto > 0) return { amount: netto, label: 'Netto' }
-  return { amount: plain, label: '' }
+
+  if (hasBruttoMode && totalBrutto > 0) return { amount: totalBrutto + totalPlain, label: 'Brutto' }
+  if (hasNettoMode  && totalNetto  > 0) return { amount: totalNetto  + totalPlain, label: 'Netto' }
+  return { amount: totalPlain, label: '' }
 }
 
 export function HotelRow({
@@ -139,13 +154,12 @@ export function HotelRow({
 
   const displayCost = useMemo(() => getDisplayCost(localHotel), [localHotel.durations])
 
+  // Paid cost: sum of getDurationTotal for paid durations only
   const paidCost = useMemo(() =>
-    (localHotel.durations ?? []).filter((d: any) => d?.isPaid).reduce((s: number, d: any) => {
-      if (d.useBruttoNetto) return s + (d.brutto ?? 0)
-      if (!d.startDate || !d.endDate) return s
-      const n = Math.max(0, Math.ceil((new Date(d.endDate).getTime() - new Date(d.startDate).getTime()) / 86400000))
-      return s + n * (d.pricePerNightPerRoom || 0) * (d.numberOfRooms || 1)
-    }, 0), [localHotel.durations])
+    (localHotel.durations ?? [])
+      .filter((d: any) => d?.isPaid)
+      .reduce((s: number, d: any) => s + getDurationTotal(d), 0)
+  , [localHotel.durations])
 
   const freeBeds = useMemo(() =>
     (localHotel.durations ?? []).reduce((s: number, d: any) => {
@@ -173,10 +187,28 @@ export function HotelRow({
     try {
       setCreatingDuration(true)
       const created = await createDuration({
-        hotelId: localHotel.id, startDate: '', endDate: '', roomType: 'DZ',
-        numberOfRooms: 1, pricePerNightPerRoom: 0, hasDiscount: false,
-        discountType: 'percentage', discountValue: 0, isPaid: false,
-        bookingId: null, useManualPrices: false, nightlyPrices: {},
+        hotelId: localHotel.id,
+        startDate: '',
+        endDate: '',
+        roomType: 'DZ',
+        numberOfRooms: 1,
+        pricePerNightPerRoom: 0,
+        hasDiscount: false,
+        discountType: 'percentage',
+        discountValue: 0,
+        isPaid: false,
+        bookingId: null,
+        useManualPrices: false,
+        nightlyPrices: {},
+        useBruttoNetto: false,
+        brutto: null,
+        netto: null,
+        mwst: null,
+        depositEnabled: false,
+        depositAmount: null,
+        rechnungNr: null,
+        extensionNote: null,
+        autoDistribute: false,
       })
       const nextDurations = [...(localHotel.durations ?? []), { ...created, employees: [] }]
       const next = { ...localHotel, durations: nextDurations }
@@ -215,10 +247,15 @@ export function HotelRow({
         dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200',
         open && (dk ? 'border-blue-500/30' : 'border-blue-300')
       )}>
-        {/* MAIN ROW */}
-        <div className="px-4 py-2.5">
-          <div className="flex items-center gap-2 w-full" style={{ minWidth: 0 }}>
+        {/* MAIN ROW
+            All columns have explicit fixed widths with flex-shrink-0 so no
+            column can ever collapse or push other columns when text is long.
+            The outer container has overflow:hidden to clip anything beyond.
+        */}
+        <div className="px-4 py-2.5 overflow-hidden">
+          <div className="flex items-center gap-2" style={{ minWidth: 0, width: '100%' }}>
 
+            {/* Expand button — 36px fixed */}
             <button
               onClick={() => setOpen(!open)}
               className="w-9 h-9 rounded-lg bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white flex-shrink-0 transition-all"
@@ -226,8 +263,8 @@ export function HotelRow({
               <Building2 size={16} />
             </button>
 
-            {/* Hotel Name — 180px fixed */}
-            <div style={{ width: 180, minWidth: 180, maxWidth: 180, overflow: 'hidden' }}>
+            {/* Hotel Name — 180px fixed, overflow truncated */}
+            <div className="flex-shrink-0" style={{ width: 180, minWidth: 0, overflow: 'hidden' }}>
               <InlineEdit
                 value={localHotel.name || ''} onChange={v => patchHotel({ name: v })}
                 placeholder={lang === 'de' ? 'Hotelname' : 'Hotel name'} dk={dk}
@@ -237,7 +274,7 @@ export function HotelRow({
             </div>
 
             {/* City — 96px fixed */}
-            <div style={{ width: 96, minWidth: 96, maxWidth: 96, overflow: 'hidden' }}>
+            <div className="flex-shrink-0" style={{ width: 96, minWidth: 0, overflow: 'hidden' }}>
               <InlineEdit
                 value={localHotel.city || ''} onChange={v => patchHotel({ city: v })}
                 placeholder={lang === 'de' ? 'Stadt' : 'City'} dk={dk}
@@ -248,7 +285,7 @@ export function HotelRow({
             </div>
 
             {/* Company — 104px fixed */}
-            <div style={{ width: 104, minWidth: 104, maxWidth: 104, overflow: 'hidden' }}>
+            <div className="flex-shrink-0" style={{ width: 104, minWidth: 0, overflow: 'hidden' }}>
               <InlineEdit
                 value={localHotel.companyTag || ''} onChange={v => patchHotel({ companyTag: v })}
                 placeholder={lang === 'de' ? 'Firma' : 'Company'} dk={dk}
@@ -259,7 +296,7 @@ export function HotelRow({
             </div>
 
             {/* Duration tags — 160px fixed */}
-            <div style={{ width: 160, minWidth: 160, maxWidth: 160, overflow: 'hidden' }} className="flex items-center gap-1">
+            <div className="flex-shrink-0 flex items-center gap-1" style={{ width: 160, minWidth: 0, overflow: 'hidden' }}>
               {(localHotel.durations ?? []).slice(0, 2).map((d: any, i: number) => (
                 <span key={d?.id || i} className={cn(
                   'px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0 border',
@@ -279,7 +316,7 @@ export function HotelRow({
             </div>
 
             {/* Nights — 60px fixed */}
-            <div style={{ width: 60, minWidth: 60, maxWidth: 60 }} className="text-center flex-shrink-0">
+            <div className="flex-shrink-0 text-center" style={{ width: 60 }}>
               <p className="text-sm font-black text-blue-400 leading-none">{totalNights}</p>
               <p className={cn('text-[10px] uppercase tracking-widest mt-0.5', dk ? 'text-slate-500' : 'text-slate-400')}>
                 {lang === 'de' ? 'Nächte' : 'Nights'}
@@ -287,7 +324,7 @@ export function HotelRow({
             </div>
 
             {/* Free beds — 48px fixed */}
-            <div style={{ width: 48, minWidth: 48, maxWidth: 48 }} className="text-center flex-shrink-0">
+            <div className="flex-shrink-0 text-center" style={{ width: 48 }}>
               <p className={cn('text-sm font-black leading-none', freeBeds > 0 ? 'text-red-400' : 'text-green-400')}>{freeBeds}</p>
               <p className={cn('text-[10px] uppercase tracking-widest mt-0.5', dk ? 'text-slate-500' : 'text-slate-400')}>
                 {lang === 'de' ? 'Frei' : 'Free'}
@@ -295,7 +332,7 @@ export function HotelRow({
             </div>
 
             {/* Employee pills — 148px fixed */}
-            <div style={{ width: 148, minWidth: 148, maxWidth: 148, overflow: 'hidden' }} className="flex items-center gap-1 flex-shrink-0">
+            <div className="flex-shrink-0 flex items-center gap-1" style={{ width: 148, overflow: 'hidden' }}>
               {allEmployees.slice(0, 3).map((emp: any, i: number) => (
                 <div key={emp?.id || i}
                   className={cn('px-1.5 py-0.5 rounded-full border text-[10px] font-bold flex-shrink-0', pillCls(emp))}
@@ -313,7 +350,7 @@ export function HotelRow({
             </div>
 
             {/* Cost — 108px fixed */}
-            <div style={{ width: 108, minWidth: 108, maxWidth: 108 }} className="text-right flex-shrink-0">
+            <div className="flex-shrink-0 text-right" style={{ width: 108 }}>
               <p className={cn('text-sm font-black leading-none', dk ? 'text-white' : 'text-slate-900')}>
                 {formatCurrency(displayCost.amount)}
               </p>
@@ -327,12 +364,12 @@ export function HotelRow({
               )}
             </div>
 
-            {/* Saving spinner */}
-            <div style={{ width: 20, minWidth: 20 }} className="flex items-center justify-center flex-shrink-0">
+            {/* Saving spinner — 20px fixed */}
+            <div className="flex-shrink-0 flex items-center justify-center" style={{ width: 20 }}>
               {saving && <Loader2 size={14} className="animate-spin text-blue-400" />}
             </div>
 
-            {/* Actions */}
+            {/* Actions — pushed to right, never compresses others */}
             <div className="flex items-center gap-1 flex-shrink-0 ml-auto">
               <button onClick={addDuration} disabled={creatingDuration}
                 className={cn('px-2.5 py-1.5 rounded-lg text-[11px] font-bold border flex items-center gap-1 transition-all',
@@ -359,14 +396,14 @@ export function HotelRow({
           <div className={cn('border-t px-4 py-4 space-y-4',
             dk ? 'border-white/10 bg-white/[0.02]' : 'border-slate-200 bg-slate-50/50')}>
 
-            {/* Info row: 5 fields in one horizontal line */}
+            {/* Info row: 5 fields in one horizontal line with labels */}
             <div className="flex gap-3 items-end" style={{ overflowX: 'auto' }}>
               {[
-                { field: 'address',       de: 'Adresse',         en: 'Address',       w: 180 },
-                { field: 'contactPerson', de: 'Ansprechpartner', en: 'Contact person', w: 140 },
-                { field: 'phone',         de: 'Telefon',         en: 'Phone',          w: 120 },
-                { field: 'email',         de: 'E-Mail',          en: 'Email',          w: 180 },
-                { field: 'webLink',       de: 'Webseite',        en: 'Website',        w: 160 },
+                { field: 'address',       de: 'Adresse',         en: 'Address',        w: 180 },
+                { field: 'contactPerson', de: 'Ansprechpartner', en: 'Contact person',  w: 140 },
+                { field: 'phone',         de: 'Telefon',         en: 'Phone',           w: 120 },
+                { field: 'email',         de: 'E-Mail',          en: 'Email',           w: 180 },
+                { field: 'webLink',       de: 'Webseite',        en: 'Website',         w: 160 },
               ].map(({ field, de, en, w }) => (
                 <div key={field} style={{ minWidth: w, flexShrink: 0 }} className="flex flex-col gap-0.5">
                   <span className={cn('text-[10px] font-bold uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')}>

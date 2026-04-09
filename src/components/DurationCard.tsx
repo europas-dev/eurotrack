@@ -83,23 +83,31 @@ export function DurationCard({
   const [local, setLocal] = useState<Duration>(duration)
   const [saving, setSaving] = useState(false)
   const [showCalendar, setShowCalendar] = useState(false)
-  const [showPricingDetail, setShowPricingDetail] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+
+  // Uncontrolled draft for the reverse-calc total input so the user can type freely.
+  // It is only a display helper — we do NOT store it; we only derive pricePerNightPerRoom from it.
+  const [totalDraft, setTotalDraft] = useState('')
+  const [totalFocused, setTotalFocused] = useState(false)
+
   const saveTimer = useRef<any>(null)
 
-  // Sync if parent pushes new duration data
+  // Sync if parent pushes new duration data (e.g. after Supabase reload)
   useEffect(() => { setLocal(duration) }, [duration.id])
 
   // ── Derived values ─────────────────────────────────────────────────────────
-  const totalBeds = getTotalBeds(local.roomType, local.numberOfRooms)
-  const nights    = calculateNights(local.startDate, local.endDate)
-  const allNights = useMemo(() => getNightsBetween(local.startDate, local.endDate), [local.startDate, local.endDate])
-  const gaps      = useMemo(() => getDurationGapInfo(local), [local])
+  const totalBeds   = getTotalBeds(local.roomType, local.numberOfRooms)
+  const nights      = calculateNights(local.startDate, local.endDate)
+  const allNights   = useMemo(() => getNightsBetween(local.startDate, local.endDate), [local.startDate, local.endDate])
+  const gaps        = useMemo(() => getDurationGapInfo(local), [local])
   const priceResult = useMemo(() => calcDurationPrice(local), [local])
-  const roomCount = Math.max(1, Number(local.numberOfRooms) || 1)
+  const roomCount   = Math.max(1, Number(local.numberOfRooms) || 1)
 
   // Free beds in this duration right now
   const freeBeds = Math.max(0, totalBeds - (local.employees ?? []).filter(Boolean).length)
+
+  // The calculated total in simple mode (used to initialise totalDraft when focus is lost)
+  const calcTotal = priceResult.total
 
   // ── Auto-save with 500ms debounce ──────────────────────────────────────────
   function queueSave(next: Duration) {
@@ -143,14 +151,21 @@ export function DurationCard({
     }
   }
 
-  // ── Pricing helpers ────────────────────────────────────────────────────────
-  // Reverse calc: if user enters total and nights are known → derive perNight
-  function handleTotalInput(rawVal: string) {
-    const enteredTotal = normalizeNumberInput(rawVal)
-    if (nights > 0 && roomCount > 0) {
+  // ── Reverse-calc: user types a total → derive pricePerNightPerRoom ─────────
+  // We use an uncontrolled local draft so the user can type "1200" freely.
+  // On blur (or Enter) we commit the reverse calculation.
+  function handleTotalChange(rawVal: string) {
+    setTotalDraft(rawVal)
+  }
+
+  function commitTotalInput() {
+    const enteredTotal = normalizeNumberInput(totalDraft)
+    if (enteredTotal > 0 && nights > 0 && roomCount > 0) {
       const impliedPerNight = enteredTotal / nights / roomCount
       patch({ pricePerNightPerRoom: impliedPerNight })
     }
+    setTotalFocused(false)
+    setTotalDraft('')
   }
 
   // ── Shared input style ─────────────────────────────────────────────────────
@@ -271,10 +286,8 @@ export function DurationCard({
           </div>
         </div>
 
-        {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Saving spinner */}
         {saving && <Loader2 size={14} className="animate-spin text-blue-400 flex-shrink-0" />}
 
         {/* Calendar toggle */}
@@ -313,14 +326,14 @@ export function DurationCard({
         dk ? 'border-white/10' : 'border-slate-100'
       )}>
 
-        {/* Pricing mode toggle: Simple vs Brutto/Netto */}
+        {/* Mode toggles row */}
         <div className="flex items-center gap-2 flex-wrap">
           <SectionLabel label={lang === 'de' ? 'Preisgestaltung' : 'Pricing'} dk={dk} />
           <div className="flex-1" />
 
           {/* Brutto/Netto mode toggle */}
           <ToggleBtn
-            active={local.useBruttoNetto}
+            active={!!local.useBruttoNetto}
             onClick={() => patch({ useBruttoNetto: !local.useBruttoNetto })}
             activeLabel={lang === 'de' ? 'Brutto/Netto AN' : 'Brutto/Netto ON'}
             inactiveLabel={lang === 'de' ? 'Brutto/Netto' : 'Brutto/Netto'}
@@ -328,10 +341,10 @@ export function DurationCard({
             dk={dk}
           />
 
-          {/* Manual nightly prices toggle — only in simple mode */}
+          {/* Manual nightly prices — only in simple mode */}
           {!local.useBruttoNetto && (
             <ToggleBtn
-              active={local.useManualPrices}
+              active={!!local.useManualPrices}
               onClick={() => patch({ useManualPrices: !local.useManualPrices })}
               activeLabel={lang === 'de' ? 'Nachtpreise AN' : 'Night prices ON'}
               inactiveLabel={lang === 'de' ? 'Nachtpreise' : 'Night prices'}
@@ -342,7 +355,7 @@ export function DurationCard({
 
           {/* Discount toggle */}
           <ToggleBtn
-            active={local.hasDiscount}
+            active={!!local.hasDiscount}
             onClick={() => patch({ hasDiscount: !local.hasDiscount })}
             activeLabel={lang === 'de' ? 'Rabatt AN' : 'Discount ON'}
             inactiveLabel={lang === 'de' ? 'Rabatt' : 'Discount'}
@@ -355,7 +368,7 @@ export function DurationCard({
         {!local.useBruttoNetto && (
           <div className="flex items-end gap-3 flex-wrap">
 
-            {/* Price per night per room */}
+            {/* Price per night per room/bed */}
             <div className="flex flex-col gap-0.5">
               <span className={labelCls}>
                 {local.roomType === 'WG'
@@ -373,7 +386,9 @@ export function DurationCard({
               />
             </div>
 
-            {/* Total (reverse-calc) */}
+            {/* Reverse-calc: enter a total → derive per-night price.
+                Uses uncontrolled local state so user can type freely.
+                Calculation commits on blur or Enter. */}
             <div className="flex flex-col gap-0.5">
               <span className={labelCls}>
                 {lang === 'de' ? 'Gesamtbetrag (Rückrechnung)' : 'Total (reverse calc)'}
@@ -382,11 +397,24 @@ export function DurationCard({
                 type="number"
                 min={0}
                 step={0.01}
-                value={nights > 0 && local.pricePerNightPerRoom
-                  ? (local.pricePerNightPerRoom * roomCount * nights).toFixed(2)
-                  : ''}
-                onChange={e => handleTotalInput(e.target.value)}
+                value={totalFocused
+                  ? totalDraft
+                  : (nights > 0 && local.pricePerNightPerRoom
+                      ? (local.pricePerNightPerRoom * roomCount * nights).toFixed(2)
+                      : '')}
                 placeholder={lang === 'de' ? 'Gesamt eingeben...' : 'Enter total...'}
+                onFocus={() => {
+                  setTotalFocused(true)
+                  // Pre-fill draft with current calculated total
+                  if (nights > 0 && local.pricePerNightPerRoom) {
+                    setTotalDraft((local.pricePerNightPerRoom * roomCount * nights).toFixed(2))
+                  } else {
+                    setTotalDraft('')
+                  }
+                }}
+                onChange={e => handleTotalChange(e.target.value)}
+                onBlur={commitTotalInput}
+                onKeyDown={e => { if (e.key === 'Enter') { commitTotalInput() } }}
                 className={cn(inputCls, 'w-36')}
               />
             </div>
@@ -421,12 +449,18 @@ export function DurationCard({
               </>
             )}
 
-            {/* Calculated total */}
+            {/* Calculated total — always shown on the right */}
             <div className="flex flex-col gap-0.5 ml-auto text-right">
               <span className={labelCls}>{lang === 'de' ? 'Gesamt' : 'Total'}</span>
               <p className={cn('text-lg font-black', dk ? 'text-white' : 'text-slate-900')}>
                 {formatCurrency(priceResult.total)}
               </p>
+              {/* Show raw-before-discount if discount was applied */}
+              {'rawBeforeDiscount' in priceResult && priceResult.rawBeforeDiscount! > 0 && (
+                <p className={cn('text-[10px] line-through', dk ? 'text-slate-600' : 'text-slate-300')}>
+                  {formatCurrency((priceResult as any).rawBeforeDiscount)}
+                </p>
+              )}
               {nights > 0 && (
                 <p className={cn('text-[10px]', dk ? 'text-slate-500' : 'text-slate-400')}>
                   {formatCurrency(priceResult.perNight)} / {lang === 'de' ? 'Nacht' : 'night'}
@@ -448,7 +482,10 @@ export function DurationCard({
                 min={0}
                 step={0.01}
                 value={local.brutto ?? ''}
-                onChange={e => patch({ brutto: normalizeNumberInput(e.target.value) || undefined })}
+                onChange={e => {
+                  const v = normalizeNumberInput(e.target.value)
+                  patch({ brutto: v > 0 ? v : undefined })
+                }}
                 placeholder="0.00"
                 className={cn(inputCls, 'w-28')}
               />
@@ -462,48 +499,59 @@ export function DurationCard({
                 min={0}
                 step={0.01}
                 value={local.netto ?? ''}
-                onChange={e => patch({ netto: normalizeNumberInput(e.target.value) || undefined })}
+                onChange={e => {
+                  const v = normalizeNumberInput(e.target.value)
+                  patch({ netto: v > 0 ? v : undefined })
+                }}
                 placeholder="0.00"
                 className={cn(inputCls, 'w-28')}
               />
             </div>
 
-            {/* MwSt */}
+            {/* MwSt % */}
             <div className="flex flex-col gap-0.5">
               <span className={labelCls}>MwSt (%)</span>
               <input
                 type="number"
                 min={0}
+                max={100}
                 step={0.1}
                 value={local.mwst ?? ''}
-                onChange={e => patch({ mwst: normalizeNumberInput(e.target.value) || undefined })}
+                onChange={e => {
+                  const v = normalizeNumberInput(e.target.value)
+                  patch({ mwst: v >= 0 ? v : undefined })
+                }}
                 placeholder={lang === 'de' ? 'z.B. 19' : 'e.g. 19'}
                 className={cn(inputCls, 'w-24')}
               />
             </div>
 
-            {/* Calculated result */}
-            <div className="flex flex-col gap-0.5 ml-auto text-right">
+            {/* Calculated result panel */}
+            <div className="flex flex-col gap-0.5 ml-auto text-right min-w-[120px]">
               <span className={labelCls}>{lang === 'de' ? 'Berechnet' : 'Calculated'}</span>
-              {/* Brutto */}
-              <p className={cn('text-lg font-black', dk ? 'text-white' : 'text-slate-900')}>
-                {priceResult.brutto ? formatCurrency(priceResult.brutto) : '—'}
-                <span className={cn('text-[10px] ml-1 font-normal', dk ? 'text-slate-500' : 'text-slate-400')}>
-                  Brutto
-                </span>
-              </p>
-              {/* Netto — only if derivable */}
-              {priceResult.netto != null ? (
-                <p className={cn('text-xs', dk ? 'text-slate-400' : 'text-slate-600')}>
-                  {formatCurrency(priceResult.netto)}{' '}
-                  <span className={dk ? 'text-slate-600' : 'text-slate-400'}>Netto</span>
+
+              {/* Brutto line */}
+              {priceResult.brutto != null ? (
+                <p className={cn('text-lg font-black', dk ? 'text-white' : 'text-slate-900')}>
+                  {formatCurrency(priceResult.brutto)}
+                  <span className={cn('text-[10px] ml-1 font-normal', dk ? 'text-slate-500' : 'text-slate-400')}>Brutto</span>
                 </p>
               ) : (
-                <p className={cn('text-xs', dk ? 'text-slate-600' : 'text-slate-300')}>
-                  {lang === 'de'
-                    ? 'Netto unbekannt (MwSt fehlt)'
-                    : 'Netto unknown (MwSt missing)'}
+                <p className={cn('text-lg font-black', dk ? 'text-slate-600' : 'text-slate-300')}>—</p>
+              )}
+
+              {/* Netto line — only when derivable */}
+              {priceResult.netto != null ? (
+                <p className={cn('text-xs mt-0.5', dk ? 'text-slate-400' : 'text-slate-600')}>
+                  {formatCurrency(priceResult.netto)}
+                  <span className={cn('ml-1', dk ? 'text-slate-600' : 'text-slate-400')}>Netto</span>
                 </p>
+              ) : (
+                priceResult.brutto != null && (
+                  <p className={cn('text-[10px] mt-0.5', dk ? 'text-slate-600' : 'text-slate-400')}>
+                    {lang === 'de' ? 'Netto unbekannt – MwSt fehlt' : 'Netto unknown – MwSt missing'}
+                  </p>
+                )
               )}
             </div>
           </div>
@@ -549,7 +597,7 @@ export function DurationCard({
         <div className="flex flex-col gap-0.5">
           <span className={labelCls}>{lang === 'de' ? 'Zahlungsstatus' : 'Payment'}</span>
           <ToggleBtn
-            active={local.isPaid}
+            active={!!local.isPaid}
             onClick={() => patch({ isPaid: !local.isPaid })}
             activeLabel={lang === 'de' ? 'Bezahlt' : 'Paid'}
             inactiveLabel={lang === 'de' ? 'Unbezahlt' : 'Unpaid'}
@@ -562,7 +610,7 @@ export function DurationCard({
         <div className="flex flex-col gap-0.5">
           <span className={labelCls}>{lang === 'de' ? 'Kaution' : 'Deposit'}</span>
           <ToggleBtn
-            active={local.depositEnabled}
+            active={!!local.depositEnabled}
             onClick={() => patch({ depositEnabled: !local.depositEnabled })}
             activeLabel={lang === 'de' ? 'Kaution AN' : 'Deposit ON'}
             inactiveLabel={lang === 'de' ? 'Keine Kaution' : 'No deposit'}
@@ -571,7 +619,7 @@ export function DurationCard({
           />
         </div>
 
-        {/* Deposit amount — only shown when deposit is enabled */}
+        {/* Deposit amount — only shown when depositEnabled */}
         {local.depositEnabled && (
           <div className="flex flex-col gap-0.5">
             <span className={labelCls}>{lang === 'de' ? 'Kautionsbetrag (€)' : 'Deposit amount (€)'}</span>
@@ -580,7 +628,10 @@ export function DurationCard({
               min={0}
               step={0.01}
               value={local.depositAmount ?? ''}
-              onChange={e => patch({ depositAmount: normalizeNumberInput(e.target.value) || undefined })}
+              onChange={e => {
+                const v = normalizeNumberInput(e.target.value)
+                patch({ depositAmount: v > 0 ? v : undefined })
+              }}
               placeholder="0.00"
               className={cn(inputCls, 'w-28')}
             />
@@ -626,7 +677,6 @@ export function DurationCard({
                   )}
                 >
                   <p className={cn('text-[11px] font-bold mb-1', dk ? 'text-slate-300' : 'text-slate-700')}>
-                    {/* Display as DD.MM. */}
                     {night.split('-').reverse().slice(0, 2).join('.')}
                   </p>
                   {local.useManualPrices ? (
@@ -676,80 +726,51 @@ export function DurationCard({
 
             return (
               <div key={slotIndex} className="space-y-2">
-                {/* Primary slot */}
                 <EmployeeSlot
-                  durationId={local.id}
+                  key={`${local.id}-slot-${slotIndex}`}
                   slotIndex={slotIndex}
                   employee={employee}
-                  durationStart={local.startDate}
-                  durationEnd={local.endDate}
+                  duration={local}
                   isDarkMode={dk}
                   lang={lang}
-                  onUpdated={onEmployeeUpdated}
+                  onUpdate={onEmployeeUpdated}
                 />
-                {/* Substitute slot — shown when there is a gap before/after the primary employee */}
-                {!employee && gap && gap.type !== 'full' && (
-                  <EmployeeSlot
-                    durationId={local.id}
-                    slotIndex={slotIndex}
-                    employee={null}
-                    durationStart={gap.availableFrom}
-                    durationEnd={gap.availableTo}
-                    isDarkMode={dk}
-                    lang={lang}
-                    onUpdated={onEmployeeUpdated}
-                    substituteWindow={{ from: gap.availableFrom, to: gap.availableTo }}
-                  />
+                {gap && (
+                  <div className={cn(
+                    'text-[10px] rounded-lg px-2 py-1 border',
+                    dk ? 'bg-amber-900/20 border-amber-500/20 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700'
+                  )}>
+                    {lang === 'de' ? 'Lücke' : 'Gap'}:{' '}
+                    {gap.availableFrom} → {gap.availableTo}
+                  </div>
                 )}
               </div>
             )
           })}
         </div>
-
-        {/* Empty state — no beds */}
-        {totalBeds === 0 && (
-          <p className={cn('text-sm text-center py-4', dk ? 'text-slate-600' : 'text-slate-300')}>
-            {lang === 'de' ? 'Keine Betten konfiguriert.' : 'No beds configured.'}
-          </p>
-        )}
       </div>
 
-      {/* ════════════════════════════════════════════════════════════
-          DELETE CONFIRMATION MODAL
-      ════════════════════════════════════════════════════════════ */}
+      {/* Delete confirm modal */}
       {confirmDelete && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4">
-          <div className={cn(
-            'w-full max-w-md rounded-2xl border p-5 shadow-2xl',
-            dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
-          )}>
+          <div className={cn('w-full max-w-sm rounded-2xl border p-5 shadow-2xl',
+            dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
             <h3 className="text-lg font-black mb-2">
-              {lang === 'de' ? 'Dauer löschen?' : 'Delete duration?'}
+              {lang === 'de' ? 'Buchungszeitraum löschen?' : 'Delete this duration?'}
             </h3>
             <p className={cn('text-sm mb-5', dk ? 'text-slate-400' : 'text-slate-600')}>
-              {local.startDate && local.endDate
-                ? `${formatDateShort(local.startDate, lang)} – ${formatDateShort(local.endDate, lang)} · `
-                : ''}
               {lang === 'de'
-                ? 'Diese Buchungsdauer wird dauerhaft gelöscht.'
-                : 'This duration will be permanently deleted.'}
+                ? 'Dieser Buchungszeitraum und alle Mitarbeiterzuordnungen werden dauerhaft gelöscht.'
+                : 'This duration and all employee assignments will be permanently deleted.'}
             </p>
             <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setConfirmDelete(false)}
-                className={cn(
-                  'px-4 py-2 rounded-lg border text-sm font-bold',
-                  dk
-                    ? 'border-white/10 text-slate-300 hover:bg-white/5'
-                    : 'border-slate-200 text-slate-700 hover:bg-slate-50'
-                )}
-              >
+              <button onClick={() => setConfirmDelete(false)}
+                className={cn('px-4 py-2 rounded-lg border text-sm font-bold',
+                  dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}>
                 {lang === 'de' ? 'Abbrechen' : 'Cancel'}
               </button>
-              <button
-                onClick={handleDelete}
-                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold"
-              >
+              <button onClick={handleDelete}
+                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold">
                 {lang === 'de' ? 'Löschen' : 'Delete'}
               </button>
             </div>
@@ -759,5 +780,3 @@ export function DurationCard({
     </div>
   )
 }
-
-export default DurationCard

@@ -57,9 +57,18 @@ export function formatCurrency(value: number | undefined | null): string {
 }
 
 // ─── Number input ─────────────────────────────────────────────────────────────
+// Handles both German (1.234,56) and international (1234.56) number formats.
+// Strategy: if there's a comma, treat it as decimal separator (German style),
+// strip dots as thousand separators. Otherwise treat dot as decimal (international).
 export function normalizeNumberInput(raw: string): number {
-  if (!raw) return 0
-  const n = parseFloat(raw.replace(/\./g, '').replace(',', '.'))
+  if (!raw || raw.trim() === '') return 0
+  let s = raw.trim()
+  if (s.includes(',')) {
+    // German format: dots are thousand-separators, comma is decimal
+    s = s.replace(/\./g, '').replace(',', '.')
+  }
+  // else: international format — dot is already decimal, leave as-is
+  const n = parseFloat(s)
   return isNaN(n) ? 0 : n
 }
 
@@ -94,30 +103,34 @@ export function calcDurationPrice(d: Duration): PriceResult {
   const nights = calculateNights(d.startDate, d.endDate)
   const rooms  = Math.max(1, d.numberOfRooms || 1)
 
+  // ── Brutto/Netto mode ────────────────────────────────────────────────────
   if (d.useBruttoNetto) {
     const hasBrutto = d.brutto != null && d.brutto > 0
     const hasNetto  = d.netto  != null && d.netto  > 0
     const hasMwst   = d.mwst   != null && d.mwst   >= 0
 
+    // Netto + MwSt known → derive Brutto
     if (hasNetto && hasMwst && !hasBrutto) {
       const brutto = d.netto! * (1 + d.mwst! / 100)
-      return { brutto, netto: d.netto, mwst: d.mwst, total: brutto, nights, perNight: nights > 0 ? brutto / nights : 0 }
+      return { brutto, netto: d.netto!, mwst: d.mwst!, total: brutto, nights, perNight: nights > 0 ? brutto / nights : 0 }
     }
+    // Brutto + MwSt known → derive Netto
     if (hasBrutto && hasMwst) {
       const netto = d.brutto! / (1 + d.mwst! / 100)
-      return { brutto: d.brutto, netto, mwst: d.mwst, total: d.brutto!, nights, perNight: nights > 0 ? d.brutto! / nights : 0 }
+      return { brutto: d.brutto!, netto, mwst: d.mwst!, total: d.brutto!, nights, perNight: nights > 0 ? d.brutto! / nights : 0 }
     }
+    // Only Brutto known — Netto stays undefined (never invent it)
     if (hasBrutto) {
-      // Only Brutto known — never invent Netto
-      return { brutto: d.brutto, netto: undefined, mwst: d.mwst, total: d.brutto!, nights, perNight: nights > 0 ? d.brutto! / nights : 0 }
+      return { brutto: d.brutto!, netto: undefined, mwst: d.mwst ?? undefined, total: d.brutto!, nights, perNight: nights > 0 ? d.brutto! / nights : 0 }
     }
+    // Only Netto known (no MwSt) — show Netto as total
     if (hasNetto) {
-      return { brutto: undefined, netto: d.netto, mwst: d.mwst, total: d.netto!, nights, perNight: nights > 0 ? d.netto! / nights : 0 }
+      return { brutto: undefined, netto: d.netto!, mwst: d.mwst ?? undefined, total: d.netto!, nights, perNight: nights > 0 ? d.netto! / nights : 0 }
     }
     return { total: 0, perNight: 0, nights }
   }
 
-  // Simple mode
+  // ── Simple mode ──────────────────────────────────────────────────────────
   const perNight = d.pricePerNightPerRoom ?? 0
   let raw = 0
 
@@ -130,13 +143,18 @@ export function calcDurationPrice(d: Duration): PriceResult {
 
   // Apply discount
   let total = raw
-  if (d.hasDiscount && d.discountValue) {
+  if (d.hasDiscount && d.discountValue && d.discountValue > 0) {
     total = d.discountType === 'percentage'
       ? raw * (1 - d.discountValue / 100)
       : Math.max(0, raw - d.discountValue)
   }
 
-  return { total, perNight: nights > 0 ? total / nights : 0, nights }
+  return {
+    total,
+    perNight: nights > 0 ? total / nights : 0,
+    nights,
+    ...(d.hasDiscount && d.discountValue && d.discountValue > 0 ? { rawBeforeDiscount: raw } : {}),
+  }
 }
 
 export function getDurationTotal(d: Duration): number {
@@ -144,10 +162,6 @@ export function getDurationTotal(d: Duration): number {
 }
 
 // ─── Monthly cost (prorated by overlap) ───────────────────────────────────────
-/**
- * Returns the cost of a duration that falls within a given year + month (0-indexed).
- * Prorates based on the overlap between the duration's date range and the calendar month.
- */
 export function getDurationCostForMonth(d: Duration, year: number, month: number): number {
   if (!d.startDate || !d.endDate) return 0
 
