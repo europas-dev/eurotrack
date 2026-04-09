@@ -58,16 +58,18 @@ export function formatCurrency(value: number | undefined | null): string {
 
 // ─── Number input ─────────────────────────────────────────────────────────────
 // Handles both German (1.234,56) and international (1234.56) number formats.
-// Strategy: if there's a comma, treat it as decimal separator (German style),
-// strip dots as thousand separators. Otherwise treat dot as decimal (international).
-export function normalizeNumberInput(raw: string): number {
-  if (!raw || raw.trim() === '') return 0
-  let s = raw.trim()
+// If a comma is present → German format: dots = thousand-sep, comma = decimal.
+// Otherwise → international: dot is decimal, leave as-is.
+export function normalizeNumberInput(raw: string | number): number {
+  if (raw === '' || raw == null) return 0
+  if (typeof raw === 'number') return isNaN(raw) ? 0 : raw
+  let s = String(raw).trim()
+  if (s === '') return 0
   if (s.includes(',')) {
-    // German format: dots are thousand-separators, comma is decimal
+    // German: 1.234,56 → strip dots → replace comma with dot
     s = s.replace(/\./g, '').replace(',', '.')
   }
-  // else: international format — dot is already decimal, leave as-is
+  // International: 1234.56 — leave dot as-is
   const n = parseFloat(s)
   return isNaN(n) ? 0 : n
 }
@@ -94,7 +96,7 @@ export function getTotalBeds(roomType: string, numberOfRooms: number): number {
   if (roomType === 'EZ') return n * 1
   if (roomType === 'DZ') return n * 2
   if (roomType === 'TZ') return n * 3
-  if (roomType === 'WG') return n   // WG: numberOfRooms = beds directly
+  if (roomType === 'WG') return n   // WG: numberOfRooms = number of beds directly
   return n * 2
 }
 
@@ -119,7 +121,7 @@ export function calcDurationPrice(d: Duration): PriceResult {
       const netto = d.brutto! / (1 + d.mwst! / 100)
       return { brutto: d.brutto!, netto, mwst: d.mwst!, total: d.brutto!, nights, perNight: nights > 0 ? d.brutto! / nights : 0 }
     }
-    // Only Brutto known — Netto stays undefined (never invent it)
+    // Only Brutto known — never invent Netto
     if (hasBrutto) {
       return { brutto: d.brutto!, netto: undefined, mwst: d.mwst ?? undefined, total: d.brutto!, nights, perNight: nights > 0 ? d.brutto! / nights : 0 }
     }

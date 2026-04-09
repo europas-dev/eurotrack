@@ -26,6 +26,10 @@ interface HotelRowProps {
   onUpdate: (id: string, updated: any) => void
 }
 
+// ─── InlineEdit ───────────────────────────────────────────────────────────────
+// Renders as a clipped text button; on click becomes an input.
+// IMPORTANT: The outer container controls width+overflow — this component
+// must never expand beyond what its parent allows.
 function InlineEdit({
   value, onChange, placeholder, dk, textClass, datalistId, datalistOptions,
 }: {
@@ -33,8 +37,8 @@ function InlineEdit({
   dk: boolean; textClass?: string; datalistId?: string; datalistOptions?: string[]
 }) {
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(value)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [draft, setDraft]     = useState(value)
+  const inputRef              = useRef<HTMLInputElement>(null)
 
   useEffect(() => { setDraft(value) }, [value])
   useEffect(() => { if (editing) inputRef.current?.focus() }, [editing])
@@ -50,15 +54,18 @@ function InlineEdit({
     return (
       <>
         <input
-          ref={inputRef} type="text" value={draft}
+          ref={inputRef}
+          type="text"
+          value={draft}
           onChange={e => setDraft(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') cancel() }}
           onBlur={commit}
           list={datalistId}
           className={cn(
             'w-full px-1.5 py-0.5 rounded text-sm outline-none border transition-all',
-            dk ? 'bg-white/10 border-blue-500 text-white placeholder-slate-600'
-               : 'bg-blue-50 border-blue-400 text-slate-900 placeholder-slate-400'
+            dk
+              ? 'bg-white/10 border-blue-500 text-white placeholder-slate-600'
+              : 'bg-blue-50 border-blue-400 text-slate-900 placeholder-slate-400'
           )}
         />
         {datalistId && datalistOptions && (
@@ -75,73 +82,70 @@ function InlineEdit({
       onClick={() => setEditing(true)}
       title={value || placeholder}
       className={cn(
-        'w-full text-left px-1 py-0.5 rounded transition-all block',
+        'w-full text-left px-1 py-0.5 rounded transition-all',
         textClass,
         dk ? 'hover:bg-white/5' : 'hover:bg-slate-100'
       )}
-      style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}
+      style={{
+        display: 'block',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        maxWidth: '100%',
+      }}
     >
       {value
-        ? <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{value}</span>
+        ? value
         : <span className={dk ? 'text-slate-600 text-xs' : 'text-slate-300 text-xs'}>{placeholder}</span>}
     </button>
   )
 }
 
+// ─── Bed capacity ─────────────────────────────────────────────────────────────
 function getBedCapacity(roomType: string, numberOfRooms: number): number {
   if (roomType === 'EZ') return numberOfRooms * 1
   if (roomType === 'DZ') return numberOfRooms * 2
   if (roomType === 'TZ') return numberOfRooms * 3
-  return numberOfRooms
+  return numberOfRooms // WG: beds = numberOfRooms directly
 }
 
-// Uses getDurationTotal (which calls calcDurationPrice) so discounts,
-// manual nightly prices, and Brutto/Netto mode are all respected.
+// ─── Cost display ─────────────────────────────────────────────────────────────
+// Uses getDurationTotal (which calls calcDurationPrice) so Brutto/Netto mode,
+// discounts, and manual nightly prices are all respected automatically.
 function getDisplayCost(hotel: any): { amount: number; label: string } {
-  let totalBrutto = 0
-  let totalNetto  = 0
-  let totalPlain  = 0
-  let hasBruttoMode = false
-  let hasNettoMode  = false
+  const durations = hotel?.durations ?? []
+  if (durations.length === 0) return { amount: 0, label: '' }
 
-  for (const d of hotel?.durations ?? []) {
+  let total = 0
+  let hasBrutto = false
+  let hasNetto  = false
+
+  for (const d of durations) {
+    total += getDurationTotal(d)
     if (d.useBruttoNetto) {
-      hasBruttoMode = true
-      const total = getDurationTotal(d)  // calcDurationPrice handles all cases
-      // Determine if result was brutto-based or netto-based
-      const hasBrutto = d.brutto != null && d.brutto > 0
-      const hasMwst   = d.mwst   != null && d.mwst   >= 0
-      if (hasBrutto) {
-        totalBrutto += total
-      } else {
-        hasNettoMode = true
-        totalNetto  += total
-      }
-    } else {
-      // Simple mode — getDurationTotal already handles discounts + manual prices
-      totalPlain += getDurationTotal(d)
+      if (d.brutto != null && d.brutto > 0) hasBrutto = true
+      else if (d.netto != null && d.netto > 0) hasNetto = true
     }
   }
 
-  if (hasBruttoMode && totalBrutto > 0) return { amount: totalBrutto + totalPlain, label: 'Brutto' }
-  if (hasNettoMode  && totalNetto  > 0) return { amount: totalNetto  + totalPlain, label: 'Netto' }
-  return { amount: totalPlain, label: '' }
+  const label = hasBrutto ? 'Brutto' : hasNetto ? 'Netto' : ''
+  return { amount: total, label }
 }
 
+// ─── HotelRow ─────────────────────────────────────────────────────────────────
 export function HotelRow({
   hotel, isDarkMode, lang = 'de', showPaymentTotals = false,
   companyOptions = [], cityOptions = [], onDelete, onUpdate,
 }: HotelRowProps) {
   const dk = isDarkMode
-  const [open, setOpen] = useState(false)
-  const [localHotel, setLocalHotel] = useState<any>(hotel ?? {})
-  const [saving, setSaving] = useState(false)
+  const [open, setOpen]                       = useState(false)
+  const [localHotel, setLocalHotel]           = useState<any>(hotel ?? {})
+  const [saving, setSaving]                   = useState(false)
   const [creatingDuration, setCreatingDuration] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmDelete, setConfirmDelete]     = useState(false)
   const [activeDurationTab, setActiveDurationTab] = useState(0)
   const saveTimer = useRef<any>(null)
 
-  // Guard: if hotel is undefined/null, render nothing
   if (!hotel || !hotel.id) return null
 
   useEffect(() => { setLocalHotel(hotel) }, [hotel.id])
@@ -149,12 +153,14 @@ export function HotelRow({
   const totalNights = useMemo(() =>
     (localHotel.durations ?? []).reduce((s: number, d: any) => {
       if (!d?.startDate || !d?.endDate) return s
-      return s + Math.max(0, Math.ceil((new Date(d.endDate).getTime() - new Date(d.startDate).getTime()) / 86400000))
-    }, 0), [localHotel.durations])
+      return s + Math.max(0, Math.ceil(
+        (new Date(d.endDate).getTime() - new Date(d.startDate).getTime()) / 86400000
+      ))
+    }, 0)
+  , [localHotel.durations])
 
   const displayCost = useMemo(() => getDisplayCost(localHotel), [localHotel.durations])
 
-  // Paid cost: sum of getDurationTotal for paid durations only
   const paidCost = useMemo(() =>
     (localHotel.durations ?? [])
       .filter((d: any) => d?.isPaid)
@@ -166,7 +172,8 @@ export function HotelRow({
       const cap = getBedCapacity(d?.roomType || 'DZ', d?.numberOfRooms || 1)
       const occ = (d?.employees ?? []).filter((e: any) => e != null).length
       return s + Math.max(0, cap - occ)
-    }, 0), [localHotel.durations])
+    }, 0)
+  , [localHotel.durations])
 
   const allEmployees = useMemo(() =>
     (localHotel.durations ?? []).flatMap((d: any) => (d?.employees ?? []).filter(Boolean))
@@ -177,9 +184,15 @@ export function HotelRow({
     setLocalHotel(next)
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(async () => {
-      try { setSaving(true); await updateHotel(localHotel.id, next); onUpdate(localHotel.id, next) }
-      catch (e) { console.error('updateHotel error:', e) }
-      finally { setSaving(false) }
+      try {
+        setSaving(true)
+        await updateHotel(localHotel.id, next)
+        onUpdate(localHotel.id, next)
+      } catch (e) {
+        console.error('updateHotel error:', e)
+      } finally {
+        setSaving(false)
+      }
     }, 500)
   }
 
@@ -212,19 +225,23 @@ export function HotelRow({
       })
       const nextDurations = [...(localHotel.durations ?? []), { ...created, employees: [] }]
       const next = { ...localHotel, durations: nextDurations }
-      setLocalHotel(next); onUpdate(localHotel.id, next)
-      setOpen(true); setActiveDurationTab(nextDurations.length - 1)
+      setLocalHotel(next)
+      onUpdate(localHotel.id, next)
+      setOpen(true)
+      setActiveDurationTab(nextDurations.length - 1)
     } catch (e) {
       console.error('createDuration error:', e)
       alert(lang === 'de' ? 'Dauer konnte nicht erstellt werden' : 'Could not create duration')
-    } finally { setCreatingDuration(false) }
+    } finally {
+      setCreatingDuration(false)
+    }
   }
 
   function pillCls(emp: any) {
     const s = getEmployeeStatus(emp?.checkIn, emp?.checkOut)
-    if (s === 'ending-soon') return dk ? 'border-red-500 text-red-300 bg-red-500/10' : 'border-red-300 text-red-700 bg-red-50'
+    if (s === 'ending-soon') return dk ? 'border-red-500 text-red-300 bg-red-500/10'     : 'border-red-300 text-red-700 bg-red-50'
     if (s === 'completed')   return dk ? 'border-green-500 text-green-300 bg-green-500/10' : 'border-green-300 text-green-700 bg-green-50'
-    if (s === 'upcoming')    return dk ? 'border-blue-500 text-blue-300 bg-blue-500/10' : 'border-blue-300 text-blue-700 bg-blue-50'
+    if (s === 'upcoming')    return dk ? 'border-blue-500 text-blue-300 bg-blue-500/10'   : 'border-blue-300 text-blue-700 bg-blue-50'
     return dk ? 'border-white/10 text-slate-200 bg-white/5' : 'border-slate-200 text-slate-700 bg-slate-50'
   }
 
@@ -235,27 +252,43 @@ export function HotelRow({
 
   const inputCls = cn(
     'w-full px-2 py-1.5 rounded-lg text-sm outline-none border transition-all',
-    dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-600 focus:border-blue-500'
-       : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500'
+    dk
+      ? 'bg-white/5 border-white/10 text-white placeholder-slate-600 focus:border-blue-500'
+      : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500'
   )
-  const colLabel = cn('text-[10px] font-bold uppercase tracking-widest block mt-0.5', dk ? 'text-slate-600' : 'text-slate-300')
+  const colLabel = cn(
+    'text-[10px] font-bold uppercase tracking-widest block mt-0.5',
+    dk ? 'text-slate-600' : 'text-slate-300'
+  )
 
+  // ─── RENDER ────────────────────────────────────────────────────────────────
   return (
     <div>
       <div className={cn(
-        'rounded-2xl border overflow-hidden transition-all',
+        'rounded-2xl border transition-all',
         dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200',
         open && (dk ? 'border-blue-500/30' : 'border-blue-300')
       )}>
-        {/* MAIN ROW
-            All columns have explicit fixed widths with flex-shrink-0 so no
-            column can ever collapse or push other columns when text is long.
-            The outer container has overflow:hidden to clip anything beyond.
-        */}
-        <div className="px-4 py-2.5 overflow-hidden">
-          <div className="flex items-center gap-2" style={{ minWidth: 0, width: '100%' }}>
 
-            {/* Expand button — 36px fixed */}
+        {/* ═══════════════════════════════════════════════════════════════════
+            MAIN ROW
+            Rules:
+            • The outer <div> has overflow:hidden so nothing bleeds out.
+            • Every column cell has flex-shrink-0 + a hard pixel width.
+            • Text inside each cell has overflow:hidden + text-overflow:ellipsis
+              so long strings clip inside their column rather than pushing siblings.
+            • ml-auto on the actions group pushes it to the far right.
+        ═══════════════════════════════════════════════════════════════════ */}
+        <div
+          className="px-4 py-2.5"
+          style={{ overflow: 'hidden' }}
+        >
+          <div
+            className="flex items-center gap-2"
+            style={{ width: '100%', minWidth: 0, overflow: 'hidden' }}
+          >
+
+            {/* Expand icon button — 36px */}
             <button
               onClick={() => setOpen(!open)}
               className="w-9 h-9 rounded-lg bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white flex-shrink-0 transition-all"
@@ -263,47 +296,78 @@ export function HotelRow({
               <Building2 size={16} />
             </button>
 
-            {/* Hotel Name — 180px fixed, overflow truncated */}
-            <div className="flex-shrink-0" style={{ width: 180, minWidth: 0, overflow: 'hidden' }}>
-              <InlineEdit
-                value={localHotel.name || ''} onChange={v => patchHotel({ name: v })}
-                placeholder={lang === 'de' ? 'Hotelname' : 'Hotel name'} dk={dk}
-                textClass={cn('text-sm font-black', dk ? 'text-white' : 'text-slate-900')}
-              />
+            {/* ── Hotel Name — 176px ── */}
+            <div
+              className="flex-shrink-0 flex flex-col"
+              style={{ width: 176, minWidth: 0, overflow: 'hidden' }}
+            >
+              <div style={{ overflow: 'hidden', minWidth: 0 }}>
+                <InlineEdit
+                  value={localHotel.name || ''}
+                  onChange={v => patchHotel({ name: v })}
+                  placeholder={lang === 'de' ? 'Hotelname' : 'Hotel name'}
+                  dk={dk}
+                  textClass={cn('text-sm font-black', dk ? 'text-white' : 'text-slate-900')}
+                />
+              </div>
               <span className={colLabel}>Hotel</span>
             </div>
 
-            {/* City — 96px fixed */}
-            <div className="flex-shrink-0" style={{ width: 96, minWidth: 0, overflow: 'hidden' }}>
-              <InlineEdit
-                value={localHotel.city || ''} onChange={v => patchHotel({ city: v })}
-                placeholder={lang === 'de' ? 'Stadt' : 'City'} dk={dk}
-                textClass={cn('text-sm font-bold', dk ? 'text-slate-200' : 'text-slate-800')}
-                datalistId={`city-list-${localHotel.id}`} datalistOptions={cityOptions}
-              />
+            {/* ── City — 90px ── */}
+            <div
+              className="flex-shrink-0 flex flex-col"
+              style={{ width: 90, minWidth: 0, overflow: 'hidden' }}
+            >
+              <div style={{ overflow: 'hidden', minWidth: 0 }}>
+                <InlineEdit
+                  value={localHotel.city || ''}
+                  onChange={v => patchHotel({ city: v })}
+                  placeholder={lang === 'de' ? 'Stadt' : 'City'}
+                  dk={dk}
+                  textClass={cn('text-sm font-bold', dk ? 'text-slate-200' : 'text-slate-800')}
+                  datalistId={`city-list-${localHotel.id}`}
+                  datalistOptions={cityOptions}
+                />
+              </div>
               <span className={colLabel}>{lang === 'de' ? 'Stadt' : 'City'}</span>
             </div>
 
-            {/* Company — 104px fixed */}
-            <div className="flex-shrink-0" style={{ width: 104, minWidth: 0, overflow: 'hidden' }}>
-              <InlineEdit
-                value={localHotel.companyTag || ''} onChange={v => patchHotel({ companyTag: v })}
-                placeholder={lang === 'de' ? 'Firma' : 'Company'} dk={dk}
-                textClass={cn('text-sm font-bold', dk ? 'text-purple-300' : 'text-purple-700')}
-                datalistId={`company-list-${localHotel.id}`} datalistOptions={companyOptions}
-              />
+            {/* ── Company — 100px ── */}
+            <div
+              className="flex-shrink-0 flex flex-col"
+              style={{ width: 100, minWidth: 0, overflow: 'hidden' }}
+            >
+              <div style={{ overflow: 'hidden', minWidth: 0 }}>
+                <InlineEdit
+                  value={localHotel.companyTag || ''}
+                  onChange={v => patchHotel({ companyTag: v })}
+                  placeholder={lang === 'de' ? 'Firma' : 'Company'}
+                  dk={dk}
+                  textClass={cn('text-sm font-bold', dk ? 'text-purple-300' : 'text-purple-700')}
+                  datalistId={`company-list-${localHotel.id}`}
+                  datalistOptions={companyOptions}
+                />
+              </div>
               <span className={colLabel}>{lang === 'de' ? 'Firma' : 'Company'}</span>
             </div>
 
-            {/* Duration tags — 160px fixed */}
-            <div className="flex-shrink-0 flex items-center gap-1" style={{ width: 160, minWidth: 0, overflow: 'hidden' }}>
+            {/* ── Duration tags — 156px ── */}
+            <div
+              className="flex-shrink-0 flex items-center gap-1"
+              style={{ width: 156, minWidth: 0, overflow: 'hidden' }}
+            >
               {(localHotel.durations ?? []).slice(0, 2).map((d: any, i: number) => (
-                <span key={d?.id || i} className={cn(
-                  'px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0 border',
-                  dk ? 'bg-white/5 border-white/10 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
-                )} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 70 }}
+                <span
+                  key={d?.id || i}
+                  className={cn(
+                    'px-1.5 py-0.5 rounded text-[10px] font-bold flex-shrink-0 border',
+                    dk ? 'bg-white/5 border-white/10 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
+                  )}
+                  style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 68 }}
                   title={durTag(d)}
-                >{durTag(d)}</span>
+                >
+                  {durTag(d)}
+                </span>
               ))}
               {(localHotel.durations ?? []).length > 2 && (
                 <span className={cn('text-[10px] font-bold flex-shrink-0', dk ? 'text-slate-500' : 'text-slate-400')}>
@@ -315,28 +379,37 @@ export function HotelRow({
               )}
             </div>
 
-            {/* Nights — 60px fixed */}
-            <div className="flex-shrink-0 text-center" style={{ width: 60 }}>
+            {/* ── Nights — 56px ── */}
+            <div className="flex-shrink-0 text-center" style={{ width: 56 }}>
               <p className="text-sm font-black text-blue-400 leading-none">{totalNights}</p>
               <p className={cn('text-[10px] uppercase tracking-widest mt-0.5', dk ? 'text-slate-500' : 'text-slate-400')}>
                 {lang === 'de' ? 'Nächte' : 'Nights'}
               </p>
             </div>
 
-            {/* Free beds — 48px fixed */}
-            <div className="flex-shrink-0 text-center" style={{ width: 48 }}>
-              <p className={cn('text-sm font-black leading-none', freeBeds > 0 ? 'text-red-400' : 'text-green-400')}>{freeBeds}</p>
+            {/* ── Free beds — 44px ── */}
+            <div className="flex-shrink-0 text-center" style={{ width: 44 }}>
+              <p className={cn('text-sm font-black leading-none', freeBeds > 0 ? 'text-red-400' : 'text-green-400')}>
+                {freeBeds}
+              </p>
               <p className={cn('text-[10px] uppercase tracking-widest mt-0.5', dk ? 'text-slate-500' : 'text-slate-400')}>
                 {lang === 'de' ? 'Frei' : 'Free'}
               </p>
             </div>
 
-            {/* Employee pills — 148px fixed */}
-            <div className="flex-shrink-0 flex items-center gap-1" style={{ width: 148, overflow: 'hidden' }}>
+            {/* ── Employee pills — 140px ── */}
+            <div
+              className="flex-shrink-0 flex items-center gap-1"
+              style={{ width: 140, overflow: 'hidden' }}
+            >
               {allEmployees.slice(0, 3).map((emp: any, i: number) => (
-                <div key={emp?.id || i}
-                  className={cn('px-1.5 py-0.5 rounded-full border text-[10px] font-bold flex-shrink-0', pillCls(emp))}
-                  style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 44 }}
+                <div
+                  key={emp?.id || i}
+                  className={cn(
+                    'px-1.5 py-0.5 rounded-full border text-[10px] font-bold flex-shrink-0',
+                    pillCls(emp)
+                  )}
+                  style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 42 }}
                   title={`${emp?.name} · ${formatDateDisplay(emp?.checkIn, lang)} – ${formatDateDisplay(emp?.checkOut, lang)}`}
                 >
                   {(emp?.name ?? '?').split(' ')[0]}
@@ -349,13 +422,15 @@ export function HotelRow({
               )}
             </div>
 
-            {/* Cost — 108px fixed */}
-            <div className="flex-shrink-0 text-right" style={{ width: 108 }}>
+            {/* ── Cost — 106px ── */}
+            <div className="flex-shrink-0 text-right" style={{ width: 106 }}>
               <p className={cn('text-sm font-black leading-none', dk ? 'text-white' : 'text-slate-900')}>
-                {formatCurrency(displayCost.amount)}
+                {displayCost.amount > 0 ? formatCurrency(displayCost.amount) : '—'}
               </p>
               {displayCost.label && (
-                <p className={cn('text-[10px] font-bold mt-0.5', dk ? 'text-slate-500' : 'text-slate-400')}>{displayCost.label}</p>
+                <p className={cn('text-[10px] font-bold mt-0.5', dk ? 'text-slate-500' : 'text-slate-400')}>
+                  {displayCost.label}
+                </p>
               )}
               {showPaymentTotals && paidCost > 0 && (
                 <p className="text-[10px] text-green-400 font-bold">
@@ -364,46 +439,63 @@ export function HotelRow({
               )}
             </div>
 
-            {/* Saving spinner — 20px fixed */}
+            {/* Saving spinner — 20px */}
             <div className="flex-shrink-0 flex items-center justify-center" style={{ width: 20 }}>
               {saving && <Loader2 size={14} className="animate-spin text-blue-400" />}
             </div>
 
-            {/* Actions — pushed to right, never compresses others */}
+            {/* Actions — ml-auto pushes to far right, never squeezes columns */}
             <div className="flex items-center gap-1 flex-shrink-0 ml-auto">
-              <button onClick={addDuration} disabled={creatingDuration}
-                className={cn('px-2.5 py-1.5 rounded-lg text-[11px] font-bold border flex items-center gap-1 transition-all',
-                  dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}>
+              <button
+                onClick={addDuration}
+                disabled={creatingDuration}
+                className={cn(
+                  'px-2.5 py-1.5 rounded-lg text-[11px] font-bold border flex items-center gap-1 transition-all',
+                  dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                )}
+              >
                 {creatingDuration ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}
                 {lang === 'de' ? 'Dauer' : 'Duration'}
               </button>
-              <button onClick={() => setConfirmDelete(true)}
-                className={cn('p-1.5 rounded-lg transition-all',
-                  dk ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-red-500 hover:bg-red-50')}>
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className={cn(
+                  'p-1.5 rounded-lg transition-all',
+                  dk ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-red-500 hover:bg-red-50'
+                )}
+              >
                 <Trash2 size={14} />
               </button>
-              <button onClick={() => setOpen(!open)}
-                className={cn('p-1.5 rounded-lg transition-all',
-                  dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
+              <button
+                onClick={() => setOpen(!open)}
+                className={cn(
+                  'p-1.5 rounded-lg transition-all',
+                  dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500'
+                )}
+              >
                 {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
               </button>
             </div>
           </div>
         </div>
 
-        {/* EXPANDED PANEL */}
+        {/* ═══════════════════════════════════════════════════════════════════
+            EXPANDED PANEL
+        ═══════════════════════════════════════════════════════════════════ */}
         {open && (
-          <div className={cn('border-t px-4 py-4 space-y-4',
-            dk ? 'border-white/10 bg-white/[0.02]' : 'border-slate-200 bg-slate-50/50')}>
+          <div className={cn(
+            'border-t px-4 py-4 space-y-4',
+            dk ? 'border-white/10 bg-white/[0.02]' : 'border-slate-200 bg-slate-50/50'
+          )}>
 
-            {/* Info row: 5 fields in one horizontal line with labels */}
+            {/* Info row: Address · Contact · Phone · Email · Website in one line */}
             <div className="flex gap-3 items-end" style={{ overflowX: 'auto' }}>
               {[
-                { field: 'address',       de: 'Adresse',         en: 'Address',        w: 180 },
-                { field: 'contactPerson', de: 'Ansprechpartner', en: 'Contact person',  w: 140 },
-                { field: 'phone',         de: 'Telefon',         en: 'Phone',           w: 120 },
-                { field: 'email',         de: 'E-Mail',          en: 'Email',           w: 180 },
-                { field: 'webLink',       de: 'Webseite',        en: 'Website',         w: 160 },
+                { field: 'address',       de: 'Adresse',         en: 'Address',       w: 180 },
+                { field: 'contactPerson', de: 'Ansprechpartner', en: 'Contact person', w: 140 },
+                { field: 'phone',         de: 'Telefon',         en: 'Phone',          w: 120 },
+                { field: 'email',         de: 'E-Mail',          en: 'Email',          w: 180 },
+                { field: 'webLink',       de: 'Webseite',        en: 'Website',        w: 160 },
               ].map(({ field, de, en, w }) => (
                 <div key={field} style={{ minWidth: w, flexShrink: 0 }} className="flex flex-col gap-0.5">
                   <span className={cn('text-[10px] font-bold uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')}>
@@ -437,17 +529,27 @@ export function HotelRow({
             {/* Duration tabs */}
             <div className="flex items-center gap-2 flex-wrap">
               {(localHotel.durations ?? []).map((d: any, i: number) => (
-                <button key={d?.id || i} onClick={() => setActiveDurationTab(i)}
-                  className={cn('px-3 py-1.5 rounded-lg text-xs font-bold border transition-all',
+                <button
+                  key={d?.id || i}
+                  onClick={() => setActiveDurationTab(i)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs font-bold border transition-all',
                     activeDurationTab === i
                       ? 'bg-blue-600 text-white border-blue-600'
-                      : dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}>
+                      : dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                  )}
+                >
                   {getDurationTabLabel(d, lang)}
                 </button>
               ))}
-              <button onClick={addDuration} disabled={creatingDuration}
-                className={cn('px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1',
-                  dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}>
+              <button
+                onClick={addDuration}
+                disabled={creatingDuration}
+                className={cn(
+                  'px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1',
+                  dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                )}
+              >
                 {creatingDuration ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
                 {lang === 'de' ? 'Neue Dauer' : 'Add duration'}
               </button>
@@ -457,23 +559,35 @@ export function HotelRow({
             {(localHotel.durations ?? []).length > 0 ? (
               <DurationCard
                 duration={localHotel.durations[activeDurationTab]}
-                isDarkMode={dk} lang={lang}
+                isDarkMode={dk}
+                lang={lang}
                 onUpdate={(id, updated) => {
-                  const next = { ...localHotel, durations: localHotel.durations.map((d: any) => d?.id === id ? updated : d) }
-                  setLocalHotel(next); onUpdate(localHotel.id, next)
+                  const next = {
+                    ...localHotel,
+                    durations: localHotel.durations.map((d: any) => d?.id === id ? updated : d),
+                  }
+                  setLocalHotel(next)
+                  onUpdate(localHotel.id, next)
                 }}
                 onDelete={durationId => {
                   const nextDurations = localHotel.durations.filter((d: any) => d?.id !== durationId)
                   const next = { ...localHotel, durations: nextDurations }
-                  setLocalHotel(next); onUpdate(localHotel.id, next)
+                  setLocalHotel(next)
+                  onUpdate(localHotel.id, next)
                   setActiveDurationTab(prev => Math.max(0, Math.min(prev, nextDurations.length - 1)))
                 }}
               />
             ) : (
-              <button onClick={addDuration} disabled={creatingDuration}
-                className={cn('w-full py-6 rounded-xl border-2 border-dashed text-sm font-bold transition-all',
-                  dk ? 'border-white/10 text-slate-400 hover:border-blue-500/40 hover:text-blue-400'
-                    : 'border-slate-200 text-slate-500 hover:border-blue-400 hover:text-blue-500')}>
+              <button
+                onClick={addDuration}
+                disabled={creatingDuration}
+                className={cn(
+                  'w-full py-6 rounded-xl border-2 border-dashed text-sm font-bold transition-all',
+                  dk
+                    ? 'border-white/10 text-slate-400 hover:border-blue-500/40 hover:text-blue-400'
+                    : 'border-slate-200 text-slate-500 hover:border-blue-400 hover:text-blue-500'
+                )}
+              >
                 {creatingDuration
                   ? (lang === 'de' ? 'Erstelle...' : 'Creating...')
                   : (lang === 'de' ? '+ Erste Dauer hinzufügen' : '+ Add first duration')}
@@ -486,21 +600,33 @@ export function HotelRow({
       {/* Delete confirm modal */}
       {confirmDelete && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4">
-          <div className={cn('w-full max-w-sm rounded-2xl border p-5 shadow-2xl',
-            dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
-            <h3 className="text-lg font-black mb-2">{lang === 'de' ? 'Hotel löschen?' : 'Delete hotel?'}</h3>
+          <div className={cn(
+            'w-full max-w-sm rounded-2xl border p-5 shadow-2xl',
+            dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+          )}>
+            <h3 className="text-lg font-black mb-2">
+              {lang === 'de' ? 'Hotel löschen?' : 'Delete hotel?'}
+            </h3>
             <p className={cn('text-sm mb-5', dk ? 'text-slate-400' : 'text-slate-600')}>
               <span className="font-bold">{localHotel.name || '—'}</span>
-              {lang === 'de' ? ' und alle zugehörigen Buchungen werden dauerhaft gelöscht.' : ' and all related durations will be permanently deleted.'}
+              {lang === 'de'
+                ? ' und alle zugehörigen Buchungen werden dauerhaft gelöscht.'
+                : ' and all related durations will be permanently deleted.'}
             </p>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setConfirmDelete(false)}
-                className={cn('px-4 py-2 rounded-lg border text-sm font-bold',
-                  dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className={cn(
+                  'px-4 py-2 rounded-lg border text-sm font-bold',
+                  dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                )}
+              >
                 {lang === 'de' ? 'Abbrechen' : 'Cancel'}
               </button>
-              <button onClick={() => onDelete(localHotel.id)}
-                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold">
+              <button
+                onClick={() => onDelete(localHotel.id)}
+                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold"
+              >
                 {lang === 'de' ? 'Löschen' : 'Delete'}
               </button>
             </div>
