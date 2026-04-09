@@ -3,7 +3,7 @@ import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import type { Duration, GapInfo, Hotel, PriceResult } from './types'
 
-// ─── Class merge ──────────────────────────────────────────────────────────────
+// ─── Class merge ─────────────────────────────────────────────────────────────
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
@@ -61,6 +61,22 @@ export function normalizeNumberInput(raw: string): number {
   if (!raw) return 0
   const n = parseFloat(raw.replace(/\./g, '').replace(',', '.'))
   return isNaN(n) ? 0 : n
+}
+
+// ─── Room type label ──────────────────────────────────────────────────────────
+export function getRoomTypeLabel(roomType: string, lang: 'de' | 'en' = 'de'): string {
+  if (lang === 'de') {
+    if (roomType === 'EZ') return 'EZ – Einzelzimmer'
+    if (roomType === 'DZ') return 'DZ – Doppelzimmer'
+    if (roomType === 'TZ') return 'TZ – Dreibettzimmer'
+    if (roomType === 'WG') return 'WG – Wohngemeinschaft'
+    return roomType
+  }
+  if (roomType === 'EZ') return 'EZ – Single room'
+  if (roomType === 'DZ') return 'DZ – Double room'
+  if (roomType === 'TZ') return 'TZ – Triple room'
+  if (roomType === 'WG') return 'WG – Shared flat'
+  return roomType
 }
 
 // ─── Bed capacity ─────────────────────────────────────────────────────────────
@@ -135,14 +151,12 @@ export function getDurationTotal(d: Duration): number {
 export function getDurationCostForMonth(d: Duration, year: number, month: number): number {
   if (!d.startDate || !d.endDate) return 0
 
-  // Month boundaries (UTC midnight)
   const monthStart = new Date(Date.UTC(year, month, 1))
   const monthEnd   = new Date(Date.UTC(year, month + 1, 1))
 
   const dStart = new Date(d.startDate)
   const dEnd   = new Date(d.endDate)
 
-  // No overlap
   if (dEnd <= monthStart || dStart >= monthEnd) return 0
 
   const overlapStart = dStart > monthStart ? dStart : monthStart
