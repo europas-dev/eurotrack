@@ -91,13 +91,24 @@ export function getRoomTypeLabel(roomType: string, lang: 'de' | 'en' = 'de'): st
 }
 
 // ─── Bed capacity ─────────────────────────────────────────────────────────────
-export function getTotalBeds(roomType: string, numberOfRooms: number): number {
+// For WG: bedsPerRoom is configurable (defaults to 1 if not set).
+// Pass the full duration object or bedsPerRoom explicitly.
+export function getTotalBeds(
+  roomType: string,
+  numberOfRooms: number,
+  bedsPerRoom?: number,
+): number {
   const n = Math.max(1, numberOfRooms || 1)
   if (roomType === 'EZ') return n * 1
   if (roomType === 'DZ') return n * 2
   if (roomType === 'TZ') return n * 3
-  if (roomType === 'WG') return n   // WG: numberOfRooms = number of beds directly
+  if (roomType === 'WG') return n * Math.max(1, bedsPerRoom || 1)
   return n * 2
+}
+
+// Convenience: extract bedsPerRoom from a Duration and compute total beds.
+export function getDurationTotalBeds(d: Pick<Duration, 'roomType' | 'numberOfRooms' | 'bedsPerRoom'>): number {
+  return getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom)
 }
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
@@ -205,7 +216,7 @@ export function calcHotelUnpaidCost(hotel: Hotel): number {
 
 export function calcHotelFreeBeds(hotel: Hotel): number {
   return (hotel.durations ?? []).reduce((s, d) => {
-    const cap = getTotalBeds(d.roomType, d.numberOfRooms)
+    const cap = getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom)
     const occ = (d.employees ?? []).filter(Boolean).length
     return s + Math.max(0, cap - occ)
   }, 0)
@@ -217,7 +228,7 @@ export function calcHotelFreeBedsOnDate(hotel: Hotel, date: Date): number {
     const start = new Date(d.startDate)
     const end   = new Date(d.endDate)
     if (date < start || date >= end) return s
-    const cap = getTotalBeds(d.roomType, d.numberOfRooms)
+    const cap = getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom)
     const occ = (d.employees ?? []).filter(Boolean).length
     return s + Math.max(0, cap - occ)
   }, 0)
@@ -258,7 +269,7 @@ export function getDurationRowLabel(d: Duration, lang: 'de' | 'en' = 'de'): stri
 // ─── Gap detection ────────────────────────────────────────────────────────────
 export function getDurationGapInfo(d: Duration): GapInfo[] {
   if (!d.startDate || !d.endDate) return []
-  const totalBeds = getTotalBeds(d.roomType, d.numberOfRooms)
+  const totalBeds = getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom)
   const gaps: GapInfo[] = []
 
   for (let i = 0; i < totalBeds; i++) {
