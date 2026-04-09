@@ -1,5 +1,5 @@
 // src/App.tsx
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import { getMyAccessLevel, AccessLevel } from './lib/supabase';
 import Landing from './components/Landing';
@@ -8,7 +8,7 @@ import Dashboard from './Dashboard';
 import UserManagement from './components/UserManagement';
 import SuperAdminHome from './components/SuperAdminHome';
 import { cn } from './lib/utils';
-import { LogOut, Clock } from 'lucide-react';
+import { LogOut, Clock, RefreshCw } from 'lucide-react';
 
 type View = 'landing' | 'login' | 'signup' | 'admin-login' | 'dashboard' | 'superadmin-home' | 'user-management';
 type Theme    = 'dark' | 'light';
@@ -34,24 +34,42 @@ export default function App() {
   const [theme,         setTheme]        = useState<Theme>('dark');
   const [lang,          setLang]         = useState<Language>('en');
   const [offlineBanner, setOfflineBanner] = useState(!navigator.onLine);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const dk = theme === 'dark';
 
-  // After login, route to the correct view based on role
   const resolveAccess = useCallback(async () => {
     try {
       const access = await getMyAccessLevel();
       setAccessLevel(access);
       if (access.role === 'superadmin') {
-        setView('superadmin-home'); // superadmin sees the two-card home first
+        setView('superadmin-home');
       } else if (access.role === 'pending') {
-        setView('dashboard'); // pending screen is rendered inside dashboard route
+        setView('pending');
       } else {
-        setView('dashboard'); // admin / editor / viewer go straight to dashboard
+        setView('dashboard');
       }
+      return access.role;
     } catch {
-      // network blip — keep current state
+      return null;
     }
+  }, []);
+
+  // Poll every 8 seconds while on the pending screen so a superadmin
+  // granting access is reflected immediately without requiring re-login.
+  const startPendingPoll = useCallback(() => {
+    if (pollRef.current) return; // already polling
+    pollRef.current = setInterval(async () => {
+      const role = await resolveAccess();
+      if (role && role !== 'pending') {
+        // Promoted — stop polling
+        if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+      }
+    }, 8000);
+  }, [resolveAccess]);
+
+  const stopPoll = useCallback(() => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }, []);
 
   useEffect(() => {
@@ -68,6 +86,7 @@ export default function App() {
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
         if (session?.user) await resolveAccess();
       } else if (event === 'SIGNED_OUT') {
+        stopPoll();
         setAccessLevel(null);
         setView('landing');
       }
@@ -79,12 +98,23 @@ export default function App() {
     window.addEventListener('offline', handleOffline);
     return () => {
       subscription.unsubscribe();
+      stopPoll();
       window.removeEventListener('online',  handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [resolveAccess]);
+  }, [resolveAccess, stopPoll]);
+
+  // Start / stop the pending poll whenever the view changes
+  useEffect(() => {
+    if ((view as string) === 'pending') {
+      startPendingPoll();
+    } else {
+      stopPoll();
+    }
+  }, [view, startPendingPoll, stopPoll]);
 
   async function handleSignOut() {
+    stopPoll();
     await supabase.auth.signOut();
     setAccessLevel(null);
     setView('landing');
@@ -120,8 +150,8 @@ export default function App() {
     />
   );
 
-  // ── Pending approval ──────────────────────────────────────────────────────
-  if (accessLevel?.role === 'pending') return (
+  // ── Pending approval (polls every 8s automatically) ───────────────────────
+  if ((view as string) === 'pending' || accessLevel?.role === 'pending') return (
     <div className={cn('min-h-screen flex flex-col items-center justify-center p-8',
       dk ? 'bg-[#020617] text-white' : 'bg-slate-100 text-slate-900')}>
       <div className={cn('w-full max-w-md p-10 rounded-[2.5rem] border shadow-2xl text-center',
@@ -132,17 +162,30 @@ export default function App() {
         <h2 className="text-2xl font-black mb-3">
           {lang === 'de' ? 'Zugang ausstehend' : 'Access Pending'}
         </h2>
-        <p className={cn('text-sm mb-8 leading-relaxed', dk ? 'text-slate-400' : 'text-slate-500')}>
+        <p className={cn('text-sm mb-6 leading-relaxed', dk ? 'text-slate-400' : 'text-slate-500')}>
           {lang === 'de'
             ? 'Ihr Konto wurde erstellt, wartet aber noch auf die Freigabe durch einen Administrator.'
             : 'Your account has been created but is awaiting approval by an administrator.'}
         </p>
-        <button
-          onClick={handleSignOut}
-          className="inline-flex items-center gap-2 px-6 py-3 bg-slate-600 hover:bg-slate-700 text-white font-bold rounded-xl transition-all">
-          <LogOut size={16} />
-          {lang === 'de' ? 'Abmelden' : 'Sign Out'}
-        </button>
+        {/* Checking automatically */}
+        <div className={cn('flex items-center justify-center gap-2 text-xs mb-8', dk ? 'text-slate-500' : 'text-slate-400')}>
+          <RefreshCw size={12} className="animate-spin" />
+          {lang === 'de' ? 'Wird automatisch geprüft…' : 'Checking automatically…'}
+        </div>
+        <div className="flex gap-3 justify-center">
+          <button
+            onClick={() => resolveAccess()}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-all">
+            <RefreshCw size={14} />
+            {lang === 'de' ? 'Jetzt prüfen' : 'Check Now'}
+          </button>
+          <button
+            onClick={handleSignOut}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-600 hover:bg-slate-700 text-white text-sm font-bold rounded-xl transition-all">
+            <LogOut size={14} />
+            {lang === 'de' ? 'Abmelden' : 'Sign Out'}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -177,7 +220,6 @@ export default function App() {
   // ── Dashboard (admin / editor / viewer / superadmin visiting dashboard) ──
   const isViewOnly = accessLevel?.role === 'viewer';
 
-  // When superadmin signs out from dashboard, go back to superadmin-home
   const handleDashboardSignOut = async () => {
     if (accessLevel?.role === 'superadmin') {
       setView('superadmin-home');
