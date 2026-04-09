@@ -29,7 +29,7 @@ interface HeaderProps {
   userRole?: string;
 }
 
-// ─── Avatar presets ───────────────────────────────────────────────────────────
+// ─── Avatar presets ─────────────────────────────────────────────────────────────────────────────────
 const AVATARS = [
   { id: 'fox',      emoji: '🦊', bg: '#f97316' },
   { id: 'wolf',     emoji: '🐺', bg: '#3b82f6' },
@@ -45,7 +45,7 @@ const AVATARS = [
   { id: 'target',   emoji: '🎯', bg: '#475569' },
 ];
 
-// ─── Font options ─────────────────────────────────────────────────────────────
+// ─── Font options ────────────────────────────────────────────────────────────────────────────────
 const FONTS = [
   { value: 'inter',        label: 'Inter',           family: 'Inter, sans-serif' },
   { value: 'roboto',       label: 'Roboto',          family: 'Roboto, sans-serif' },
@@ -60,7 +60,7 @@ const FONTS = [
   { value: 'jetbrains',    label: 'JetBrains Mono',  family: '"JetBrains Mono", monospace' },
 ];
 
-// ─── Role shield config ───────────────────────────────────────────────────────
+// ─── Role shield config ─────────────────────────────────────────────────────────────────────────
 function RoleShield({ role, lang }: { role: string; lang: string }) {
   const configs: Record<string, { color: string; bg: string; border: string; icon: string; label: string }> = {
     superadmin: { color: 'text-yellow-400', bg: 'bg-yellow-400/10', border: 'border-yellow-400/30', icon: '👑', label: 'Super Admin' },
@@ -77,7 +77,7 @@ function RoleShield({ role, lang }: { role: string; lang: string }) {
   );
 }
 
-// ─── Accordion ────────────────────────────────────────────────────────────────
+// ─── Accordion ───────────────────────────────────────────────────────────────────────────────────────
 function Accordion({ title, icon: Icon, children, dk }: { title: string; icon: any; children: React.ReactNode; dk: boolean }) {
   const [open, setOpen] = useState(false);
   return (
@@ -99,7 +99,7 @@ function Accordion({ title, icon: Icon, children, dk }: { title: string; icon: a
   );
 }
 
-// ─── Section header ───────────────────────────────────────────────────────────
+// ─── Section header ────────────────────────────────────────────────────────────────────────────────────────────
 function SectionLabel({ children, dk }: { children: React.ReactNode; dk: boolean }) {
   return (
     <p className={cn('text-[10px] font-black uppercase tracking-widest mb-2', dk ? 'text-slate-500' : 'text-slate-400')}>
@@ -122,7 +122,7 @@ export default function Header({
   const [showSettings, setShowSettings] = useState(false);
   const [settingsTab,  setSettingsTab]  = useState<'profile' | 'security' | 'access'>('profile');
 
-  // ── Profile state ──────────────────────────────────────────────────────────
+  // ── Profile state ────────────────────────────────────────────────────────────────────────
   const [profile,      setProfile]      = useState<any>(null);
   const [editName,     setEditName]     = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
@@ -132,11 +132,11 @@ export default function Header({
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [selectedAvatar,   setSelectedAvatar]   = useState<string | null>(null);
 
-  // Personalization
+  // Personalization (live-applied, not saved via profile save button)
   const [fontScale,    setFontScaleState]  = useState(100);
   const [fontFamily,   setFontFamilyState] = useState('inter');
 
-  // ── Security state ─────────────────────────────────────────────────────────
+  // ── Security state ────────────────────────────────────────────────────────────────────────
   const [newUsername,     setNewUsername]     = useState('');
   const [usernameMsg,     setUsernameMsg]     = useState('');
   const [savingUsername,  setSavingUsername]  = useState(false);
@@ -155,7 +155,7 @@ export default function Header({
   const [resetMsg,        setResetMsg]        = useState('');
   const [sendingReset,    setSendingReset]    = useState(false);
 
-  // ── Access tab state ───────────────────────────────────────────────────────
+  // ── Access tab state ────────────────────────────────────────────────────────────────────────
   const [accessSearch,    setAccessSearch]    = useState('');
   const [accessResults,   setAccessResults]   = useState<any[]>([]);
   const [accessSearching, setAccessSearching] = useState(false);
@@ -166,7 +166,7 @@ export default function Header({
   const [collabs,         setCollabs]         = useState<any[]>([]);
   const [collabsLoading,  setCollabsLoading]  = useState(false);
 
-  // ── Share modal state ──────────────────────────────────────────────────────
+  // ── Share modal state ──────────────────────────────────────────────────────────────────────
   const [shareSearch,     setShareSearch]     = useState('');
   const [shareResults,    setShareResults]    = useState<any[]>([]);
   const [shareSearching,  setShareSearching]  = useState(false);
@@ -184,7 +184,7 @@ export default function Header({
     dk ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900');
   const btnPrimary = 'flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-all';
 
-  // ── Load profile ───────────────────────────────────────────────────────────
+  // ── Load profile ───────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     getMyProfile().then(p => {
       if (!p) return;
@@ -202,6 +202,23 @@ export default function Header({
     const font = FONTS.find(f => f.value === family);
     if (font) document.documentElement.style.setProperty('--font-body', font.family);
     document.documentElement.style.fontSize = `${scale}%`;
+  }
+
+  // Live-apply font family when changed
+  function handleFontFamilyChange(value: string) {
+    setFontFamilyState(value);
+    const font = FONTS.find(f => f.value === value);
+    if (font) document.documentElement.style.setProperty('--font-body', font.family);
+    // Persist immediately
+    updateMyProfile({ fontFamily: value }).catch(() => {});
+  }
+
+  // Live-apply font scale when changed
+  function handleFontScaleChange(value: number) {
+    setFontScaleState(value);
+    document.documentElement.style.fontSize = `${value}%`;
+    // Persist immediately
+    updateMyProfile({ fontScale: value }).catch(() => {});
   }
 
   // Load collabs when access tab opens
@@ -226,7 +243,7 @@ export default function Header({
     finally { setShareCollabsLoading(false); }
   }
 
-  // ── Access search debounce ─────────────────────────────────────────────────
+  // ── Access search debounce ─────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!accessSearch.trim()) { setAccessResults([]); setSelectedUser(null); return; }
     const t = setTimeout(async () => {
@@ -237,7 +254,7 @@ export default function Header({
     return () => clearTimeout(t);
   }, [accessSearch]);
 
-  // ── Share search debounce ──────────────────────────────────────────────────
+  // ── Share search debounce ──────────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!shareSearch.trim()) { setShareResults([]); return; }
     const t = setTimeout(async () => {
@@ -248,18 +265,16 @@ export default function Header({
     return () => clearTimeout(t);
   }, [shareSearch]);
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
+  // ── Handlers ─────────────────────────────────────────────────────────────────────────────────────────────
+  // Save only avatar + name (font/size are persisted live on change)
   async function handleSaveProfile() {
     setSavingProfile(true); setProfileMsg('');
     try {
       const updated = await updateMyProfile({
         full_name:  editName,
         avatar:     selectedAvatar,
-        fontScale,
-        fontFamily,
       });
       setProfile(updated);
-      applyFont(fontFamily, fontScale);
       setProfileMsg(lang === 'de' ? '✓ Gespeichert' : '✓ Saved');
       setTimeout(() => setProfileMsg(''), 2500);
     } catch (e: any) { setProfileMsg(`Error: ${e.message}`); }
@@ -352,7 +367,7 @@ export default function Header({
     } catch {}
   }
 
-  // ── Avatar display ─────────────────────────────────────────────────────────
+  // ── Avatar display ──────────────────────────────────────────────────────────────────────────────────
   function AvatarDisplay({ size = 64, editable = false }: { size?: number; editable?: boolean }) {
     const av = AVATARS.find(a => a.id === selectedAvatar);
     const initials = (profile?.fullName || profile?.full_name || profile?.email || '?')[0].toUpperCase();
@@ -379,7 +394,7 @@ export default function Header({
     );
   }
 
-  // ── Role badge for collab list ─────────────────────────────────────────────
+  // ── Role badge for collab list ────────────────────────────────────────────────────────────────────
   const RoleBadge = ({ role, userId, onChange }: { role: string; userId: string; onChange: (r: any) => void }) => (
     <div className="relative group inline-block">
       <button className={cn('flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold transition-all',
@@ -427,7 +442,7 @@ export default function Header({
     </div>
   );
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────────────────────────────────
   return (
     <>
       {/* ── Main header bar ── */}
@@ -519,64 +534,79 @@ export default function Header({
                 <div className="flex gap-2 mb-3">
                   {(['viewer', 'editor'] as const).map(r => (
                     <button key={r} onClick={() => setShareRole(r)}
-                      className={cn('flex-1 py-1.5 rounded-lg text-xs font-bold transition-all border',
-                        shareRole === r ? 'bg-blue-600 text-white border-blue-600'
+                      className={cn('px-3 py-1.5 rounded-lg text-xs font-bold border transition-all',
+                        shareRole === r
+                          ? 'bg-blue-600 text-white border-blue-600'
                           : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50')}>
-                      {r === 'editor' ? '✏️ Editor' : '👁 Viewer'}
+                      {r === 'viewer' ? '👁 Viewer' : '✏️ Editor'}
                     </button>
                   ))}
                 </div>
-                {shareSearching ? (
-                  <div className="flex justify-center py-3"><Loader2 size={18} className="animate-spin text-blue-500" /></div>
-                ) : shareResults.length > 0 ? (
-                  <div className={cn('rounded-xl border overflow-hidden', dk ? 'border-white/10' : 'border-slate-200')}>
-                    {shareResults.map((u, i) => (
-                      <div key={u.id} className={cn('flex items-center gap-3 px-4 py-3 transition-all',
-                        i > 0 ? (dk ? 'border-t border-white/5' : 'border-t border-slate-100') : '',
-                        dk ? 'hover:bg-white/5' : 'hover:bg-slate-50')}>
-                        <div className={cn('w-8 h-8 rounded-full flex items-center justify-center font-black text-xs shrink-0',
-                          dk ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600')}>
-                          {(u.full_name || u.email || '?')[0].toUpperCase()}
+
+                {shareSearching && (
+                  <div className="flex items-center gap-2 py-2">
+                    <Loader2 size={14} className="animate-spin text-blue-500" />
+                    <span className={cn('text-xs', dk ? 'text-slate-400' : 'text-slate-500')}>
+                      {lang === 'de' ? 'Suche...' : 'Searching...'}
+                    </span>
+                  </div>
+                )}
+
+                {shareResults.length > 0 && (
+                  <div className="space-y-1">
+                    {shareResults.map(u => (
+                      <div key={u.id}
+                        className={cn('flex items-center gap-3 px-3 py-2.5 rounded-xl border',
+                          dk ? 'bg-white/3 border-white/8' : 'bg-slate-50 border-slate-200')}>
+                        <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0',
+                          dk ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-700')}>
+                          {(u.fullName || u.username || u.email || '?')[0].toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className={cn('text-sm font-bold truncate', dk ? 'text-white' : 'text-slate-900')}>
-                            {u.full_name || u.username || u.email}
+                            {u.fullName || u.username || 'Unknown'}
                           </p>
                           <p className={cn('text-xs truncate', dk ? 'text-slate-500' : 'text-slate-400')}>
-                            {u.username ? `@${u.username} · ` : ''}{u.email}
+                            {u.username ? `@${u.username}` : u.email}
                           </p>
                         </div>
-                        <button onClick={() => handleShareGrant(u.id)} disabled={sharing === u.id}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all shrink-0">
+                        <button onClick={() => handleShareGrant(u.id)}
+                          disabled={sharing === u.id}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-all">
                           {sharing === u.id ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />}
-                          {lang === 'de' ? 'Zugriff erteilen' : 'Grant Access'}
+                          {lang === 'de' ? 'Erteilen' : 'Grant'}
                         </button>
                       </div>
                     ))}
                   </div>
-                ) : shareSearch.trim() ? (
-                  <p className={cn('text-xs text-center py-3', dk ? 'text-slate-500' : 'text-slate-400')}>
-                    {lang === 'de' ? 'Keine Nutzer gefunden' : 'No users found'}
-                  </p>
-                ) : null}
+                )}
+
                 {shareMsg && (
-                  <p className={cn('text-xs font-bold mt-2 text-center',
-                    shareMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{shareMsg}</p>
+                  <p className={cn('text-xs font-bold mt-2',
+                    shareMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>
+                    {shareMsg}
+                  </p>
                 )}
               </div>
 
+              {/* Current collaborators */}
               <div>
-                <SectionLabel dk={dk}>{lang === 'de' ? 'Aktuelle Zugänge' : 'Current Access'}</SectionLabel>
+                <SectionLabel dk={dk}>{lang === 'de' ? 'Aktueller Zugriff' : 'Current Access'}</SectionLabel>
                 {shareCollabsLoading ? (
-                  <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-blue-500" /></div>
+                  <div className="flex items-center gap-2 py-3">
+                    <Loader2 size={14} className="animate-spin text-blue-500" />
+                    <span className={cn('text-xs', dk ? 'text-slate-400' : 'text-slate-500')}>Loading...</span>
+                  </div>
                 ) : shareCollabs.length === 0 ? (
-                  <p className={cn('text-xs text-center py-4', dk ? 'text-slate-500' : 'text-slate-400')}>
-                    {lang === 'de' ? 'Noch kein Zugriff erteilt' : 'No access granted yet'}
+                  <p className={cn('text-xs py-3', dk ? 'text-slate-500' : 'text-slate-400')}>
+                    {lang === 'de' ? 'Noch keine Mitarbeiter' : 'No collaborators yet'}
                   </p>
                 ) : (
                   <div className="space-y-2">
                     {shareCollabs.map(c => (
-                      <CollabRow key={c.userId} c={c} onRole={handleChangeRole} onRemove={handleRemove} />
+                      <CollabRow key={c.userId} c={c}
+                        onRole={handleChangeRole}
+                        onRemove={handleRemove} />
                     ))}
                   </div>
                 )}
@@ -594,7 +624,7 @@ export default function Header({
           onClick={e => { if (e.target === e.currentTarget) setShowSettings(false); }}>
           <div className={cn('w-full max-w-lg rounded-2xl border shadow-2xl overflow-hidden max-h-[90vh] flex flex-col', surface)}>
 
-            {/* Modal header */}
+            {/* Header */}
             <div className={cn('flex items-center justify-between px-6 py-4 border-b shrink-0', dk ? 'border-white/10' : 'border-slate-200')}>
               <h2 className="text-lg font-black">{lang === 'de' ? 'Einstellungen' : 'Settings'}</h2>
               <button onClick={() => setShowSettings(false)}
@@ -606,50 +636,77 @@ export default function Header({
             {/* Tabs */}
             <div className={cn('flex border-b shrink-0', dk ? 'border-white/10' : 'border-slate-200')}>
               {([
-                ['profile',  lang === 'de' ? 'Profil'     : 'Profile',  User],
-                ['security', lang === 'de' ? 'Sicherheit' : 'Security', Lock],
-                ...(isAdmin ? [['access', lang === 'de' ? 'Zugriff' : 'Access', Users] as const] : []),
-              ] as const).map(([tab, label, Icon]) => (
-                <button key={tab} onClick={() => setSettingsTab(tab as any)}
-                  className={cn('flex items-center gap-2 px-5 py-3 text-sm font-bold border-b-2 transition-all -mb-px',
-                    settingsTab === tab
+                { id: 'profile',  icon: User,   label: lang === 'de' ? 'Profil'    : 'Profile'   },
+                { id: 'security', icon: Lock,   label: lang === 'de' ? 'Sicherheit': 'Security'  },
+                ...(isAdmin ? [{ id: 'access', icon: Users, label: lang === 'de' ? 'Zugriff' : 'Access' }] : []),
+              ] as const).map(({ id, icon: Icon, label }) => (
+                <button key={id} onClick={() => setSettingsTab(id as any)}
+                  className={cn('flex items-center gap-2 px-5 py-3 text-sm font-bold border-b-2 transition-all',
+                    settingsTab === id
                       ? 'border-blue-500 text-blue-500'
                       : cn('border-transparent', dk ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'))}>
-                  <Icon size={14} />{label}
+                  <Icon size={15} />{label}
                 </button>
               ))}
             </div>
 
-            {/* ── Tab content ── */}
+            {/* Body */}
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
 
-              {/* ══════════ PROFILE TAB ══════════ */}
+              {/* ────────────────────────────────────── PROFILE TAB */}
               {settingsTab === 'profile' && (
                 <>
-                  {/* Avatar + identity */}
-                  <div className="flex items-center gap-4">
-                    <AvatarDisplay size={72} editable />
-                    <div className="flex-1 min-w-0">
-                      <p className={cn('text-lg font-black truncate', dk ? 'text-white' : 'text-slate-900')}>
-                        {profile?.fullName || profile?.full_name || '—'}
-                      </p>
-                      <p className={cn('text-sm truncate mb-1', dk ? 'text-slate-400' : 'text-slate-500')}>
-                        @{profile?.username || '—'}
-                        <span className={cn('ml-2 text-[10px]', dk ? 'text-slate-600' : 'text-slate-400')}>
-                          ({lang === 'de' ? 'In Sicherheit ändern' : 'Change in Security'})
-                        </span>
-                      </p>
-                      <RoleShield role={profile?.role ?? 'viewer'} lang={lang} />
+                  {/* Identity card: avatar + name + @username + role */}
+                  <div className={cn('rounded-xl border p-5 space-y-4', dk ? 'border-white/10 bg-white/2' : 'border-slate-200 bg-slate-50')}>
+                    {/* Avatar row */}
+                    <div className="flex items-center gap-4">
+                      <AvatarDisplay size={64} editable />
+                      <div className="flex-1 min-w-0">
+                        <p className={cn('text-base font-black truncate', dk ? 'text-white' : 'text-slate-900')}>
+                          {profile?.fullName || profile?.full_name || '—'}
+                        </p>
+                        <p className={cn('text-sm truncate', dk ? 'text-slate-400' : 'text-slate-500')}>
+                          {profile?.username ? `@${profile.username}` : ''}
+                        </p>
+                        <div className="mt-1.5">
+                          <RoleShield role={userRole} lang={lang} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Edit name */}
+                    <div>
+                      <SectionLabel dk={dk}>{lang === 'de' ? 'Anzeigename' : 'Display Name'}</SectionLabel>
+                      <input
+                        type="text" value={editName}
+                        onChange={e => setEditName(e.target.value)}
+                        placeholder={lang === 'de' ? 'Dein Name...' : 'Your name...'}
+                        className={inputCls}
+                      />
+                    </div>
+
+                    {/* Save button — only for identity card */}
+                    <div className="flex items-center justify-between pt-1">
+                      {profileMsg && (
+                        <p className={cn('text-xs font-bold', profileMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>
+                          {profileMsg}
+                        </p>
+                      )}
+                      <button
+                        onClick={handleSaveProfile}
+                        disabled={savingProfile}
+                        className={cn(btnPrimary, 'ml-auto')}>
+                        {savingProfile ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                        {lang === 'de' ? 'Speichern' : 'Save'}
+                      </button>
                     </div>
                   </div>
 
-                  {/* Avatar picker modal */}
+                  {/* Avatar picker */}
                   {showAvatarPicker && (
-                    <div className={cn('rounded-xl border p-4', dk ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200')}>
+                    <div className={cn('rounded-xl border p-4', dk ? 'border-white/10 bg-white/2' : 'border-slate-200 bg-slate-50')}>
                       <div className="flex items-center justify-between mb-3">
-                        <p className={cn('text-xs font-bold uppercase tracking-widest', dk ? 'text-slate-400' : 'text-slate-500')}>
-                          {lang === 'de' ? 'Avatar wählen' : 'Choose Avatar'}
-                        </p>
+                        <SectionLabel dk={dk}>{lang === 'de' ? 'Avatar wählen' : 'Choose Avatar'}</SectionLabel>
                         <button onClick={() => setShowAvatarPicker(false)}
                           className={cn('p-1 rounded', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-200 text-slate-500')}>
                           <X size={14} />
@@ -657,327 +714,179 @@ export default function Header({
                       </div>
                       <div className="grid grid-cols-6 gap-2">
                         {AVATARS.map(av => (
-                          <button
-                            key={av.id}
-                            onClick={() => { setSelectedAvatar(av.id); setShowAvatarPicker(false); }}
+                          <button key={av.id} onClick={() => { setSelectedAvatar(av.id); setShowAvatarPicker(false); }}
                             className={cn('w-10 h-10 rounded-full flex items-center justify-center text-xl transition-all hover:scale-110',
-                              selectedAvatar === av.id ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-transparent scale-110' : '')}
-                            style={{ background: av.bg }}
-                          >
+                              selectedAvatar === av.id ? 'ring-2 ring-blue-500 ring-offset-2' : '')}
+                            style={{ background: av.bg }}>
                             {av.emoji}
                           </button>
                         ))}
+                        <button onClick={() => { setSelectedAvatar(null); setShowAvatarPicker(false); }}
+                          className={cn('w-10 h-10 rounded-full flex items-center justify-center text-xl transition-all hover:scale-110',
+                            !selectedAvatar ? 'ring-2 ring-blue-500 ring-offset-2' : '',
+                            dk ? 'bg-slate-700' : 'bg-slate-200')}>
+                          <User size={16} className={dk ? 'text-slate-300' : 'text-slate-600'} />
+                        </button>
                       </div>
                     </div>
                   )}
 
-                  {/* Display name */}
-                  <div>
-                    <SectionLabel dk={dk}>{lang === 'de' ? 'Anzeigename' : 'Display Name'}</SectionLabel>
-                    <input value={editName} onChange={e => setEditName(e.target.value)}
-                      className={inputCls} placeholder={lang === 'de' ? 'Ihr Name' : 'Your name'} />
-                  </div>
+                  {/* Personalization — live preview, no save button needed */}
+                  <div className={cn('rounded-xl border p-4 space-y-4', dk ? 'border-white/10' : 'border-slate-200')}>
+                    <SectionLabel dk={dk}>{lang === 'de' ? 'Darstellung' : 'Appearance'}</SectionLabel>
 
-                  {/* Email (read-only) */}
-                  <div>
-                    <SectionLabel dk={dk}>{lang === 'de' ? 'E-Mail (nur ansehen)' : 'Email (read-only)'}</SectionLabel>
-                    <input value={profile?.email || ''} disabled
-                      className={cn(inputCls, 'opacity-50 cursor-not-allowed')} />
-                  </div>
-
-                  {/* Personalization */}
-                  <div>
-                    <SectionLabel dk={dk}>{lang === 'de' ? 'Personalisierung' : 'Personalization'}</SectionLabel>
-                    <div className={cn('rounded-xl border p-4 space-y-4', dk ? 'border-white/10 bg-white/3' : 'border-slate-200 bg-slate-50')}>
-
-                      {/* Text size */}
-                      <div>
-                        <p className={cn('text-xs font-bold mb-2', dk ? 'text-slate-300' : 'text-slate-700')}>
-                          {lang === 'de' ? 'Textgröße' : 'Text Size'}
-                          <span className={cn('ml-2 font-normal', dk ? 'text-slate-500' : 'text-slate-400')}>{fontScale}%</span>
-                        </p>
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => setFontScaleState(s => Math.max(75, s - 5))}
-                            className={cn('w-8 h-8 rounded-lg border flex items-center justify-center transition-all',
-                              dk ? 'border-white/10 hover:bg-white/10 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-700')}>
-                            <Minus size={14} />
+                    {/* Font family */}
+                    <div>
+                      <p className={cn('text-xs font-bold mb-2', dk ? 'text-slate-400' : 'text-slate-600')}>
+                        {lang === 'de' ? 'Schriftart' : 'Font'}
+                      </p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {FONTS.map(f => (
+                          <button key={f.value} onClick={() => handleFontFamilyChange(f.value)}
+                            className={cn('px-3 py-2 rounded-lg border text-xs font-bold text-left transition-all',
+                              fontFamily === f.value
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-100')}
+                            style={{ fontFamily: f.family }}>
+                            {f.label}
                           </button>
-                          <div className="flex-1">
-                            <input type="range" min={75} max={130} step={5}
-                              value={fontScale}
-                              onChange={e => setFontScaleState(Number(e.target.value))}
-                              className="w-full accent-blue-500"
-                            />
-                          </div>
-                          <button
-                            onClick={() => setFontScaleState(s => Math.min(130, s + 5))}
-                            className={cn('w-8 h-8 rounded-lg border flex items-center justify-center transition-all',
-                              dk ? 'border-white/10 hover:bg-white/10 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-700')}>
-                            <Plus size={14} />
-                          </button>
-                          <button
-                            onClick={() => setFontScaleState(100)}
-                            className={cn('text-xs px-2 py-1 rounded border transition-all',
-                              dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}>
-                            {lang === 'de' ? 'Reset' : 'Reset'}
-                          </button>
-                        </div>
-                        <div className={cn('flex justify-between text-[10px] mt-1', dk ? 'text-slate-600' : 'text-slate-400')}>
-                          <span>75%</span><span>100%</span><span>130%</span>
-                        </div>
-                      </div>
-
-                      {/* Font family */}
-                      <div>
-                        <p className={cn('text-xs font-bold mb-2', dk ? 'text-slate-300' : 'text-slate-700')}>
-                          <Type size={12} className="inline mr-1" />
-                          {lang === 'de' ? 'Schriftart' : 'Font Family'}
-                        </p>
-                        <select
-                          value={fontFamily}
-                          onChange={e => setFontFamilyState(e.target.value)}
-                          className={cn(inputCls)}
-                          style={{ fontFamily: FONTS.find(f => f.value === fontFamily)?.family }}
-                        >
-                          <optgroup label="Sans-serif">
-                            {FONTS.filter(f => !f.family.includes('serif') && !f.family.includes('monospace')).map(f => (
-                              <option key={f.value} value={f.value} style={{ fontFamily: f.family }}>{f.label}</option>
-                            ))}
-                          </optgroup>
-                          <optgroup label="Serif">
-                            {FONTS.filter(f => f.family.includes('serif')).map(f => (
-                              <option key={f.value} value={f.value} style={{ fontFamily: f.family }}>{f.label}</option>
-                            ))}
-                          </optgroup>
-                          <optgroup label="Monospace">
-                            {FONTS.filter(f => f.family.includes('monospace')).map(f => (
-                              <option key={f.value} value={f.value} style={{ fontFamily: f.family }}>{f.label}</option>
-                            ))}
-                          </optgroup>
-                        </select>
-                        <p className={cn('text-xs mt-2 px-1', dk ? 'text-slate-400' : 'text-slate-500')}
-                          style={{ fontFamily: FONTS.find(f => f.value === fontFamily)?.family }}>
-                          {lang === 'de' ? 'Vorschau: Das Hotelmanagement-System' : 'Preview: The hotel management system'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Save button */}
-                  <div className="flex items-center gap-3">
-                    <button onClick={handleSaveProfile} disabled={savingProfile} className={btnPrimary}>
-                      {savingProfile ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
-                      {lang === 'de' ? 'Speichern' : 'Save'}
-                    </button>
-                    {profileMsg && (
-                      <span className={cn('text-sm font-bold',
-                        profileMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>
-                        {profileMsg}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Accordions */}
-                  <div className="space-y-2 pt-2">
-                    <Accordion title={lang === 'de' ? 'Häufige Fragen (FAQ)' : 'FAQ'} icon={HelpCircle} dk={dk}>
-                      <div className="space-y-3">
-                        {[
-                          [
-                            lang === 'de' ? 'Wie füge ich ein Hotel hinzu?' : 'How do I add a hotel?',
-                            lang === 'de' ? 'Klicke auf "Hotel hinzufügen" im Dashboard. Gib Name und optional Stadt ein und bestätige.' : 'Click "Add Hotel" in the dashboard. Enter the name and optionally a city, then confirm.',
-                          ],
-                          [
-                            lang === 'de' ? 'Wie funktioniert die Bettenzuweisung?' : 'How does bed assignment work?',
-                            lang === 'de' ? 'Öffne ein Hotel und eine Buchungsdauer. Unter "Bettenbelegung" kannst du jedem Bett einen Mitarbeiter zuweisen und Anreise-/Abreisedaten festlegen.' : 'Open a hotel and a booking duration. Under "Bed assignments" you can assign an employee to each bed and set check-in/check-out dates.',
-                          ],
-                          [
-                            lang === 'de' ? 'Was ist der Unterschied zwischen EZ, DZ, TZ und WG?' : 'What is the difference between EZ, DZ, TZ and WG?',
-                            lang === 'de' ? 'EZ = Einzelzimmer (1 Bett), DZ = Doppelzimmer (2 Betten), TZ = Tripple (3 Betten), WG = Wohngemeinschaft (individuell konfigurierbar).' : 'EZ = Single room (1 bed), DZ = Double room (2 beds), TZ = Triple room (3 beds), WG = Shared flat (configurable beds).',
-                          ],
-                          [
-                            lang === 'de' ? 'Wie exportiere ich Daten?' : 'How do I export data?',
-                            lang === 'de' ? 'Nutze den Export-Button im Dashboard oder in der Toolbar. Die Daten werden als CSV-Datei heruntergeladen.' : 'Use the Export button in the dashboard toolbar. Data will be downloaded as a CSV file.',
-                          ],
-                        ].map(([q, a]) => (
-                          <div key={q}>
-                            <p className={cn('font-bold text-sm mb-0.5', dk ? 'text-white' : 'text-slate-800')}>{q}</p>
-                            <p className="text-xs leading-relaxed">{a}</p>
-                          </div>
                         ))}
                       </div>
-                    </Accordion>
+                    </div>
 
-                    <Accordion title={lang === 'de' ? 'Datenschutzrichtlinie' : 'Privacy Policy'} icon={FileText} dk={dk}>
-                      <div className="space-y-2 text-xs leading-relaxed">
-                        <p><strong>{lang === 'de' ? 'Datenerhebung' : 'Data Collection'}:</strong> {lang === 'de' ? 'EuroTrack speichert nur die Daten, die du selbst eingibst. Dazu gehören Hotelinfos, Buchungsdaten und Mitarbeiterdaten.' : 'EuroTrack only stores data that you enter yourself. This includes hotel info, booking data, and employee data.'}</p>
-                        <p><strong>{lang === 'de' ? 'Datenspeicherung' : 'Data Storage'}:</strong> {lang === 'de' ? 'Alle Daten werden sicher bei Supabase gespeichert und sind nur für autorisierte Benutzer zugänglich.' : 'All data is securely stored with Supabase and accessible only to authorized users.'}</p>
-                        <p><strong>{lang === 'de' ? 'Keine Weitergabe' : 'No Sharing'}:</strong> {lang === 'de' ? 'Wir geben deine Daten nicht an Dritte weiter.' : 'We do not share your data with third parties.'}</p>
-                        <p className={cn('italic', dk ? 'text-slate-500' : 'text-slate-400')}>
-                          {lang === 'de' ? 'Letztes Update: April 2026. Dieser Text wird noch finalisiert.' : 'Last updated: April 2026. This text will be finalized.'}
+                    {/* Font scale */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className={cn('text-xs font-bold', dk ? 'text-slate-400' : 'text-slate-600')}>
+                          {lang === 'de' ? 'Textgröße' : 'Text Size'}
                         </p>
+                        <span className={cn('text-xs font-black', dk ? 'text-white' : 'text-slate-900')}>{fontScale}%</span>
                       </div>
-                    </Accordion>
-
-                    <Accordion title={lang === 'de' ? 'Über EuroTrack' : 'About EuroTrack'} icon={Info} dk={dk}>
-                      <div className="space-y-2 text-xs leading-relaxed">
-                        <p>{lang === 'de' ? 'EuroTrack ist ein internes Hotel- und Buchungsmanagement-System für europäische Einsatzplanung.' : 'EuroTrack is an internal hotel and booking management system for European deployment planning.'}</p>
-                        <p>{lang === 'de' ? 'Entwickelt für Teams, die Mitarbeiterunterkünfte effizient verwalten müssen.' : 'Built for teams that need to efficiently manage employee accommodations.'}</p>
-                        <div className={cn('mt-3 pt-3 border-t flex items-center justify-between', dk ? 'border-white/10' : 'border-slate-200')}>
-                          <span className={dk ? 'text-slate-500' : 'text-slate-400'}>Version</span>
-                          <span className={cn('font-bold', dk ? 'text-slate-300' : 'text-slate-700')}>1.0.0</span>
-                        </div>
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => handleFontScaleChange(Math.max(75, fontScale - 5))}
+                          className={cn('p-1.5 rounded-lg border transition-all',
+                            dk ? 'border-white/10 hover:bg-white/10 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-700')}>
+                          <Minus size={14} />
+                        </button>
+                        <input type="range" min={75} max={130} step={5} value={fontScale}
+                          onChange={e => handleFontScaleChange(Number(e.target.value))}
+                          className="flex-1 accent-blue-600 h-1.5 rounded-full" />
+                        <button onClick={() => handleFontScaleChange(Math.min(130, fontScale + 5))}
+                          className={cn('p-1.5 rounded-lg border transition-all',
+                            dk ? 'border-white/10 hover:bg-white/10 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-700')}>
+                          <Plus size={14} />
+                        </button>
                       </div>
-                    </Accordion>
+                    </div>
                   </div>
                 </>
               )}
 
-              {/* ══════════ SECURITY TAB ══════════ */}
+              {/* ────────────────────────────────────── SECURITY TAB */}
               {settingsTab === 'security' && (
                 <>
+                  {/* Current email display */}
+                  {profile?.email && (
+                    <div className={cn('rounded-xl border p-4', dk ? 'border-white/10 bg-white/2' : 'border-slate-200 bg-slate-50')}>
+                      <SectionLabel dk={dk}>{lang === 'de' ? 'Aktuelle E-Mail' : 'Current Email'}</SectionLabel>
+                      <div className="flex items-center gap-2">
+                        <Mail size={14} className={dk ? 'text-slate-400' : 'text-slate-500'} />
+                        <span className={cn('text-sm font-bold', dk ? 'text-white' : 'text-slate-900')}>
+                          {profile.email}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Change username */}
-                  <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-white/10 bg-white/3' : 'border-slate-200 bg-slate-50')}>
-                    <div className="flex items-center gap-2">
-                      <AtSign size={16} className={dk ? 'text-blue-400' : 'text-blue-600'} />
-                      <p className={cn('text-sm font-black', dk ? 'text-white' : 'text-slate-900')}>
-                        {lang === 'de' ? 'Benutzername ändern' : 'Change Username'}
+                  <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-white/10' : 'border-slate-200')}>
+                    <SectionLabel dk={dk}>{lang === 'de' ? 'Benutzername ändern' : 'Change Username'}</SectionLabel>
+                    <div className="relative">
+                      <AtSign size={14} className={cn('absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none', dk ? 'text-slate-500' : 'text-slate-400')} />
+                      <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)}
+                        placeholder={lang === 'de' ? 'Neuer Benutzername...' : 'New username...'}
+                        className={cn(inputCls, 'pl-8')} />
+                    </div>
+                    {usernameMsg && (
+                      <p className={cn('text-xs font-bold', usernameMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>
+                        {usernameMsg}
                       </p>
-                    </div>
-                    <p className={cn('text-xs', dk ? 'text-slate-400' : 'text-slate-500')}>
-                      {lang === 'de'
-                        ? 'Nach der Änderung kannst du dich mit dem neuen Benutzernamen einloggen.'
-                        : 'After changing, you can log in with the new username immediately.'}
-                    </p>
-                    <input
-                      value={newUsername}
-                      onChange={e => setNewUsername(e.target.value)}
-                      placeholder={lang === 'de' ? 'Neuer Benutzername' : 'New username'}
-                      className={inputCls}
-                    />
-                    <div className="flex items-center gap-3">
-                      <button onClick={handleSaveUsername} disabled={savingUsername || !newUsername.trim()} className={btnPrimary}>
-                        {savingUsername ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                        {lang === 'de' ? 'Aktualisieren' : 'Update'}
-                      </button>
-                      {usernameMsg && (
-                        <span className={cn('text-xs font-bold', usernameMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{usernameMsg}</span>
-                      )}
-                    </div>
+                    )}
+                    <button onClick={handleSaveUsername} disabled={savingUsername} className={btnPrimary}>
+                      {savingUsername ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                      {lang === 'de' ? 'Benutzername speichern' : 'Save Username'}
+                    </button>
                   </div>
 
                   {/* Change email */}
-                  <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-white/10 bg-white/3' : 'border-slate-200 bg-slate-50')}>
-                    <div className="flex items-center gap-2">
-                      <Mail size={16} className={dk ? 'text-blue-400' : 'text-blue-600'} />
-                      <p className={cn('text-sm font-black', dk ? 'text-white' : 'text-slate-900')}>
-                        {lang === 'de' ? 'E-Mail ändern' : 'Change Email'}
+                  <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-white/10' : 'border-slate-200')}>
+                    <SectionLabel dk={dk}>{lang === 'de' ? 'E-Mail ändern' : 'Change Email'}</SectionLabel>
+                    <div className="relative">
+                      <Mail size={14} className={cn('absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none', dk ? 'text-slate-500' : 'text-slate-400')} />
+                      <input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)}
+                        placeholder={lang === 'de' ? 'Neue E-Mail-Adresse...' : 'New email address...'}
+                        className={cn(inputCls, 'pl-8')} />
+                    </div>
+                    {emailMsg && (
+                      <p className={cn('text-xs font-bold', emailMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>
+                        {emailMsg}
                       </p>
-                    </div>
-                    <p className={cn('text-xs', dk ? 'text-slate-400' : 'text-slate-500')}>
-                      {lang === 'de'
-                        ? 'Ein Bestätigungslink wird an die neue E-Mail-Adresse gesendet.'
-                        : 'A confirmation link will be sent to the new email address.'}
-                    </p>
-                    <input
-                      type="email"
-                      value={newEmail}
-                      onChange={e => setNewEmail(e.target.value)}
-                      placeholder={lang === 'de' ? 'Neue E-Mail-Adresse' : 'New email address'}
-                      className={inputCls}
-                    />
-                    <div className="flex items-center gap-3">
-                      <button onClick={handleSaveEmail} disabled={savingEmail || !newEmail.trim()} className={btnPrimary}>
-                        {savingEmail ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
-                        {lang === 'de' ? 'Link senden' : 'Send Link'}
-                      </button>
-                      {emailMsg && (
-                        <span className={cn('text-xs font-bold leading-snug', emailMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{emailMsg}</span>
-                      )}
-                    </div>
+                    )}
+                    <button onClick={handleSaveEmail} disabled={savingEmail} className={btnPrimary}>
+                      {savingEmail ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                      {lang === 'de' ? 'E-Mail aktualisieren' : 'Update Email'}
+                    </button>
                   </div>
 
                   {/* Change password */}
-                  <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-white/10 bg-white/3' : 'border-slate-200 bg-slate-50')}>
-                    <div className="flex items-center gap-2">
-                      <KeyRound size={16} className={dk ? 'text-blue-400' : 'text-blue-600'} />
-                      <p className={cn('text-sm font-black', dk ? 'text-white' : 'text-slate-900')}>
-                        {lang === 'de' ? 'Passwort ändern' : 'Change Password'}
+                  <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-white/10' : 'border-slate-200')}>
+                    <SectionLabel dk={dk}>{lang === 'de' ? 'Passwort ändern' : 'Change Password'}</SectionLabel>
+                    <div className="relative">
+                      <input type={showCurrentPass ? 'text' : 'password'} value={currentPass}
+                        onChange={e => setCurrentPass(e.target.value)}
+                        placeholder={lang === 'de' ? 'Aktuelles Passwort' : 'Current password'}
+                        className={inputCls} />
+                      <button onClick={() => setShowCurrentPass(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {showCurrentPass ? <EyeOff size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} /> : <Eye size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} />}
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input type={showNewPass ? 'text' : 'password'} value={newPass}
+                        onChange={e => setNewPass(e.target.value)}
+                        placeholder={lang === 'de' ? 'Neues Passwort' : 'New password'}
+                        className={inputCls} />
+                      <button onClick={() => setShowNewPass(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {showNewPass ? <EyeOff size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} /> : <Eye size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} />}
+                      </button>
+                    </div>
+                    <input type="password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)}
+                      placeholder={lang === 'de' ? 'Passwort bestätigen' : 'Confirm password'}
+                      className={inputCls} />
+                    {passMsg && (
+                      <p className={cn('text-xs font-bold', passMsg.startsWith('Error') || passMsg.includes('match') ? 'text-red-400' : 'text-green-400')}>
+                        {passMsg}
                       </p>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="relative">
-                        <input
-                          type={showCurrentPass ? 'text' : 'password'}
-                          value={currentPass}
-                          onChange={e => setCurrentPass(e.target.value)}
-                          placeholder={lang === 'de' ? 'Aktuelles Passwort' : 'Current password'}
-                          className={cn(inputCls, 'pr-10')}
-                        />
-                        <button type="button" onClick={() => setShowCurrentPass(v => !v)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100">
-                          {showCurrentPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
-                      <div className="relative">
-                        <input
-                          type={showNewPass ? 'text' : 'password'}
-                          value={newPass}
-                          onChange={e => setNewPass(e.target.value)}
-                          placeholder={lang === 'de' ? 'Neues Passwort' : 'New password'}
-                          className={cn(inputCls, 'pr-10')}
-                        />
-                        <button type="button" onClick={() => setShowNewPass(v => !v)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100">
-                          {showNewPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
-                      <input
-                        type="password"
-                        value={confirmPass}
-                        onChange={e => setConfirmPass(e.target.value)}
-                        placeholder={lang === 'de' ? 'Passwort bestätigen' : 'Confirm new password'}
-                        className={inputCls}
-                      />
-                    </div>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <button
-                        onClick={handleSavePassword}
-                        disabled={savingPass || !currentPass || !newPass || !confirmPass}
-                        className={btnPrimary}>
+                    )}
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <button onClick={handleForgotPassword} disabled={sendingReset}
+                        className={cn('text-xs font-bold transition-all', dk ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-800')}>
+                        {sendingReset ? '...' : (lang === 'de' ? 'Passwort vergessen?' : 'Forgot password?')}
+                      </button>
+                      {resetMsg && <p className={cn('text-xs font-bold', resetMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{resetMsg}</p>}
+                      <button onClick={handleSavePassword} disabled={savingPass} className={btnPrimary}>
                         {savingPass ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />}
                         {lang === 'de' ? 'Passwort ändern' : 'Change Password'}
                       </button>
-                      <button
-                        onClick={handleForgotPassword}
-                        disabled={sendingReset}
-                        className={cn('text-xs font-bold transition-all',
-                          dk ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700')}>
-                        {sendingReset
-                          ? (lang === 'de' ? 'Wird gesendet...' : 'Sending...')
-                          : (lang === 'de' ? 'Passwort vergessen?' : 'Forgot password?')}
-                      </button>
                     </div>
-                    {(passMsg || resetMsg) && (
-                      <p className={cn('text-xs font-bold',
-                        (passMsg || resetMsg).startsWith('Error') ? 'text-red-400' : 'text-green-400')}>
-                        {passMsg || resetMsg}
-                      </p>
-                    )}
                   </div>
                 </>
               )}
 
-              {/* ══════════ ACCESS TAB (admin/superadmin only) ══════════ */}
+              {/* ────────────────────────────────────── ACCESS TAB */}
               {settingsTab === 'access' && isAdmin && (
                 <>
-                  <p className={cn('text-xs', dk ? 'text-slate-500' : 'text-slate-400')}>
-                    {lang === 'de'
-                      ? 'Suche einen Nutzer nach Benutzername oder E-Mail und erteile sofort Zugriff — kein Einladungslink nötig.'
-                      : 'Search a user by username or email and grant access instantly — no invite link needed.'}
-                  </p>
-
-                  {/* Search */}
                   <div>
                     <SectionLabel dk={dk}>{lang === 'de' ? 'Nutzer suchen & Zugriff erteilen' : 'Find user & grant access'}</SectionLabel>
                     <div className="relative mb-3">
@@ -987,103 +896,97 @@ export default function Header({
                         className={cn(inputCls, 'pl-9')} />
                     </div>
 
-                    {accessSearching ? (
-                      <div className="flex justify-center py-3"><Loader2 size={18} className="animate-spin text-blue-500" /></div>
-                    ) : accessResults.length > 0 ? (
-                      <div className={cn('rounded-xl border overflow-hidden mb-3', dk ? 'border-white/10' : 'border-slate-200')}>
-                        {accessResults.map((u, i) => (
-                          <button key={u.id}
-                            onClick={() => { setSelectedUser(u); setAccessResults([]); setAccessSearch(''); }}
-                            className={cn('w-full flex items-center gap-3 px-4 py-3 text-left transition-all',
-                              i > 0 ? (dk ? 'border-t border-white/5' : 'border-t border-slate-100') : '',
-                              selectedUser?.id === u.id
-                                ? (dk ? 'bg-blue-600/20' : 'bg-blue-50')
-                                : (dk ? 'hover:bg-white/5' : 'hover:bg-slate-50'))}>
-                            <div className={cn('w-8 h-8 rounded-full flex items-center justify-center font-black text-xs shrink-0',
-                              dk ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600')}>
-                              {(u.full_name || u.email || '?')[0].toUpperCase()}
+                    {accessSearching && (
+                      <div className="flex items-center gap-2 py-2">
+                        <Loader2 size={14} className="animate-spin text-blue-500" />
+                        <span className={cn('text-xs', dk ? 'text-slate-400' : 'text-slate-500')}>
+                          {lang === 'de' ? 'Suche...' : 'Searching...'}
+                        </span>
+                      </div>
+                    )}
+
+                    {accessResults.length > 0 && !selectedUser && (
+                      <div className="space-y-1 mb-3">
+                        {accessResults.map(u => (
+                          <button key={u.id} onClick={() => setSelectedUser(u)}
+                            className={cn('w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all',
+                              dk ? 'bg-white/3 border-white/8 hover:bg-white/8' : 'bg-slate-50 border-slate-200 hover:bg-slate-100')}>
+                            <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0',
+                              dk ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-700')}>
+                              {(u.fullName || u.username || u.email || '?')[0].toUpperCase()}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className={cn('text-sm font-bold truncate', dk ? 'text-white' : 'text-slate-900')}>
-                                {u.full_name || u.username || u.email}
+                                {u.fullName || u.username || 'Unknown'}
                               </p>
                               <p className={cn('text-xs truncate', dk ? 'text-slate-500' : 'text-slate-400')}>
-                                {u.username ? `@${u.username} · ` : ''}{u.email}
+                                {u.username ? `@${u.username}` : u.email}
                               </p>
                             </div>
                           </button>
                         ))}
                       </div>
-                    ) : accessSearch.trim() ? (
-                      <p className={cn('text-xs text-center py-3 mb-3', dk ? 'text-slate-500' : 'text-slate-400')}>
-                        {lang === 'de' ? 'Keine Nutzer gefunden' : 'No users found'}
-                      </p>
-                    ) : null}
+                    )}
 
-                    {/* Selected user + role grant */}
                     {selectedUser && (
-                      <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-blue-500/30 bg-blue-500/5' : 'border-blue-200 bg-blue-50')}>
-                        <div className="flex items-center gap-3">
-                          <div className={cn('w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shrink-0',
-                            dk ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600')}>
-                            {(selectedUser.full_name || selectedUser.email || '?')[0].toUpperCase()}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className={cn('font-bold', dk ? 'text-white' : 'text-slate-900')}>
-                              {selectedUser.full_name || selectedUser.username || selectedUser.email}
-                            </p>
-                            <p className={cn('text-xs', dk ? 'text-slate-400' : 'text-slate-500')}>{selectedUser.email}</p>
-                          </div>
+                      <div className={cn('rounded-xl border p-4 space-y-3 mb-3', dk ? 'border-blue-500/40 bg-blue-500/5' : 'border-blue-300 bg-blue-50')}>
+                        <div className="flex items-center justify-between">
+                          <p className={cn('text-sm font-black', dk ? 'text-white' : 'text-slate-900')}>
+                            {selectedUser.fullName || selectedUser.username || selectedUser.email}
+                          </p>
                           <button onClick={() => setSelectedUser(null)}
-                            className={cn('p-1 rounded', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-200 text-slate-500')}>
+                            className={cn('p-1 rounded', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-blue-100 text-slate-500')}>
                             <X size={14} />
                           </button>
                         </div>
                         <div className="flex gap-2">
                           {(['viewer', 'editor', 'admin'] as const).map(r => (
                             <button key={r} onClick={() => setGrantRole(r)}
-                              className={cn('flex-1 py-1.5 rounded-lg text-xs font-bold transition-all border',
-                                grantRole === r ? 'bg-blue-600 text-white border-blue-600'
-                                  : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-100')}>
+                              className={cn('px-3 py-1.5 rounded-lg text-xs font-bold border transition-all',
+                                grantRole === r
+                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-white')}>
                               {r === 'admin' ? '🛡️ Admin' : r === 'editor' ? '✏️ Editor' : '👁 Viewer'}
                             </button>
                           ))}
                         </div>
-                        <button onClick={handleGrantAccess} disabled={granting} className={cn(btnPrimary, 'w-full justify-center')}>
+                        {grantMsg && (
+                          <p className={cn('text-xs font-bold', grantMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>
+                            {grantMsg}
+                          </p>
+                        )}
+                        <button onClick={handleGrantAccess} disabled={granting} className={btnPrimary}>
                           {granting ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
                           {lang === 'de' ? 'Zugriff erteilen' : 'Grant Access'}
                         </button>
                       </div>
                     )}
-
-                    {grantMsg && (
-                      <p className={cn('text-xs font-bold text-center mt-2',
-                        grantMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{grantMsg}</p>
-                    )}
                   </div>
 
-                  {/* Current collaborators */}
                   <div>
-                    <SectionLabel dk={dk}>{lang === 'de' ? 'Aktuelle Zugänge' : 'Current Access'}</SectionLabel>
+                    <SectionLabel dk={dk}>{lang === 'de' ? 'Aktueller Zugriff' : 'Current Access'}</SectionLabel>
                     {collabsLoading ? (
-                      <div className="flex justify-center py-6"><Loader2 size={20} className="animate-spin text-blue-500" /></div>
-                    ) : collabs.length === 0 ? (
-                      <div className={cn('text-center py-8 rounded-xl border-2 border-dashed', dk ? 'border-white/10' : 'border-slate-200')}>
-                        <Users size={28} className={cn('mx-auto mb-2', dk ? 'text-slate-600' : 'text-slate-300')} />
-                        <p className={cn('text-sm', dk ? 'text-slate-500' : 'text-slate-400')}>
-                          {lang === 'de' ? 'Noch kein Zugriff erteilt' : 'No access granted yet'}
-                        </p>
+                      <div className="flex items-center gap-2 py-3">
+                        <Loader2 size={14} className="animate-spin text-blue-500" />
+                        <span className={cn('text-xs', dk ? 'text-slate-400' : 'text-slate-500')}>Loading...</span>
                       </div>
+                    ) : collabs.length === 0 ? (
+                      <p className={cn('text-xs py-3', dk ? 'text-slate-500' : 'text-slate-400')}>
+                        {lang === 'de' ? 'Noch keine Mitarbeiter' : 'No collaborators yet'}
+                      </p>
                     ) : (
                       <div className="space-y-2">
                         {collabs.map(c => (
-                          <CollabRow key={c.userId} c={c} onRole={handleChangeRole} onRemove={handleRemove} />
+                          <CollabRow key={c.userId} c={c}
+                            onRole={handleChangeRole}
+                            onRemove={handleRemove} />
                         ))}
                       </div>
                     )}
                   </div>
                 </>
               )}
+
             </div>
           </div>
         </div>
