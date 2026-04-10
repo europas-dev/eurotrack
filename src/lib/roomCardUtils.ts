@@ -18,11 +18,16 @@ export function calcRoomCardTotal(
   const nights = calculateNights(durationStart, durationEnd)
   if (nights === 0) return 0
 
-  // Brutto/Netto mode: total is brutto (or netto*mwst)
+  // Brutto/Netto mode:
+  // Brutto and Netto are the PER-NIGHT price for this room.
+  // Total = derived nightly brutto × number of nights.
   if (card.useBruttoNetto || card.pricingMode === 'brutto_netto') {
-    if (card.brutto != null && card.brutto > 0) return card.brutto
-    if (card.netto != null && card.netto > 0 && card.mwst != null)
-      return card.netto * (1 + card.mwst / 100)
+    if (card.brutto != null && card.brutto > 0) {
+      return card.brutto * nights
+    }
+    if (card.netto != null && card.netto > 0 && card.mwst != null) {
+      return card.netto * (1 + card.mwst / 100) * nights
+    }
     return 0
   }
 
@@ -48,6 +53,7 @@ export function calcRoomCardTotal(
   return raw
 }
 
+// Returns the nightly Brutto price (derived from Netto+MwSt if needed)
 export function calcRoomCardBrutto(card: RoomCard): number | null {
   if (card.brutto != null && card.brutto > 0) return card.brutto
   if (card.netto != null && card.netto > 0 && card.mwst != null)
@@ -55,6 +61,7 @@ export function calcRoomCardBrutto(card: RoomCard): number | null {
   return null
 }
 
+// Returns the nightly Netto price (derived from Brutto+MwSt if needed)
 export function calcRoomCardNetto(card: RoomCard): number | null {
   if (card.netto != null && card.netto > 0) return card.netto
   if (card.brutto != null && card.brutto > 0 && card.mwst != null)
