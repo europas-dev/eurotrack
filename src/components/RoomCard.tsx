@@ -27,6 +27,9 @@ function empBorderColor(emp: Employee | null, dk: boolean): string {
   return dk ? 'border-white/10' : 'border-slate-200'
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// BedSlot
+// ─────────────────────────────────────────────────────────────────────────────
 function BedSlot({
   slotIndex, employee,
   durationStart, durationEnd,
@@ -44,7 +47,7 @@ function BedSlot({
   durationId: string
   dk: boolean
   lang: 'de' | 'en'
-  onUpdated: (slotIndex: number, emp: Employee | null) => void
+  onUpdated: (slotIndex: number, emp: Employee | null, replaceAll?: boolean) => void
 }) {
   const [editing, setEditing]   = useState(false)
   const [name, setName]         = useState(employee?.name ?? '')
@@ -74,10 +77,12 @@ function BedSlot({
         await updateRoomCardEmployee(employee.id, { name: name.trim(), checkIn, checkOut })
         onUpdated(slotIndex, { ...employee, name: name.trim(), checkIn, checkOut })
       } else {
+        // If this is a gap fill, signal to parent to delete the current occupant and replace
+        const isGapFill = !!(gapStart || gapEnd)
         const created = await createRoomCardEmployee(roomCardId, durationId, slotIndex, {
           name: name.trim(), checkIn, checkOut,
         })
-        onUpdated(slotIndex, created)
+        onUpdated(slotIndex, created, isGapFill)
       }
       setEditing(false)
     } catch (e) { console.error(e) }
@@ -253,6 +258,9 @@ function getGapSlots(
   return gaps
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Main RoomCard
+// ─────────────────────────────────────────────────────────────────────────────
 interface RoomCardProps {
   card: RoomCardType
   durationStart: string
@@ -260,6 +268,7 @@ interface RoomCardProps {
   dk: boolean
   lang: 'de' | 'en'
   allCardsOfSameType: RoomCardType[]
+  bruttoNettoActive?: boolean
   onUpdate: (id: string, patch: Partial<RoomCardType>) => void
   onDelete: (id: string) => void
   onApplyToSameType: (source: RoomCardType) => void
@@ -267,7 +276,7 @@ interface RoomCardProps {
 
 export default function RoomCard({
   card, durationStart, durationEnd, dk, lang,
-  allCardsOfSameType, onUpdate, onDelete, onApplyToSameType,
+  allCardsOfSameType, bruttoNettoActive = false, onUpdate, onDelete, onApplyToSameType,
 }: RoomCardProps) {
   const [saving, setSaving]           = useState(false)
   const [confirmDelete, setConfirm]   = useState(false)
@@ -278,7 +287,8 @@ export default function RoomCard({
   const beds         = bedsForType(card.roomType, card.bedCount)
   const nights       = calculateNights(durationStart, durationEnd)
   const allNights    = getNightsBetween(durationStart, durationEnd)
-  const total        = calcRoomCardTotal(card, durationStart, durationEnd)
+  // If duration-level Brutto/Netto is active, per-room price is disabled — show 0
+  const total        = bruttoNettoActive ? 0 : calcRoomCardTotal(card, durationStart, durationEnd)
   const derivedBrutto = calcRoomCardBrutto(card)
   const derivedNetto  = calcRoomCardNetto(card)
   const isWG = card.roomType === 'WG'
@@ -308,30 +318,21 @@ export default function RoomCard({
     }, 400)
   }
 
-  function toggleBruttoNettoMode() {
-    if (card.useBruttoNetto) {
-      queueSave({ useBruttoNetto: false, brutto: null, netto: null, mwst: null })
-      return
-    }
-    queueSave({
-      useBruttoNetto: true,
-      brutto: null,
-      netto: null,
-      mwst: null,
-      nightlyPrice: 0,
-      pricePerBed: false,
-      pricePerBedAmount: 0,
-      nightlyPrices: {},
-      useManualPrices: false,
-    })
-  }
-
   function patchBedCount(raw: number) {
     queueSave({ bedCount: Math.max(1, raw) })
   }
 
-  function onEmployeeUpdated(slotIndex: number, emp: Employee | null) {
-    const existing = employees.filter(e => e.slotIndex !== slotIndex)
+  // When filling a gap, delete the existing employee in that slot first
+  function onEmployeeUpdated(slotIndex: number, emp: Employee | null, replaceAll?: boolean) {
+    let existing = employees.filter(e => e.slotIndex !== slotIndex)
+    if (replaceAll) {
+      // Delete all employees in this slot from DB, then replace
+      employees
+        .filter(e => (e.slotIndex ?? 0) === slotIndex)
+        .forEach(e => {
+          if (e.id) deleteRoomCardEmployee(e.id).catch(console.error)
+        })
+    }
     const next = emp ? [...existing, emp] : existing
     onUpdate(card.id, { employees: next as Employee[] })
   }
@@ -341,24 +342,28 @@ export default function RoomCard({
       'rounded-xl border transition-all',
       dk ? 'bg-[#0d1629] border-white/10' : 'bg-white border-slate-200'
     )}>
+      {/* ── ROW 1: Room No | Floor | Type | badge | total | Price btn | 📅 | 🗑 ── */}
       <div className={cn(
         'flex items-center gap-2 px-3 py-2',
         dk ? 'border-b border-white/8' : 'border-b border-slate-100'
       )}>
+        {/* Room No */}
+        <label className={cn(labelCls, 'shrink-0')}>No.</label>
         <input
           type="text" value={card.roomNo}
           onChange={e => queueSave({ roomNo: e.target.value })}
           placeholder="101"
-          title={lang === 'de' ? 'Zimmer-Nr.' : 'Room No.'}
-          className={cn(inputCls, 'w-14 text-center font-bold text-sm')}
+          className={cn(inputCls, 'w-12 text-center font-bold text-sm')}
         />
+        {/* Floor */}
+        <label className={cn(labelCls, 'shrink-0')}>{lang === 'de' ? 'Etg.' : 'Fl.'}</label>
         <input
           type="text" value={card.floor}
           onChange={e => queueSave({ floor: e.target.value })}
-          placeholder={lang === 'de' ? 'Etg.' : 'Flr.'}
-          title={lang === 'de' ? 'Etage' : 'Floor'}
-          className={cn(inputCls, 'w-12 text-center text-sm')}
+          placeholder="1"
+          className={cn(inputCls, 'w-10 text-center text-sm')}
         />
+        {/* Type */}
         <select
           value={card.roomType}
           onChange={e => {
@@ -373,6 +378,7 @@ export default function RoomCard({
           <option value="TZ">TZ</option>
           <option value="WG">WG</option>
         </select>
+        {/* WG bed stepper */}
         {isWG && (
           <div className={cn('flex items-center rounded-lg border overflow-hidden shrink-0', dk ? 'border-white/10' : 'border-slate-200')}>
             <button onClick={() => patchBedCount(card.bedCount - 1)}
@@ -383,31 +389,31 @@ export default function RoomCard({
               className={cn('px-1.5 py-1', dk ? 'hover:bg-white/10' : 'hover:bg-slate-50')}><Plus size={11} /></button>
           </div>
         )}
-        <span className={cn('text-xs font-bold px-2 py-1 rounded-md shrink-0',
+        {/* Nights + Beds badge */}
+        <span className={cn('text-xs font-bold px-2 py-1 rounded-md shrink-0 tabular-nums',
           dk ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-600')}>
-          {nights}N · {beds}B
+          {nights}N·{beds}B
         </span>
-        {occupiedCount > 0 && (
-          <span className={cn('text-xs font-bold px-2 py-1 rounded-md shrink-0',
-            dk ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700')}>
-            {occupiedCount}/{beds} {lang === 'de' ? 'belegt' : 'occ.'}
-          </span>
-        )}
 
-        <div className="ml-auto flex items-center gap-1 shrink-0">
-          <span className={cn('text-base font-black mr-1', dk ? 'text-white' : 'text-slate-900')}>
-            {formatCurrency(total)}
+        {/* RIGHT: total + price btn + calendar + delete */}
+        <div className="ml-auto flex items-center gap-1.5 shrink-0">
+          <span className={cn('text-sm font-black tabular-nums', bruttoNettoActive ? (dk ? 'text-slate-600' : 'text-slate-300') : (dk ? 'text-white' : 'text-slate-900'))}>
+            {bruttoNettoActive ? '—' : formatCurrency(total)}
           </span>
           {saving && <Loader2 size={12} className="animate-spin text-blue-400" />}
           <button
-            onClick={() => setShowPricing(p => !p)}
+            onClick={() => { if (!bruttoNettoActive) setShowPricing(p => !p) }}
+            disabled={bruttoNettoActive}
+            title={bruttoNettoActive ? (lang === 'de' ? 'Deaktiviert — Brutto/Netto aktiv' : 'Disabled — Brutto/Netto active') : undefined}
             className={cn('px-2 py-1.5 rounded-lg text-xs font-bold border transition-all',
-              showPricing
-                ? 'bg-amber-500 text-white border-amber-500'
-                : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+              bruttoNettoActive
+                ? dk ? 'border-white/5 text-slate-700 cursor-not-allowed' : 'border-slate-100 text-slate-300 cursor-not-allowed'
+                : showPricing
+                  ? 'bg-amber-500 text-white border-amber-500'
+                  : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
             )}
           >
-            {lang === 'de' ? 'Preis' : 'Price'}{showPricing ? <ChevronUp size={10} className="inline ml-0.5" /> : <ChevronDown size={10} className="inline ml-0.5" />}
+            {lang === 'de' ? 'Preis' : 'Price'}{!bruttoNettoActive && (showPricing ? <ChevronUp size={10} className="inline ml-0.5" /> : <ChevronDown size={10} className="inline ml-0.5" />)}
           </button>
           <button
             onClick={() => setShowCalendar(c => !c)}
@@ -424,11 +430,12 @@ export default function RoomCard({
         </div>
       </div>
 
-      {showPricing && (
+      {/* ── ROW 2 (Pricing panel) — only when Price btn clicked and not bruttoNettoActive ── */}
+      {showPricing && !bruttoNettoActive && (
         <div className={cn('px-3 py-3 border-b space-y-3', dk ? 'border-white/8 bg-white/[0.02]' : 'border-slate-100 bg-slate-50/60')}>
           <div className="flex items-end gap-2 flex-wrap">
             <button
-              onClick={toggleBruttoNettoMode}
+              onClick={() => queueSave({ useBruttoNetto: !card.useBruttoNetto })}
               className={cn('px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all',
                 card.useBruttoNetto
                   ? 'bg-amber-500 text-white border-amber-500'
@@ -467,39 +474,40 @@ export default function RoomCard({
             )}
 
             {card.useBruttoNetto && (
-              <>
+              <div className="flex items-end gap-1.5">
                 <div className="flex flex-col gap-0.5">
                   <label className={labelCls}>Brutto (€)</label>
                   <input type="number" min={0} step="0.01"
-                    value={card.brutto ?? ''} placeholder="0.00"
+                    value={card.brutto ?? ''} placeholder="Brutto"
                     onChange={e => queueSave({ brutto: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
-                    className={cn(inputCls, 'w-28')} />
+                    className={cn(inputCls, 'w-24')} />
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <label className={labelCls}>Netto (€)</label>
                   <input type="number" min={0} step="0.01"
-                    value={card.netto ?? ''} placeholder="optional"
+                    value={card.netto ?? ''} placeholder="Netto"
                     onChange={e => queueSave({ netto: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
-                    className={cn(inputCls, 'w-28')} />
+                    className={cn(inputCls, 'w-24')} />
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <label className={labelCls}>MwSt (%)</label>
-                  <input type="number" min={0} max={100} step="0.1"
-                    value={card.mwst ?? ''} placeholder="19"
+                  <input type="number" min={0} max={99} step="1"
+                    value={card.mwst ?? ''} placeholder="%"
                     onChange={e => queueSave({ mwst: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
-                    className={cn(inputCls, 'w-20')} />
+                    className={cn(inputCls)}
+                    style={{ width: 42 }} />
                 </div>
                 <div className={cn('self-end px-2.5 py-1.5 rounded-lg border text-xs font-bold',
                   dk ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-white')}>
                   {derivedBrutto != null && card.netto && !card.brutto && (
-                    <span className={dk ? 'text-amber-400' : 'text-amber-600'}>→ Brutto: {formatCurrency(derivedBrutto)}</span>
+                    <span className={dk ? 'text-amber-400' : 'text-amber-600'}>→ {formatCurrency(derivedBrutto)}</span>
                   )}
                   {derivedNetto != null && card.brutto && (
-                    <span className={dk ? 'text-green-400' : 'text-green-700'}>→ Netto: {formatCurrency(derivedNetto)}</span>
+                    <span className={dk ? 'text-green-400' : 'text-green-700'}>→ {formatCurrency(derivedNetto)}</span>
                   )}
                   {!derivedBrutto && !derivedNetto && <span className={dk ? 'text-slate-500' : 'text-slate-400'}>—</span>}
                 </div>
-              </>
+              </div>
             )}
 
             <button
@@ -550,6 +558,7 @@ export default function RoomCard({
         </div>
       )}
 
+      {/* ── Night calendar ── */}
       {showCalendar && durationStart && durationEnd && (
         <div className={cn('px-3 py-2.5 border-b', dk ? 'border-white/8 bg-white/[0.02]' : 'border-slate-100 bg-slate-50/40')}>
           <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-2', dk ? 'text-slate-500' : 'text-slate-400')}>
@@ -576,19 +585,18 @@ export default function RoomCard({
               </div>
             ))}
           </div>
-          {!card.useBruttoNetto && (
-            <button
-              onClick={() => queueSave({ useManualPrices: !card.useManualPrices })}
-              className={cn('mt-2 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all',
-                card.useManualPrices ? 'bg-purple-600 text-white border-purple-600' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-              )}
-            >
-              {card.useManualPrices ? (lang === 'de' ? 'Manual AN' : 'Manual ON') : (lang === 'de' ? 'Manuelle Nachtpreise' : 'Manual nightly')}
-            </button>
-          )}
+          <button
+            onClick={() => queueSave({ useManualPrices: !card.useManualPrices })}
+            className={cn('mt-2 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all',
+              card.useManualPrices ? 'bg-purple-600 text-white border-purple-600' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+            )}
+          >
+            {card.useManualPrices ? (lang === 'de' ? 'Manual AN' : 'Manual ON') : (lang === 'de' ? 'Manuelle Nachtpreise' : 'Manual nightly')}
+          </button>
         </div>
       )}
 
+      {/* ── Bed slots ── */}
       <div className="px-3 py-2.5 space-y-1.5">
         {Array.from({ length: beds }).map((_, i) => {
           const emp = employees.find(e => (e.slotIndex ?? 0) === i) ?? null
