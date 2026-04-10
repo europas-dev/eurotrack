@@ -4,7 +4,7 @@ import {
   Loader2, Minus, Plus, Tag, Trash2, Check, PlusCircle, X,
 } from 'lucide-react'
 import {
-  cn, calculateNights, formatCurrency, normalizeNumberInput,
+  cn, calculateNights, formatCurrency, normalizeNumberInput, formatDateDMY,
 } from '../lib/utils'
 import { calcRoomCardTotal, calcPricePerBedPerNight, extractPricingFields } from '../lib/roomCardUtils'
 import { deleteDuration, updateDuration } from '../lib/supabase'
@@ -83,9 +83,14 @@ export default function DurationCard({
   const extraCosts: ExtraCost[] = local.extraCosts ?? []
   const extraTotal = extraCosts.reduce((s, e) => s + (e.amount || 0), 0)
 
-  // Grand total
+  // Grand total — Brutto/Netto mode uses its own inputs as the ONLY total source.
+  // All room-card prices are disabled when useBruttoNetto is on.
   const bruttoTotal = local.useBruttoNetto
-    ? (local.brutto ?? (local.netto != null && local.mwst != null ? local.netto * (1 + local.mwst / 100) : 0))
+    ? (local.brutto != null && local.brutto > 0
+        ? local.brutto
+        : (local.netto != null && local.netto > 0 && local.mwst != null
+            ? local.netto * (1 + local.mwst / 100)
+            : 0))
     : roomCardsTotal + extraTotal
 
   let discountedTotal = bruttoTotal
@@ -102,11 +107,11 @@ export default function DurationCard({
        : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
   )
   const labelCls = cn('text-[9px] font-bold uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')
-  const togOff = cn('px-3 py-2 rounded-lg text-xs font-bold border transition-all',
+  const togOff = cn('px-3 py-1.5 rounded-lg text-xs font-bold border transition-all',
     dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
   )
   const togOn = (color: string) =>
-    `px-3 py-2 rounded-lg text-xs font-bold border transition-all bg-${color}-600 text-white border-${color}-600`
+    `px-3 py-1.5 rounded-lg text-xs font-bold border transition-all bg-${color}-600 text-white border-${color}-600`
 
   function queueSave(next: Duration) {
     clearTimeout(saveTimer.current)
@@ -170,7 +175,6 @@ export default function DurationCard({
     setRoomCards(prev => prev.filter(c => c.id !== id))
   }
   function handleApplyToSameType(source: RoomCard) {
-    // Only copy price fields — nothing else
     const pricingFields = extractPricingFields(source)
     setRoomCards(prev => prev.map(c => {
       if (c.id === source.id || c.roomType !== source.roomType) return c
@@ -179,6 +183,16 @@ export default function DurationCard({
       )
       return { ...c, ...pricingFields }
     }))
+  }
+
+  // ── Brutto/Netto toggle: when turning ON, zero-out total; turn OFF = restore room-card prices
+  function toggleBruttoNetto() {
+    if (!local.useBruttoNetto) {
+      // Turning ON: clear brutto/netto/mwst so total starts at 0
+      patch({ useBruttoNetto: true, brutto: null, netto: null, mwst: null })
+    } else {
+      patch({ useBruttoNetto: false })
+    }
   }
 
   return (
@@ -191,17 +205,42 @@ export default function DurationCard({
 
           {/* ROW 1: dates + presets + nights + stats + trash */}
           <div className="flex items-end gap-2 flex-wrap">
+            {/* Check-in — shows dd/mm/yyyy as placeholder helper; actual input is type=date */}
             <div className="flex flex-col gap-0.5">
               <label className={labelCls}>{lang === 'de' ? 'Check-in' : 'Check-in'}</label>
-              <input type="date" value={local.startDate || ''}
-                onChange={e => patch({ startDate: e.target.value })} className={cn(inputCls, 'w-36')} />
+              <div className="relative">
+                <input
+                  type="date"
+                  value={local.startDate || ''}
+                  onChange={e => patch({ startDate: e.target.value })}
+                  className={cn(inputCls, 'w-36')}
+                />
+                {!local.startDate && (
+                  <span className={cn(
+                    'absolute inset-0 flex items-center px-2.5 text-sm pointer-events-none',
+                    dk ? 'text-slate-600' : 'text-slate-400'
+                  )}>dd/mm/yyyy</span>
+                )}
+              </div>
             </div>
+            {/* Check-out */}
             <div className="flex flex-col gap-0.5">
               <label className={labelCls}>{lang === 'de' ? 'Check-out' : 'Check-out'}</label>
-              <input type="date" value={local.endDate || ''}
-                min={local.startDate || undefined}
-                onChange={e => { setCheckoutOffset(null); patch({ endDate: e.target.value }) }}
-                className={cn(inputCls, 'w-36')} />
+              <div className="relative">
+                <input
+                  type="date"
+                  value={local.endDate || ''}
+                  min={local.startDate || undefined}
+                  onChange={e => { setCheckoutOffset(null); patch({ endDate: e.target.value }) }}
+                  className={cn(inputCls, 'w-36')}
+                />
+                {!local.endDate && (
+                  <span className={cn(
+                    'absolute inset-0 flex items-center px-2.5 text-sm pointer-events-none',
+                    dk ? 'text-slate-600' : 'text-slate-400'
+                  )}>dd/mm/yyyy</span>
+                )}
+              </div>
             </div>
             {local.startDate && (
               <div className="flex items-center gap-1 self-end pb-0.5">
@@ -310,10 +349,10 @@ export default function DurationCard({
             dk ? 'bg-white/[0.03] border-white/10' : 'bg-slate-50 border-slate-200'
           )}>
 
-            {/* ROW 1: Brutto/Netto */}
-            <div className="flex items-center gap-2 min-h-[40px]">
+            {/* ── ROW 1: Brutto/Netto button + inline fields ── */}
+            <div className="flex items-center gap-1.5 min-h-[36px]">
               <button
-                onClick={() => patch({ useBruttoNetto: !local.useBruttoNetto })}
+                onClick={toggleBruttoNetto}
                 className={cn(
                   'shrink-0 px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all whitespace-nowrap',
                   local.useBruttoNetto
@@ -321,32 +360,73 @@ export default function DurationCard({
                     : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
                 )}
               >Brutto/Netto</button>
+
               {local.useBruttoNetto && (
-                <div className="flex items-center gap-1.5 flex-1">
-                  <input type="number" min={0} step="0.01" value={local.brutto ?? ''} placeholder="Brutto"
-                    onChange={e => patch({ brutto: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
-                    className={cn('px-2 py-1.5 rounded-lg text-xs outline-none border transition-all w-0 flex-1 min-w-0',
-                      dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
-                    )} />
-                  <input type="number" min={0} step="0.01" value={local.netto ?? ''} placeholder="Netto"
-                    onChange={e => patch({ netto: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
-                    className={cn('px-2 py-1.5 rounded-lg text-xs outline-none border transition-all w-0 flex-1 min-w-0',
-                      dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
-                    )} />
-                  <input type="number" min={0} max={99} step="1" value={local.mwst ?? ''} placeholder="%"
-                    onChange={e => patch({ mwst: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
-                    className={cn('px-1.5 py-1.5 rounded-lg text-xs outline-none border transition-all',
-                      dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
-                    )}
-                    style={{ width: 42 }} />
+                /* Brutto (€) | Netto (€) | MwSt (%) — all on one line */
+                <div className="flex items-center gap-1 flex-1 min-w-0">
+                  {/* Brutto */}
+                  <div className="flex flex-col gap-0 flex-1 min-w-0">
+                    <span className={cn('text-[8px] font-bold uppercase tracking-widest leading-none mb-0.5', dk ? 'text-slate-600' : 'text-slate-400')}>Brutto €</span>
+                    <input
+                      type="number" min={0} step="0.01"
+                      value={local.brutto ?? ''}
+                      placeholder="0"
+                      onChange={e => {
+                        const val = e.target.value === '' ? null : normalizeNumberInput(e.target.value)
+                        // If brutto is entered, netto is derived — clear netto
+                        patch({ brutto: val, netto: null })
+                      }}
+                      className={cn(
+                        'px-1.5 py-1 rounded-lg text-xs outline-none border transition-all w-full',
+                        dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-600'
+                           : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
+                      )}
+                    />
+                  </div>
+                  {/* Netto */}
+                  <div className="flex flex-col gap-0 flex-1 min-w-0">
+                    <span className={cn('text-[8px] font-bold uppercase tracking-widest leading-none mb-0.5', dk ? 'text-slate-600' : 'text-slate-400')}>Netto €</span>
+                    <input
+                      type="number" min={0} step="0.01"
+                      value={local.netto ?? ''}
+                      placeholder="0"
+                      onChange={e => {
+                        const val = e.target.value === '' ? null : normalizeNumberInput(e.target.value)
+                        // If netto is entered, brutto is derived — clear brutto
+                        patch({ netto: val, brutto: null })
+                      }}
+                      className={cn(
+                        'px-1.5 py-1 rounded-lg text-xs outline-none border transition-all w-full',
+                        dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-600'
+                           : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
+                      )}
+                    />
+                  </div>
+                  {/* MwSt — narrow, max 2 digits */}
+                  <div className="flex flex-col gap-0 shrink-0">
+                    <span className={cn('text-[8px] font-bold uppercase tracking-widest leading-none mb-0.5', dk ? 'text-slate-600' : 'text-slate-400')}>MwSt %</span>
+                    <input
+                      type="number" min={0} max={99} step="1"
+                      value={local.mwst ?? ''}
+                      placeholder="%"
+                      onChange={e => patch({ mwst: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
+                      className={cn(
+                        'px-1.5 py-1 rounded-lg text-xs outline-none border transition-all',
+                        dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-600'
+                           : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
+                      )}
+                      style={{ width: 40 }}
+                    />
+                  </div>
                 </div>
               )}
             </div>
 
             <div className={cn('my-1.5 border-t', dk ? 'border-white/[0.06]' : 'border-slate-100')} />
 
-            {/* ROW 2: Discount + Deposit */}
-            <div className="flex items-center gap-2 min-h-[40px] flex-wrap">
+            {/* ── ROW 2: Discount | Deposit ── */}
+            <div className="flex items-center gap-1.5 min-h-[36px] flex-wrap">
+              {/* Discount button + field */}
               <button onClick={() => patch({ hasDiscount: !local.hasDiscount })}
                 className={cn('shrink-0 flex items-center gap-1', local.hasDiscount ? togOn('blue') : togOff)}>
                 <Tag size={10} />{lang === 'de' ? 'Rabatt' : 'Disc.'}
@@ -367,7 +447,10 @@ export default function DurationCard({
                     style={{ width: 52 }} />
                 </div>
               )}
+
               <span className={cn('text-xs', dk ? 'text-slate-700' : 'text-slate-300')}>·</span>
+
+              {/* Deposit button + field — note only, never deducted from total */}
               <button onClick={() => patch({ depositEnabled: !local.depositEnabled })}
                 className={cn('shrink-0', local.depositEnabled ? togOn('purple') : togOff)}>
                 {lang === 'de' ? 'Kaution' : 'Deposit'}
@@ -383,7 +466,7 @@ export default function DurationCard({
 
             <div className={cn('my-1.5 border-t', dk ? 'border-white/[0.06]' : 'border-slate-100')} />
 
-            {/* ROW 3: Extra costs */}
+            {/* ── ROW 3: Extra costs ── */}
             <div className="flex flex-col gap-1 min-h-[32px]">
               <div className="flex items-center justify-between">
                 <span className={cn('text-[9px] font-bold uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')}>
@@ -429,7 +512,7 @@ export default function DurationCard({
 
             <div className={cn('my-1.5 border-t', dk ? 'border-white/[0.06]' : 'border-slate-100')} />
 
-            {/* ROW 4: Paid/Unpaid + Total */}
+            {/* ── ROW 4: Paid/Unpaid + Total ── */}
             <div className="flex items-center gap-2">
               <button
                 onClick={() => patch({ isPaid: !local.isPaid })}
@@ -454,17 +537,15 @@ export default function DurationCard({
                   ) : null}
                 </span>
                 <span className={cn('text-2xl font-black leading-tight', dk ? 'text-white' : 'text-slate-900')}>
-                  {local.useBruttoNetto && !local.brutto && !(local.netto && local.mwst)
-                    ? formatCurrency(0)
-                    : formatCurrency(displayTotal)}
+                  {formatCurrency(displayTotal)}
                 </span>
-                {/* Std price/bed — informational */}
+                {/* Std price/bed — informational, only when not brutto/netto mode */}
                 {stdPricePerBed > 0 && !local.useBruttoNetto && (
                   <span className={cn('text-[10px]', dk ? 'text-slate-500' : 'text-slate-400')}>
                     {formatCurrency(stdPricePerBed)}/bed/N
                   </span>
                 )}
-                {/* Deposit — note only */}
+                {/* Deposit — note only, shown below total, never subtracted */}
                 {local.depositEnabled && local.depositAmount ? (
                   <span className={cn('text-[10px]', dk ? 'text-purple-400' : 'text-purple-600')}>
                     {lang === 'de' ? `Kaution: ${formatCurrency(local.depositAmount)}` : `Deposit: ${formatCurrency(local.depositAmount)}`}

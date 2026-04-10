@@ -47,6 +47,28 @@ export function formatDateShort(iso: string, lang: 'de' | 'en' = 'de'): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+/**
+ * Format ISO date as "16 Apr" for use in HotelRow duration chips.
+ * Always uses the short English-style month regardless of lang.
+ */
+export function formatDateChip(iso: string): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return '—'
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  return `${d.getDate()} ${months[d.getMonth()]}`
+}
+
+/**
+ * Format ISO date as dd/mm/yyyy for display in duration date fields.
+ */
+export function formatDateDMY(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`
+}
+
 // ─── Currency ─────────────────────────────────────────────────────────────────
 export function formatCurrency(value: number | undefined | null): string {
   if (value == null || isNaN(value)) return '—'
@@ -262,8 +284,13 @@ export function getDurationTabLabel(d: Duration, lang: 'de' | 'en' = 'de'): stri
   return `${formatDateShort(d.startDate, lang)} – ${formatDateShort(d.endDate, lang)}`
 }
 
+/**
+ * Duration chip shown in the HotelRow main row.
+ * Format: "16 Apr – 20 Apr"
+ */
 export function getDurationRowLabel(d: Duration, lang: 'de' | 'en' = 'de'): string {
-  return getDurationTabLabel(d, lang)
+  if (!d.startDate || !d.endDate) return lang === 'de' ? 'Neue Dauer' : 'New duration'
+  return `${formatDateChip(d.startDate)} – ${formatDateChip(d.endDate)}`
 }
 
 // ─── Gap detection ────────────────────────────────────────────────────────────
