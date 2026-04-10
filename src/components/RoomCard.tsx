@@ -34,7 +34,7 @@ function empBorderColor(emp: Employee | null, dk: boolean): string {
 function BedSlot({
   slotIndex, employee,
   durationStart, durationEnd,
-  gapStart, gapEnd,          // vacant window inside duration for this slot
+  gapStart, gapEnd,
   roomCardId, durationId,
   dk, lang, onUpdated,
 }: {
@@ -42,8 +42,8 @@ function BedSlot({
   employee: Employee | null
   durationStart: string
   durationEnd: string
-  gapStart?: string   // earliest a new employee can check in for this slot
-  gapEnd?: string     // latest check-out available in gap
+  gapStart?: string
+  gapEnd?: string
   roomCardId: string
   durationId: string
   dk: boolean
@@ -99,7 +99,6 @@ function BedSlot({
     finally { setSaving(false) }
   }
 
-  // ── Compact: assigned ─────────────────────────────────────────────────────
   if (!editing && employee) {
     const statusColor: Record<string, string> = {
       active:       dk ? 'text-emerald-400' : 'text-emerald-600',
@@ -135,9 +134,8 @@ function BedSlot({
     )
   }
 
-  // ── Compact: empty / gap slot ─────────────────────────────────────────────
   if (!editing) {
-    const isGap = !!(gapStart || gapEnd) // this slot rendered as a gap-fill button
+    const isGap = !!(gapStart || gapEnd)
     return (
       <button
         onClick={() => {
@@ -164,7 +162,6 @@ function BedSlot({
     )
   }
 
-  // ── Edit form ─────────────────────────────────────────────────────────────
   return (
     <div className={cn('rounded-lg border p-2.5 space-y-2', dk ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200')}>
       <div className="flex items-center gap-1.5">
@@ -222,10 +219,6 @@ function BedSlot({
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Gap analysis: for multi-occupancy, find vacant windows per sub-slot
-// Returns array of { slotIndex, gapStart, gapEnd } for rendering
-// ─────────────────────────────────────────────────────────────────────────────
 function getGapSlots(
   beds: number,
   employees: Employee[],
@@ -233,7 +226,6 @@ function getGapSlots(
   durationEnd: string
 ): { slotIndex: number; gapStart: string; gapEnd: string }[] {
   const gaps: { slotIndex: number; gapStart: string; gapEnd: string }[] = []
-  // Group employees by their original slotIndex
   const occupied: Record<number, Employee[]> = {}
   employees.forEach(e => {
     const si = e.slotIndex ?? 0
@@ -245,14 +237,11 @@ function getGapSlots(
     const occs = (occupied[i] ?? []).sort(
       (a, b) => (a.checkIn ?? '').localeCompare(b.checkIn ?? '')
     )
-    if (occs.length === 0) continue // handled as normal vacant slot
-
-    // Check gap before first occupant
+    if (occs.length === 0) continue
     const first = occs[0]
     if (first.checkIn && first.checkIn > durationStart) {
       gaps.push({ slotIndex: i, gapStart: durationStart, gapEnd: first.checkIn })
     }
-    // Check gaps between consecutive occupants
     for (let j = 0; j < occs.length - 1; j++) {
       const curr = occs[j]
       const next = occs[j + 1]
@@ -260,7 +249,6 @@ function getGapSlots(
         gaps.push({ slotIndex: i, gapStart: curr.checkOut, gapEnd: next.checkIn })
       }
     }
-    // Check gap after last occupant
     const last = occs[occs.length - 1]
     if (last.checkOut && last.checkOut < durationEnd) {
       gaps.push({ slotIndex: i, gapStart: last.checkOut, gapEnd: durationEnd })
@@ -302,14 +290,12 @@ export default function RoomCard({
   const derivedNetto  = calcRoomCardNetto(card)
   const isWG = card.roomType === 'WG'
 
-  // actual assigned employees
   const employees = card.employees ?? []
   const occupiedCount = employees.filter(e => {
     const s = getEmployeeStatus(e.checkIn ?? '', e.checkOut ?? '')
     return s === 'active' || s === 'ending-soon' || s === 'upcoming'
   }).length
 
-  // gap slots
   const gapSlots = getGapSlots(beds, employees, durationStart, durationEnd)
 
   const inputCls = cn(
@@ -344,9 +330,9 @@ export default function RoomCard({
       'rounded-xl border transition-all',
       dk ? 'bg-[#0d1629] border-white/10' : 'bg-white border-slate-200'
     )}>
-      {/* ── Header ── */}
+      {/* ── Header: Room No | Floor | Type | badges | [cost + actions anchored together] ── */}
       <div className={cn(
-        'flex items-center gap-2 px-3 py-2 flex-wrap',
+        'flex items-center gap-2 px-3 py-2',
         dk ? 'border-b border-white/8' : 'border-b border-slate-100'
       )}>
         {/* Room No */}
@@ -382,7 +368,7 @@ export default function RoomCard({
         </select>
         {/* WG bed stepper */}
         {isWG && (
-          <div className={cn('flex items-center rounded-lg border overflow-hidden', dk ? 'border-white/10' : 'border-slate-200')}>
+          <div className={cn('flex items-center rounded-lg border overflow-hidden shrink-0', dk ? 'border-white/10' : 'border-slate-200')}>
             <button onClick={() => patchBedCount(card.bedCount - 1)}
               className={cn('px-1.5 py-1', dk ? 'hover:bg-white/10' : 'hover:bg-slate-50')}><Minus size={11} /></button>
             <span className={cn('px-2 text-sm font-bold min-w-[28px] text-center',
@@ -391,23 +377,23 @@ export default function RoomCard({
               className={cn('px-1.5 py-1', dk ? 'hover:bg-white/10' : 'hover:bg-slate-50')}><Plus size={11} /></button>
           </div>
         )}
-        {/* Nights + beds badges */}
-        <span className={cn('text-xs font-bold px-2 py-1 rounded-md',
+        {/* Nights + beds badge */}
+        <span className={cn('text-xs font-bold px-2 py-1 rounded-md shrink-0',
           dk ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-600')}>
-          {nights}N · {beds}{lang === 'de' ? 'B' : 'B'}
+          {nights}N · {beds}B
         </span>
         {occupiedCount > 0 && (
-          <span className={cn('text-xs font-bold px-2 py-1 rounded-md',
+          <span className={cn('text-xs font-bold px-2 py-1 rounded-md shrink-0',
             dk ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-50 text-emerald-700')}>
             {occupiedCount}/{beds} {lang === 'de' ? 'belegt' : 'occ.'}
           </span>
         )}
-        {/* Total */}
-        <span className={cn('ml-auto text-base font-black', dk ? 'text-white' : 'text-slate-900')}>
-          {formatCurrency(total)}
-        </span>
-        {/* Action buttons */}
-        <div className="flex items-center gap-1">
+
+        {/* ── RIGHT ANCHOR: cost + action buttons fixed together, never wraps ── */}
+        <div className="ml-auto flex items-center gap-1 shrink-0">
+          <span className={cn('text-base font-black mr-1', dk ? 'text-white' : 'text-slate-900')}>
+            {formatCurrency(total)}
+          </span>
           {saving && <Loader2 size={12} className="animate-spin text-blue-400" />}
           <button
             onClick={() => setShowPricing(p => !p)}
@@ -438,7 +424,6 @@ export default function RoomCard({
       {showPricing && (
         <div className={cn('px-3 py-3 border-b space-y-3', dk ? 'border-white/8 bg-white/[0.02]' : 'border-slate-100 bg-slate-50/60')}>
           <div className="flex items-end gap-2 flex-wrap">
-            {/* Brutto/Netto mode toggle */}
             <button
               onClick={() => queueSave({ useBruttoNetto: !card.useBruttoNetto })}
               className={cn('px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all',
@@ -514,7 +499,6 @@ export default function RoomCard({
               </>
             )}
 
-            {/* Discount: % vs fix toggle + value */}
             <button
               onClick={() => queueSave({ hasDiscount: !card.hasDiscount })}
               className={cn('px-2.5 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1 transition-all self-end',
@@ -525,7 +509,6 @@ export default function RoomCard({
             </button>
             {card.hasDiscount && (
               <div className="flex items-end gap-1 self-end">
-                {/* Toggle % / fix */}
                 <button
                   onClick={() => queueSave({ discountType: card.discountType === 'percentage' ? 'fixed' : 'percentage' })}
                   className={cn(
@@ -549,7 +532,6 @@ export default function RoomCard({
               </div>
             )}
 
-            {/* Apply to same type */}
             {allCardsOfSameType.length > 1 && (
               <button
                 onClick={() => onApplyToSameType(card)}
@@ -607,37 +589,22 @@ export default function RoomCard({
       <div className="px-3 py-2.5 space-y-1.5">
         {Array.from({ length: beds }).map((_, i) => {
           const emp = employees.find(e => (e.slotIndex ?? 0) === i) ?? null
-          // Find gaps for this slot (only relevant if emp exists and has partial occupancy)
           const slotGaps = gapSlots.filter(g => g.slotIndex === i)
-
           return (
             <React.Fragment key={i}>
               <BedSlot
-                slotIndex={i}
-                employee={emp}
-                durationStart={durationStart}
-                durationEnd={durationEnd}
-                roomCardId={card.id}
-                durationId={card.durationId}
-                dk={dk}
-                lang={lang}
-                onUpdated={onEmployeeUpdated}
+                slotIndex={i} employee={emp}
+                durationStart={durationStart} durationEnd={durationEnd}
+                roomCardId={card.id} durationId={card.durationId}
+                dk={dk} lang={lang} onUpdated={onEmployeeUpdated}
               />
-              {/* Gap fill buttons for this slot */}
               {slotGaps.map((gap, gi) => (
                 <BedSlot
-                  key={`gap-${i}-${gi}`}
-                  slotIndex={i}
-                  employee={null}
-                  durationStart={durationStart}
-                  durationEnd={durationEnd}
-                  gapStart={gap.gapStart}
-                  gapEnd={gap.gapEnd}
-                  roomCardId={card.id}
-                  durationId={card.durationId}
-                  dk={dk}
-                  lang={lang}
-                  onUpdated={onEmployeeUpdated}
+                  key={`gap-${i}-${gi}`} slotIndex={i} employee={null}
+                  durationStart={durationStart} durationEnd={durationEnd}
+                  gapStart={gap.gapStart} gapEnd={gap.gapEnd}
+                  roomCardId={card.id} durationId={card.durationId}
+                  dk={dk} lang={lang} onUpdated={onEmployeeUpdated}
                 />
               ))}
             </React.Fragment>
@@ -645,7 +612,6 @@ export default function RoomCard({
         })}
       </div>
 
-      {/* ── Delete confirm ── */}
       {confirmDelete && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
           <div className={cn('w-full max-w-sm rounded-2xl border p-5',
