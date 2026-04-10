@@ -7,6 +7,9 @@ export type GroupBy       = 'none' | 'company' | 'city'
 
 export type RoomType = 'EZ' | 'DZ' | 'TZ' | 'WG'
 
+// Which pricing tab is active on a room card
+export type PricingTab = 'per_bed' | 'per_room' | 'total_room'
+
 export interface Employee {
   id: string
   durationId: string
@@ -17,6 +20,12 @@ export interface Employee {
   checkOut?: string
 }
 
+export interface ExtraCost {
+  id: string        // local uuid
+  note: string
+  amount: number
+}
+
 export interface RoomCard {
   id: string
   durationId: string
@@ -24,21 +33,43 @@ export interface RoomCard {
   floor: string
   roomType: RoomType
   bedCount: number          // 1=EZ 2=DZ 3=TZ N=WG
-  // pricing
-  nightlyPrice: number      // price/night/room (simple)
-  pricePerBed: boolean      // WG: use price/bed/night
-  pricePerBedAmount: number // WG price per bed
+
+  // ── New 3-tab pricing model ──
+  pricingTab: PricingTab    // which tab is active
+  // per_bed tab
+  bedNetto?: number | null
+  bedMwst?: number | null
+  bedBrutto?: number | null   // per bed per night
+  bedEnergy?: number | null   // extra per bed per night (same unit)
+  // per_room tab
+  roomNetto?: number | null
+  roomMwst?: number | null
+  roomBrutto?: number | null  // per room per night
+  roomEnergy?: number | null  // extra per room per night
+  // total_room tab
+  totalNetto?: number | null
+  totalMwst?: number | null
+  totalBrutto?: number | null // total brutto for whole room
+  totalEnergy?: number | null // flat extra on top of total
+
+  // discount (applies to room total after energy)
+  hasDiscount: boolean
+  discountType: 'percentage' | 'fixed'
+  discountValue: number
+
+  // legacy fields (kept for backward compat)
+  nightlyPrice: number
+  pricePerBed: boolean
+  pricePerBedAmount: number
   useBruttoNetto: boolean
   brutto?: number | null
   netto?: number | null
   mwst?: number | null
   useManualPrices: boolean
   nightlyPrices: Record<string, number>
-  hasDiscount: boolean
-  discountType: 'percentage' | 'fixed'
-  discountValue: number
-  pricingSynced: boolean    // apply-to-same-type shortcut
+  pricingSynced: boolean
   pricingMode: 'simple' | 'brutto_netto'
+
   sortOrder: number
   employees: Employee[]
 }
@@ -87,7 +118,9 @@ export interface Duration {
   depositAmount?: number | null
   extensionNote?: string | null
   employees: Employee[]
-  // new
+  // extra costs (informational items added to total)
+  extraCosts?: ExtraCost[]
+  // room cards
   roomCards: RoomCard[]
 }
 

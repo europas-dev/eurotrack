@@ -1,17 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
   CalendarDays, ChevronDown, ChevronUp,
-  Loader2, Minus, Plus, Tag, Trash2, Check,
+  Loader2, Minus, Plus, Tag, Trash2, Check, PlusCircle, X,
 } from 'lucide-react'
 import {
   cn, calculateNights, formatCurrency, normalizeNumberInput,
 } from '../lib/utils'
-import { calcRoomCardTotal } from '../lib/roomCardUtils'
+import { calcRoomCardTotal, calcPricePerBedPerNight, extractPricingFields } from '../lib/roomCardUtils'
 import { deleteDuration, updateDuration } from '../lib/supabase'
 import {
   createRoomCard, deleteRoomCard, getRoomCardsForDuration,
 } from '../lib/supabaseRoomCards'
-import type { Duration, RoomCard } from '../lib/types'
+import type { Duration, ExtraCost, RoomCard } from '../lib/types'
 import RoomCardComponent from './RoomCard'
 
 interface Props {
@@ -26,6 +26,10 @@ function addDays(iso: string, days: number): string {
   const d = new Date(iso)
   d.setDate(d.getDate() + days)
   return d.toISOString().split('T')[0]
+}
+
+function uid() {
+  return Math.random().toString(36).slice(2, 10)
 }
 
 const ROOM_TYPES = ['EZ', 'DZ', 'TZ', 'WG'] as const
@@ -70,11 +74,19 @@ export default function DurationCard({
   ) : 0
   const freeBeds = totalBeds - assignedBeds
 
-  // Grand total: when useBruttoNetto is ON, brutto input IS the total cost.
-  // Deposit is informational only — never subtracted from total.
+  // Standard price per bed per night across all room cards
+  const stdPricePerBed = hasDates && totalBeds > 0 && nights > 0
+    ? roomCardsTotal / nights / totalBeds
+    : 0
+
+  // Extra costs total
+  const extraCosts: ExtraCost[] = local.extraCosts ?? []
+  const extraTotal = extraCosts.reduce((s, e) => s + (e.amount || 0), 0)
+
+  // Grand total
   const bruttoTotal = local.useBruttoNetto
     ? (local.brutto ?? (local.netto != null && local.mwst != null ? local.netto * (1 + local.mwst / 100) : 0))
-    : roomCardsTotal
+    : roomCardsTotal + extraTotal
 
   let discountedTotal = bruttoTotal
   if (local.hasDiscount && local.discountValue) {
@@ -90,12 +102,11 @@ export default function DurationCard({
        : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
   )
   const labelCls = cn('text-[9px] font-bold uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')
-
-  const togOff = cn(
-    'px-3 py-2 rounded-lg text-xs font-bold border transition-all',
+  const togOff = cn('px-3 py-2 rounded-lg text-xs font-bold border transition-all',
     dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
   )
-  const togOn = (color: string) => `px-3 py-2 rounded-lg text-xs font-bold border transition-all bg-${color}-600 text-white border-${color}-600`
+  const togOn = (color: string) =>
+    `px-3 py-2 rounded-lg text-xs font-bold border transition-all bg-${color}-600 text-white border-${color}-600`
 
   function queueSave(next: Duration) {
     clearTimeout(saveTimer.current)
@@ -117,6 +128,19 @@ export default function DurationCard({
     patch({ endDate: addDays(local.startDate, d) })
   }
 
+  // ── Extra costs ────────────────────────────────────────────────────────────
+  function addExtraCost() {
+    const next: ExtraCost[] = [...extraCosts, { id: uid(), note: '', amount: 0 }]
+    patch({ extraCosts: next })
+  }
+  function patchExtraCost(id: string, changes: Partial<ExtraCost>) {
+    const next = extraCosts.map(e => e.id === id ? { ...e, ...changes } : e)
+    patch({ extraCosts: next })
+  }
+  function removeExtraCost(id: string) {
+    patch({ extraCosts: extraCosts.filter(e => e.id !== id) })
+  }
+
   const typeCount: Record<string, number> = {}
   roomCards.forEach(c => { typeCount[c.roomType] = (typeCount[c.roomType] ?? 0) + 1 })
 
@@ -130,7 +154,6 @@ export default function DurationCard({
     } catch (e) { console.error(e) }
     finally { setAddingType(null) }
   }
-
   async function handleRemoveLastOfType(roomType: string) {
     const cards = roomCards.filter(c => c.roomType === roomType)
     if (!cards.length) return
@@ -140,7 +163,6 @@ export default function DurationCard({
       setRoomCards(prev => prev.filter(c => c.id !== last.id))
     } catch (e) { console.error(e) }
   }
-
   function handleCardUpdate(id: string, p: Partial<RoomCard>) {
     setRoomCards(prev => prev.map(c => c.id === id ? { ...c, ...p } : c))
   }
@@ -148,13 +170,8 @@ export default function DurationCard({
     setRoomCards(prev => prev.filter(c => c.id !== id))
   }
   function handleApplyToSameType(source: RoomCard) {
-    const pricingFields = {
-      nightlyPrice: source.nightlyPrice, pricePerBed: source.pricePerBed,
-      pricePerBedAmount: source.pricePerBedAmount, useBruttoNetto: source.useBruttoNetto,
-      brutto: source.brutto, netto: source.netto, mwst: source.mwst,
-      hasDiscount: source.hasDiscount, discountType: source.discountType,
-      discountValue: source.discountValue,
-    }
+    // Only copy price fields — nothing else
+    const pricingFields = extractPricingFields(source)
     setRoomCards(prev => prev.map(c => {
       if (c.id === source.id || c.roomType !== source.roomType) return c
       import('../lib/supabaseRoomCards').then(({ updateRoomCard }) =>
@@ -167,30 +184,24 @@ export default function DurationCard({
   return (
     <div className={cn('rounded-2xl border', dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')}>
 
-      {/* TOP SECTION */}
       <div className="flex gap-3 p-4 flex-wrap items-start">
 
-        {/* Left: date + stats */}
+        {/* Left: dates + room chips */}
         <div className="flex flex-col gap-3 flex-1 min-w-0">
 
-          {/* ROW 1: Check-in | Check-out | Presets | Nights | rooms·beds·free | trash */}
+          {/* ROW 1: dates + presets + nights + stats + trash */}
           <div className="flex items-end gap-2 flex-wrap">
             <div className="flex flex-col gap-0.5">
               <label className={labelCls}>{lang === 'de' ? 'Check-in' : 'Check-in'}</label>
-              <input type="date"
-                value={local.startDate || ''}
-                onChange={e => patch({ startDate: e.target.value })}
-                className={cn(inputCls, 'w-36')}
-              />
+              <input type="date" value={local.startDate || ''}
+                onChange={e => patch({ startDate: e.target.value })} className={cn(inputCls, 'w-36')} />
             </div>
             <div className="flex flex-col gap-0.5">
               <label className={labelCls}>{lang === 'de' ? 'Check-out' : 'Check-out'}</label>
-              <input type="date"
-                value={local.endDate || ''}
+              <input type="date" value={local.endDate || ''}
                 min={local.startDate || undefined}
                 onChange={e => { setCheckoutOffset(null); patch({ endDate: e.target.value }) }}
-                className={cn(inputCls, 'w-36')}
-              />
+                className={cn(inputCls, 'w-36')} />
             </div>
             {local.startDate && (
               <div className="flex items-center gap-1 self-end pb-0.5">
@@ -210,15 +221,13 @@ export default function DurationCard({
             )}
             {hasDates && (
               <div className={cn('self-end px-3 py-1.5 rounded-lg border text-sm font-black shrink-0',
-                dk ? 'border-white/10 bg-white/5 text-white' : 'border-slate-200 bg-slate-50 text-slate-900')}>
-                {nights}N
-              </div>
+                dk ? 'border-white/10 bg-white/5 text-white' : 'border-slate-200 bg-slate-50 text-slate-900')}>{nights}N</div>
             )}
             {hasDates && roomCards.length > 0 && (
               <div className="self-end pb-0.5 flex items-center gap-1 text-sm font-bold">
                 <span className={dk ? 'text-slate-400' : 'text-slate-500'}>{roomCards.length} {lang === 'de' ? 'Zi.' : 'rooms'}</span>
                 <span className={dk ? 'text-slate-600' : 'text-slate-300'}>·</span>
-                <span className={dk ? 'text-slate-400' : 'text-slate-500'}>{totalBeds} {lang === 'de' ? 'B.' : 'beds'}</span>
+                <span className={dk ? 'text-slate-400' : 'text-slate-500'}>{totalBeds}B</span>
                 {freeBeds > 0 && (<><span className={dk ? 'text-slate-600' : 'text-slate-300'}>·</span><span className="text-red-500 font-bold">{freeBeds} {lang === 'de' ? 'frei' : 'free'}</span></>)}
               </div>
             )}
@@ -252,9 +261,7 @@ export default function DurationCard({
           {/* ROW 3: Room type chips */}
           {hasDates && (
             <div className="flex items-center gap-2 flex-wrap">
-              <span className={cn('text-xs font-bold', dk ? 'text-slate-400' : 'text-slate-500')}>
-                {lang === 'de' ? 'Zimmer:' : 'Rooms:'}
-              </span>
+              <span className={cn('text-xs font-bold', dk ? 'text-slate-400' : 'text-slate-500')}>{lang === 'de' ? 'Zimmer:' : 'Rooms:'}</span>
               {ROOM_TYPES.map(rt => (
                 <div key={rt} className="flex items-center">
                   {(typeCount[rt] ?? 0) > 0 && (
@@ -303,7 +310,7 @@ export default function DurationCard({
             dk ? 'bg-white/[0.03] border-white/10' : 'bg-slate-50 border-slate-200'
           )}>
 
-            {/* ROW 1: Brutto/Netto button + inline fields */}
+            {/* ROW 1: Brutto/Netto */}
             <div className="flex items-center gap-2 min-h-[40px]">
               <button
                 onClick={() => patch({ useBruttoNetto: !local.useBruttoNetto })}
@@ -314,34 +321,21 @@ export default function DurationCard({
                     : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
                 )}
               >Brutto/Netto</button>
-
               {local.useBruttoNetto && (
                 <div className="flex items-center gap-1.5 flex-1">
-                  {/* Brutto */}
-                  <input type="number" min={0} step="0.01"
-                    value={local.brutto ?? ''}
-                    placeholder="Brutto"
+                  <input type="number" min={0} step="0.01" value={local.brutto ?? ''} placeholder="Brutto"
                     onChange={e => patch({ brutto: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
-                    className={cn(
-                      'px-2 py-1.5 rounded-lg text-xs outline-none border transition-all w-0 flex-1 min-w-0',
+                    className={cn('px-2 py-1.5 rounded-lg text-xs outline-none border transition-all w-0 flex-1 min-w-0',
                       dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
                     )} />
-                  {/* Netto */}
-                  <input type="number" min={0} step="0.01"
-                    value={local.netto ?? ''}
-                    placeholder="Netto"
+                  <input type="number" min={0} step="0.01" value={local.netto ?? ''} placeholder="Netto"
                     onChange={e => patch({ netto: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
-                    className={cn(
-                      'px-2 py-1.5 rounded-lg text-xs outline-none border transition-all w-0 flex-1 min-w-0',
+                    className={cn('px-2 py-1.5 rounded-lg text-xs outline-none border transition-all w-0 flex-1 min-w-0',
                       dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
                     )} />
-                  {/* MwSt — narrow, 2-digit */}
-                  <input type="number" min={0} max={99} step="1"
-                    value={local.mwst ?? ''}
-                    placeholder="%"
+                  <input type="number" min={0} max={99} step="1" value={local.mwst ?? ''} placeholder="%"
                     onChange={e => patch({ mwst: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
-                    className={cn(
-                      'px-1.5 py-1.5 rounded-lg text-xs outline-none border transition-all',
+                    className={cn('px-1.5 py-1.5 rounded-lg text-xs outline-none border transition-all',
                       dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
                     )}
                     style={{ width: 42 }} />
@@ -349,12 +343,10 @@ export default function DurationCard({
               )}
             </div>
 
-            {/* Divider */}
             <div className={cn('my-1.5 border-t', dk ? 'border-white/[0.06]' : 'border-slate-100')} />
 
-            {/* ROW 2: Discount button + fields | Deposit button + field */}
+            {/* ROW 2: Discount + Deposit */}
             <div className="flex items-center gap-2 min-h-[40px] flex-wrap">
-              {/* Discount */}
               <button onClick={() => patch({ hasDiscount: !local.hasDiscount })}
                 className={cn('shrink-0 flex items-center gap-1', local.hasDiscount ? togOn('blue') : togOff)}>
                 <Tag size={10} />{lang === 'de' ? 'Rabatt' : 'Disc.'}
@@ -363,48 +355,82 @@ export default function DurationCard({
                 <div className="flex items-center">
                   <button
                     onClick={() => patch({ discountType: local.discountType === 'percentage' ? 'fixed' : 'percentage' })}
-                    className={cn('px-2 py-1.5 rounded-l-lg rounded-r-none border text-xs font-bold border-r-0 transition-all',
-                      dk ? 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                    )}>
+                    className={cn('px-2 py-1.5 rounded-l-lg rounded-r-none border text-xs font-bold border-r-0',
+                      dk ? 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50')}>
                     {local.discountType === 'percentage' ? '%' : '€'}
                   </button>
-                  <input type="number" min={0}
-                    value={local.discountValue || ''}
+                  <input type="number" min={0} value={local.discountValue || ''}
                     placeholder={local.discountType === 'percentage' ? '10' : '50'}
                     onChange={e => patch({ discountValue: normalizeNumberInput(e.target.value) })}
-                    className={cn('px-2 py-1.5 rounded-r-lg rounded-l-none border text-xs outline-none transition-all',
-                      dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
-                    )}
+                    className={cn('px-2 py-1.5 rounded-r-lg rounded-l-none border text-xs outline-none',
+                      dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}
                     style={{ width: 52 }} />
                 </div>
               )}
-
-              {/* Separator dot */}
               <span className={cn('text-xs', dk ? 'text-slate-700' : 'text-slate-300')}>·</span>
-
-              {/* Deposit — note only, no calculation */}
               <button onClick={() => patch({ depositEnabled: !local.depositEnabled })}
                 className={cn('shrink-0', local.depositEnabled ? togOn('purple') : togOff)}>
                 {lang === 'de' ? 'Kaution' : 'Deposit'}
               </button>
               {local.depositEnabled && (
-                <input type="number" min={0} step="0.01"
-                  value={local.depositAmount ?? ''}
-                  placeholder="€"
+                <input type="number" min={0} step="0.01" value={local.depositAmount ?? ''} placeholder="€"
                   onChange={e => patch({ depositAmount: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
-                  className={cn('px-2 py-1.5 rounded-lg border text-xs outline-none transition-all',
-                    dk ? 'bg-white/5 border-purple-500/30 text-white placeholder-slate-600' : 'bg-white border-purple-300 text-slate-900 placeholder-slate-400'
-                  )}
+                  className={cn('px-2 py-1.5 rounded-lg border text-xs outline-none',
+                    dk ? 'bg-white/5 border-purple-500/30 text-white placeholder-slate-600' : 'bg-white border-purple-300 text-slate-900 placeholder-slate-400')}
                   style={{ width: 64 }} />
               )}
             </div>
 
-            {/* Divider */}
             <div className={cn('my-1.5 border-t', dk ? 'border-white/[0.06]' : 'border-slate-100')} />
 
-            {/* ROW 3: Paid/Unpaid toggle | Total Cost */}
+            {/* ROW 3: Extra costs */}
+            <div className="flex flex-col gap-1 min-h-[32px]">
+              <div className="flex items-center justify-between">
+                <span className={cn('text-[9px] font-bold uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')}>
+                  {lang === 'de' ? 'Extrakosten' : 'Extra costs'}
+                </span>
+                <button onClick={addExtraCost}
+                  className={cn('p-0.5 rounded transition-all', dk ? 'text-slate-500 hover:text-blue-400' : 'text-slate-400 hover:text-blue-600')}>
+                  <PlusCircle size={13} />
+                </button>
+              </div>
+              {extraCosts.map(ec => (
+                <div key={ec.id} className="flex items-center gap-1">
+                  <input type="text" value={ec.note}
+                    onChange={e => patchExtraCost(ec.id, { note: e.target.value })}
+                    placeholder={lang === 'de' ? 'Notiz...' : 'Note...'}
+                    className={cn(
+                      'flex-1 min-w-0 px-2 py-1 rounded-lg text-xs outline-none border transition-all',
+                      dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
+                    )} />
+                  <input type="number" min={0} step="0.01" value={ec.amount || ''}
+                    placeholder="€"
+                    onChange={e => patchExtraCost(ec.id, { amount: normalizeNumberInput(e.target.value) })}
+                    className={cn('px-2 py-1 rounded-lg text-xs outline-none border transition-all',
+                      dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}
+                    style={{ width: 64 }} />
+                  <button onClick={() => removeExtraCost(ec.id)}
+                    className={cn('p-1 rounded', dk ? 'text-red-400 hover:bg-red-900/20' : 'text-red-500 hover:bg-red-50')}>
+                    <X size={10} />
+                  </button>
+                </div>
+              ))}
+              {extraTotal > 0 && (
+                <div className="flex justify-between">
+                  <span className={cn('text-[10px]', dk ? 'text-slate-500' : 'text-slate-400')}>
+                    {lang === 'de' ? 'Extrasumme' : 'Extra total'}
+                  </span>
+                  <span className={cn('text-[10px] font-bold', dk ? 'text-white' : 'text-slate-900')}>
+                    +{formatCurrency(extraTotal)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className={cn('my-1.5 border-t', dk ? 'border-white/[0.06]' : 'border-slate-100')} />
+
+            {/* ROW 4: Paid/Unpaid + Total */}
             <div className="flex items-center gap-2">
-              {/* Paid / Unpaid toggle */}
               <button
                 onClick={() => patch({ isPaid: !local.isPaid })}
                 className={cn(
@@ -415,12 +441,9 @@ export default function DurationCard({
                 )}
               >
                 {local.isPaid && <Check size={11} />}
-                {local.isPaid
-                  ? (lang === 'de' ? 'Bezahlt' : 'Paid')
-                  : (lang === 'de' ? 'Unbezahlt' : 'Unpaid')}
+                {local.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Unbezahlt' : 'Unpaid')}
               </button>
 
-              {/* Total Cost — right-anchored */}
               <div className="ml-auto flex flex-col items-end">
                 <span className={cn('text-[9px] font-bold uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')}>
                   {lang === 'de' ? 'Gesamt' : 'Total'}
@@ -435,7 +458,13 @@ export default function DurationCard({
                     ? formatCurrency(0)
                     : formatCurrency(displayTotal)}
                 </span>
-                {/* Deposit shown as note only — not subtracted */}
+                {/* Std price/bed — informational */}
+                {stdPricePerBed > 0 && !local.useBruttoNetto && (
+                  <span className={cn('text-[10px]', dk ? 'text-slate-500' : 'text-slate-400')}>
+                    {formatCurrency(stdPricePerBed)}/bed/N
+                  </span>
+                )}
+                {/* Deposit — note only */}
                 {local.depositEnabled && local.depositAmount ? (
                   <span className={cn('text-[10px]', dk ? 'text-purple-400' : 'text-purple-600')}>
                     {lang === 'de' ? `Kaution: ${formatCurrency(local.depositAmount)}` : `Deposit: ${formatCurrency(local.depositAmount)}`}
@@ -449,21 +478,16 @@ export default function DurationCard({
 
       {/* ROOM CARDS */}
       {loadingCards && (
-        <div className="flex justify-center py-4">
-          <Loader2 size={18} className="animate-spin text-blue-400" />
-        </div>
+        <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-blue-400" /></div>
       )}
       {!loadingCards && roomCards.length > 0 && (
         <div className={cn('border-t px-4 py-3', dk ? 'border-white/10' : 'border-slate-100')}>
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))' }}>
             {roomCards.map(card => (
               <RoomCardComponent
-                key={card.id}
-                card={card}
-                durationStart={local.startDate}
-                durationEnd={local.endDate}
-                dk={dk}
-                lang={lang}
+                key={card.id} card={card}
+                durationStart={local.startDate} durationEnd={local.endDate}
+                dk={dk} lang={lang}
                 allCardsOfSameType={roomCards.filter(c => c.roomType === card.roomType)}
                 onUpdate={handleCardUpdate}
                 onDelete={handleCardDelete}
@@ -482,7 +506,7 @@ export default function DurationCard({
             dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
             <h3 className="text-lg font-black mb-2">{lang === 'de' ? 'Dauer löschen?' : 'Delete duration?'}</h3>
             <p className={cn('text-sm mb-4', dk ? 'text-slate-400' : 'text-slate-600')}>
-              {lang === 'de' ? 'Diese Buchungsdauer wird dauerhaft gelöscht.' : 'This duration will be permanently deleted.'}
+              {lang === 'de' ? 'Diese Buchungsdauer wird dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.' : 'This duration will be permanently deleted. This cannot be undone.'}
             </p>
             <div className="flex justify-end gap-2">
               <button onClick={() => setConfirm(false)}
