@@ -57,7 +57,6 @@ export default function DurationCard({
   const nights   = calculateNights(local.startDate, local.endDate)
   const hasDates = !!(local.startDate && local.endDate && nights > 0)
 
-  // ── Aggregate totals from room cards ──────────────────────────────────────
   const roomCardsTotal = roomCards.reduce(
     (s, c) => s + calcRoomCardTotal(c, local.startDate, local.endDate), 0
   )
@@ -70,14 +69,12 @@ export default function DurationCard({
   ) : 0
   const freeBeds = totalBeds - assignedBeds
 
-  // grand total: override if duration-level brutto set, otherwise sum cards
-  const grandTotal = local.useBruttoNetto && local.brutto
+  const grandTotal = local.useBruttoNetto && local.brutto != null
     ? local.brutto
-    : local.useBruttoNetto && local.netto && local.mwst
+    : local.useBruttoNetto && local.netto != null && local.mwst != null
     ? local.netto * (1 + local.mwst / 100)
     : roomCardsTotal
 
-  // Discount on grand total
   let discountedTotal = grandTotal
   if (local.hasDiscount && local.discountValue) {
     discountedTotal = local.discountType === 'fixed'
@@ -106,6 +103,14 @@ export default function DurationCard({
     setLocal(next); queueSave(next)
   }
 
+  function toggleManualTotalMode() {
+    if (local.useBruttoNetto) {
+      patch({ useBruttoNetto: false, brutto: null, netto: null, mwst: null })
+      return
+    }
+    patch({ useBruttoNetto: true, brutto: null, netto: null, mwst: null })
+  }
+
   function applyPreset(days: number, delta = 0) {
     if (!local.startDate) return
     const d = days + delta
@@ -113,7 +118,6 @@ export default function DurationCard({
     patch({ endDate: addDays(local.startDate, d) })
   }
 
-  // ── Type chip counts ──────────────────────────────────────────────────────
   const typeCount: Record<string, number> = {}
   roomCards.forEach(c => { typeCount[c.roomType] = (typeCount[c.roomType] ?? 0) + 1 })
 
@@ -169,16 +173,9 @@ export default function DurationCard({
 
   return (
     <div className={cn('rounded-2xl border', dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')}>
-
-      {/* ══ TOP SECTION ══ */}
       <div className="flex gap-3 p-4 flex-wrap items-start">
-
-        {/* ── Left: date + stats in one row ── */}
         <div className="flex flex-col gap-3 flex-1 min-w-0">
-
-          {/* ─── ROW 1: Check-in | Check-out | Presets | Nights | rooms·beds·free | trash ─── */}
           <div className="flex items-end gap-2 flex-wrap">
-            {/* Check-in */}
             <div className="flex flex-col gap-0.5">
               <label className={labelCls}>{lang === 'de' ? 'Check-in' : 'Check-in'}</label>
               <input type="date"
@@ -188,7 +185,6 @@ export default function DurationCard({
               />
             </div>
 
-            {/* Check-out */}
             <div className="flex flex-col gap-0.5">
               <label className={labelCls}>{lang === 'de' ? 'Check-out' : 'Check-out'}</label>
               <input type="date"
@@ -199,7 +195,6 @@ export default function DurationCard({
               />
             </div>
 
-            {/* Quick presets */}
             {local.startDate && (
               <div className="flex items-center gap-1 self-end pb-0.5">
                 {[{ label: '1W', days: 7 }, { label: '1M', days: 30 }].map(p => (
@@ -223,7 +218,6 @@ export default function DurationCard({
               </div>
             )}
 
-            {/* Nights badge */}
             {hasDates && (
               <div className={cn('self-end px-3 py-1.5 rounded-lg border text-sm font-black shrink-0',
                 dk ? 'border-white/10 bg-white/5 text-white' : 'border-slate-200 bg-slate-50 text-slate-900')}>
@@ -231,7 +225,6 @@ export default function DurationCard({
               </div>
             )}
 
-            {/* rooms · beds · free — same row, after nights badge */}
             {hasDates && roomCards.length > 0 && (
               <div className="self-end pb-0.5 flex items-center gap-1 text-sm font-bold">
                 <span className={dk ? 'text-slate-400' : 'text-slate-500'}>
@@ -263,7 +256,6 @@ export default function DurationCard({
             </div>
           </div>
 
-          {/* ─── ROW 2: Invoice + Booking ref (fixed width) ─── */}
           <div className="flex items-end gap-2 flex-wrap">
             <div className="flex flex-col gap-0.5">
               <label className={labelCls}>{lang === 'de' ? 'Rechnungs-Nr.' : 'Invoice No.'}</label>
@@ -274,7 +266,6 @@ export default function DurationCard({
                 className={cn(inputCls, 'w-36')}
               />
             </div>
-            {/* Fixed width — no longer flex-1/w-full */}
             <div className="flex flex-col gap-0.5">
               <label className={labelCls}>{lang === 'de' ? 'Buchungsreferenz / Notiz' : 'Booking ref / note'}</label>
               <input type="text"
@@ -286,7 +277,6 @@ export default function DurationCard({
             </div>
           </div>
 
-          {/* ─── ROW 3: Room type chips ─── */}
           {hasDates && (
             <div className="flex items-center gap-2 flex-wrap">
               <span className={cn('text-xs font-bold', dk ? 'text-slate-400' : 'text-slate-500')}>
@@ -350,17 +340,14 @@ export default function DurationCard({
           )}
         </div>
 
-        {/* ── Right: summary cost card — wider w-80 ── */}
         {hasDates && (
           <div className={cn(
             'w-80 shrink-0 rounded-xl border p-4 flex flex-col gap-3',
             dk ? 'bg-white/[0.03] border-white/10' : 'bg-slate-50 border-slate-200'
           )}>
-
-            {/* ── Master Brutto/Netto toggle ── */}
             <div className="flex items-center gap-2 flex-wrap">
               <button
-                onClick={() => patch({ useBruttoNetto: !local.useBruttoNetto })}
+                onClick={toggleManualTotalMode}
                 className={cn(
                   'px-3 py-2 rounded-lg text-xs font-bold border transition-all',
                   local.useBruttoNetto
@@ -370,19 +357,18 @@ export default function DurationCard({
               >Brutto / Netto</button>
               <span className={cn('text-xs', dk ? 'text-slate-500' : 'text-slate-400')}>
                 {local.useBruttoNetto
-                  ? (lang === 'de' ? '— Gesamtpreis manuell' : '— manual total price')
+                  ? (lang === 'de' ? '— Gesamtpreis manuell (startet bei 0)' : '— manual total price (starts at 0)')
                   : (lang === 'de' ? '— Summe der Zimmer' : '— sum of rooms')}
               </span>
             </div>
 
-            {/* ── Brutto/Netto inputs (master mode) ── */}
             {local.useBruttoNetto && (
               <div className="flex items-end gap-2 flex-wrap">
                 <div className="flex flex-col gap-0.5">
                   <label className={cn('text-[10px] font-bold uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')}>Brutto (€)</label>
                   <input type="number" min={0} step="0.01"
                     value={local.brutto ?? ''}
-                    placeholder="Brutto..."
+                    placeholder="0.00"
                     onChange={e => patch({ brutto: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
                     className={cn(inputCls, 'w-28 text-sm')} />
                 </div>
@@ -390,7 +376,7 @@ export default function DurationCard({
                   <label className={cn('text-[10px] font-bold uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')}>Netto (€)</label>
                   <input type="number" min={0} step="0.01"
                     value={local.netto ?? ''}
-                    placeholder="Netto..."
+                    placeholder="optional"
                     onChange={e => patch({ netto: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
                     className={cn(inputCls, 'w-28 text-sm')} />
                 </div>
@@ -405,7 +391,6 @@ export default function DurationCard({
               </div>
             )}
 
-            {/* ── Toggle buttons row: Discount · Deposit · Paid ── */}
             <div className="flex items-center gap-2 flex-wrap">
               <button onClick={() => patch({ hasDiscount: !local.hasDiscount })}
                 className={cn('flex items-center gap-1', local.hasDiscount ? togOn('blue') : togOff)}>
@@ -421,7 +406,6 @@ export default function DurationCard({
               </button>
             </div>
 
-            {/* ── Discount inputs ── */}
             {local.hasDiscount && (
               <div className="flex items-center gap-1">
                 <button
@@ -444,7 +428,6 @@ export default function DurationCard({
               </div>
             )}
 
-            {/* ── Deposit amount ── */}
             {local.depositEnabled && (
               <input
                 type="number" min={0} step="0.01"
@@ -457,7 +440,6 @@ export default function DurationCard({
               />
             )}
 
-            {/* ── Grand total ── */}
             <div className={cn('pt-2 border-t flex items-baseline justify-between',
               dk ? 'border-white/10' : 'border-slate-200')}>
               <span className={cn('text-sm font-bold', dk ? 'text-slate-400' : 'text-slate-500')}>
@@ -475,15 +457,18 @@ export default function DurationCard({
 
             {local.depositEnabled && local.depositAmount ? (
               <div className="flex items-center justify-between">
-                <span className={cn('text-sm', dk ? 'text-slate-500' : 'text-slate-400')}>{lang === 'de' ? 'Kaution' : 'Deposit'}</span>
-                <span className={cn('text-sm font-bold', dk ? 'text-purple-400' : 'text-purple-700')}>{formatCurrency(local.depositAmount)}</span>
+                <span className={cn('text-sm', dk ? 'text-slate-500' : 'text-slate-400')}>
+                  {lang === 'de' ? 'Kaution (nur Notiz)' : 'Deposit (note only)'}
+                </span>
+                <span className={cn('text-sm font-bold', dk ? 'text-purple-400' : 'text-purple-700')}>
+                  {formatCurrency(local.depositAmount)}
+                </span>
               </div>
             ) : null}
           </div>
         )}
       </div>
 
-      {/* ══ ROOM CARDS ══ */}
       {loadingCards && (
         <div className="flex justify-center py-4">
           <Loader2 size={18} className="animate-spin text-blue-400" />
@@ -510,7 +495,6 @@ export default function DurationCard({
         </div>
       )}
 
-      {/* ══ DELETE CONFIRM ══ */}
       {confirmDelete && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4">
           <div className={cn('w-full max-w-md rounded-2xl border p-5',

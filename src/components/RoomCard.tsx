@@ -17,7 +17,6 @@ import {
 import type { Employee, RoomCard as RoomCardType } from '../lib/types'
 import { getEmployeeStatus } from '../lib/utils'
 
-// ── Employee border colour ────────────────────────────────────────────────────
 function empBorderColor(emp: Employee | null, dk: boolean): string {
   if (!emp) return dk ? 'border-white/10' : 'border-slate-200'
   const s = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '')
@@ -28,9 +27,6 @@ function empBorderColor(emp: Employee | null, dk: boolean): string {
   return dk ? 'border-white/10' : 'border-slate-200'
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// BedSlot
-// ─────────────────────────────────────────────────────────────────────────────
 function BedSlot({
   slotIndex, employee,
   durationStart, durationEnd,
@@ -257,9 +253,6 @@ function getGapSlots(
   return gaps
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main RoomCard
-// ─────────────────────────────────────────────────────────────────────────────
 interface RoomCardProps {
   card: RoomCardType
   durationStart: string
@@ -315,6 +308,24 @@ export default function RoomCard({
     }, 400)
   }
 
+  function toggleBruttoNettoMode() {
+    if (card.useBruttoNetto) {
+      queueSave({ useBruttoNetto: false, brutto: null, netto: null, mwst: null })
+      return
+    }
+    queueSave({
+      useBruttoNetto: true,
+      brutto: null,
+      netto: null,
+      mwst: null,
+      nightlyPrice: 0,
+      pricePerBed: false,
+      pricePerBedAmount: 0,
+      nightlyPrices: {},
+      useManualPrices: false,
+    })
+  }
+
   function patchBedCount(raw: number) {
     queueSave({ bedCount: Math.max(1, raw) })
   }
@@ -330,12 +341,10 @@ export default function RoomCard({
       'rounded-xl border transition-all',
       dk ? 'bg-[#0d1629] border-white/10' : 'bg-white border-slate-200'
     )}>
-      {/* ── Header: Room No | Floor | Type | badges | [cost + actions anchored together] ── */}
       <div className={cn(
         'flex items-center gap-2 px-3 py-2',
         dk ? 'border-b border-white/8' : 'border-b border-slate-100'
       )}>
-        {/* Room No */}
         <input
           type="text" value={card.roomNo}
           onChange={e => queueSave({ roomNo: e.target.value })}
@@ -343,7 +352,6 @@ export default function RoomCard({
           title={lang === 'de' ? 'Zimmer-Nr.' : 'Room No.'}
           className={cn(inputCls, 'w-14 text-center font-bold text-sm')}
         />
-        {/* Floor */}
         <input
           type="text" value={card.floor}
           onChange={e => queueSave({ floor: e.target.value })}
@@ -351,7 +359,6 @@ export default function RoomCard({
           title={lang === 'de' ? 'Etage' : 'Floor'}
           className={cn(inputCls, 'w-12 text-center text-sm')}
         />
-        {/* Type */}
         <select
           value={card.roomType}
           onChange={e => {
@@ -366,7 +373,6 @@ export default function RoomCard({
           <option value="TZ">TZ</option>
           <option value="WG">WG</option>
         </select>
-        {/* WG bed stepper */}
         {isWG && (
           <div className={cn('flex items-center rounded-lg border overflow-hidden shrink-0', dk ? 'border-white/10' : 'border-slate-200')}>
             <button onClick={() => patchBedCount(card.bedCount - 1)}
@@ -377,7 +383,6 @@ export default function RoomCard({
               className={cn('px-1.5 py-1', dk ? 'hover:bg-white/10' : 'hover:bg-slate-50')}><Plus size={11} /></button>
           </div>
         )}
-        {/* Nights + beds badge */}
         <span className={cn('text-xs font-bold px-2 py-1 rounded-md shrink-0',
           dk ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-600')}>
           {nights}N · {beds}B
@@ -389,7 +394,6 @@ export default function RoomCard({
           </span>
         )}
 
-        {/* ── RIGHT ANCHOR: cost + action buttons fixed together, never wraps ── */}
         <div className="ml-auto flex items-center gap-1 shrink-0">
           <span className={cn('text-base font-black mr-1', dk ? 'text-white' : 'text-slate-900')}>
             {formatCurrency(total)}
@@ -420,12 +424,11 @@ export default function RoomCard({
         </div>
       </div>
 
-      {/* ── Pricing panel ── */}
       {showPricing && (
         <div className={cn('px-3 py-3 border-b space-y-3', dk ? 'border-white/8 bg-white/[0.02]' : 'border-slate-100 bg-slate-50/60')}>
           <div className="flex items-end gap-2 flex-wrap">
             <button
-              onClick={() => queueSave({ useBruttoNetto: !card.useBruttoNetto })}
+              onClick={toggleBruttoNettoMode}
               className={cn('px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all',
                 card.useBruttoNetto
                   ? 'bg-amber-500 text-white border-amber-500'
@@ -468,14 +471,14 @@ export default function RoomCard({
                 <div className="flex flex-col gap-0.5">
                   <label className={labelCls}>Brutto (€)</label>
                   <input type="number" min={0} step="0.01"
-                    value={card.brutto ?? ''} placeholder="Brutto..."
+                    value={card.brutto ?? ''} placeholder="0.00"
                     onChange={e => queueSave({ brutto: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
                     className={cn(inputCls, 'w-28')} />
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <label className={labelCls}>Netto (€)</label>
                   <input type="number" min={0} step="0.01"
-                    value={card.netto ?? ''} placeholder="Netto..."
+                    value={card.netto ?? ''} placeholder="optional"
                     onChange={e => queueSave({ netto: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
                     className={cn(inputCls, 'w-28')} />
                 </div>
@@ -547,7 +550,6 @@ export default function RoomCard({
         </div>
       )}
 
-      {/* ── Night calendar ── */}
       {showCalendar && durationStart && durationEnd && (
         <div className={cn('px-3 py-2.5 border-b', dk ? 'border-white/8 bg-white/[0.02]' : 'border-slate-100 bg-slate-50/40')}>
           <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-2', dk ? 'text-slate-500' : 'text-slate-400')}>
@@ -574,18 +576,19 @@ export default function RoomCard({
               </div>
             ))}
           </div>
-          <button
-            onClick={() => queueSave({ useManualPrices: !card.useManualPrices })}
-            className={cn('mt-2 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all',
-              card.useManualPrices ? 'bg-purple-600 text-white border-purple-600' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-            )}
-          >
-            {card.useManualPrices ? (lang === 'de' ? 'Manual AN' : 'Manual ON') : (lang === 'de' ? 'Manuelle Nachtpreise' : 'Manual nightly')}
-          </button>
+          {!card.useBruttoNetto && (
+            <button
+              onClick={() => queueSave({ useManualPrices: !card.useManualPrices })}
+              className={cn('mt-2 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all',
+                card.useManualPrices ? 'bg-purple-600 text-white border-purple-600' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+              )}
+            >
+              {card.useManualPrices ? (lang === 'de' ? 'Manual AN' : 'Manual ON') : (lang === 'de' ? 'Manuelle Nachtpreise' : 'Manual nightly')}
+            </button>
+          )}
         </div>
       )}
 
-      {/* ── Bed slots ── */}
       <div className="px-3 py-2.5 space-y-1.5">
         {Array.from({ length: beds }).map((_, i) => {
           const emp = employees.find(e => (e.slotIndex ?? 0) === i) ?? null
