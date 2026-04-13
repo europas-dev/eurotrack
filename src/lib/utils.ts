@@ -114,11 +114,9 @@ export function getDurationTotalBeds(d: Pick<Duration, 'roomType' | 'numberOfRoo
   return getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom)
 }
 
-// ─── Pricing (Fully Updated for Room Cards) ───────────────────────────────────
+// ─── Pricing ───────────────────────────────────────────────────
 export function getDurationTotal(d: Duration): number {
   const roomCards = d.roomCards || [];
-  
-  // Safely cast extra costs to Numbers so they NEVER equal NaN
   const extraTotal = (d.extraCosts || []).reduce((s, e) => s + (Number(e.amount) || 0), 0);
 
   let bruttoBase = 0;
@@ -126,7 +124,6 @@ export function getDurationTotal(d: Duration): number {
   if (d.useBruttoNetto) {
     bruttoBase = deriveB(d.brutto, d.netto, d.mwst) + extraTotal;
   } else {
-    // Sum up all individual Room Card totals
     const rcTotal = roomCards.reduce((s, c) => s + calcRoomCardTotal(c, d.startDate, d.endDate), 0);
     bruttoBase = rcTotal + extraTotal;
   }
@@ -151,7 +148,6 @@ export function calcDurationPrice(d: Duration): PriceResult {
   }
 }
 
-// ─── Monthly cost (prorated by overlap) ───────────────────────────────────────
 export function getDurationCostForMonth(d: Duration, year: number, month: number): number {
   if (!d.startDate || !d.endDate) return 0
 
@@ -174,7 +170,6 @@ export function getDurationCostForMonth(d: Duration, year: number, month: number
   return (overlapNights / totalNights) * total
 }
 
-// ─── Hotel aggregates (Updated to check roomCards) ────────────────────────────
 export function calcHotelTotalNights(hotel: Hotel): number {
   return (hotel.durations ?? []).reduce((s, d) => s + calculateNights(d.startDate, d.endDate), 0)
 }
@@ -191,6 +186,7 @@ export function calcHotelUnpaidCost(hotel: Hotel): number {
   return (hotel.durations ?? []).filter(d => !d.isPaid).reduce((s, d) => s + getDurationTotal(d as Duration), 0)
 }
 
+// ─── THE FIX: Free Beds now correctly measures unique slots occupied ───
 export function calcHotelFreeBeds(hotel: Hotel): number {
   return (hotel.durations ?? []).reduce((s, d) => {
     const rCards = d.roomCards || [];
@@ -200,12 +196,14 @@ export function calcHotelFreeBeds(hotel: Hotel): number {
     if (rCards.length > 0) {
       rCards.forEach((c: any) => {
         tBeds += bedsForType(c.roomType, c.bedCount);
-        tAssigned += (c.employees || []).length;
+        // Only count unique bed slots!
+        const uniqueSlots = new Set((c.employees || []).map((e: any) => e.slotIndex || 0));
+        tAssigned += uniqueSlots.size;
       });
     } else {
-      // Fallback for old data
       tBeds = getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom);
-      tAssigned = (d.employees || []).filter(Boolean).length;
+      const uniqueSlots = new Set((d.employees || []).filter(Boolean).map((e: any) => e.slotIndex || 0));
+      tAssigned += uniqueSlots.size;
     }
     
     return s + Math.max(0, tBeds - tAssigned);
@@ -226,17 +224,18 @@ export function calcHotelFreeBedsOnDate(hotel: Hotel, date: Date): number {
     if (rCards.length > 0) {
       rCards.forEach((c: any) => {
         tBeds += bedsForType(c.roomType, c.bedCount);
-        tAssigned += (c.employees || []).length;
+        const uniqueSlots = new Set((c.employees || []).map((e: any) => e.slotIndex || 0));
+        tAssigned += uniqueSlots.size;
       });
     } else {
       tBeds = getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom);
-      tAssigned = (d.employees || []).filter(Boolean).length;
+      const uniqueSlots = new Set((d.employees || []).filter(Boolean).map((e: any) => e.slotIndex || 0));
+      tAssigned += uniqueSlots.size;
     }
     return s + Math.max(0, tBeds - tAssigned);
   }, 0)
 }
 
-// ─── Availability filters ─────────────────────────────────────────────────────
 function daysFromNow(days: number): Date {
   const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() + days); return d
 }
@@ -245,7 +244,6 @@ export function hotelHasFreeBedsTomorrow(h: Hotel)  { return calcHotelFreeBedsOn
 export function hotelHasFreeBedsIn5Days(h: Hotel)   { return calcHotelFreeBedsOnDate(h, daysFromNow(5)) > 0 }
 export function hotelHasFreeBedsIn7Days(h: Hotel)   { return calcHotelFreeBedsOnDate(h, daysFromNow(7)) > 0 }
 
-// ─── Employee status ──────────────────────────────────────────────────────────
 export function getEmployeeStatus(checkIn: string, checkOut: string): 'active' | 'ending-soon' | 'completed' | 'upcoming' {
   if (!checkIn || !checkOut) return 'upcoming'
   const now     = new Date(); now.setHours(0,0,0,0)
@@ -258,7 +256,6 @@ export function getEmployeeStatus(checkIn: string, checkOut: string): 'active' |
   return 'active'
 }
 
-// ─── Duration labels ──────────────────────────────────────────────────────────
 export function getDurationTabLabel(d: Duration, lang: 'de' | 'en' = 'de'): string {
   if (!d.startDate || !d.endDate) return lang === 'de' ? 'Neue Dauer' : 'New duration'
   return `${formatDateShort(d.startDate, lang)} – ${formatDateShort(d.endDate, lang)}`
@@ -269,7 +266,6 @@ export function getDurationRowLabel(d: Duration, lang: 'de' | 'en' = 'de'): stri
   return `${formatDateChip(d.startDate)} – ${formatDateChip(d.endDate)}`
 }
 
-// ─── Gap detection ────────────────────────────────────────────────────────────
 export function getDurationGapInfo(d: Duration): GapInfo[] {
   if (!d.startDate || !d.endDate) return []
   const totalBeds = getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom)
@@ -289,7 +285,6 @@ export function getDurationGapInfo(d: Duration): GapInfo[] {
   return gaps
 }
 
-// ─── Search ───────────────────────────────────────────────────────────────────
 export function hotelMatchesSearch(hotel: Hotel, query: string): boolean {
   if (!query) return true
   const q = query.toLowerCase()
