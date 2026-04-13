@@ -1,3 +1,4 @@
+// src/components/RoomCard.tsx
 import React, { useEffect, useRef, useState } from 'react'
 import {
   Bed, ChevronDown, ChevronUp, Copy, Loader2,
@@ -58,7 +59,8 @@ function BedSlot({
   durationId: string
   dk: boolean
   lang: 'de' | 'en'
-  onUpdated: (slotIndex: number, emp: Employee | null, isGapFill?: boolean) => void
+  // Added deletedId to safely target removal without wiping substitutes
+  onUpdated: (slotIndex: number, emp: Employee | null, isGapFill?: boolean, deletedId?: string) => void
 }) {
   const [editing, setEditing]     = useState(false)
   const [name, setName]           = useState(employee?.name ?? '')
@@ -104,7 +106,8 @@ function BedSlot({
     setSaving(true)
     try {
       await deleteRoomCardEmployee(employee.id)
-      onUpdated(slotIndex, null)
+      // Pass the specific ID so the parent only deletes this exact entry!
+      onUpdated(slotIndex, null, false, employee.id)
       setName(''); setEditing(false)
     } catch (e) { console.error(e) }
     finally { setSaving(false) }
@@ -396,7 +399,6 @@ export default function RoomCard({
   const [showCalendar, setShowCalendar] = useState(false)
   const saveTimer = useRef<any>(null)
 
-  // Close pricing panel automatically when brutto/netto mode turns on
   useEffect(() => {
     if (bruttoNettoActive) setShowPricing(false)
   }, [bruttoNettoActive])
@@ -404,7 +406,6 @@ export default function RoomCard({
   const beds   = bedsForType(card.roomType, card.bedCount)
   const nights = calculateNights(durationStart, durationEnd)
 
-  // When bruttoNettoActive, room card contributes 0 to total — parent controls total
   const total  = bruttoNettoActive ? 0 : calcRoomCardTotal(card, durationStart, durationEnd)
   const ppbpn  = bruttoNettoActive ? 0 : calcPricePerBedPerNight(card, durationStart, durationEnd)
   const isWG   = card.roomType === 'WG'
@@ -436,29 +437,28 @@ export default function RoomCard({
     }, 400)
   }
 
-  function onEmployeeUpdated(slotIndex: number, emp: Employee | null, isGapFill?: boolean) {
+  // ── FIXED: Safely merges updates or removes specific deleted IDs ──
+  function onEmployeeUpdated(slotIndex: number, emp: Employee | null, isGapFill?: boolean, deletedId?: string) {
     let next: Employee[]
-    if (emp === null) {
-      next = employees.filter(e => e.id !== emp)
-      if (next.length === employees.length)
-        next = employees.filter(e => (e.slotIndex ?? 0) !== slotIndex)
-    } else if (isGapFill) {
-      next = [...employees, emp]
+    if (deletedId) {
+      // Direct removal by ID so we don't wipe out substitutes sharing the slot
+      next = employees.filter(e => e.id !== deletedId)
+    } else if (emp === null) {
+      // Fallback
+      next = employees.filter(e => (e.slotIndex ?? 0) !== slotIndex)
     } else {
-      const withoutSlot = employees.filter(e => (e.slotIndex ?? 0) !== slotIndex)
-      next = [...withoutSlot, emp]
+      const exists = employees.some(e => e.id === emp.id)
+      if (exists) {
+        // Merge the update, leave substitutes alone
+        next = employees.map(e => e.id === emp.id ? emp : e)
+      } else {
+        // Add new
+        next = [...employees, emp]
+      }
     }
     onUpdate(card.id, { employees: next as Employee[] })
   }
 
-  function handleRemoveEmployee(emp: Employee | null) {
-    if (!emp) return
-    const next = employees.filter(e => e.id !== emp.id)
-    if (emp.id) deleteRoomCardEmployee(emp.id).catch(console.error)
-    onUpdate(card.id, { employees: next })
-  }
-
-  // When bruttoNettoActive: show dimmed dash instead of calculated total
   const roomTotal = bruttoNettoActive ? '—' : formatCurrency(total)
 
   return (
@@ -544,7 +544,6 @@ export default function RoomCard({
 
         <div className="flex-1" />
 
-        {/* Price button — fully disabled and greyed out when brutto/netto mode is on */}
         {bruttoNettoActive ? (
           <span
             title={lang === 'de' ? 'Preise deaktiviert: Brutto/Netto-Modus aktiv' : 'Prices disabled: Brutto/Netto mode active'}
@@ -586,7 +585,7 @@ export default function RoomCard({
         </button>
       </div>
 
-      {/* ROW 3: Pricing panel — only when brutto/netto mode is OFF */}
+      {/* ROW 3: Pricing panel */}
       {showPricing && !bruttoNettoActive && (
         <div className={cn('px-3 py-3 border-b space-y-3', dk ? 'border-white/8 bg-white/[0.02]' : 'border-slate-100 bg-slate-50/60')}>
           <div className="flex items-center gap-1.5">
@@ -708,7 +707,6 @@ export default function RoomCard({
       <div className="px-3 py-2.5 space-y-1.5">
         {Array.from({ length: beds }).map((_, i) => {
           const slotEmps = employees.filter(e => (e.slotIndex ?? 0) === i)
-          const firstEmp = slotEmps[0] ?? null
           const slotGaps = gapSlots.filter(g => g.slotIndex === i)
 
           return (
