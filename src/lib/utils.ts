@@ -2,6 +2,7 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import type { Duration, GapInfo, Hotel, PriceResult } from './types'
+import { calcRoomCardTotal, bedsForType, resolveBrutto } from './roomCardUtils'
 
 // ─── Class merge ─────────────────────────────────────────────────────────────
 export function cn(...inputs: ClassValue[]) {
@@ -47,10 +48,6 @@ export function formatDateShort(iso: string, lang: 'de' | 'en' = 'de'): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-/**
- * Format ISO date as "16 Apr" for use in HotelRow duration chips.
- * Always uses the short English-style month regardless of lang.
- */
 export function formatDateChip(iso: string): string {
   if (!iso) return '—'
   const d = new Date(iso)
@@ -59,9 +56,6 @@ export function formatDateChip(iso: string): string {
   return `${d.getDate()} ${months[d.getMonth()]}`
 }
 
-/**
- * Format ISO date as dd/mm/yyyy for display in duration date fields.
- */
 export function formatDateDMY(iso: string): string {
   if (!iso) return ''
   const d = new Date(iso)
@@ -79,19 +73,14 @@ export function formatCurrency(value: number | undefined | null): string {
 }
 
 // ─── Number input ─────────────────────────────────────────────────────────────
-// Handles both German (1.234,56) and international (1234.56) number formats.
-// If a comma is present → German format: dots = thousand-sep, comma = decimal.
-// Otherwise → international: dot is decimal, leave as-is.
 export function normalizeNumberInput(raw: string | number): number {
   if (raw === '' || raw == null) return 0
   if (typeof raw === 'number') return isNaN(raw) ? 0 : raw
   let s = String(raw).trim()
   if (s === '') return 0
   if (s.includes(',')) {
-    // German: 1.234,56 → strip dots → replace comma with dot
     s = s.replace(/\./g, '').replace(',', '.')
   }
-  // International: 1234.56 — leave dot as-is
   const n = parseFloat(s)
   return isNaN(n) ? 0 : n
 }
@@ -112,14 +101,7 @@ export function getRoomTypeLabel(roomType: string, lang: 'de' | 'en' = 'de'): st
   return roomType
 }
 
-// ─── Bed capacity ─────────────────────────────────────────────────────────────
-// For WG: bedsPerRoom is configurable (defaults to 1 if not set).
-// Pass the full duration object or bedsPerRoom explicitly.
-export function getTotalBeds(
-  roomType: string,
-  numberOfRooms: number,
-  bedsPerRoom?: number,
-): number {
+export function getTotalBeds(roomType: string, numberOfRooms: number, bedsPerRoom?: number): number {
   const n = Math.max(1, numberOfRooms || 1)
   if (roomType === 'EZ') return n * 1
   if (roomType === 'DZ') return n * 2
@@ -128,72 +110,45 @@ export function getTotalBeds(
   return n * 2
 }
 
-// Convenience: extract bedsPerRoom from a Duration and compute total beds.
 export function getDurationTotalBeds(d: Pick<Duration, 'roomType' | 'numberOfRooms' | 'bedsPerRoom'>): number {
   return getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom)
 }
 
-// ─── Pricing ──────────────────────────────────────────────────────────────────
-export function calcDurationPrice(d: Duration): PriceResult {
-  const nights = calculateNights(d.startDate, d.endDate)
-  const rooms  = Math.max(1, d.numberOfRooms || 1)
+// ─── Pricing (Fully Updated for Room Cards) ───────────────────────────────────
+export function getDurationTotal(d: Duration): number {
+  const roomCards = d.roomCards || [];
+  
+  // Safely cast extra costs to Numbers so they NEVER equal NaN
+  const extraTotal = (d.extraCosts || []).reduce((s, e) => s + (Number(e.amount) || 0), 0);
 
-  // ── Brutto/Netto mode ────────────────────────────────────────────────────
+  let bruttoBase = 0;
+
   if (d.useBruttoNetto) {
-    const hasBrutto = d.brutto != null && d.brutto > 0
-    const hasNetto  = d.netto  != null && d.netto  > 0
-    const hasMwst   = d.mwst   != null && d.mwst   >= 0
-
-    // Netto + MwSt known → derive Brutto
-    if (hasNetto && hasMwst && !hasBrutto) {
-      const brutto = d.netto! * (1 + d.mwst! / 100)
-      return { brutto, netto: d.netto!, mwst: d.mwst!, total: brutto, nights, perNight: nights > 0 ? brutto / nights : 0 }
-    }
-    // Brutto + MwSt known → derive Netto
-    if (hasBrutto && hasMwst) {
-      const netto = d.brutto! / (1 + d.mwst! / 100)
-      return { brutto: d.brutto!, netto, mwst: d.mwst!, total: d.brutto!, nights, perNight: nights > 0 ? d.brutto! / nights : 0 }
-    }
-    // Only Brutto known — never invent Netto
-    if (hasBrutto) {
-      return { brutto: d.brutto!, netto: undefined, mwst: d.mwst ?? undefined, total: d.brutto!, nights, perNight: nights > 0 ? d.brutto! / nights : 0 }
-    }
-    // Only Netto known (no MwSt) — show Netto as total
-    if (hasNetto) {
-      return { brutto: undefined, netto: d.netto!, mwst: d.mwst ?? undefined, total: d.netto!, nights, perNight: nights > 0 ? d.netto! / nights : 0 }
-    }
-    return { total: 0, perNight: 0, nights }
-  }
-
-  // ── Simple mode ──────────────────────────────────────────────────────────
-  const perNight = d.pricePerNightPerRoom ?? 0
-  let raw = 0
-
-  if (d.useManualPrices && d.nightlyPrices && Object.keys(d.nightlyPrices).length > 0) {
-    const allNights = getNightsBetween(d.startDate, d.endDate)
-    raw = allNights.reduce((sum, date) => sum + ((d.nightlyPrices[date] ?? perNight) * rooms), 0)
+    bruttoBase = resolveBrutto(d.netto, d.mwst, d.brutto) + extraTotal;
   } else {
-    raw = perNight * rooms * nights
+    // Sum up all individual Room Card totals
+    const rcTotal = roomCards.reduce((s, c) => s + calcRoomCardTotal(c, d.startDate, d.endDate), 0);
+    bruttoBase = rcTotal + extraTotal;
   }
 
-  // Apply discount
-  let total = raw
-  if (d.hasDiscount && d.discountValue && d.discountValue > 0) {
-    total = d.discountType === 'percentage'
-      ? raw * (1 - d.discountValue / 100)
-      : Math.max(0, raw - d.discountValue)
+  let discountedTotal = bruttoBase;
+  if (!d.useBruttoNetto && d.hasDiscount && d.discountValue && d.discountValue > 0) {
+    discountedTotal = d.discountType === 'fixed'
+      ? bruttoBase - d.discountValue
+      : bruttoBase * (1 - d.discountValue / 100);
   }
+  
+  return Math.max(0, discountedTotal);
+}
 
+export function calcDurationPrice(d: Duration): PriceResult {
+  const total = getDurationTotal(d);
+  const nights = calculateNights(d.startDate, d.endDate);
   return {
     total,
     perNight: nights > 0 ? total / nights : 0,
     nights,
-    ...(d.hasDiscount && d.discountValue && d.discountValue > 0 ? { rawBeforeDiscount: raw } : {}),
   }
-}
-
-export function getDurationTotal(d: Duration): number {
-  return calcDurationPrice(d).total
 }
 
 // ─── Monthly cost (prorated by overlap) ───────────────────────────────────────
@@ -219,29 +174,42 @@ export function getDurationCostForMonth(d: Duration, year: number, month: number
   return (overlapNights / totalNights) * total
 }
 
-// ─── Hotel aggregates ─────────────────────────────────────────────────────────
+// ─── Hotel aggregates (Updated to check roomCards) ────────────────────────────
 export function calcHotelTotalNights(hotel: Hotel): number {
   return (hotel.durations ?? []).reduce((s, d) => s + calculateNights(d.startDate, d.endDate), 0)
 }
 
 export function calcHotelTotalCost(hotel: Hotel): number {
-  return (hotel.durations ?? []).reduce((s, d) => s + getDurationTotal(d), 0)
+  return (hotel.durations ?? []).reduce((s, d) => s + getDurationTotal(d as Duration), 0)
 }
 
 export function calcHotelPaidCost(hotel: Hotel): number {
-  return (hotel.durations ?? []).filter(d => d.isPaid).reduce((s, d) => s + getDurationTotal(d), 0)
+  return (hotel.durations ?? []).filter(d => d.isPaid).reduce((s, d) => s + getDurationTotal(d as Duration), 0)
 }
 
 export function calcHotelUnpaidCost(hotel: Hotel): number {
-  return (hotel.durations ?? []).filter(d => !d.isPaid).reduce((s, d) => s + getDurationTotal(d), 0)
+  return (hotel.durations ?? []).filter(d => !d.isPaid).reduce((s, d) => s + getDurationTotal(d as Duration), 0)
 }
 
 export function calcHotelFreeBeds(hotel: Hotel): number {
   return (hotel.durations ?? []).reduce((s, d) => {
-    const cap = getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom)
-    const occ = (d.employees ?? []).filter(Boolean).length
-    return s + Math.max(0, cap - occ)
-  }, 0)
+    const rCards = d.roomCards || [];
+    let tBeds = 0;
+    let tAssigned = 0;
+    
+    if (rCards.length > 0) {
+      rCards.forEach((c: any) => {
+        tBeds += bedsForType(c.roomType, c.bedCount);
+        tAssigned += (c.employees || []).length;
+      });
+    } else {
+      // Fallback for old data
+      tBeds = getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom);
+      tAssigned = (d.employees || []).filter(Boolean).length;
+    }
+    
+    return s + Math.max(0, tBeds - tAssigned);
+  }, 0);
 }
 
 export function calcHotelFreeBedsOnDate(hotel: Hotel, date: Date): number {
@@ -250,9 +218,21 @@ export function calcHotelFreeBedsOnDate(hotel: Hotel, date: Date): number {
     const start = new Date(d.startDate)
     const end   = new Date(d.endDate)
     if (date < start || date >= end) return s
-    const cap = getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom)
-    const occ = (d.employees ?? []).filter(Boolean).length
-    return s + Math.max(0, cap - occ)
+    
+    const rCards = d.roomCards || [];
+    let tBeds = 0;
+    let tAssigned = 0;
+    
+    if (rCards.length > 0) {
+      rCards.forEach((c: any) => {
+        tBeds += bedsForType(c.roomType, c.bedCount);
+        tAssigned += (c.employees || []).length;
+      });
+    } else {
+      tBeds = getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom);
+      tAssigned = (d.employees || []).filter(Boolean).length;
+    }
+    return s + Math.max(0, tBeds - tAssigned);
   }, 0)
 }
 
@@ -284,10 +264,6 @@ export function getDurationTabLabel(d: Duration, lang: 'de' | 'en' = 'de'): stri
   return `${formatDateShort(d.startDate, lang)} – ${formatDateShort(d.endDate, lang)}`
 }
 
-/**
- * Duration chip shown in the HotelRow main row.
- * Format: "16 Apr – 20 Apr"
- */
 export function getDurationRowLabel(d: Duration, lang: 'de' | 'en' = 'de'): string {
   if (!d.startDate || !d.endDate) return lang === 'de' ? 'Neue Dauer' : 'New duration'
   return `${formatDateChip(d.startDate)} – ${formatDateChip(d.endDate)}`
