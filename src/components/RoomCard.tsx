@@ -319,10 +319,10 @@ function NMBRow({
     ? brutto / (1 + mwst / 100) : null
 
   const lbl = cn('text-[9px] font-bold uppercase tracking-widest mb-0.5', dk ? 'text-slate-500' : 'text-slate-400')
-  const disabledInputCls = cn(inputCls, 'opacity-40 cursor-not-allowed')
+  const disabledInputCls = cn(inputCls, 'opacity-40 cursor-not-allowed pointer-events-none')
 
   return (
-    <div className={cn('space-y-1.5', disabled && 'pointer-events-none')}>
+    <div className={cn('space-y-1.5', disabled && 'pointer-events-none opacity-50')}>
       <div className="flex items-end gap-1.5 flex-wrap">
         <div className="flex flex-col">
           <p className={lbl}>{nLabel}</p>
@@ -403,6 +403,8 @@ export default function RoomCard({
 
   const beds   = bedsForType(card.roomType, card.bedCount)
   const nights = calculateNights(durationStart, durationEnd)
+
+  // When bruttoNettoActive, room card contributes 0 to total — parent controls total
   const total  = bruttoNettoActive ? 0 : calcRoomCardTotal(card, durationStart, durationEnd)
   const ppbpn  = bruttoNettoActive ? 0 : calcPricePerBedPerNight(card, durationStart, durationEnd)
   const isWG   = card.roomType === 'WG'
@@ -456,12 +458,15 @@ export default function RoomCard({
     onUpdate(card.id, { employees: next })
   }
 
+  // When bruttoNettoActive: show dimmed dash instead of calculated total
   const roomTotal = bruttoNettoActive ? '—' : formatCurrency(total)
 
   return (
     <div className={cn(
       'rounded-xl border transition-all',
-      dk ? 'bg-[#0d1629] border-white/10' : 'bg-white border-slate-200'
+      bruttoNettoActive
+        ? dk ? 'bg-[#0d1629] border-white/5 opacity-75' : 'bg-white border-slate-100 opacity-75'
+        : dk ? 'bg-[#0d1629] border-white/10' : 'bg-white border-slate-200'
     )}>
 
       {/* ROW 1: Room No | Floor | Total */}
@@ -539,22 +544,30 @@ export default function RoomCard({
 
         <div className="flex-1" />
 
-        {/* Price btn — disabled when brutto/netto mode is on */}
-        <button
-          onClick={() => { if (!bruttoNettoActive) setShowPricing(p => !p) }}
-          disabled={bruttoNettoActive}
-          title={bruttoNettoActive ? (lang === 'de' ? 'Deaktiviert: Brutto/Netto-Modus aktiv' : 'Disabled: Brutto/Netto mode active') : undefined}
-          className={cn('px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1',
-            bruttoNettoActive
-              ? dk ? 'border-white/5 text-slate-700 cursor-not-allowed' : 'border-slate-100 text-slate-300 cursor-not-allowed'
-              : showPricing
+        {/* Price button — fully disabled and greyed out when brutto/netto mode is on */}
+        {bruttoNettoActive ? (
+          <span
+            title={lang === 'de' ? 'Preise deaktiviert: Brutto/Netto-Modus aktiv' : 'Prices disabled: Brutto/Netto mode active'}
+            className={cn(
+              'px-2.5 py-1.5 rounded-lg text-xs font-bold border select-none',
+              dk ? 'border-white/5 text-slate-700 bg-white/[0.02]' : 'border-slate-100 text-slate-300 bg-slate-50'
+            )}
+          >
+            {lang === 'de' ? 'Preis' : 'Price'}
+          </span>
+        ) : (
+          <button
+            onClick={() => setShowPricing(p => !p)}
+            className={cn('px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1',
+              showPricing
                 ? 'bg-amber-500 text-white border-amber-500'
                 : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
-          )}
-        >
-          {lang === 'de' ? 'Preis' : 'Price'}
-          {!bruttoNettoActive && (showPricing ? <ChevronUp size={10} /> : <ChevronDown size={10} />)}
-        </button>
+            )}
+          >
+            {lang === 'de' ? 'Preis' : 'Price'}
+            {showPricing ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+          </button>
+        )}
 
         <button
           onClick={() => setShowCalendar(c => !c)}
@@ -573,7 +586,7 @@ export default function RoomCard({
         </button>
       </div>
 
-      {/* ROW 3: Pricing panel — only shown when brutto/netto mode is OFF */}
+      {/* ROW 3: Pricing panel — only when brutto/netto mode is OFF */}
       {showPricing && !bruttoNettoActive && (
         <div className={cn('px-3 py-3 border-b space-y-3', dk ? 'border-white/8 bg-white/[0.02]' : 'border-slate-100 bg-slate-50/60')}>
           <div className="flex items-center gap-1.5">

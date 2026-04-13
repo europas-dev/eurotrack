@@ -74,32 +74,39 @@ export default function DurationCard({
   ) : 0
   const freeBeds = totalBeds - assignedBeds
 
-  // Standard price per bed per night across all room cards
   const stdPricePerBed = hasDates && totalBeds > 0 && nights > 0
     ? roomCardsTotal / nights / totalBeds
     : 0
 
-  // Extra costs total
   const extraCosts: ExtraCost[] = local.extraCosts ?? []
   const extraTotal = extraCosts.reduce((s, e) => s + (e.amount || 0), 0)
 
-  // Grand total — Brutto/Netto mode uses its own inputs as the ONLY total source.
-  // When useBruttoNetto is ON and no values entered yet, total is 0.
-  // All room-card prices are disabled when useBruttoNetto is on.
-  // Deposit is NEVER deducted — it is a note only.
-  const bruttoTotal = local.useBruttoNetto
-    ? (local.brutto != null && local.brutto > 0
-        ? local.brutto
-        : (local.netto != null && local.netto > 0 && local.mwst != null
-            ? local.netto * (1 + local.mwst / 100)
-            : 0))
-    : roomCardsTotal + extraTotal
+  // ── Grand total calculation ──────────────────────────────────────────────
+  // When useBruttoNetto is ON:
+  //   - Total comes ONLY from the brutto/netto inputs here — room card prices are ignored
+  //   - On first activation (brutto/netto/mwst all null) → total is exactly 0
+  //   - extraCosts are also excluded in brutto/netto mode
+  //   - Deposit is NEVER deducted — it is a display note only
+  // When useBruttoNetto is OFF:
+  //   - Total = roomCardsTotal + extraTotal (with optional discount)
+  let bruttoBase: number
+  if (local.useBruttoNetto) {
+    if (local.brutto != null && local.brutto > 0) {
+      bruttoBase = local.brutto
+    } else if (local.netto != null && local.netto > 0 && local.mwst != null) {
+      bruttoBase = local.netto * (1 + local.mwst / 100)
+    } else {
+      bruttoBase = 0
+    }
+  } else {
+    bruttoBase = roomCardsTotal + extraTotal
+  }
 
-  let discountedTotal = bruttoTotal
-  if (local.hasDiscount && local.discountValue) {
+  let discountedTotal = bruttoBase
+  if (!local.useBruttoNetto && local.hasDiscount && local.discountValue) {
     discountedTotal = local.discountType === 'fixed'
-      ? bruttoTotal - local.discountValue
-      : bruttoTotal * (1 - local.discountValue / 100)
+      ? bruttoBase - local.discountValue
+      : bruttoBase * (1 - local.discountValue / 100)
   }
   const displayTotal = Math.max(0, discountedTotal)
 
@@ -135,7 +142,6 @@ export default function DurationCard({
     patch({ endDate: addDays(local.startDate, d) })
   }
 
-  // ── Extra costs ────────────────────────────────────────────────────────────
   function addExtraCost() {
     const next: ExtraCost[] = [...extraCosts, { id: uid(), note: '', amount: 0 }]
     patch({ extraCosts: next })
@@ -187,10 +193,10 @@ export default function DurationCard({
     }))
   }
 
-  // ── Brutto/Netto toggle:
-  //   ON  → clear brutto/netto/mwst so total immediately shows 0;
-  //         all room-card price inputs become disabled via bruttoNettoActive prop.
-  //   OFF → restore room-card-based totals.
+  // Toggle brutto/netto mode:
+  // ON  → clear brutto/netto/mwst so total immediately shows €0,00
+  //        all room-card price inputs are disabled via bruttoNettoActive prop
+  // OFF → restore room-card-based totals
   function toggleBruttoNetto() {
     if (!local.useBruttoNetto) {
       patch({ useBruttoNetto: true, brutto: null, netto: null, mwst: null })
@@ -209,7 +215,6 @@ export default function DurationCard({
 
           {/* ROW 1: dates + presets + nights + stats + trash */}
           <div className="flex items-end gap-2 flex-wrap">
-            {/* Check-in */}
             <div className="flex flex-col gap-0.5">
               <label className={labelCls}>{lang === 'de' ? 'Check-in' : 'Check-in'}</label>
               <div className="relative">
@@ -227,7 +232,6 @@ export default function DurationCard({
                 )}
               </div>
             </div>
-            {/* Check-out */}
             <div className="flex flex-col gap-0.5">
               <label className={labelCls}>{lang === 'de' ? 'Check-out' : 'Check-out'}</label>
               <div className="relative">
@@ -353,8 +357,8 @@ export default function DurationCard({
             dk ? 'bg-white/[0.03] border-white/10' : 'bg-slate-50 border-slate-200'
           )}>
 
-            {/* ── ROW 1: Brutto/Netto toggle + inline inputs ── */}
-            {/* When ON: all room-card manual prices are disabled; total = 0 until values entered here */}
+            {/* ── ROW 1: Brutto/Netto toggle ── */}
+            {/* When ON: total comes only from these inputs (starts at €0); all room-card prices disabled */}
             <div className="flex items-center gap-1.5 min-h-[36px]">
               <button
                 onClick={toggleBruttoNetto}
@@ -364,11 +368,11 @@ export default function DurationCard({
                     ? 'bg-amber-500 text-white border-amber-500'
                     : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
                 )}
-              >Brutto/Netto</button>
+              >Brutto / Netto</button>
 
               {local.useBruttoNetto && (
                 <div className="flex items-center gap-1 flex-1 min-w-0">
-                  {/* Brutto */}
+                  {/* Brutto — entering this clears netto */}
                   <div className="flex flex-col gap-0 flex-1 min-w-0">
                     <span className={cn('text-[8px] font-bold uppercase tracking-widest leading-none mb-0.5', dk ? 'text-slate-600' : 'text-slate-400')}>Brutto €</span>
                     <input
@@ -386,7 +390,7 @@ export default function DurationCard({
                       )}
                     />
                   </div>
-                  {/* Netto */}
+                  {/* Netto — entering this clears brutto */}
                   <div className="flex flex-col gap-0 flex-1 min-w-0">
                     <span className={cn('text-[8px] font-bold uppercase tracking-widest leading-none mb-0.5', dk ? 'text-slate-600' : 'text-slate-400')}>Netto €</span>
                     <input
@@ -426,31 +430,34 @@ export default function DurationCard({
 
             <div className={cn('my-1.5 border-t', dk ? 'border-white/[0.06]' : 'border-slate-100')} />
 
-            {/* ── ROW 2: Discount | Deposit (note only) ── */}
+            {/* ── ROW 2: Discount | Deposit (note only — never deducted) ── */}
             <div className="flex items-center gap-1.5 min-h-[36px] flex-wrap">
-              {/* Discount */}
-              <button onClick={() => patch({ hasDiscount: !local.hasDiscount })}
-                className={cn('shrink-0 flex items-center gap-1', local.hasDiscount ? togOn('blue') : togOff)}>
-                <Tag size={10} />{lang === 'de' ? 'Rabatt' : 'Disc.'}
-              </button>
-              {local.hasDiscount && (
-                <div className="flex items-center">
-                  <button
-                    onClick={() => patch({ discountType: local.discountType === 'percentage' ? 'fixed' : 'percentage' })}
-                    className={cn('px-2 py-1.5 rounded-l-lg rounded-r-none border text-xs font-bold border-r-0',
-                      dk ? 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50')}>
-                    {local.discountType === 'percentage' ? '%' : '€'}
+              {/* Discount — only shown when brutto/netto mode is OFF */}
+              {!local.useBruttoNetto && (
+                <>
+                  <button onClick={() => patch({ hasDiscount: !local.hasDiscount })}
+                    className={cn('shrink-0 flex items-center gap-1', local.hasDiscount ? togOn('blue') : togOff)}>
+                    <Tag size={10} />{lang === 'de' ? 'Rabatt' : 'Disc.'}
                   </button>
-                  <input type="number" min={0} value={local.discountValue || ''}
-                    placeholder={local.discountType === 'percentage' ? '10' : '50'}
-                    onChange={e => patch({ discountValue: normalizeNumberInput(e.target.value) })}
-                    className={cn('px-2 py-1.5 rounded-r-lg rounded-l-none border text-xs outline-none',
-                      dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}
-                    style={{ width: 52 }} />
-                </div>
+                  {local.hasDiscount && (
+                    <div className="flex items-center">
+                      <button
+                        onClick={() => patch({ discountType: local.discountType === 'percentage' ? 'fixed' : 'percentage' })}
+                        className={cn('px-2 py-1.5 rounded-l-lg rounded-r-none border text-xs font-bold border-r-0',
+                          dk ? 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50')}>
+                        {local.discountType === 'percentage' ? '%' : '€'}
+                      </button>
+                      <input type="number" min={0} value={local.discountValue || ''}
+                        placeholder={local.discountType === 'percentage' ? '10' : '50'}
+                        onChange={e => patch({ discountValue: normalizeNumberInput(e.target.value) })}
+                        className={cn('px-2 py-1.5 rounded-r-lg rounded-l-none border text-xs outline-none',
+                          dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}
+                        style={{ width: 52 }} />
+                    </div>
+                  )}
+                  <span className={cn('text-xs', dk ? 'text-slate-700' : 'text-slate-300')}>·</span>
+                </>
               )}
-
-              <span className={cn('text-xs', dk ? 'text-slate-700' : 'text-slate-300')}>·</span>
 
               {/* Deposit — note only, NEVER deducted from total */}
               <button onClick={() => patch({ depositEnabled: !local.depositEnabled })}
@@ -458,65 +465,74 @@ export default function DurationCard({
                 {lang === 'de' ? 'Kaution' : 'Deposit'}
               </button>
               {local.depositEnabled && (
-                <>
-                  <input type="number" min={0} step="0.01" value={local.depositAmount ?? ''} placeholder="€"
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="number" min={0} step="0.01"
+                    value={local.depositAmount ?? ''}
+                    placeholder="€"
                     onChange={e => patch({ depositAmount: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
                     className={cn('px-2 py-1.5 rounded-lg border text-xs outline-none',
                       dk ? 'bg-white/5 border-purple-500/30 text-white placeholder-slate-600' : 'bg-white border-purple-300 text-slate-900 placeholder-slate-400')}
-                    style={{ width: 64 }} />
-                  {/* Explicit note: deposit does not affect total */}
-                  <span className={cn('text-[9px] font-bold uppercase tracking-widest', dk ? 'text-slate-600' : 'text-slate-400')}>
-                    {lang === 'de' ? '(Notiz)' : '(note)'}
+                    style={{ width: 64 }}
+                  />
+                  {/* Explicit badge: deposit is a note, not subtracted */}
+                  <span className={cn(
+                    'text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border',
+                    dk ? 'border-purple-500/30 text-purple-400 bg-purple-500/10' : 'border-purple-200 text-purple-600 bg-purple-50'
+                  )}>
+                    {lang === 'de' ? 'Nur Notiz' : 'Note only'}
                   </span>
-                </>
+                </div>
               )}
             </div>
 
             <div className={cn('my-1.5 border-t', dk ? 'border-white/[0.06]' : 'border-slate-100')} />
 
-            {/* ── ROW 3: Extra costs ── */}
-            <div className="flex flex-col gap-1 min-h-[32px]">
-              <div className="flex items-center justify-between">
-                <span className={cn('text-[9px] font-bold uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')}>
-                  {lang === 'de' ? 'Extrakosten' : 'Extra costs'}
-                </span>
-                <button onClick={addExtraCost}
-                  className={cn('p-0.5 rounded transition-all', dk ? 'text-slate-500 hover:text-blue-400' : 'text-slate-400 hover:text-blue-600')}>
-                  <PlusCircle size={13} />
-                </button>
-              </div>
-              {extraCosts.map(ec => (
-                <div key={ec.id} className="flex items-center gap-1">
-                  <input type="text" value={ec.note}
-                    onChange={e => patchExtraCost(ec.id, { note: e.target.value })}
-                    placeholder={lang === 'de' ? 'Notiz...' : 'Note...'}
-                    className={cn(
-                      'flex-1 min-w-0 px-2 py-1 rounded-lg text-xs outline-none border transition-all',
-                      dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
-                    )} />
-                  <input type="number" min={0} step="0.01" value={ec.amount || ''}
-                    placeholder="€"
-                    onChange={e => patchExtraCost(ec.id, { amount: normalizeNumberInput(e.target.value) })}
-                    className={cn('px-2 py-1 rounded-lg text-xs outline-none border transition-all',
-                      dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}
-                    style={{ width: 64 }} />
-                  <button onClick={() => removeExtraCost(ec.id)}
-                    className={cn('p-1 rounded', dk ? 'text-red-400 hover:bg-red-900/20' : 'text-red-500 hover:bg-red-50')}>
-                    <X size={10} />
+            {/* ── ROW 3: Extra costs (hidden in brutto/netto mode) ── */}
+            {!local.useBruttoNetto && (
+              <div className="flex flex-col gap-1 min-h-[32px]">
+                <div className="flex items-center justify-between">
+                  <span className={cn('text-[9px] font-bold uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')}>
+                    {lang === 'de' ? 'Extrakosten' : 'Extra costs'}
+                  </span>
+                  <button onClick={addExtraCost}
+                    className={cn('p-0.5 rounded transition-all', dk ? 'text-slate-500 hover:text-blue-400' : 'text-slate-400 hover:text-blue-600')}>
+                    <PlusCircle size={13} />
                   </button>
                 </div>
-              ))}
-              {extraTotal > 0 && (
-                <div className="flex justify-between">
-                  <span className={cn('text-[10px]', dk ? 'text-slate-500' : 'text-slate-400')}>
-                    {lang === 'de' ? 'Extrasumme' : 'Extra total'}
-                  </span>
-                  <span className={cn('text-[10px] font-bold', dk ? 'text-white' : 'text-slate-900')}>
-                    +{formatCurrency(extraTotal)}
-                  </span>
-                </div>
-              )}
-            </div>
+                {extraCosts.map(ec => (
+                  <div key={ec.id} className="flex items-center gap-1">
+                    <input type="text" value={ec.note}
+                      onChange={e => patchExtraCost(ec.id, { note: e.target.value })}
+                      placeholder={lang === 'de' ? 'Notiz...' : 'Note...'}
+                      className={cn(
+                        'flex-1 min-w-0 px-2 py-1 rounded-lg text-xs outline-none border transition-all',
+                        dk ? 'bg-white/5 border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400'
+                      )} />
+                    <input type="number" min={0} step="0.01" value={ec.amount || ''}
+                      placeholder="€"
+                      onChange={e => patchExtraCost(ec.id, { amount: normalizeNumberInput(e.target.value) })}
+                      className={cn('px-2 py-1 rounded-lg text-xs outline-none border transition-all',
+                        dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}
+                      style={{ width: 64 }} />
+                    <button onClick={() => removeExtraCost(ec.id)}
+                      className={cn('p-1 rounded', dk ? 'text-red-400 hover:bg-red-900/20' : 'text-red-500 hover:bg-red-50')}>
+                      <X size={10} />
+                    </button>
+                  </div>
+                ))}
+                {extraTotal > 0 && (
+                  <div className="flex justify-between">
+                    <span className={cn('text-[10px]', dk ? 'text-slate-500' : 'text-slate-400')}>
+                      {lang === 'de' ? 'Extrasumme' : 'Extra total'}
+                    </span>
+                    <span className={cn('text-[10px] font-bold', dk ? 'text-white' : 'text-slate-900')}>
+                      +{formatCurrency(extraTotal)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className={cn('my-1.5 border-t', dk ? 'border-white/[0.06]' : 'border-slate-100')} />
 
@@ -538,7 +554,7 @@ export default function DurationCard({
               <div className="ml-auto flex flex-col items-end">
                 <span className={cn('text-[9px] font-bold uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')}>
                   {lang === 'de' ? 'Gesamt' : 'Total'}
-                  {local.hasDiscount && local.discountValue ? (
+                  {!local.useBruttoNetto && local.hasDiscount && local.discountValue ? (
                     <span className={cn('ml-1', dk ? 'text-blue-400' : 'text-blue-600')}>
                       -{local.discountType === 'percentage' ? `${local.discountValue}%` : formatCurrency(local.discountValue)}
                     </span>
@@ -547,15 +563,14 @@ export default function DurationCard({
                 <span className={cn('text-2xl font-black leading-tight', dk ? 'text-white' : 'text-slate-900')}>
                   {formatCurrency(displayTotal)}
                 </span>
-                {/* Std price/bed — informational only, hidden when brutto/netto mode */}
                 {stdPricePerBed > 0 && !local.useBruttoNetto && (
                   <span className={cn('text-[10px]', dk ? 'text-slate-500' : 'text-slate-400')}>
                     {formatCurrency(stdPricePerBed)}/bed/N
                   </span>
                 )}
-                {/* Deposit — note only, shown below total, NEVER subtracted */}
+                {/* Deposit shown as info note below total — never subtracted */}
                 {local.depositEnabled && local.depositAmount ? (
-                  <span className={cn('text-[10px]', dk ? 'text-purple-400' : 'text-purple-600')}>
+                  <span className={cn('text-[10px] mt-0.5', dk ? 'text-purple-400' : 'text-purple-600')}>
                     {lang === 'de'
                       ? `Kaution: ${formatCurrency(local.depositAmount)} (Notiz)`
                       : `Deposit: ${formatCurrency(local.depositAmount)} (note)`}
