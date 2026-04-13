@@ -177,28 +177,28 @@ export function calcHotelUnpaidCost(hotel: Hotel): number {
   return (hotel.durations ?? []).filter(d => !d.isPaid).reduce((s, d) => s + getDurationTotal(d as Duration), 0)
 }
 
-// ── BULLETPROOF FREE BED TIMELINE LOGIC ──
+// ── THE FIX: Flawless Free Bed logic (Checks BOTH Check-In and Check-Out) ──
 export function calcHotelFreeBedsOnDate(hotel: Hotel, date: Date): number {
   const dateStr = date.toISOString().split('T')[0];
   return (hotel.durations ?? []).reduce((s, d) => {
     if (!d.startDate || !d.endDate) return s;
-    // If duration ends today or earlier, we can't book it tonight
-    if (d.endDate <= dateStr) return s;
-    // If we're checking a date before the duration starts, ignore
-    if (dateStr < d.startDate || dateStr >= d.endDate) return s;
+    if (d.endDate <= dateStr) return s; // Past duration = 0 free beds
+
+    // If future duration, evaluate occupancy based on its start date
+    const evalDate = dateStr < d.startDate ? d.startDate : dateStr;
 
     const rCards = d.roomCards || [];
     let tBeds = 0;
     let tAssigned = 0;
-    
+
     if (rCards.length > 0) {
       rCards.forEach((c: any) => {
         const beds = bedsForType(c.roomType, c.bedCount);
         tBeds += beds;
         for (let i = 0; i < beds; i++) {
           const slotEmps = (c.employees || []).filter((e: any) => (e.slotIndex ?? 0) === i);
-          // Occupied if someone checked in by today AND checks out AFTER today
-          if (slotEmps.some((e: any) => (e.checkIn || d.startDate) <= dateStr && (e.checkOut || d.endDate) > dateStr)) {
+          // Occupied if CheckIn <= evalDate AND CheckOut > evalDate
+          if (slotEmps.some((e: any) => (e.checkIn || d.startDate) <= evalDate && (e.checkOut || d.endDate) > evalDate)) {
             tAssigned++;
           }
         }
@@ -208,13 +208,13 @@ export function calcHotelFreeBedsOnDate(hotel: Hotel, date: Date): number {
       tBeds += beds;
       for (let i = 0; i < beds; i++) {
         const slotEmps = (d.employees || []).filter((e: any) => (e.slotIndex ?? 0) === i);
-        if (slotEmps.some((e: any) => (e.checkIn || d.startDate) <= dateStr && (e.checkOut || d.endDate) > dateStr)) {
+        if (slotEmps.some((e: any) => (e.checkIn || d.startDate) <= evalDate && (e.checkOut || d.endDate) > evalDate)) {
           tAssigned++;
         }
       }
     }
     return s + Math.max(0, tBeds - tAssigned);
-  }, 0)
+  }, 0);
 }
 
 export function calcHotelFreeBeds(hotel: Hotel): number {
