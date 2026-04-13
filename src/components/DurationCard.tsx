@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
   CalendarDays, Copy, Loader2, Minus, Plus, Tag, Trash2, 
-  Check, PlusCircle, X, Moon, DoorClosed, Bed, CheckCircle, Calculator, AlertCircle
+  Check, PlusCircle, X, Moon, DoorClosed, Bed, CheckCircle, Calculator, AlertCircle, History
 } from 'lucide-react'
 import {
   cn, calculateNights, formatCurrency, normalizeNumberInput, calcDurationFreeBeds
@@ -77,9 +77,11 @@ export default function DurationCard({
     0
   ) : 0
   
-  // Real-time Free Bed Logic using the bulletproof utility function
   const today = new Date().toISOString().split('T')[0];
   const freeBeds = calcDurationFreeBeds({ ...local, roomCards }, today);
+  
+  // ── FIX: Determines if the duration is completely in the past ──
+  const isExpired = local.endDate && today >= local.endDate;
 
   const extraCosts: ExtraCost[] = local.extraCosts ?? []
   const extraTotal = extraCosts.reduce((s, e) => s + (Number(e.amount) || 0), 0)
@@ -127,16 +129,14 @@ export default function DurationCard({
   )
   const labelCls = cn('text-[10px] font-bold uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')
 
-  // ── FIX: Database Save Issue (Prevents Data Wipe on Refresh) ──
   function queueSave(next: Duration) {
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(async () => {
       try { 
         setSaving(true); 
-        // DO NOT SEND ROOM CARDS ARRAY TO SQL DATABASE! IT WILL FAIL!
         const { roomCards: _discard, ...dbPayload } = next; 
         await updateDuration(local.id, dbPayload); 
-        onUpdate(local.id, next); // Sync full object to parent UI safely
+        onUpdate(local.id, next); 
       }
       catch (e) { console.error(e) }
       finally { setSaving(false) }
@@ -231,7 +231,6 @@ export default function DurationCard({
   return (
     <div className={cn('rounded-2xl border relative', dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')}>
       
-      {/* ABSOLUTE TRASH ICON */}
       <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirm(true); }}
         className={cn('absolute top-4 right-4 p-2.5 rounded-lg transition-all border z-20 cursor-pointer hover:scale-105 active:scale-95',
           dk ? 'border-red-500/20 text-red-400 bg-red-500/5 hover:bg-red-500/20' : 'border-red-200 text-red-500 bg-red-50 hover:bg-red-100'
@@ -239,14 +238,13 @@ export default function DurationCard({
         <Trash2 size={16} />
       </button>
 
-      {/* ── THE FIX: flex-wrap forces safe stacking on smaller screens ── */}
-      <div className="flex flex-wrap gap-6 p-5 pr-16 items-start">
+      <div className="flex gap-6 p-5 pr-16 flex-col 2xl:flex-row items-start">
 
         {/* ── Left Side: Core Controls ── */}
-        <div className="flex flex-col gap-4 flex-1 min-w-[320px] max-w-[450px]">
+        <div className="flex flex-col gap-4 flex-1 w-full 2xl:w-auto 2xl:max-w-[420px]">
 
           {/* ROW 1: Dates, Presets & Stats */}
-          <div className="flex items-end gap-2 flex-wrap">
+          <div className="flex items-end gap-2 flex-wrap lg:flex-nowrap">
             <div className="flex flex-col gap-1 relative">
               <label className={labelCls}>IN</label>
               <div className="relative w-[130px] h-[38px] cursor-pointer" onClick={() => openPicker(inDateRef)}>
@@ -307,8 +305,11 @@ export default function DurationCard({
                     <span className="opacity-40">|</span>
                     <span className="flex items-center gap-1" title="Total Beds"><Bed size={14} className={dk ? 'text-slate-400' : 'text-slate-500'} /> {totalBeds}</span>
                     <span className="opacity-40">|</span>
+                    {/* ── FIX: Expired vs Free vs Full logic ── */}
                     {freeBeds > 0 ? (
                       <span className="flex items-center gap-1.5 text-red-500" title="Free Beds"><AlertCircle size={14} /> {freeBeds}</span>
+                    ) : isExpired ? (
+                      <span className="flex items-center gap-1.5 text-slate-400" title="Expired"><History size={14} /> {lang === 'de' ? 'Abgelaufen' : 'Expired'}</span>
                     ) : (
                       <span className="flex items-center gap-1.5 text-emerald-500"><CheckCircle size={14} /> {lang === 'de' ? 'Voll' : 'Full'}</span>
                     )}
@@ -320,7 +321,6 @@ export default function DurationCard({
             {saving && <Loader2 size={16} className="animate-spin text-blue-400 self-end mb-2 ml-1" />}
           </div>
 
-          {/* ROW 2: Invoice & Booking Ref */}
           <div className="flex items-end gap-3 flex-wrap mt-1">
             <div className="flex flex-col gap-1 shrink-0">
               <label className={labelCls}>{lang === 'de' ? 'Rechnungs-Nr.' : 'Invoice No.'}</label>
@@ -330,7 +330,7 @@ export default function DurationCard({
                 className={cn(inputCls, 'w-32 h-[38px]')} />
             </div>
             
-            <div className="flex flex-col gap-1 flex-1 min-w-[150px]">
+            <div className="flex flex-col gap-1 flex-1 min-w-[150px] max-w-[220px]">
               <label className={labelCls}>{lang === 'de' ? 'Buchungsreferenz / Notiz' : 'Booking ref / note'}</label>
               <input type="text" value={local.bookingId || ''}
                 onChange={e => patch({ bookingId: e.target.value })}
@@ -339,7 +339,6 @@ export default function DurationCard({
             </div>
           </div>
 
-          {/* ROW 3: Add Rooms */}
           {hasDates && (
             <div className="flex flex-col gap-1 mt-1">
               <label className={labelCls}>{lang === 'de' ? 'Zimmer hinzufügen' : 'Add Rooms'}</label>
@@ -377,24 +376,16 @@ export default function DurationCard({
               </div>
             </div>
           )}
-
-          {!hasDates && (
-            <div className={cn('text-sm text-center py-4 mt-5 rounded-xl border-2 border-dashed',
-              dk ? 'border-white/10 text-slate-500' : 'border-slate-200 text-slate-400')}>
-              📅 {lang === 'de' ? 'Check-in und Check-out eingeben, um Zimmer hinzuzufügen' : 'Enter check-in and check-out to add rooms'}
-            </div>
-          )}
         </div>
 
-        {/* ── Right Side: Fluid Total Cost Card ── */}
+        {/* ── Right Side: Pushed to the right edge (ml-auto) ── */}
         {hasDates && (
           <div className={cn(
-            'flex-1 min-w-[360px] max-w-[620px] rounded-2xl border p-4 flex flex-col gap-3',
+            'w-full 2xl:w-auto min-w-[320px] 2xl:min-w-[540px] max-w-[650px] shrink-0 rounded-2xl border p-4 flex flex-col gap-3 2xl:ml-auto',
             dk ? 'bg-white/[0.03] border-white/10' : 'bg-slate-50 border-slate-200'
           )}>
             
-            {/* ROW 1: Brutto / Netto */}
-            <div className="flex flex-wrap items-center gap-3 w-full">
+            <div className="flex items-center gap-3 flex-wrap w-full">
               <button onClick={toggleBruttoNetto}
                 className={cn('shrink-0 px-3 py-1.5 rounded-lg text-sm font-bold border transition-all flex items-center gap-1.5 whitespace-nowrap h-[38px]',
                   local.useBruttoNetto ? 'bg-amber-500 text-white border-amber-500' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
@@ -428,7 +419,6 @@ export default function DurationCard({
 
             <div className={cn('border-t', dk ? 'border-white/[0.06]' : 'border-slate-100')} />
 
-            {/* ROW 2: Toggles (Discount & Extra Inline) ALWAYS VISIBLE */}
             <div className="flex items-start gap-3 flex-wrap w-full">
               
               <div className="flex items-center gap-1.5 flex-wrap">
@@ -461,12 +451,13 @@ export default function DurationCard({
                   <div className="flex flex-col gap-2 w-full sm:w-auto flex-1">
                     {extraCosts.map(ec => (
                       <div key={ec.id} className="flex items-center gap-1.5 w-full h-[38px]">
+                        {/* ── FIX: Fixed-width short note input ── */}
                         <input type="text" value={ec.note} onChange={e => patchExtraCost(ec.id, { note: e.target.value })}
                           placeholder={lang === 'de' ? 'Notiz...' : 'Note...'}
-                          className={cn('flex-1 min-w-[100px] px-3 py-1.5 rounded-lg text-sm outline-none border h-full', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} />
+                          className={cn('w-24 shrink-0 px-2.5 py-1.5 rounded-lg text-sm outline-none border h-full', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} />
                         <input type="number" min={0} step="0.01" value={ec.amount || ''} placeholder="0.00"
                           onChange={e => patchExtraCost(ec.id, { amount: normalizeNumberInput(e.target.value) })}
-                          className={cn('w-28 shrink-0 px-3 py-1.5 rounded-lg text-sm outline-none border h-full', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} />
+                          className={cn('w-24 shrink-0 px-2.5 py-1.5 rounded-lg text-sm outline-none border h-full', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} />
                         <button onClick={() => removeExtraCost(ec.id)} className={cn('shrink-0 p-2 rounded-lg transition-all h-full', dk ? 'text-red-400 hover:bg-red-500/10' : 'text-red-500 hover:bg-red-50')}><X size={16} /></button>
                       </div>
                     ))}
@@ -477,7 +468,6 @@ export default function DurationCard({
 
             <div className={cn('border-t my-1', dk ? 'border-white/[0.06]' : 'border-slate-100')} />
 
-            {/* ROW 3: Paid/Unpaid & Deposit | Total */}
             <div className="flex flex-wrap items-end justify-between w-full gap-4">
               <div className="flex items-center gap-2 flex-wrap">
                 <button onClick={() => patch({ isPaid: !local.isPaid })}
@@ -519,7 +509,6 @@ export default function DurationCard({
         )}
       </div>
 
-      {/* ROOM CARDS */}
       {loadingCards && (
         <div className="flex justify-center py-6"><Loader2 size={24} className="animate-spin text-blue-400" /></div>
       )}
@@ -542,7 +531,6 @@ export default function DurationCard({
         </div>
       )}
 
-      {/* MODAL FIX: Confirm(false) strictly called first! */}
       {confirmDelete && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
           <div className={cn('w-full max-w-md rounded-2xl border p-6 shadow-xl',
