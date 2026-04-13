@@ -5,7 +5,7 @@ import {
   Minus, Plus, Tag, Trash2, Check, PlusCircle, X,
 } from 'lucide-react'
 import {
-  cn, calculateNights, formatCurrency, normalizeNumberInput, formatDateDMY,
+  cn, calculateNights, formatCurrency, normalizeNumberInput,
 } from '../lib/utils'
 import { calcRoomCardTotal, calcPricePerBedPerNight, extractPricingFields } from '../lib/roomCardUtils'
 import { deleteDuration, updateDuration } from '../lib/supabase'
@@ -77,7 +77,6 @@ export default function DurationCard({
   const extraCosts: ExtraCost[] = local.extraCosts ?? []
   const extraTotal = extraCosts.reduce((s, e) => s + (e.amount || 0), 0)
 
-  // ── Grand total calculation ──
   let bruttoBase: number
   if (local.useBruttoNetto) {
     if (local.brutto != null && local.brutto > 0) {
@@ -121,7 +120,7 @@ export default function DurationCard({
   const togOn = (color: string) =>
     `px-3 py-1.5 rounded-lg text-xs font-bold border transition-all bg-${color}-600 text-white border-${color}-600`
 
-  // THE FIX: Changed `localHotel` back to `local` so it actually saves!
+  // THE FIX: Sync RoomCards so Extra Costs don't wipe out the Dashboard!
   function queueSave(next: Duration) {
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(async () => {
@@ -131,7 +130,7 @@ export default function DurationCard({
     }, 400)
   }
   function patch(changes: Partial<Duration>) {
-    const next = { ...local, ...changes } as Duration
+    const next = { ...local, roomCards, ...changes } as Duration
     setLocal(next); queueSave(next)
   }
 
@@ -154,6 +153,13 @@ export default function DurationCard({
     patch({ extraCosts: extraCosts.filter(e => e.id !== id) })
   }
 
+  // Bubble up RoomCard changes instantly to Dashboard
+  function syncRoomCardsToParent(newCards: RoomCard[]) {
+    const nextLocal = { ...local, roomCards: newCards } as Duration;
+    setLocal(nextLocal);
+    onUpdate(local.id, nextLocal);
+  }
+
   const typeCount: Record<string, number> = {}
   roomCards.forEach(c => { typeCount[c.roomType] = (typeCount[c.roomType] ?? 0) + 1 })
 
@@ -163,7 +169,7 @@ export default function DurationCard({
     try {
       const bedCount = roomType === 'EZ' ? 1 : roomType === 'DZ' ? 2 : roomType === 'TZ' ? 3 : 2
       const card = await createRoomCard(local.id, roomType, bedCount, roomCards.length)
-      setRoomCards(prev => [...prev, card])
+      setRoomCards(prev => { const n = [...prev, card]; syncRoomCardsToParent(n); return n; })
     } catch (e) { console.error(e) }
     finally { setAddingType(null) }
   }
@@ -173,31 +179,32 @@ export default function DurationCard({
     const last = cards[cards.length - 1]
     try {
       await deleteRoomCard(last.id)
-      setRoomCards(prev => prev.filter(c => c.id !== last.id))
+      setRoomCards(prev => { const n = prev.filter(c => c.id !== last.id); syncRoomCardsToParent(n); return n; })
     } catch (e) { console.error(e) }
   }
   function handleCardUpdate(id: string, p: Partial<RoomCard>) {
-    setRoomCards(prev => prev.map(c => c.id === id ? { ...c, ...p } : c))
+    setRoomCards(prev => { const n = prev.map(c => c.id === id ? { ...c, ...p } : c); syncRoomCardsToParent(n); return n; })
   }
   function handleCardDelete(id: string) {
-    setRoomCards(prev => prev.filter(c => c.id !== id))
+    setRoomCards(prev => { const n = prev.filter(c => c.id !== id); syncRoomCardsToParent(n); return n; })
   }
   function handleApplyToSameType(source: RoomCard) {
     const pricingFields = extractPricingFields(source)
-    setRoomCards(prev => prev.map(c => {
-      if (c.id === source.id || c.roomType !== source.roomType) return c
-      import('../lib/supabaseRoomCards').then(({ updateRoomCard }) =>
-        updateRoomCard(c.id, pricingFields).catch(console.error)
-      )
-      return { ...c, ...pricingFields }
-    }))
+    setRoomCards(prev => {
+      const n = prev.map(c => {
+        if (c.id === source.id || c.roomType !== source.roomType) return c
+        import('../lib/supabaseRoomCards').then(({ updateRoomCard }) => updateRoomCard(c.id, pricingFields).catch(console.error))
+        return { ...c, ...pricingFields }
+      })
+      syncRoomCardsToParent(n)
+      return n
+    })
   }
 
   function toggleBruttoNetto() {
     patch({ useBruttoNetto: !local.useBruttoNetto })
   }
 
-  // THE FIX: Format date perfectly to dd/mm/yyyy
   function forceDMY(isoString: string | null | undefined) {
     if (!isoString) return 'dd/mm/yyyy';
     const [y, m, d] = isoString.split('-');
@@ -214,8 +221,6 @@ export default function DurationCard({
 
           {/* ROW 1: Dates & Metrics */}
           <div className="flex items-end gap-3 flex-wrap">
-            
-            {/* Custom Date Input for Check-in */}
             <div className="flex flex-col gap-0.5 relative">
               <label className={labelCls}>{lang === 'de' ? 'Check-in' : 'Check-in'}</label>
               <div className="relative w-36 h-[34px]">
@@ -232,7 +237,6 @@ export default function DurationCard({
               </div>
             </div>
             
-            {/* Custom Date Input for Check-out */}
             <div className="flex flex-col gap-0.5 relative">
               <label className={labelCls}>{lang === 'de' ? 'Check-out' : 'Check-out'}</label>
               <div className="relative w-36 h-[34px]">
@@ -249,7 +253,6 @@ export default function DurationCard({
               </div>
             </div>
             
-            {/* Presets */}
             {local.startDate && (
               <div className="flex items-center gap-1.5 self-end pb-0.5">
                 {[{ label: '1W', days: 7 }, { label: '1M', days: 30 }].map(p => (
@@ -267,7 +270,6 @@ export default function DurationCard({
               </div>
             )}
 
-            {/* At a Glance Stats */}
             {hasDates && (
               <div className={cn('self-end flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold shrink-0 mb-0.5',
                 dk ? 'bg-white/5 border-white/10 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700')}>
@@ -363,10 +365,10 @@ export default function DurationCard({
           )}
         </div>
 
-        {/* ── THE FIX: Right Side: Expanded Pricing Card (Forced 420px width) ── */}
+        {/* ── THE FIX: Expanded Pricing Card (flex-1 fills leftover space!) ── */}
         {hasDates && (
           <div className={cn(
-            'w-[420px] shrink-0 rounded-xl border p-4 flex flex-col gap-0',
+            'flex-1 min-w-[380px] rounded-xl border p-4 flex flex-col gap-0',
             dk ? 'bg-white/[0.03] border-white/10' : 'bg-slate-50 border-slate-200'
           )}>
             
@@ -379,13 +381,7 @@ export default function DurationCard({
               >Brutto / Netto</button>
 
               {local.useBruttoNetto && (
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <div className="flex flex-col gap-0.5 flex-1">
-                    <span className={labelCls}>Brutto €</span>
-                    <input type="number" min={0} step="0.01" value={local.brutto ?? ''} placeholder="0"
-                      onChange={e => patch({ brutto: e.target.value === '' ? null : normalizeNumberInput(e.target.value), netto: null })}
-                      className={cn(inputCls, 'py-1 w-full')} />
-                  </div>
+                <div className="flex items-center gap-1.5 flex-1 min-w-0">
                   <div className="flex flex-col gap-0.5 flex-1">
                     <span className={labelCls}>Netto €</span>
                     <input type="number" min={0} step="0.01" value={local.netto ?? ''} placeholder="0"
@@ -397,6 +393,12 @@ export default function DurationCard({
                     <input type="number" min={0} max={99} step="1" value={local.mwst ?? ''} placeholder="%"
                       onChange={e => patch({ mwst: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
                       className={cn(inputCls, 'py-1 w-14')} />
+                  </div>
+                  <div className="flex flex-col gap-0.5 flex-1">
+                    <span className={labelCls}>Brutto €</span>
+                    <input type="number" min={0} step="0.01" value={local.brutto ?? ''} placeholder="0"
+                      onChange={e => patch({ brutto: e.target.value === '' ? null : normalizeNumberInput(e.target.value), netto: null })}
+                      className={cn(inputCls, 'py-1 w-full')} />
                   </div>
                 </div>
               )}
@@ -514,9 +516,9 @@ export default function DurationCard({
           </div>
         </div>
       )}
+
       {confirmDelete && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4">
-          {/* ... Delete Modal code stays exactly the same ... */}
           <div className={cn('w-full max-w-md rounded-2xl border p-5',
             dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
             <h3 className="text-lg font-black mb-2">{lang === 'de' ? 'Dauer löschen?' : 'Delete duration?'}</h3>
