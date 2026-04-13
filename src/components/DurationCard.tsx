@@ -7,13 +7,13 @@ import {
 import {
   cn, calculateNights, formatCurrency, normalizeNumberInput,
 } from '../lib/utils'
-import { calcRoomCardTotal, extractPricingFields } from '../lib/roomCardUtils'
+import { calcRoomCardTotal } from '../lib/roomCardUtils'
 import { deleteDuration, updateDuration } from '../lib/supabase'
 import {
   createRoomCard, deleteRoomCard, getRoomCardsForDuration,
 } from '../lib/supabaseRoomCards'
 import type { Duration, ExtraCost, RoomCard } from '../lib/types'
-import RoomCardComponent, { getEffectiveNetto } from './RoomCard'
+import RoomCardComponent, { getEffectiveNetto, extractPricingFields } from './RoomCard'
 
 interface Props {
   duration: Duration
@@ -77,19 +77,24 @@ export default function DurationCard({
     0
   ) : 0
   
+  // ── THE FIX: Fully accurate Free Bed logic ──
   const today = new Date().toISOString().split('T')[0];
-  const assignedBeds = hasDates ? roomCards.reduce((s, c) => {
-    let occupiedSlots = 0;
-    const beds = c.roomType === 'EZ' ? 1 : c.roomType === 'DZ' ? 2 : c.roomType === 'TZ' ? 3 : (c.bedCount || 2);
-    for (let i = 0; i < beds; i++) {
-      const slotEmps = (c.employees || []).filter(e => (e.slotIndex ?? 0) === i);
-      if (slotEmps.some(e => e.checkOut > today)) {
-        occupiedSlots++;
+  let freeBeds = 0;
+  if (hasDates && today < local.endDate) {
+    const evalDate = today < local.startDate ? local.startDate : today;
+    let assigned = 0;
+    roomCards.forEach(c => {
+      const beds = c.roomType === 'EZ' ? 1 : c.roomType === 'DZ' ? 2 : c.roomType === 'TZ' ? 3 : (c.bedCount || 2);
+      for(let i=0; i<beds; i++) {
+        const emps = (c.employees||[]).filter(e => (e.slotIndex||0) === i);
+        // Only occupied if CheckIn <= evalDate AND CheckOut > evalDate
+        if (emps.some(e => (e.checkIn||local.startDate) <= evalDate && (e.checkOut||local.endDate) > evalDate)) {
+          assigned++;
+        }
       }
-    }
-    return s + occupiedSlots;
-  }, 0) : 0;
-  const freeBeds = totalBeds - assignedBeds
+    });
+    freeBeds = totalBeds - assigned;
+  }
 
   const extraCosts: ExtraCost[] = local.extraCosts ?? []
   const extraTotal = extraCosts.reduce((s, e) => s + (Number(e.amount) || 0), 0)
@@ -203,6 +208,7 @@ export default function DurationCard({
   function handleCardDelete(id: string) {
     setRoomCards(prev => { const n = prev.filter(c => c.id !== id); syncRoomCardsToParent(n); return n; })
   }
+  
   function handleApplyToSameType(source: RoomCard) {
     const pricingFields = extractPricingFields(source)
     setRoomCards(prev => {
@@ -233,7 +239,6 @@ export default function DurationCard({
   return (
     <div className={cn('rounded-2xl border relative', dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')}>
       
-      {/* ABSOLUTE TRASH ICON */}
       <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirm(true); }}
         className={cn('absolute top-4 right-4 p-2.5 rounded-lg transition-all border z-20 cursor-pointer hover:scale-105 active:scale-95',
           dk ? 'border-red-500/20 text-red-400 bg-red-500/5 hover:bg-red-500/20' : 'border-red-200 text-red-500 bg-red-50 hover:bg-red-100'
@@ -241,13 +246,10 @@ export default function DurationCard({
         <Trash2 size={16} />
       </button>
 
-      {/* Responsive Flex Wrap: 2xl triggers side-by-side. Otherwise stacks nicely. */}
       <div className="flex gap-6 p-5 pr-16 flex-col 2xl:flex-row items-start">
 
-        {/* ── Left Side: Core Controls ── */}
         <div className="flex flex-col gap-4 flex-1 w-full 2xl:w-auto 2xl:max-w-[420px]">
 
-          {/* ROW 1: Dates, Presets & Stats */}
           <div className="flex items-end gap-2 flex-wrap lg:flex-nowrap">
             <div className="flex flex-col gap-1 relative">
               <label className={labelCls}>IN</label>
@@ -322,14 +324,13 @@ export default function DurationCard({
             {saving && <Loader2 size={16} className="animate-spin text-blue-400 self-end mb-2 ml-1" />}
           </div>
 
-          {/* ROW 2: Invoice & Booking Ref */}
           <div className="flex items-end gap-3 flex-wrap mt-1">
             <div className="flex flex-col gap-1 shrink-0">
               <label className={labelCls}>{lang === 'de' ? 'Rechnungs-Nr.' : 'Invoice No.'}</label>
               <input type="text" value={local.rechnungNr || ''}
                 onChange={e => patch({ rechnungNr: e.target.value })}
                 placeholder="RE-2026-..."
-                className={cn(inputCls, 'w-40')} />
+                className={cn(inputCls, 'w-32 h-[38px]')} />
             </div>
             
             <div className="flex flex-col gap-1 flex-1 min-w-[150px] max-w-[220px]">
@@ -337,11 +338,10 @@ export default function DurationCard({
               <input type="text" value={local.bookingId || ''}
                 onChange={e => patch({ bookingId: e.target.value })}
                 placeholder={lang === 'de' ? 'Referenz / Notiz...' : 'Reference / note...'}
-                className={cn(inputCls, 'w-full')} />
+                className={cn(inputCls, 'w-full h-[38px]')} />
             </div>
           </div>
 
-          {/* ROW 3: Add Rooms */}
           {hasDates && (
             <div className="flex flex-col gap-1 mt-1">
               <label className={labelCls}>{lang === 'de' ? 'Zimmer hinzufügen' : 'Add Rooms'}</label>
@@ -388,14 +388,12 @@ export default function DurationCard({
           )}
         </div>
 
-        {/* ── Right Side: Expanded Single-Line Flow Total Cost Card ── */}
         {hasDates && (
           <div className={cn(
-            'flex-1 w-full 2xl:w-auto min-w-[320px] 2xl:min-w-[540px] shrink-0 rounded-2xl border p-4 flex flex-col gap-3',
+            'flex-1 w-full xl:w-auto min-w-[320px] 2xl:min-w-[540px] shrink-0 rounded-2xl border p-4 flex flex-col gap-3',
             dk ? 'bg-white/[0.03] border-white/10' : 'bg-slate-50 border-slate-200'
           )}>
             
-            {/* ROW 1: Brutto / Netto Horizontal Row */}
             <div className="flex items-center gap-3 flex-wrap w-full">
               <button onClick={toggleBruttoNetto}
                 className={cn('shrink-0 px-3 py-1.5 rounded-lg text-sm font-bold border transition-all flex items-center gap-1.5 whitespace-nowrap h-[38px]',
@@ -430,10 +428,8 @@ export default function DurationCard({
 
             <div className={cn('border-t', dk ? 'border-white/[0.06]' : 'border-slate-100')} />
 
-            {/* ROW 2: Toggles (Discount & Extra Inline Array) ALWAYS VISIBLE */}
             <div className="flex items-start gap-3 flex-wrap w-full">
               
-              {/* Discount Group */}
               <div className="flex items-center gap-1.5 flex-wrap">
                 <button onClick={() => patch({ hasDiscount: !local.hasDiscount })}
                   className={cn('shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold border transition-all h-[38px]',
@@ -454,7 +450,6 @@ export default function DurationCard({
                 )}
               </div>
 
-              {/* Extra Costs Group */}
               <div className="flex items-start gap-1.5 flex-wrap flex-1">
                 <button onClick={addExtraCost} className={cn('shrink-0 px-3 py-1.5 rounded-lg text-sm font-bold border flex items-center gap-1.5 transition-all h-[38px]',
                   dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50')}>
@@ -481,7 +476,6 @@ export default function DurationCard({
 
             <div className={cn('border-t my-1', dk ? 'border-white/[0.06]' : 'border-slate-100')} />
 
-            {/* ROW 3: Paid/Unpaid & Deposit | Total */}
             <div className="flex items-end justify-between w-full flex-wrap gap-4">
               <div className="flex items-center gap-2 flex-wrap">
                 <button onClick={() => patch({ isPaid: !local.isPaid })}
@@ -523,7 +517,6 @@ export default function DurationCard({
         )}
       </div>
 
-      {/* ROOM CARDS */}
       {loadingCards && (
         <div className="flex justify-center py-6"><Loader2 size={24} className="animate-spin text-blue-400" /></div>
       )}
@@ -542,6 +535,31 @@ export default function DurationCard({
                 bruttoNettoActive={local.useBruttoNetto}
               />
             ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Invisible layer blocker for testing ONLY if confirmDelete triggers wrongly */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
+          <div className={cn('w-full max-w-md rounded-2xl border p-6 shadow-xl',
+            dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
+            <h3 className="text-xl font-black mb-3">{lang === 'de' ? 'Dauer löschen?' : 'Delete duration?'}</h3>
+            <p className={cn('text-base mb-6', dk ? 'text-slate-400' : 'text-slate-600')}>
+              {lang === 'de' ? 'Diese Buchungsdauer wird dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.' : 'This duration will be permanently deleted. This cannot be undone.'}
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConfirm(false)}
+                className={cn('px-5 py-2.5 rounded-xl border text-sm font-bold',
+                  dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}>
+                {lang === 'de' ? 'Abbrechen' : 'Cancel'}
+              </button>
+              <button
+                onClick={async () => { await deleteDuration(local.id); onDelete(local.id) }}
+                className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md shadow-red-900/20">
+                {lang === 'de' ? 'Löschen' : 'Delete'}
+              </button>
+            </div>
           </div>
         </div>
       )}
