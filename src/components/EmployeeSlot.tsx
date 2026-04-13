@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Loader2, User, X, ChevronDown } from 'lucide-react';
+import { Loader2, User, X, ChevronDown, CornerDownRight } from 'lucide-react';
 import { cn, formatDateDisplay, getEmployeeStatus } from '../lib/utils';
 import { createEmployee, updateEmployee, deleteEmployee } from '../lib/supabase';
 
@@ -41,6 +41,10 @@ export function EmployeeSlot({
        : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500'
   );
 
+  // Determine if this specific slot is acting as a substitute
+  const isSubstitute = substituteWindow || (employee && employee.checkIn > durationStart);
+  const IconToUse = isSubstitute ? CornerDownRight : User;
+
   async function handleSave() {
     if (!name.trim()) return;
     setSaving(true);
@@ -68,6 +72,7 @@ export function EmployeeSlot({
     finally { setSaving(false); }
   }
 
+  // EMPTY STATE
   if (!editing && !employee) {
     return (
       <button
@@ -75,10 +80,11 @@ export function EmployeeSlot({
         className={cn(
           'w-full flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-dashed text-xs font-bold transition-all',
           dk ? 'border-white/10 text-slate-500 hover:border-blue-500/40 hover:text-blue-400'
-             : 'border-slate-200 text-slate-400 hover:border-blue-400 hover:text-blue-500'
+             : 'border-slate-200 text-slate-400 hover:border-blue-400 hover:text-blue-500',
+          substituteWindow && (dk ? 'border-amber-500/20 text-amber-500/70 hover:text-amber-400' : 'border-amber-200 text-amber-600 hover:text-amber-700')
         )}
       >
-        <User size={12} />
+        <IconToUse size={12} className={substituteWindow ? "opacity-80" : ""} />
         {substituteWindow
           ? `${lang === 'de' ? 'Vertreter' : 'Substitute'} ${formatDateDisplay(substituteWindow.from, lang)}–${formatDateDisplay(substituteWindow.to, lang)}`
           : lang === 'de' ? 'Mitarbeiter zuweisen' : 'Assign employee'}
@@ -86,13 +92,15 @@ export function EmployeeSlot({
     );
   }
 
+  // FILLED STATE
   if (!editing && employee) {
     return (
       <div className={cn(
         'flex items-center gap-2 px-3 py-2 rounded-xl border transition-all cursor-pointer group',
-        dk ? 'bg-white/3 border-white/10 hover:border-white/20' : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+        dk ? 'bg-white/3 border-white/10 hover:border-white/20' : 'bg-slate-50 border-slate-200 hover:border-slate-300',
+        isSubstitute && (dk ? 'ml-4 border-l-amber-500/50 border-l-2' : 'ml-4 border-l-amber-400 border-l-2')
       )} onClick={() => { setName(employee.name ?? ''); setCheckIn(employee.checkIn ?? durationStart); setCheckOut(employee.checkOut ?? durationEnd); setEditing(true); }}>
-        <User size={12} className={statusColor} />
+        <IconToUse size={12} className={statusColor} />
         <span className={cn('text-xs font-bold flex-1 truncate', dk ? 'text-white' : 'text-slate-900')}>{employee.name}</span>
         <span className={cn('text-10px', dk ? 'text-slate-500' : 'text-slate-400')}>
           {formatDateDisplay(employee.checkIn, lang)} – {formatDateDisplay(employee.checkOut, lang)}
@@ -102,8 +110,12 @@ export function EmployeeSlot({
     );
   }
 
+  // EDITING STATE
   return (
-    <div className={cn('rounded-xl border p-3 space-y-2', dk ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200')}>
+    <div className={cn('rounded-xl border p-3 space-y-2', 
+      dk ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200',
+      isSubstitute && 'ml-4'
+    )}>
       <input ref={inputRef} type="text" value={name} onChange={e => setName(e.target.value)}
         placeholder={lang === 'de' ? 'Name...' : 'Name...'}
         onKeyDown={e => e.key === 'Enter' && handleSave()}
