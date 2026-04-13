@@ -84,7 +84,9 @@ export default function DurationCard({
   const extraTotal = extraCosts.reduce((s, e) => s + (e.amount || 0), 0)
 
   // Grand total — Brutto/Netto mode uses its own inputs as the ONLY total source.
+  // When useBruttoNetto is ON and no values entered yet, total is 0.
   // All room-card prices are disabled when useBruttoNetto is on.
+  // Deposit is NEVER deducted — it is a note only.
   const bruttoTotal = local.useBruttoNetto
     ? (local.brutto != null && local.brutto > 0
         ? local.brutto
@@ -185,10 +187,12 @@ export default function DurationCard({
     }))
   }
 
-  // ── Brutto/Netto toggle: when turning ON, zero-out total; turn OFF = restore room-card prices
+  // ── Brutto/Netto toggle:
+  //   ON  → clear brutto/netto/mwst so total immediately shows 0;
+  //         all room-card price inputs become disabled via bruttoNettoActive prop.
+  //   OFF → restore room-card-based totals.
   function toggleBruttoNetto() {
     if (!local.useBruttoNetto) {
-      // Turning ON: clear brutto/netto/mwst so total starts at 0
       patch({ useBruttoNetto: true, brutto: null, netto: null, mwst: null })
     } else {
       patch({ useBruttoNetto: false })
@@ -205,7 +209,7 @@ export default function DurationCard({
 
           {/* ROW 1: dates + presets + nights + stats + trash */}
           <div className="flex items-end gap-2 flex-wrap">
-            {/* Check-in — shows dd/mm/yyyy as placeholder helper; actual input is type=date */}
+            {/* Check-in */}
             <div className="flex flex-col gap-0.5">
               <label className={labelCls}>{lang === 'de' ? 'Check-in' : 'Check-in'}</label>
               <div className="relative">
@@ -349,7 +353,8 @@ export default function DurationCard({
             dk ? 'bg-white/[0.03] border-white/10' : 'bg-slate-50 border-slate-200'
           )}>
 
-            {/* ── ROW 1: Brutto/Netto button + inline fields ── */}
+            {/* ── ROW 1: Brutto/Netto toggle + inline inputs ── */}
+            {/* When ON: all room-card manual prices are disabled; total = 0 until values entered here */}
             <div className="flex items-center gap-1.5 min-h-[36px]">
               <button
                 onClick={toggleBruttoNetto}
@@ -362,7 +367,6 @@ export default function DurationCard({
               >Brutto/Netto</button>
 
               {local.useBruttoNetto && (
-                /* Brutto (€) | Netto (€) | MwSt (%) — all on one line */
                 <div className="flex items-center gap-1 flex-1 min-w-0">
                   {/* Brutto */}
                   <div className="flex flex-col gap-0 flex-1 min-w-0">
@@ -373,7 +377,6 @@ export default function DurationCard({
                       placeholder="0"
                       onChange={e => {
                         const val = e.target.value === '' ? null : normalizeNumberInput(e.target.value)
-                        // If brutto is entered, netto is derived — clear netto
                         patch({ brutto: val, netto: null })
                       }}
                       className={cn(
@@ -392,7 +395,6 @@ export default function DurationCard({
                       placeholder="0"
                       onChange={e => {
                         const val = e.target.value === '' ? null : normalizeNumberInput(e.target.value)
-                        // If netto is entered, brutto is derived — clear brutto
                         patch({ netto: val, brutto: null })
                       }}
                       className={cn(
@@ -402,7 +404,7 @@ export default function DurationCard({
                       )}
                     />
                   </div>
-                  {/* MwSt — narrow, max 2 digits */}
+                  {/* MwSt */}
                   <div className="flex flex-col gap-0 shrink-0">
                     <span className={cn('text-[8px] font-bold uppercase tracking-widest leading-none mb-0.5', dk ? 'text-slate-600' : 'text-slate-400')}>MwSt %</span>
                     <input
@@ -424,9 +426,9 @@ export default function DurationCard({
 
             <div className={cn('my-1.5 border-t', dk ? 'border-white/[0.06]' : 'border-slate-100')} />
 
-            {/* ── ROW 2: Discount | Deposit ── */}
+            {/* ── ROW 2: Discount | Deposit (note only) ── */}
             <div className="flex items-center gap-1.5 min-h-[36px] flex-wrap">
-              {/* Discount button + field */}
+              {/* Discount */}
               <button onClick={() => patch({ hasDiscount: !local.hasDiscount })}
                 className={cn('shrink-0 flex items-center gap-1', local.hasDiscount ? togOn('blue') : togOff)}>
                 <Tag size={10} />{lang === 'de' ? 'Rabatt' : 'Disc.'}
@@ -450,17 +452,23 @@ export default function DurationCard({
 
               <span className={cn('text-xs', dk ? 'text-slate-700' : 'text-slate-300')}>·</span>
 
-              {/* Deposit button + field — note only, never deducted from total */}
+              {/* Deposit — note only, NEVER deducted from total */}
               <button onClick={() => patch({ depositEnabled: !local.depositEnabled })}
-                className={cn('shrink-0', local.depositEnabled ? togOn('purple') : togOff)}>
+                className={cn('shrink-0 flex items-center gap-1', local.depositEnabled ? togOn('purple') : togOff)}>
                 {lang === 'de' ? 'Kaution' : 'Deposit'}
               </button>
               {local.depositEnabled && (
-                <input type="number" min={0} step="0.01" value={local.depositAmount ?? ''} placeholder="€"
-                  onChange={e => patch({ depositAmount: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
-                  className={cn('px-2 py-1.5 rounded-lg border text-xs outline-none',
-                    dk ? 'bg-white/5 border-purple-500/30 text-white placeholder-slate-600' : 'bg-white border-purple-300 text-slate-900 placeholder-slate-400')}
-                  style={{ width: 64 }} />
+                <>
+                  <input type="number" min={0} step="0.01" value={local.depositAmount ?? ''} placeholder="€"
+                    onChange={e => patch({ depositAmount: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
+                    className={cn('px-2 py-1.5 rounded-lg border text-xs outline-none',
+                      dk ? 'bg-white/5 border-purple-500/30 text-white placeholder-slate-600' : 'bg-white border-purple-300 text-slate-900 placeholder-slate-400')}
+                    style={{ width: 64 }} />
+                  {/* Explicit note: deposit does not affect total */}
+                  <span className={cn('text-[9px] font-bold uppercase tracking-widest', dk ? 'text-slate-600' : 'text-slate-400')}>
+                    {lang === 'de' ? '(Notiz)' : '(note)'}
+                  </span>
+                </>
               )}
             </div>
 
@@ -539,16 +547,18 @@ export default function DurationCard({
                 <span className={cn('text-2xl font-black leading-tight', dk ? 'text-white' : 'text-slate-900')}>
                   {formatCurrency(displayTotal)}
                 </span>
-                {/* Std price/bed — informational, only when not brutto/netto mode */}
+                {/* Std price/bed — informational only, hidden when brutto/netto mode */}
                 {stdPricePerBed > 0 && !local.useBruttoNetto && (
                   <span className={cn('text-[10px]', dk ? 'text-slate-500' : 'text-slate-400')}>
                     {formatCurrency(stdPricePerBed)}/bed/N
                   </span>
                 )}
-                {/* Deposit — note only, shown below total, never subtracted */}
+                {/* Deposit — note only, shown below total, NEVER subtracted */}
                 {local.depositEnabled && local.depositAmount ? (
                   <span className={cn('text-[10px]', dk ? 'text-purple-400' : 'text-purple-600')}>
-                    {lang === 'de' ? `Kaution: ${formatCurrency(local.depositAmount)}` : `Deposit: ${formatCurrency(local.depositAmount)}`}
+                    {lang === 'de'
+                      ? `Kaution: ${formatCurrency(local.depositAmount)} (Notiz)`
+                      : `Deposit: ${formatCurrency(local.depositAmount)} (note)`}
                   </span>
                 ) : null}
               </div>

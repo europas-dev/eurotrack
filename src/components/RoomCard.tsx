@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
   Bed, ChevronDown, ChevronUp, Copy, Loader2,
   Minus, Plus, Tag, Trash2, X, Zap,
@@ -92,7 +92,6 @@ function BedSlot({
         const created = await createRoomCardEmployee(roomCardId, durationId, slotIndex, {
           name: name.trim(), checkIn, checkOut,
         })
-        // isGapFill=true → do NOT delete existing employees in this slot
         onUpdated(slotIndex, created, isGapFill)
       }
       setEditing(false)
@@ -118,7 +117,6 @@ function BedSlot({
     upcoming:       dk ? 'text-blue-400'   : 'text-blue-500',
   }
 
-  // ── Delete confirmation dialog ──────────────────────────────────────────────
   if (confirmDel) {
     return (
       <div className={cn('rounded-lg border p-3 space-y-2', dk ? 'bg-red-900/10 border-red-500/30' : 'bg-red-50 border-red-200')}>
@@ -141,7 +139,6 @@ function BedSlot({
     )
   }
 
-  // ── Display mode (employee exists, not editing) ────────────────────────────
   if (!editing && employee) {
     return (
       <div className={cn(
@@ -155,7 +152,6 @@ function BedSlot({
         >
           {employee.name}
         </span>
-        {/* Date fields — wide so dd/mm/yyyy is clearly readable */}
         <span className={cn('text-[11px] tabular-nums shrink-0 min-w-[120px] text-center', dk ? 'text-slate-400' : 'text-slate-500')}>
           {fmtDate(employee.checkIn ?? '')} → {fmtDate(employee.checkOut ?? '')}
         </span>
@@ -174,7 +170,6 @@ function BedSlot({
     )
   }
 
-  // ── Empty slot / gap button ────────────────────────────────────────────────
   if (!editing) {
     const isGap = !!(gapStart || gapEnd)
     return (
@@ -200,7 +195,6 @@ function BedSlot({
     )
   }
 
-  // ── Edit mode ──────────────────────────────────────────────────────────────
   return (
     <div className={cn('rounded-lg border p-2.5 space-y-2', dk ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200')}>
       <div className="flex items-center gap-1.5">
@@ -218,7 +212,6 @@ function BedSlot({
       <div className="flex items-end gap-2 flex-wrap">
         <div className="flex flex-col gap-0.5">
           <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-0.5', dk ? 'text-slate-500' : 'text-slate-400')}>In</p>
-          {/* Wider date input so dd/mm/yyyy is readable */}
           <input type="date" value={checkIn} min={effectiveIn} max={effectiveOut}
             onChange={e => setCheckIn(e.target.value)}
             className={cn(inputCls)} style={{ width: 140 }} />
@@ -229,7 +222,6 @@ function BedSlot({
             onChange={e => setCheckOut(e.target.value)}
             className={cn(inputCls)} style={{ width: 140 }} />
         </div>
-        {/* Auto-calculated nights — compact, read-only */}
         <div className="flex flex-col gap-0.5">
           <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-0.5', dk ? 'text-slate-500' : 'text-slate-400')}>{lang === 'de' ? 'N' : 'N'}</p>
           <div className={cn('px-2 py-1 rounded-lg border text-xs font-bold text-center',
@@ -259,7 +251,7 @@ function BedSlot({
   )
 }
 
-// ── Gap detection (multi-employee per slot) ──────────────────────────────────
+// ── Gap detection ────────────────────────────────────────────────────────────
 function getGapSlots(
   beds: number,
   employees: Employee[],
@@ -291,11 +283,12 @@ function getGapSlots(
   return gaps
 }
 
-// ─── Small helper: Netto/MwSt/Brutto row ────────────────────────────────────
+// ── Netto/MwSt/Brutto row ────────────────────────────────────────────────────
 function NMBRow({
   nettoKey, mwstKey, bruttoKey, energyKey,
   card, dk, inputCls, onPatch, lang,
   nettoLabel, bruttoLabel, energyUnit,
+  disabled,
 }: {
   nettoKey: keyof RoomCardType
   mwstKey: keyof RoomCardType
@@ -309,66 +302,64 @@ function NMBRow({
   nettoLabel?: string
   bruttoLabel?: string
   energyUnit?: string
+  disabled?: boolean
 }) {
   const nLabel = nettoLabel ?? 'Netto (€)'
   const bLabel = bruttoLabel ?? 'Brutto (€)'
-  const eUnit  = energyUnit ?? (lang === 'de' ? '€' : '€')
+  const eUnit  = energyUnit ?? '€'
 
   const netto  = card[nettoKey]  as number | null | undefined
   const mwst   = card[mwstKey]   as number | null | undefined
   const brutto = card[bruttoKey] as number | null | undefined
   const energy = card[energyKey] as number | null | undefined
 
-  // derived preview
   const derivedBrutto = (brutto == null || brutto === 0) && netto && mwst
     ? netto * (1 + mwst / 100) : null
   const derivedNetto  = (netto == null || netto === 0) && brutto && mwst
     ? brutto / (1 + mwst / 100) : null
 
   const lbl = cn('text-[9px] font-bold uppercase tracking-widest mb-0.5', dk ? 'text-slate-500' : 'text-slate-400')
+  const disabledInputCls = cn(inputCls, 'opacity-40 cursor-not-allowed')
 
   return (
-    <div className="space-y-1.5">
-      {/* Netto + MwSt + Brutto on one line */}
+    <div className={cn('space-y-1.5', disabled && 'pointer-events-none')}>
       <div className="flex items-end gap-1.5 flex-wrap">
         <div className="flex flex-col">
           <p className={lbl}>{nLabel}</p>
           <input type="number" min={0} step="0.01" value={(netto ?? '') as any}
-            placeholder="0.00"
+            placeholder="0.00" disabled={disabled}
             onChange={e => onPatch({ [nettoKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)}
-            style={noSpinner} className={cn(inputCls, 'w-24')} />
+            style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-24')} />
         </div>
         <div className="flex flex-col">
           <p className={lbl}>MwSt (%)</p>
           <input type="number" min={0} max={99} step="0.5" value={(mwst ?? '') as any}
-            placeholder="%"
+            placeholder="%" disabled={disabled}
             onChange={e => onPatch({ [mwstKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)}
-            style={{ ...noSpinner, width: 56 }} className={inputCls} />
+            style={{ ...noSpinner, width: 56 }} className={disabled ? disabledInputCls : inputCls} />
         </div>
         <div className="flex flex-col">
           <p className={lbl}>{bLabel}</p>
           <input type="number" min={0} step="0.01" value={(brutto ?? '') as any}
-            placeholder="0.00"
+            placeholder="0.00" disabled={disabled}
             onChange={e => onPatch({ [bruttoKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)}
-            style={noSpinner} className={cn(inputCls, 'w-24')} />
+            style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-24')} />
         </div>
-        {/* Derived hint */}
-        {(derivedBrutto != null || derivedNetto != null) && (
+        {!disabled && (derivedBrutto != null || derivedNetto != null) && (
           <span className={cn('self-end text-[10px] pb-1.5', dk ? 'text-amber-400' : 'text-amber-600')}>
             {derivedBrutto != null ? `→ ${formatCurrency(derivedBrutto)}` : `Netto ${formatCurrency(derivedNetto!)}`}
           </span>
         )}
       </div>
-      {/* Energiek. field */}
       <div className="flex items-end gap-1.5">
         <div className="flex flex-col">
           <p className={lbl}><Zap size={9} className="inline mr-0.5" />Energiek. ({eUnit})</p>
           <input type="number" min={0} step="0.01" value={(energy ?? '') as any}
-            placeholder="0.00"
+            placeholder="0.00" disabled={disabled}
             onChange={e => onPatch({ [energyKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)}
-            style={noSpinner} className={cn(inputCls, 'w-24')} />
+            style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-24')} />
         </div>
-        {energy != null && energy > 0 && (
+        {!disabled && energy != null && energy > 0 && (
           <span className={cn('self-end text-[10px] pb-1.5', dk ? 'text-yellow-400' : 'text-yellow-700')}>
             +{eUnit}{energy}
           </span>
@@ -405,6 +396,11 @@ export default function RoomCard({
   const [showCalendar, setShowCalendar] = useState(false)
   const saveTimer = useRef<any>(null)
 
+  // Close pricing panel automatically when brutto/netto mode turns on
+  useEffect(() => {
+    if (bruttoNettoActive) setShowPricing(false)
+  }, [bruttoNettoActive])
+
   const beds   = bedsForType(card.roomType, card.bedCount)
   const nights = calculateNights(durationStart, durationEnd)
   const total  = bruttoNettoActive ? 0 : calcRoomCardTotal(card, durationStart, durationEnd)
@@ -438,20 +434,15 @@ export default function RoomCard({
     }, 400)
   }
 
-  // Gap-fill fix: when filling a gap, we ADD the employee, never replace existing ones
   function onEmployeeUpdated(slotIndex: number, emp: Employee | null, isGapFill?: boolean) {
     let next: Employee[]
     if (emp === null) {
-      // Explicit delete
       next = employees.filter(e => e.id !== emp)
-      // If no id match, remove by slotIndex+null sentinel (shouldn't happen)
       if (next.length === employees.length)
         next = employees.filter(e => (e.slotIndex ?? 0) !== slotIndex)
     } else if (isGapFill) {
-      // GAP FILL — just append, never touch existing employees in this slot
       next = [...employees, emp]
     } else {
-      // Direct edit/replace of a single occupant
       const withoutSlot = employees.filter(e => (e.slotIndex ?? 0) !== slotIndex)
       next = [...withoutSlot, emp]
     }
@@ -473,12 +464,11 @@ export default function RoomCard({
       dk ? 'bg-[#0d1629] border-white/10' : 'bg-white border-slate-200'
     )}>
 
-      {/* ── ROW 1: Room No | Floor | Total (big) | price/bed below ─────────── */}
+      {/* ROW 1: Room No | Floor | Total */}
       <div className={cn(
         'flex items-start gap-2 px-3 pt-2 pb-1.5',
         dk ? 'border-b border-white/8' : 'border-b border-slate-100'
       )}>
-        {/* Room No */}
         <div className="flex flex-col gap-0.5">
           <label className={labelCls}>No.</label>
           <input type="text" value={card.roomNo}
@@ -487,7 +477,6 @@ export default function RoomCard({
             className={cn(inputCls, 'w-20 text-center font-bold')}
           />
         </div>
-        {/* Floor */}
         <div className="flex flex-col gap-0.5">
           <label className={labelCls}>{lang === 'de' ? 'Etg.' : 'Fl.'}</label>
           <input type="text" value={card.floor}
@@ -496,11 +485,7 @@ export default function RoomCard({
             className={cn(inputCls, 'w-12 text-center')}
           />
         </div>
-
-        {/* Spacer */}
         <div className="flex-1" />
-
-        {/* Total (big) + price/bed below */}
         <div className="flex flex-col items-end">
           <span className={cn('text-lg font-black tabular-nums leading-tight',
             bruttoNettoActive ? (dk ? 'text-slate-600' : 'text-slate-300') : (dk ? 'text-white' : 'text-slate-900')
@@ -513,16 +498,14 @@ export default function RoomCard({
             </span>
           )}
         </div>
-
         {saving && <Loader2 size={12} className="animate-spin text-blue-400 self-center" />}
       </div>
 
-      {/* ── ROW 2: Type | badge | Price btn | 📅 | 🗑 ──────────────────────── */}
+      {/* ROW 2: Type | badge | Price btn | 📅 | 🗑 */}
       <div className={cn(
         'flex items-center gap-2 px-3 py-1.5',
         (showPricing || showCalendar) ? (dk ? 'border-b border-white/8' : 'border-b border-slate-100') : ''
       )}>
-        {/* Room type */}
         <select
           value={card.roomType}
           onChange={e => {
@@ -538,7 +521,6 @@ export default function RoomCard({
           <option value="WG">WG</option>
         </select>
 
-        {/* WG bed stepper */}
         {isWG && (
           <div className={cn('flex items-center rounded-lg border overflow-hidden shrink-0', dk ? 'border-white/10' : 'border-slate-200')}>
             <button onClick={() => queueSave({ bedCount: Math.max(1, card.bedCount - 1) })}
@@ -550,7 +532,6 @@ export default function RoomCard({
           </div>
         )}
 
-        {/* Nights · Beds badge */}
         <span className={cn('text-xs font-bold px-2 py-1 rounded-md shrink-0 tabular-nums',
           dk ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-600')}>
           {nights}N·{beds}B
@@ -558,10 +539,11 @@ export default function RoomCard({
 
         <div className="flex-1" />
 
-        {/* Price btn */}
+        {/* Price btn — disabled when brutto/netto mode is on */}
         <button
           onClick={() => { if (!bruttoNettoActive) setShowPricing(p => !p) }}
           disabled={bruttoNettoActive}
+          title={bruttoNettoActive ? (lang === 'de' ? 'Deaktiviert: Brutto/Netto-Modus aktiv' : 'Disabled: Brutto/Netto mode active') : undefined}
           className={cn('px-2.5 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-1',
             bruttoNettoActive
               ? dk ? 'border-white/5 text-slate-700 cursor-not-allowed' : 'border-slate-100 text-slate-300 cursor-not-allowed'
@@ -574,7 +556,6 @@ export default function RoomCard({
           {!bruttoNettoActive && (showPricing ? <ChevronUp size={10} /> : <ChevronDown size={10} />)}
         </button>
 
-        {/* Calendar btn */}
         <button
           onClick={() => setShowCalendar(c => !c)}
           className={cn('px-2 py-1.5 rounded-lg text-xs font-bold border transition-all',
@@ -584,7 +565,6 @@ export default function RoomCard({
           )}
         >📅</button>
 
-        {/* Delete btn */}
         <button onClick={() => setConfirm(true)}
           className={cn('px-2 py-1.5 rounded-lg text-xs border transition-all',
             dk ? 'border-red-500/20 text-red-400 hover:bg-red-900/20' : 'border-red-200 text-red-500 hover:bg-red-50'
@@ -593,11 +573,9 @@ export default function RoomCard({
         </button>
       </div>
 
-      {/* ── ROW 3: Pricing panel ─────────────────────────────────────────────── */}
+      {/* ROW 3: Pricing panel — only shown when brutto/netto mode is OFF */}
       {showPricing && !bruttoNettoActive && (
         <div className={cn('px-3 py-3 border-b space-y-3', dk ? 'border-white/8 bg-white/[0.02]' : 'border-slate-100 bg-slate-50/60')}>
-
-          {/* 3-tab header */}
           <div className="flex items-center gap-1.5">
             <button onClick={() => queueSave({ pricingTab: 'per_bed' })}   className={tabBtn(activeTab === 'per_bed')}>
               {lang === 'de' ? 'Preis/Bett' : 'Price/Bed'}
@@ -610,7 +588,6 @@ export default function RoomCard({
             </button>
           </div>
 
-          {/* Tab content */}
           {activeTab === 'per_bed' && (
             <NMBRow
               nettoKey="bedNetto" mwstKey="bedMwst" bruttoKey="bedBrutto" energyKey="bedEnergy"
@@ -639,7 +616,6 @@ export default function RoomCard({
             />
           )}
 
-          {/* Discount + Apply-to-type */}
           <div className="flex items-end gap-2 flex-wrap">
             <button
               onClick={() => queueSave({ hasDiscount: !card.hasDiscount })}
@@ -675,7 +651,6 @@ export default function RoomCard({
               </div>
             )}
 
-            {/* Apply pricing to all same-type rooms */}
             {allCardsOfSameType.length > 1 && (
               <button
                 onClick={() => onApplyToSameType(card)}
@@ -692,7 +667,7 @@ export default function RoomCard({
         </div>
       )}
 
-      {/* ── Night calendar ───────────────────────────────────────────────────── */}
+      {/* Night calendar */}
       {showCalendar && durationStart && durationEnd && (
         <div className={cn('px-3 py-2.5 border-b', dk ? 'border-white/8 bg-white/[0.02]' : 'border-slate-100 bg-slate-50/40')}>
           <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-2', dk ? 'text-slate-500' : 'text-slate-400')}>
@@ -716,17 +691,15 @@ export default function RoomCard({
         </div>
       )}
 
-      {/* ── Bed slots ────────────────────────────────────────────────────────── */}
+      {/* Bed slots */}
       <div className="px-3 py-2.5 space-y-1.5">
         {Array.from({ length: beds }).map((_, i) => {
-          // All employees occupying this slot
           const slotEmps = employees.filter(e => (e.slotIndex ?? 0) === i)
           const firstEmp = slotEmps[0] ?? null
           const slotGaps = gapSlots.filter(g => g.slotIndex === i)
 
           return (
             <React.Fragment key={i}>
-              {/* Primary occupant(s) */}
               {slotEmps.length === 0 ? (
                 <BedSlot
                   slotIndex={i} employee={null}
@@ -744,7 +717,6 @@ export default function RoomCard({
                   />
                 ))
               )}
-              {/* Gap fill buttons */}
               {slotGaps.map((gap, gi) => (
                 <BedSlot
                   key={`gap-${i}-${gi}`} slotIndex={i} employee={null}
@@ -759,7 +731,7 @@ export default function RoomCard({
         })}
       </div>
 
-      {/* ── Delete confirm ───────────────────────────────────────────────────── */}
+      {/* Delete confirm */}
       {confirmDelete && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
           <div className={cn('w-full max-w-sm rounded-2xl border p-5',
