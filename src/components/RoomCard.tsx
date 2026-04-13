@@ -311,9 +311,9 @@ function NMBRow({
   const brutto = card[bruttoKey] as number | null | undefined
 
   const derivedBrutto = (brutto == null || brutto === 0) && netto && mwst
-    ? netto * (1 + mwst / 100) : null
+    ? Number((netto * (1 + mwst / 100)).toFixed(2)) : null
   const derivedNetto  = (netto == null || netto === 0) && brutto && mwst
-    ? brutto / (1 + mwst / 100) : null
+    ? Number((brutto / (1 + mwst / 100)).toFixed(2)) : null
 
   const displayNetto = (netto ?? derivedNetto ?? '') as any;
   const displayBrutto = (brutto ?? derivedBrutto ?? '') as any;
@@ -326,9 +326,9 @@ function NMBRow({
   const eBrutto = energyBruttoKey ? card[energyBruttoKey] as number | null | undefined : null
 
   const derivedEnergyBrutto = (eBrutto == null || eBrutto === 0) && eNetto && eMwst
-    ? eNetto * (1 + eMwst / 100) : null
+    ? Number((eNetto * (1 + eMwst / 100)).toFixed(2)) : null
   const derivedEnergyNetto  = (eNetto == null || eNetto === 0) && eBrutto && eMwst
-    ? eBrutto / (1 + eMwst / 100) : null
+    ? Number((eBrutto / (1 + eMwst / 100)).toFixed(2)) : null
 
   const displayEnergyNetto = (eNetto ?? derivedEnergyNetto ?? '') as any;
   const displayEnergyBrutto = (eBrutto ?? derivedEnergyBrutto ?? '') as any;
@@ -593,7 +593,7 @@ export default function RoomCard({
 
         <div className="flex-1" />
 
-        {/* ── THE FIX: ALWAYS CLICKABLE ── */}
+        {/* THE FIX: Price button is ALWAYS completely clickable without opacity fading! */}
         <button
           onClick={() => setShowPricing(p => !p)}
           className={cn('px-4 py-2 rounded-lg text-sm font-bold border transition-all flex items-center gap-2',
@@ -627,7 +627,6 @@ export default function RoomCard({
       {showPricing && (
         <div className={cn('px-5 py-5 border-b space-y-5', dk ? 'border-white/8 bg-white/[0.02]' : 'border-slate-100 bg-slate-50/60')}>
           
-          {/* Warning Message if locked by Brutto/Netto */}
           {bruttoNettoActive && (
             <div className={cn("p-3 text-xs font-bold rounded-lg mb-2", dk ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-amber-50 text-amber-700 border border-amber-200")}>
               {lang === 'de' ? 'Preise werden über die Hauptdauer (Brutto/Netto-Modus) gesteuert.' : 'Prices are controlled by the main duration (Brutto/Netto mode active).'}
