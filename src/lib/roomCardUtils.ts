@@ -11,24 +11,21 @@ export function bedsForType(roomType: string, bedCount: number): number {
 }
 
 // ─── Derive brutto from netto + mwst if needed ───────────────────────────────
-function deriveB(brutto: number | null | undefined, netto: number | null | undefined, mwst: number | null | undefined): number {
+export function deriveB(brutto: number | null | undefined, netto: number | null | undefined, mwst: number | null | undefined): number {
   if (brutto != null && brutto > 0) return brutto
-  if (netto != null && netto > 0 && mwst != null) return netto * (1 + mwst / 100)
+  if (netto != null && netto > 0) return netto * (1 + (mwst || 0) / 100)
   return 0
 }
 
 /**
  * Calculates the room card total based on the active pricing tab.
  *
- * per_bed:    (bedBrutto + bedEnergy) × beds × nights  − discount
- * per_room:   (roomBrutto + roomEnergy) × nights         − discount
- * total_room: (totalBrutto + totalEnergy)                − discount
- *
- * Energy uses the same unit as the active tab.
- * Falls back to legacy pricing if pricingTab is not set.
+ * per_bed:    (bedBrutto + bedEnergyBrutto) × beds × nights  − discount
+ * per_room:   (roomBrutto + roomEnergyBrutto) × nights       − discount
+ * total_room: (totalBrutto + totalEnergyBrutto)              − discount
  */
 export function calcRoomCardTotal(
-  card: RoomCard,
+  card: any, // using any to support dynamically added energy keys
   durationStart: string,
   durationEnd: string,
 ): number {
@@ -42,21 +39,20 @@ export function calcRoomCardTotal(
 
   if (tab === 'per_bed') {
     const b = deriveB(card.bedBrutto, card.bedNetto, card.bedMwst)
-    const e = card.bedEnergy ?? 0
+    const e = deriveB(card.bedEnergyBrutto, card.bedEnergyNetto, card.bedEnergyMwst) || card.bedEnergy || 0
     raw = (b + e) * beds * nights
   } else if (tab === 'total_room') {
     const b = deriveB(card.totalBrutto, card.totalNetto, card.totalMwst)
-    const e = card.totalEnergy ?? 0
+    const e = deriveB(card.totalEnergyBrutto, card.totalEnergyNetto, card.totalEnergyMwst) || card.totalEnergy || 0
     raw = b + e
   } else {
     // per_room (default)
-    // try new tab fields first
     if (card.roomBrutto != null || card.roomNetto != null) {
       const b = deriveB(card.roomBrutto, card.roomNetto, card.roomMwst)
-      const e = card.roomEnergy ?? 0
+      const e = deriveB(card.roomEnergyBrutto, card.roomEnergyNetto, card.roomEnergyMwst) || card.roomEnergy || 0
       raw = (b + e) * nights
     } else {
-      // legacy fallback
+      // legacy fallback for older entries
       if (card.useBruttoNetto || card.pricingMode === 'brutto_netto') {
         if (card.brutto != null && card.brutto > 0) {
           raw = card.brutto * nights
@@ -81,7 +77,7 @@ export function calcRoomCardTotal(
 
 /** Standard price per bed per night for this card */
 export function calcPricePerBedPerNight(
-  card: RoomCard,
+  card: any,
   durationStart: string,
   durationEnd: string,
 ): number {
@@ -108,24 +104,33 @@ export function calcRoomCardNetto(card: RoomCard): number | null {
 }
 
 /** Price fields to copy when "Apply to same room type" is used */
-export function extractPricingFields(card: RoomCard) {
+export function extractPricingFields(card: any) {
   return {
     pricingTab:   card.pricingTab,
     // per_bed
     bedNetto:     card.bedNetto,
     bedMwst:      card.bedMwst,
     bedBrutto:    card.bedBrutto,
-    bedEnergy:    card.bedEnergy,
+    bedEnergy:    card.bedEnergy, // Legacy
+    bedEnergyNetto: card.bedEnergyNetto,
+    bedEnergyMwst:  card.bedEnergyMwst,
+    bedEnergyBrutto:card.bedEnergyBrutto,
     // per_room
     roomNetto:    card.roomNetto,
     roomMwst:     card.roomMwst,
     roomBrutto:   card.roomBrutto,
-    roomEnergy:   card.roomEnergy,
+    roomEnergy:   card.roomEnergy, // Legacy
+    roomEnergyNetto: card.roomEnergyNetto,
+    roomEnergyMwst:  card.roomEnergyMwst,
+    roomEnergyBrutto:card.roomEnergyBrutto,
     // total_room
     totalNetto:   card.totalNetto,
     totalMwst:    card.totalMwst,
     totalBrutto:  card.totalBrutto,
-    totalEnergy:  card.totalEnergy,
+    totalEnergy:  card.totalEnergy, // Legacy
+    totalEnergyNetto: card.totalEnergyNetto,
+    totalEnergyMwst:  card.totalEnergyMwst,
+    totalEnergyBrutto:card.totalEnergyBrutto,
     // discount
     hasDiscount:  card.hasDiscount,
     discountType: card.discountType,
