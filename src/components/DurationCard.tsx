@@ -7,13 +7,13 @@ import {
 import {
   cn, calculateNights, formatCurrency, normalizeNumberInput,
 } from '../lib/utils'
-import { calcRoomCardTotal } from '../lib/roomCardUtils'
+import { calcRoomCardTotal, extractPricingFields } from '../lib/roomCardUtils'
 import { deleteDuration, updateDuration } from '../lib/supabase'
 import {
   createRoomCard, deleteRoomCard, getRoomCardsForDuration,
 } from '../lib/supabaseRoomCards'
 import type { Duration, ExtraCost, RoomCard } from '../lib/types'
-import RoomCardComponent, { getEffectiveNetto, extractPricingFields } from './RoomCard'
+import RoomCardComponent, { getEffectiveNetto } from './RoomCard'
 
 interface Props {
   duration: Duration
@@ -77,14 +77,12 @@ export default function DurationCard({
     0
   ) : 0
   
-  // Real-time Free Bed Logic based on TODAY
   const today = new Date().toISOString().split('T')[0];
   const assignedBeds = hasDates ? roomCards.reduce((s, c) => {
     let occupiedSlots = 0;
     const beds = c.roomType === 'EZ' ? 1 : c.roomType === 'DZ' ? 2 : c.roomType === 'TZ' ? 3 : (c.bedCount || 2);
     for (let i = 0; i < beds; i++) {
       const slotEmps = (c.employees || []).filter(e => (e.slotIndex ?? 0) === i);
-      // ONLY occupied if checkout is AFTER today
       if (slotEmps.some(e => e.checkOut > today)) {
         occupiedSlots++;
       }
@@ -117,7 +115,6 @@ export default function DurationCard({
   }
   const displayTotal = Math.max(0, discountedTotal)
 
-  // Netto/Bed exactly mirrors 1st room card
   let stdPricePerBedNetto = 0;
   if (roomCards.length > 0) {
     const firstCard = roomCards[0];
@@ -206,7 +203,6 @@ export default function DurationCard({
   function handleCardDelete(id: string) {
     setRoomCards(prev => { const n = prev.filter(c => c.id !== id); syncRoomCardsToParent(n); return n; })
   }
-  
   function handleApplyToSameType(source: RoomCard) {
     const pricingFields = extractPricingFields(source)
     setRoomCards(prev => {
@@ -235,24 +231,32 @@ export default function DurationCard({
   }
 
   return (
-    <div className={cn('rounded-2xl border', dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')}>
+    <div className={cn('rounded-2xl border relative', dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')}>
       
-      {/* ── THE FIX: Safe Wrapping Flex Container ── */}
-      <div className="flex gap-5 p-4 flex-col xl:flex-row items-start">
+      {/* ABSOLUTE TRASH ICON */}
+      <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirm(true); }}
+        className={cn('absolute top-4 right-4 p-2.5 rounded-lg transition-all border z-20 cursor-pointer hover:scale-105 active:scale-95',
+          dk ? 'border-red-500/20 text-red-400 bg-red-500/5 hover:bg-red-500/20' : 'border-red-200 text-red-500 bg-red-50 hover:bg-red-100'
+        )}>
+        <Trash2 size={16} />
+      </button>
+
+      {/* Responsive Flex Wrap: 2xl triggers side-by-side. Otherwise stacks nicely. */}
+      <div className="flex gap-6 p-5 pr-16 flex-col 2xl:flex-row items-start">
 
         {/* ── Left Side: Core Controls ── */}
-        <div className="flex flex-col gap-4 flex-1 w-full">
+        <div className="flex flex-col gap-4 flex-1 w-full 2xl:w-auto 2xl:max-w-[420px]">
 
-          {/* ROW 1: Dates, Presets, Stats, & Trash (Always visible on far right) */}
-          <div className="flex items-end gap-2 flex-wrap w-full">
+          {/* ROW 1: Dates, Presets & Stats */}
+          <div className="flex items-end gap-2 flex-wrap lg:flex-nowrap">
             <div className="flex flex-col gap-1 relative">
               <label className={labelCls}>IN</label>
-              <div className="relative w-[130px] h-[36px] cursor-pointer" onClick={() => openPicker(inDateRef)}>
+              <div className="relative w-[130px] h-[38px] cursor-pointer" onClick={() => openPicker(inDateRef)}>
                 <input ref={inDateRef} type="date" value={local.startDate || ''}
                   onChange={e => patch({ startDate: e.target.value })}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
-                <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none pr-2 h-[36px]')}>
+                <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none pr-2.5 h-[38px]')}>
                   <span className={local.startDate ? (dk ? 'text-white' : 'text-slate-900') : (dk ? 'text-slate-500' : 'text-slate-400')}>
                     {forceDMY(local.startDate)}
                   </span>
@@ -263,12 +267,12 @@ export default function DurationCard({
             
             <div className="flex flex-col gap-1 relative">
               <label className={labelCls}>OUT</label>
-              <div className="relative w-[130px] h-[36px] cursor-pointer" onClick={() => openPicker(outDateRef)}>
+              <div className="relative w-[130px] h-[38px] cursor-pointer" onClick={() => openPicker(outDateRef)}>
                 <input ref={outDateRef} type="date" value={local.endDate || ''} min={local.startDate || undefined}
                   onChange={e => { setCheckoutOffset(null); patch({ endDate: e.target.value }) }}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
-                <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none pr-2 h-[36px]')}>
+                <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none pr-2.5 h-[38px]')}>
                   <span className={local.endDate ? (dk ? 'text-white' : 'text-slate-900') : (dk ? 'text-slate-500' : 'text-slate-400')}>
                     {forceDMY(local.endDate)}
                   </span>
@@ -278,16 +282,16 @@ export default function DurationCard({
             </div>
             
             {local.startDate && (
-              <div className="flex items-center gap-1 self-end h-[36px]">
+              <div className="flex items-center gap-1 self-end pb-0.5">
                 {[{ label: '1W', days: 7 }, { label: '1M', days: 30 }].map(p => (
-                  <div key={p.label} className="flex items-center h-full">
+                  <div key={p.label} className="flex items-center">
                     <button onClick={() => applyPreset(p.days)}
-                      className={cn('px-2.5 h-full rounded-l-lg text-xs font-bold border transition-all',
+                      className={cn('px-2.5 py-2 rounded-l-lg text-sm font-bold border transition-all',
                         checkoutOffset === p.days ? 'bg-blue-600 text-white border-blue-600' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
                       )}>{p.label}</button>
-                    <div className="flex flex-col h-full">
-                      <button onClick={() => applyPreset(p.days, 1)} className={cn('px-1.5 flex-1 text-[9px] border-y border-r rounded-tr-lg flex items-center', dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}>+</button>
-                      <button onClick={() => applyPreset(p.days, -1)} className={cn('px-1.5 flex-1 text-[9px] border-b border-r rounded-br-lg flex items-center', dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}>−</button>
+                    <div className="flex flex-col">
+                      <button onClick={() => applyPreset(p.days, 1)} className={cn('px-1.5 text-[9px] leading-[11px] py-0.5 border-y border-r rounded-tr-lg', dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}>+</button>
+                      <button onClick={() => applyPreset(p.days, -1)} className={cn('px-1.5 text-[9px] leading-[11px] py-0.5 border-b border-r rounded-br-lg', dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}>−</button>
                     </div>
                   </div>
                 ))}
@@ -295,7 +299,7 @@ export default function DurationCard({
             )}
 
             {hasDates && (
-              <div className={cn('self-end flex items-center gap-3 px-3 h-[36px] rounded-xl border text-sm font-bold shrink-0',
+              <div className={cn('self-end flex items-center gap-2.5 px-3 py-2 rounded-xl border text-sm font-bold shrink-0 mb-0.5',
                 dk ? 'bg-white/5 border-white/10 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700')}>
                 <span className={cn('flex items-center gap-1 text-base font-black', dk ? 'text-white' : 'text-slate-900')}><Moon size={14} className="text-blue-500" /> {nights}</span>
                 {roomCards.length > 0 && (
@@ -315,87 +319,79 @@ export default function DurationCard({
               </div>
             )}
             
-            {saving && <Loader2 size={16} className="animate-spin text-blue-400 self-center ml-2" />}
-
-            {/* Trash icon perfectly aligned to the far right inside the row */}
-            <div className="flex-1" />
-            <button onClick={() => setConfirm(true)}
-              className={cn('p-2.5 rounded-lg transition-all border self-end h-[36px] flex items-center justify-center',
-                dk ? 'border-red-500/20 text-red-400 bg-red-500/5 hover:bg-red-500/20' : 'border-red-200 text-red-500 bg-red-50 hover:bg-red-100'
-              )}>
-              <Trash2 size={16} />
-            </button>
+            {saving && <Loader2 size={16} className="animate-spin text-blue-400 self-end mb-2 ml-1" />}
           </div>
 
-          {/* ROW 2: Invoice, Booking Ref, Add Rooms (ALL IN ONE FLOW) */}
+          {/* ROW 2: Invoice & Booking Ref */}
           <div className="flex items-end gap-3 flex-wrap mt-1">
             <div className="flex flex-col gap-1 shrink-0">
               <label className={labelCls}>{lang === 'de' ? 'Rechnungs-Nr.' : 'Invoice No.'}</label>
               <input type="text" value={local.rechnungNr || ''}
                 onChange={e => patch({ rechnungNr: e.target.value })}
                 placeholder="RE-2026-..."
-                className={cn(inputCls, 'w-32 h-[38px]')} />
+                className={cn(inputCls, 'w-40')} />
             </div>
             
-            <div className="flex flex-col gap-1 flex-1 min-w-[150px]">
+            <div className="flex flex-col gap-1 flex-1 min-w-[150px] max-w-[220px]">
               <label className={labelCls}>{lang === 'de' ? 'Buchungsreferenz / Notiz' : 'Booking ref / note'}</label>
               <input type="text" value={local.bookingId || ''}
                 onChange={e => patch({ bookingId: e.target.value })}
                 placeholder={lang === 'de' ? 'Referenz / Notiz...' : 'Reference / note...'}
-                className={cn(inputCls, 'w-full h-[38px]')} />
+                className={cn(inputCls, 'w-full')} />
             </div>
-
-            {hasDates && (
-              <div className="flex flex-col gap-1 shrink-0">
-                <label className={labelCls}>{lang === 'de' ? 'Zimmer hinzufügen' : 'Add Rooms'}</label>
-                <div className="flex items-center gap-1 h-[38px]">
-                  {ROOM_TYPES.map(rt => {
-                    const count = typeCount[rt] ?? 0;
-                    if (count === 0) {
-                      return (
-                        <button key={rt} onClick={() => handleAddRoomCard(rt)} disabled={!!addingType}
-                          className={cn('px-3 h-full rounded-lg text-sm font-bold border transition-all flex items-center gap-1',
-                            dk ? 'border-white/10 text-slate-400 hover:border-white/20 hover:text-white' : 'border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-700'
-                          )}>
-                          {addingType === rt ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} {rt}
-                        </button>
-                      );
-                    }
-                    return (
-                      <div key={rt} className="flex items-center h-full">
-                        <button onClick={() => handleRemoveLastOfType(rt)}
-                          className={cn('px-2.5 h-full rounded-l-lg text-sm font-bold border-y border-l transition-all',
-                            dk ? 'border-white/10 text-slate-400 hover:bg-red-900/20 hover:text-red-400' : 'border-slate-200 text-slate-500 hover:bg-red-50 hover:text-red-500'
-                          )}><Minus size={14} /></button>
-                        <button className={cn('px-3 h-full text-sm font-bold border-y transition-all flex items-center',
-                          dk ? 'border-blue-500/40 bg-blue-500/10 text-blue-400' : 'border-blue-400 bg-blue-50 text-blue-600'
-                        )}>
-                          {rt} <span className={cn('ml-1 px-1.5 py-0.5 rounded-md text-[11px] leading-none font-black', dk ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100 text-blue-700')}>{count}</span>
-                        </button>
-                        <button onClick={() => handleAddRoomCard(rt)} disabled={!!addingType}
-                          className={cn('px-2.5 h-full rounded-r-lg text-sm font-bold border-y border-r transition-all',
-                            dk ? 'border-white/10 text-slate-400 hover:bg-blue-900/20 hover:text-blue-400' : 'border-slate-200 text-slate-500 hover:bg-blue-50 hover:text-blue-500'
-                          )}><Plus size={14} /></button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
 
+          {/* ROW 3: Add Rooms */}
+          {hasDates && (
+            <div className="flex flex-col gap-1 mt-1">
+              <label className={labelCls}>{lang === 'de' ? 'Zimmer hinzufügen' : 'Add Rooms'}</label>
+              <div className="flex items-center gap-1 flex-wrap">
+                {ROOM_TYPES.map(rt => {
+                  const count = typeCount[rt] ?? 0;
+                  if (count === 0) {
+                    return (
+                      <button key={rt} onClick={() => handleAddRoomCard(rt)} disabled={!!addingType}
+                        className={cn('px-3 py-1.5 rounded-lg text-sm font-bold border transition-all flex items-center gap-1.5 h-[38px]',
+                          dk ? 'border-white/10 text-slate-400 hover:border-white/20 hover:text-white' : 'border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-700'
+                        )}>
+                        {addingType === rt ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} {rt}
+                      </button>
+                    );
+                  }
+                  return (
+                    <div key={rt} className="flex items-center h-[38px]">
+                      <button onClick={() => handleRemoveLastOfType(rt)}
+                        className={cn('px-2.5 h-full rounded-l-lg text-sm font-bold border-y border-l transition-all',
+                          dk ? 'border-white/10 text-slate-400 hover:bg-red-900/20 hover:text-red-400' : 'border-slate-200 text-slate-500 hover:bg-red-50 hover:text-red-500'
+                        )}><Minus size={14} /></button>
+                      <button className={cn('px-3 h-full text-sm font-bold border-y transition-all',
+                        dk ? 'border-blue-500/40 bg-blue-500/10 text-blue-400' : 'border-blue-400 bg-blue-50 text-blue-600'
+                      )}>
+                        {rt} <span className={cn('ml-1 px-1.5 rounded-md text-[11px] font-black', dk ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100 text-blue-700')}>{count}</span>
+                      </button>
+                      <button onClick={() => handleAddRoomCard(rt)} disabled={!!addingType}
+                        className={cn('px-2.5 h-full rounded-r-lg text-sm font-bold border-y border-r transition-all',
+                          dk ? 'border-white/10 text-slate-400 hover:bg-blue-900/20 hover:text-blue-400' : 'border-slate-200 text-slate-500 hover:bg-blue-50 hover:text-blue-500'
+                        )}><Plus size={14} /></button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {!hasDates && (
-            <div className={cn('text-sm text-center py-4 mt-2 rounded-xl border-2 border-dashed',
+            <div className={cn('text-sm text-center py-4 mt-5 rounded-xl border-2 border-dashed',
               dk ? 'border-white/10 text-slate-500' : 'border-slate-200 text-slate-400')}>
               📅 {lang === 'de' ? 'Check-in und Check-out eingeben, um Zimmer hinzuzufügen' : 'Enter check-in and check-out to add rooms'}
             </div>
           )}
         </div>
 
-        {/* ── Right Side: Inline Total Cost Card ── */}
+        {/* ── Right Side: Expanded Single-Line Flow Total Cost Card ── */}
         {hasDates && (
           <div className={cn(
-            'flex-1 w-full xl:w-auto shrink-0 rounded-2xl border p-4 flex flex-col gap-3',
+            'flex-1 w-full 2xl:w-auto min-w-[320px] 2xl:min-w-[540px] shrink-0 rounded-2xl border p-4 flex flex-col gap-3',
             dk ? 'bg-white/[0.03] border-white/10' : 'bg-slate-50 border-slate-200'
           )}>
             
@@ -434,7 +430,7 @@ export default function DurationCard({
 
             <div className={cn('border-t', dk ? 'border-white/[0.06]' : 'border-slate-100')} />
 
-            {/* ROW 2: Toggles (Discount & Extra completely inline) */}
+            {/* ROW 2: Toggles (Discount & Extra Inline Array) ALWAYS VISIBLE */}
             <div className="flex items-start gap-3 flex-wrap w-full">
               
               {/* Discount Group */}
@@ -471,7 +467,7 @@ export default function DurationCard({
                       <div key={ec.id} className="flex items-center gap-1.5 w-full h-[38px]">
                         <input type="text" value={ec.note} onChange={e => patchExtraCost(ec.id, { note: e.target.value })}
                           placeholder={lang === 'de' ? 'Notiz...' : 'Note...'}
-                          className={cn('flex-1 min-w-[140px] px-3 py-1.5 rounded-lg text-sm outline-none border h-full', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} />
+                          className={cn('flex-1 min-w-[80px] px-3 py-1.5 rounded-lg text-sm outline-none border h-full', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} />
                         <input type="number" min={0} step="0.01" value={ec.amount || ''} placeholder="0.00"
                           onChange={e => patchExtraCost(ec.id, { amount: normalizeNumberInput(e.target.value) })}
                           className={cn('w-28 shrink-0 px-3 py-1.5 rounded-lg text-sm outline-none border h-full', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} />
@@ -546,31 +542,6 @@ export default function DurationCard({
                 bruttoNettoActive={local.useBruttoNetto}
               />
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* MODAL */}
-      {confirmDelete && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
-          <div className={cn('w-full max-w-md rounded-2xl border p-6 shadow-xl',
-            dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
-            <h3 className="text-xl font-black mb-3">{lang === 'de' ? 'Dauer löschen?' : 'Delete duration?'}</h3>
-            <p className={cn('text-base mb-6', dk ? 'text-slate-400' : 'text-slate-600')}>
-              {lang === 'de' ? 'Diese Buchungsdauer wird dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.' : 'This duration will be permanently deleted. This cannot be undone.'}
-            </p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setConfirm(false)}
-                className={cn('px-5 py-2.5 rounded-xl border text-sm font-bold',
-                  dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}>
-                {lang === 'de' ? 'Abbrechen' : 'Cancel'}
-              </button>
-              <button
-                onClick={async () => { await deleteDuration(local.id); onDelete(local.id) }}
-                className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md shadow-red-900/20">
-                {lang === 'de' ? 'Löschen' : 'Delete'}
-              </button>
-            </div>
           </div>
         </div>
       )}
