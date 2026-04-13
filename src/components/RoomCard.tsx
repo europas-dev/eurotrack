@@ -59,7 +59,6 @@ function BedSlot({
   durationId: string
   dk: boolean
   lang: 'de' | 'en'
-  // Added deletedId to safely target removal without wiping substitutes
   onUpdated: (slotIndex: number, emp: Employee | null, isGapFill?: boolean, deletedId?: string) => void
 }) {
   const [editing, setEditing]     = useState(false)
@@ -106,7 +105,6 @@ function BedSlot({
     setSaving(true)
     try {
       await deleteRoomCardEmployee(employee.id)
-      // Pass the specific ID so the parent only deletes this exact entry!
       onUpdated(slotIndex, null, false, employee.id)
       setName(''); setEditing(false)
     } catch (e) { console.error(e) }
@@ -286,9 +284,10 @@ function getGapSlots(
   return gaps
 }
 
-// ── Netto/MwSt/Brutto row ────────────────────────────────────────────────────
+// ── Netto/MwSt/Brutto row (WITH ENERGY TAXES) ───────────────────────────────
 function NMBRow({
-  nettoKey, mwstKey, bruttoKey, energyKey,
+  nettoKey, mwstKey, bruttoKey,
+  energyNettoKey, energyMwstKey, energyBruttoKey,
   card, dk, inputCls, onPatch, lang,
   nettoLabel, bruttoLabel, energyUnit,
   disabled,
@@ -296,7 +295,9 @@ function NMBRow({
   nettoKey: keyof RoomCardType
   mwstKey: keyof RoomCardType
   bruttoKey: keyof RoomCardType
-  energyKey: keyof RoomCardType
+  energyNettoKey?: keyof RoomCardType
+  energyMwstKey?: keyof RoomCardType
+  energyBruttoKey?: keyof RoomCardType
   card: RoomCardType
   dk: boolean
   inputCls: string
@@ -311,63 +312,97 @@ function NMBRow({
   const bLabel = bruttoLabel ?? 'Brutto (€)'
   const eUnit  = energyUnit ?? '€'
 
+  // Main Prices
   const netto  = card[nettoKey]  as number | null | undefined
   const mwst   = card[mwstKey]   as number | null | undefined
   const brutto = card[bruttoKey] as number | null | undefined
-  const energy = card[energyKey] as number | null | undefined
 
   const derivedBrutto = (brutto == null || brutto === 0) && netto && mwst
     ? netto * (1 + mwst / 100) : null
   const derivedNetto  = (netto == null || netto === 0) && brutto && mwst
     ? brutto / (1 + mwst / 100) : null
 
+  // Energy Prices
+  const eNetto  = energyNettoKey ? card[energyNettoKey] as number | null | undefined : null
+  const eMwst   = energyMwstKey ? card[energyMwstKey] as number | null | undefined : null
+  const eBrutto = energyBruttoKey ? card[energyBruttoKey] as number | null | undefined : null
+
+  const derivedEnergyBrutto = (eBrutto == null || eBrutto === 0) && eNetto && eMwst
+    ? eNetto * (1 + eMwst / 100) : null
+  const derivedEnergyNetto  = (eNetto == null || eNetto === 0) && eBrutto && eMwst
+    ? eBrutto / (1 + eMwst / 100) : null
+
   const lbl = cn('text-[9px] font-bold uppercase tracking-widest mb-0.5', dk ? 'text-slate-500' : 'text-slate-400')
   const disabledInputCls = cn(inputCls, 'opacity-40 cursor-not-allowed pointer-events-none')
 
   return (
-    <div className={cn('space-y-1.5', disabled && 'pointer-events-none opacity-50')}>
-      <div className="flex items-end gap-1.5 flex-wrap">
-        <div className="flex flex-col">
-          <p className={lbl}>{nLabel}</p>
-          <input type="number" min={0} step="0.01" value={(netto ?? '') as any}
-            placeholder="0.00" disabled={disabled}
-            onChange={e => onPatch({ [nettoKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)}
-            style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-24')} />
-        </div>
-        <div className="flex flex-col">
-          <p className={lbl}>MwSt (%)</p>
-          <input type="number" min={0} max={99} step="0.5" value={(mwst ?? '') as any}
-            placeholder="%" disabled={disabled}
-            onChange={e => onPatch({ [mwstKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)}
-            style={{ ...noSpinner, width: 56 }} className={disabled ? disabledInputCls : inputCls} />
-        </div>
-        <div className="flex flex-col">
-          <p className={lbl}>{bLabel}</p>
-          <input type="number" min={0} step="0.01" value={(brutto ?? '') as any}
-            placeholder="0.00" disabled={disabled}
-            onChange={e => onPatch({ [bruttoKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)}
-            style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-24')} />
+    <div className={cn('space-y-4', disabled && 'pointer-events-none opacity-50')}>
+      
+      {/* Main Room/Bed Price Row */}
+      <div className="space-y-1">
+        <div className="flex items-end gap-2 flex-wrap">
+          <div className="flex flex-col flex-1 min-w-0">
+            <p className={lbl}>{nLabel}</p>
+            <input type="number" min={0} step="0.01" value={(netto ?? '') as any}
+              placeholder="0.00" disabled={disabled}
+              onChange={e => onPatch({ [nettoKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)}
+              style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-full')} />
+          </div>
+          <div className="flex flex-col shrink-0">
+            <p className={lbl}>MwSt (%)</p>
+            <input type="number" min={0} max={99} step="0.5" value={(mwst ?? '') as any}
+              placeholder="%" disabled={disabled}
+              onChange={e => onPatch({ [mwstKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)}
+              style={{ ...noSpinner, width: 56 }} className={disabled ? disabledInputCls : inputCls} />
+          </div>
+          <div className="flex flex-col flex-1 min-w-0">
+            <p className={lbl}>{bLabel}</p>
+            <input type="number" min={0} step="0.01" value={(brutto ?? '') as any}
+              placeholder="0.00" disabled={disabled}
+              onChange={e => onPatch({ [bruttoKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)}
+              style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-full')} />
+          </div>
         </div>
         {!disabled && (derivedBrutto != null || derivedNetto != null) && (
-          <span className={cn('self-end text-[10px] pb-1.5', dk ? 'text-amber-400' : 'text-amber-600')}>
-            {derivedBrutto != null ? `→ ${formatCurrency(derivedBrutto)}` : `Netto ${formatCurrency(derivedNetto!)}`}
-          </span>
+          <div className={cn('text-[10px]', dk ? 'text-amber-400' : 'text-amber-600')}>
+            {derivedBrutto != null ? `→ Brutto: ${formatCurrency(derivedBrutto)}` : `→ Netto: ${formatCurrency(derivedNetto!)}`}
+          </div>
         )}
       </div>
-      <div className="flex items-end gap-1.5">
-        <div className="flex flex-col">
-          <p className={lbl}><Zap size={9} className="inline mr-0.5" />Energiek. ({eUnit})</p>
-          <input type="number" min={0} step="0.01" value={(energy ?? '') as any}
-            placeholder="0.00" disabled={disabled}
-            onChange={e => onPatch({ [energyKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)}
-            style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-24')} />
+
+      {/* Energy Price Row */}
+      {energyNettoKey && energyMwstKey && energyBruttoKey && (
+        <div className="space-y-1 p-2 rounded-lg border border-dashed border-yellow-500/30 bg-yellow-500/5">
+          <div className="flex items-end gap-2 flex-wrap">
+            <div className="flex flex-col flex-1 min-w-0">
+              <p className={lbl}><Zap size={9} className="inline mr-0.5 text-yellow-500" />En. Netto</p>
+              <input type="number" min={0} step="0.01" value={(eNetto ?? '') as any}
+                placeholder="0.00" disabled={disabled}
+                onChange={e => onPatch({ [energyNettoKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)}
+                style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-full')} />
+            </div>
+            <div className="flex flex-col shrink-0">
+              <p className={lbl}>MwSt</p>
+              <input type="number" min={0} max={99} step="0.5" value={(eMwst ?? '') as any}
+                placeholder="%" disabled={disabled}
+                onChange={e => onPatch({ [energyMwstKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)}
+                style={{ ...noSpinner, width: 56 }} className={disabled ? disabledInputCls : inputCls} />
+            </div>
+            <div className="flex flex-col flex-1 min-w-0">
+              <p className={lbl}>En. Brutto</p>
+              <input type="number" min={0} step="0.01" value={(eBrutto ?? '') as any}
+                placeholder="0.00" disabled={disabled}
+                onChange={e => onPatch({ [energyBruttoKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)}
+                style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-full')} />
+            </div>
+          </div>
+          {!disabled && (derivedEnergyBrutto != null || derivedEnergyNetto != null) && (
+            <div className={cn('text-[10px]', dk ? 'text-yellow-400' : 'text-yellow-600')}>
+              {derivedEnergyBrutto != null ? `→ Brutto: ${formatCurrency(derivedEnergyBrutto)}` : `→ Netto: ${formatCurrency(derivedEnergyNetto!)}`}
+            </div>
+          )}
         </div>
-        {!disabled && energy != null && energy > 0 && (
-          <span className={cn('self-end text-[10px] pb-1.5', dk ? 'text-yellow-400' : 'text-yellow-700')}>
-            +{eUnit}{energy}
-          </span>
-        )}
-      </div>
+      )}
     </div>
   )
 }
@@ -407,12 +442,21 @@ export default function RoomCard({
   const nights = calculateNights(durationStart, durationEnd)
 
   const total  = bruttoNettoActive ? 0 : calcRoomCardTotal(card, durationStart, durationEnd)
-  const ppbpn  = bruttoNettoActive ? 0 : calcPricePerBedPerNight(card, durationStart, durationEnd)
   const isWG   = card.roomType === 'WG'
   const activeTab: PricingTab = card.pricingTab ?? 'per_room'
 
   const employees = card.employees ?? []
   const gapSlots  = getGapSlots(beds, employees, durationStart, durationEnd)
+
+  // ── THE GOLDEN RULE: Derive Standard Netto/Bed from wherever it was entered ──
+  let derivedNettoPerBed = 0;
+  if (activeTab === 'per_bed' && card.bedNetto) {
+    derivedNettoPerBed = card.bedNetto;
+  } else if (activeTab === 'per_room' && card.roomNetto && beds > 0) {
+    derivedNettoPerBed = card.roomNetto / beds;
+  } else if (activeTab === 'total_room' && card.totalNetto && beds > 0 && nights > 0) {
+    derivedNettoPerBed = card.totalNetto / (beds * nights);
+  }
 
   const inputCls = cn(
     'px-2.5 py-1.5 rounded-lg text-xs outline-none border transition-all',
@@ -437,22 +481,17 @@ export default function RoomCard({
     }, 400)
   }
 
-  // ── FIXED: Safely merges updates or removes specific deleted IDs ──
   function onEmployeeUpdated(slotIndex: number, emp: Employee | null, isGapFill?: boolean, deletedId?: string) {
     let next: Employee[]
     if (deletedId) {
-      // Direct removal by ID so we don't wipe out substitutes sharing the slot
       next = employees.filter(e => e.id !== deletedId)
     } else if (emp === null) {
-      // Fallback
       next = employees.filter(e => (e.slotIndex ?? 0) !== slotIndex)
     } else {
       const exists = employees.some(e => e.id === emp.id)
       if (exists) {
-        // Merge the update, leave substitutes alone
         next = employees.map(e => e.id === emp.id ? emp : e)
       } else {
-        // Add new
         next = [...employees, emp]
       }
     }
@@ -497,9 +536,9 @@ export default function RoomCard({
           )}>
             {roomTotal}
           </span>
-          {!bruttoNettoActive && ppbpn > 0 && (
+          {!bruttoNettoActive && derivedNettoPerBed > 0 && (
             <span className={cn('text-[10px] tabular-nums', dk ? 'text-slate-500' : 'text-slate-400')}>
-              {formatCurrency(ppbpn)}/bed/N
+              {formatCurrency(derivedNettoPerBed)} netto/bed/N
             </span>
           )}
         </div>
@@ -602,7 +641,8 @@ export default function RoomCard({
 
           {activeTab === 'per_bed' && (
             <NMBRow
-              nettoKey="bedNetto" mwstKey="bedMwst" bruttoKey="bedBrutto" energyKey="bedEnergy"
+              nettoKey="bedNetto" mwstKey="bedMwst" bruttoKey="bedBrutto"
+              energyNettoKey="bedEnergyNetto" energyMwstKey="bedEnergyMwst" energyBruttoKey="bedEnergyBrutto"
               card={card} dk={dk} inputCls={inputCls} onPatch={queueSave} lang={lang}
               nettoLabel={lang === 'de' ? 'Netto/Bett (€)' : 'Netto/Bed (€)'}
               bruttoLabel={lang === 'de' ? 'Brutto/Bett (€)' : 'Brutto/Bed (€)'}
@@ -611,7 +651,8 @@ export default function RoomCard({
           )}
           {activeTab === 'per_room' && (
             <NMBRow
-              nettoKey="roomNetto" mwstKey="roomMwst" bruttoKey="roomBrutto" energyKey="roomEnergy"
+              nettoKey="roomNetto" mwstKey="roomMwst" bruttoKey="roomBrutto"
+              energyNettoKey="roomEnergyNetto" energyMwstKey="roomEnergyMwst" energyBruttoKey="roomEnergyBrutto"
               card={card} dk={dk} inputCls={inputCls} onPatch={queueSave} lang={lang}
               nettoLabel={lang === 'de' ? 'Netto/Zi. (€)' : 'Netto/Room (€)'}
               bruttoLabel={lang === 'de' ? 'Brutto/Zi. (€)' : 'Brutto/Room (€)'}
@@ -620,7 +661,8 @@ export default function RoomCard({
           )}
           {activeTab === 'total_room' && (
             <NMBRow
-              nettoKey="totalNetto" mwstKey="totalMwst" bruttoKey="totalBrutto" energyKey="totalEnergy"
+              nettoKey="totalNetto" mwstKey="totalMwst" bruttoKey="totalBrutto"
+              energyNettoKey="totalEnergyNetto" energyMwstKey="totalEnergyMwst" energyBruttoKey="totalEnergyBrutto"
               card={card} dk={dk} inputCls={inputCls} onPatch={queueSave} lang={lang}
               nettoLabel={lang === 'de' ? 'Netto ges. (€)' : 'Netto total (€)'}
               bruttoLabel={lang === 'de' ? 'Brutto ges. (€)' : 'Brutto total (€)'}
