@@ -9,7 +9,7 @@ import {
   normalizeNumberInput,
 } from '../lib/utils'
 import {
-  bedsForType, calcRoomCardTotal, calcPricePerBedPerNight, extractPricingFields,
+  bedsForType, calcRoomCardTotal, extractPricingFields,
 } from '../lib/roomCardUtils'
 import {
   updateRoomCard, deleteRoomCard,
@@ -340,7 +340,7 @@ function NMBRow({
   const disabledInputCls = cn(inputCls, 'opacity-40 cursor-not-allowed pointer-events-none')
 
   return (
-    <div className={cn('space-y-5')}>
+    <div className={cn('space-y-5', disabled && 'opacity-50 pointer-events-none')}>
       
       {/* Main Price Row */}
       <div className="flex items-start gap-3 flex-wrap">
@@ -593,14 +593,13 @@ export default function RoomCard({
 
         <div className="flex-1" />
 
-        {/* THE FIX: Price button is ALWAYS clickable. */}
+        {/* ── THE FIX: ALWAYS CLICKABLE ── */}
         <button
           onClick={() => setShowPricing(p => !p)}
           className={cn('px-4 py-2 rounded-lg text-sm font-bold border transition-all flex items-center gap-2',
             showPricing
               ? 'bg-amber-500 text-white border-amber-500'
-              : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50',
-            bruttoNettoActive && !showPricing && "opacity-50"
+              : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
           )}
         >
           {lang === 'de' ? 'Preis' : 'Price'}
@@ -628,7 +627,7 @@ export default function RoomCard({
       {showPricing && (
         <div className={cn('px-5 py-5 border-b space-y-5', dk ? 'border-white/8 bg-white/[0.02]' : 'border-slate-100 bg-slate-50/60')}>
           
-          {/* THE FIX: Show warning if Brutto/Netto mode is on */}
+          {/* Warning Message if locked by Brutto/Netto */}
           {bruttoNettoActive && (
             <div className={cn("p-3 text-xs font-bold rounded-lg mb-2", dk ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-amber-50 text-amber-700 border border-amber-200")}>
               {lang === 'de' ? 'Preise werden über die Hauptdauer (Brutto/Netto-Modus) gesteuert.' : 'Prices are controlled by the main duration (Brutto/Netto mode active).'}
