@@ -46,7 +46,7 @@ export function formatDateShort(iso: string, lang: 'de' | 'en' = 'de'): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-// ── THE FIX: Forces European layout (13 Apr) ──
+// ── FIX: Tab names always use European "13 Apr" format ──
 export function formatDateChip(iso: string): string {
   if (!iso) return '—'
   const d = new Date(iso)
@@ -151,7 +151,6 @@ export function getDurationCostForMonth(d: Duration, year: number, month: number
   const dEnd   = new Date(d.endDate)
 
   if (dEnd <= monthStart || dStart >= monthEnd) return 0
-
   const overlapStart = dStart > monthStart ? dStart : monthStart
   const overlapEnd   = dEnd   < monthEnd   ? dEnd   : monthEnd
 
@@ -179,7 +178,9 @@ export function calcHotelUnpaidCost(hotel: Hotel): number {
   return (hotel.durations ?? []).filter(d => !d.isPaid).reduce((s, d) => s + getDurationTotal(d as Duration), 0)
 }
 
+// ── THE FIX: Accurate "Free Beds" logic based strictly on Today's date ──
 export function calcHotelFreeBeds(hotel: Hotel): number {
+  const today = new Date().toISOString().split('T')[0];
   return (hotel.durations ?? []).reduce((s, d) => {
     const rCards = d.roomCards || [];
     let tBeds = 0;
@@ -187,14 +188,25 @@ export function calcHotelFreeBeds(hotel: Hotel): number {
     
     if (rCards.length > 0) {
       rCards.forEach((c: any) => {
-        tBeds += bedsForType(c.roomType, c.bedCount);
-        const uniqueSlots = new Set((c.employees || []).map((e: any) => e.slotIndex || 0));
-        tAssigned += uniqueSlots.size;
+        const beds = bedsForType(c.roomType, c.bedCount);
+        tBeds += beds;
+        for (let i = 0; i < beds; i++) {
+          const slotEmps = (c.employees || []).filter((e: any) => (e.slotIndex ?? 0) === i);
+          // Only occupied if someone's checkout is strictly AFTER today!
+          if (slotEmps.some((e: any) => e.checkOut > today)) {
+            tAssigned++;
+          }
+        }
       });
     } else {
-      tBeds = getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom);
-      const uniqueSlots = new Set((d.employees || []).filter(Boolean).map((e: any) => e.slotIndex || 0));
-      tAssigned += uniqueSlots.size;
+      const beds = getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom);
+      tBeds += beds;
+      for (let i = 0; i < beds; i++) {
+        const slotEmps = (d.employees || []).filter((e: any) => (e.slotIndex ?? 0) === i);
+        if (slotEmps.some((e: any) => e.checkOut > today)) {
+          tAssigned++;
+        }
+      }
     }
     
     return s + Math.max(0, tBeds - tAssigned);
@@ -202,6 +214,7 @@ export function calcHotelFreeBeds(hotel: Hotel): number {
 }
 
 export function calcHotelFreeBedsOnDate(hotel: Hotel, date: Date): number {
+  const dateStr = date.toISOString().split('T')[0];
   return (hotel.durations ?? []).reduce((s, d) => {
     if (!d.startDate || !d.endDate) return s
     const start = new Date(d.startDate)
@@ -214,14 +227,24 @@ export function calcHotelFreeBedsOnDate(hotel: Hotel, date: Date): number {
     
     if (rCards.length > 0) {
       rCards.forEach((c: any) => {
-        tBeds += bedsForType(c.roomType, c.bedCount);
-        const uniqueSlots = new Set((c.employees || []).map((e: any) => e.slotIndex || 0));
-        tAssigned += uniqueSlots.size;
+        const beds = bedsForType(c.roomType, c.bedCount);
+        tBeds += beds;
+        for (let i = 0; i < beds; i++) {
+          const slotEmps = (c.employees || []).filter((e: any) => (e.slotIndex ?? 0) === i);
+          if (slotEmps.some((e: any) => e.checkOut > dateStr)) {
+            tAssigned++;
+          }
+        }
       });
     } else {
-      tBeds = getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom);
-      const uniqueSlots = new Set((d.employees || []).filter(Boolean).map((e: any) => e.slotIndex || 0));
-      tAssigned += uniqueSlots.size;
+      const beds = getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom);
+      tBeds += beds;
+      for (let i = 0; i < beds; i++) {
+        const slotEmps = (d.employees || []).filter((e: any) => (e.slotIndex ?? 0) === i);
+        if (slotEmps.some((e: any) => e.checkOut > dateStr)) {
+          tAssigned++;
+        }
+      }
     }
     return s + Math.max(0, tBeds - tAssigned);
   }, 0)
@@ -247,7 +270,6 @@ export function getEmployeeStatus(checkIn: string, checkOut: string): 'active' |
   return 'active'
 }
 
-// ── THE FIX: Tab formatting updated to use formatDateChip (13 Apr) ──
 export function getDurationTabLabel(d: Duration, lang: 'de' | 'en' = 'de'): string {
   if (!d.startDate || !d.endDate) return lang === 'de' ? 'Neue Dauer' : 'New duration'
   return `${formatDateChip(d.startDate)} – ${formatDateChip(d.endDate)}`
