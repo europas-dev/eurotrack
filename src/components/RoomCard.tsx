@@ -39,15 +39,9 @@ function fmtDate(iso: string) {
   return `${d}/${m}/${y}`
 }
 
-// ───────────────────────────────────────────────────────────────────────────────
-// BedSlot
-// ───────────────────────────────────────────────────────────────────────────────
 function BedSlot({
-  slotIndex, employee,
-  durationStart, durationEnd,
-  gapStart, gapEnd,
-  roomCardId, durationId,
-  dk, lang, isSubstitute, onUpdated,
+  slotIndex, employee, durationStart, durationEnd, gapStart, gapEnd,
+  roomCardId, durationId, dk, lang, isSubstitute, onUpdated,
 }: {
   slotIndex: number
   employee: Employee | null
@@ -286,7 +280,6 @@ function getGapSlots(
   return gaps
 }
 
-// ── NMBRow ────────────
 function NMBRow({
   nettoKey, mwstKey, bruttoKey,
   energyNettoKey, energyMwstKey, energyBruttoKey,
@@ -347,7 +340,7 @@ function NMBRow({
   const disabledInputCls = cn(inputCls, 'opacity-40 cursor-not-allowed pointer-events-none')
 
   return (
-    <div className={cn('space-y-5', disabled && 'pointer-events-none opacity-50')}>
+    <div className={cn('space-y-5')}>
       
       {/* Main Price Row */}
       <div className="flex items-start gap-3 flex-wrap">
@@ -424,9 +417,6 @@ function NMBRow({
   )
 }
 
-// ───────────────────────────────────────────────────────────────────────────────
-// Main RoomCard
-// ───────────────────────────────────────────────────────────────────────────────
 interface RoomCardProps {
   card: RoomCardType
   durationStart: string
@@ -456,10 +446,6 @@ export default function RoomCard({
   const [showPricing, setShowPricing] = useState(false)
   const [showCalendar, setShowCalendar] = useState(false)
   const saveTimer = useRef<any>(null)
-
-  useEffect(() => {
-    if (bruttoNettoActive) setShowPricing(false)
-  }, [bruttoNettoActive])
 
   const beds   = bedsForType(card.roomType, card.bedCount)
   const nights = calculateNights(durationStart, durationEnd)
@@ -607,29 +593,19 @@ export default function RoomCard({
 
         <div className="flex-1" />
 
-        {bruttoNettoActive ? (
-          <span
-            title={lang === 'de' ? 'Preise deaktiviert: Brutto/Netto-Modus aktiv' : 'Prices disabled: Brutto/Netto mode active'}
-            className={cn(
-              'px-4 py-2 rounded-lg text-sm font-bold border select-none',
-              dk ? 'border-white/5 text-slate-700 bg-white/[0.02]' : 'border-slate-100 text-slate-300 bg-slate-50'
-            )}
-          >
-            {lang === 'de' ? 'Preis' : 'Price'}
-          </span>
-        ) : (
-          <button
-            onClick={() => setShowPricing(p => !p)}
-            className={cn('px-4 py-2 rounded-lg text-sm font-bold border transition-all flex items-center gap-2',
-              showPricing
-                ? 'bg-amber-500 text-white border-amber-500'
-                : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
-            )}
-          >
-            {lang === 'de' ? 'Preis' : 'Price'}
-            {showPricing ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
-        )}
+        {/* THE FIX: Price button is ALWAYS clickable. */}
+        <button
+          onClick={() => setShowPricing(p => !p)}
+          className={cn('px-4 py-2 rounded-lg text-sm font-bold border transition-all flex items-center gap-2',
+            showPricing
+              ? 'bg-amber-500 text-white border-amber-500'
+              : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50',
+            bruttoNettoActive && !showPricing && "opacity-50"
+          )}
+        >
+          {lang === 'de' ? 'Preis' : 'Price'}
+          {showPricing ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
 
         <button
           onClick={() => setShowCalendar(c => !c)}
@@ -639,19 +615,34 @@ export default function RoomCard({
               : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
           )}
         >📅</button>
+
+        <button onClick={() => setConfirm(true)}
+          className={cn('px-2.5 py-2 rounded-lg border transition-all',
+            dk ? 'border-red-500/20 text-red-400 hover:bg-red-900/20' : 'border-red-200 text-red-500 hover:bg-red-50'
+          )}>
+          <Trash2 size={14} />
+        </button>
       </div>
 
       {/* ROW 3: Pricing panel */}
-      {showPricing && !bruttoNettoActive && (
+      {showPricing && (
         <div className={cn('px-5 py-5 border-b space-y-5', dk ? 'border-white/8 bg-white/[0.02]' : 'border-slate-100 bg-slate-50/60')}>
+          
+          {/* THE FIX: Show warning if Brutto/Netto mode is on */}
+          {bruttoNettoActive && (
+            <div className={cn("p-3 text-xs font-bold rounded-lg mb-2", dk ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-amber-50 text-amber-700 border border-amber-200")}>
+              {lang === 'de' ? 'Preise werden über die Hauptdauer (Brutto/Netto-Modus) gesteuert.' : 'Prices are controlled by the main duration (Brutto/Netto mode active).'}
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
-            <button onClick={() => queueSave({ pricingTab: 'per_bed' })}   className={tabBtn(activeTab === 'per_bed')}>
+            <button onClick={() => queueSave({ pricingTab: 'per_bed' })} disabled={bruttoNettoActive} className={tabBtn(activeTab === 'per_bed')}>
               {lang === 'de' ? 'Preis/Bett' : 'Price/Bed'}
             </button>
-            <button onClick={() => queueSave({ pricingTab: 'per_room' })}  className={tabBtn(activeTab === 'per_room')}>
+            <button onClick={() => queueSave({ pricingTab: 'per_room' })} disabled={bruttoNettoActive} className={tabBtn(activeTab === 'per_room')}>
               {lang === 'de' ? 'Preis/Zi.' : 'Price/Room'}
             </button>
-            <button onClick={() => queueSave({ pricingTab: 'total_room' })} className={tabBtn(activeTab === 'total_room')}>
+            <button onClick={() => queueSave({ pricingTab: 'total_room' })} disabled={bruttoNettoActive} className={tabBtn(activeTab === 'total_room')}>
               {lang === 'de' ? 'Gesamt/Zi.' : 'Total/Room'}
             </button>
           </div>
@@ -663,6 +654,7 @@ export default function RoomCard({
               card={card} dk={dk} inputCls={inputCls} onPatch={queueSave} lang={lang} multiplier={currentMultiplier}
               nettoLabel={lang === 'de' ? 'Netto/Bett (€)' : 'Netto/Bed (€)'}
               bruttoLabel={lang === 'de' ? 'Brutto/Bett (€)' : 'Brutto/Bed (€)'}
+              disabled={bruttoNettoActive}
             />
           )}
           {activeTab === 'per_room' && (
@@ -672,6 +664,7 @@ export default function RoomCard({
               card={card} dk={dk} inputCls={inputCls} onPatch={queueSave} lang={lang} multiplier={currentMultiplier}
               nettoLabel={lang === 'de' ? 'Netto/Zi. (€)' : 'Netto/Room (€)'}
               bruttoLabel={lang === 'de' ? 'Brutto/Zi. (€)' : 'Brutto/Room (€)'}
+              disabled={bruttoNettoActive}
             />
           )}
           {activeTab === 'total_room' && (
@@ -681,22 +674,24 @@ export default function RoomCard({
               card={card} dk={dk} inputCls={inputCls} onPatch={queueSave} lang={lang} multiplier={currentMultiplier}
               nettoLabel={lang === 'de' ? 'Netto ges. (€)' : 'Netto total (€)'}
               bruttoLabel={lang === 'de' ? 'Brutto ges. (€)' : 'Brutto total (€)'}
+              disabled={bruttoNettoActive}
             />
           )}
 
           <div className="flex items-end gap-3 flex-wrap mt-2">
-            <button
+            <button disabled={bruttoNettoActive}
               onClick={() => queueSave({ hasDiscount: !card.hasDiscount })}
               className={cn('px-4 py-2.5 rounded-lg text-sm font-bold border flex items-center gap-1.5 transition-all',
                 card.hasDiscount ? 'bg-blue-600 text-white border-blue-600'
-                  : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                  : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50',
+                  bruttoNettoActive && "opacity-50 pointer-events-none"
               )}
             >
               <Tag size={14} />{lang === 'de' ? 'Rabatt' : 'Disc.'}
             </button>
             {card.hasDiscount && (
-              <div className="flex items-end gap-1">
-                <button
+              <div className={cn("flex items-end gap-1", bruttoNettoActive && "opacity-50 pointer-events-none")}>
+                <button disabled={bruttoNettoActive}
                   onClick={() => queueSave({ discountType: card.discountType === 'percentage' ? 'fixed' : 'percentage' })}
                   className={cn(
                     'px-4 py-2.5 rounded-l-lg rounded-r-none border-y border-l text-sm font-bold',
@@ -706,7 +701,7 @@ export default function RoomCard({
                 >
                   {card.discountType === 'percentage' ? '%' : '€'}
                 </button>
-                <input
+                <input disabled={bruttoNettoActive}
                   type="number" min={0}
                   value={card.discountValue || ''}
                   placeholder={card.discountType === 'percentage' ? '10' : '50'}
@@ -759,10 +754,9 @@ export default function RoomCard({
         </div>
       )}
 
-      {/* ── THE FIX: Bed Slots Grouped by Bed Container ── */}
+      {/* Bed slots */}
       <div className="px-4 py-4 space-y-3">
         {Array.from({ length: beds }).map((_, i) => {
-          // Sort employees by check-in so primary is first, subs are after
           const slotEmps = employees.filter(e => (e.slotIndex ?? 0) === i).sort((a,b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
           const slotGaps = gapSlots.filter(g => g.slotIndex === i);
 
@@ -792,7 +786,7 @@ export default function RoomCard({
                     durationStart={durationStart} durationEnd={durationEnd}
                     roomCardId={card.id} durationId={card.durationId}
                     dk={dk} lang={lang} 
-                    isSubstitute={empIdx > 0} // First employee is primary, rest are substitutes
+                    isSubstitute={empIdx > 0}
                     onUpdated={onEmployeeUpdated}
                   />
                 ))
@@ -811,6 +805,33 @@ export default function RoomCard({
         })}
       </div>
 
+      {confirmDelete && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
+          <div className={cn('w-full max-w-sm rounded-2xl border p-5',
+            dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
+            <h3 className="text-lg font-black mb-2">{lang === 'de' ? 'Zimmerkarte löschen?' : 'Delete room card?'}</h3>
+            <p className={cn('text-sm mb-5', dk ? 'text-slate-400' : 'text-slate-600')}>
+              {card.roomType} {card.roomNo ? `– No. ${card.roomNo}` : ''}
+              <br />
+              <span className={cn('text-xs', dk ? 'text-slate-500' : 'text-slate-400')}>
+                {lang === 'de' ? 'Diese Aktion kann nicht rückgängig gemacht werden.' : 'This cannot be undone.'}
+              </span>
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setConfirm(false)}
+                className={cn('px-5 py-2.5 rounded-lg border text-sm font-bold',
+                  dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}>
+                {lang === 'de' ? 'Abbrechen' : 'Cancel'}
+              </button>
+              <button
+                onClick={async () => { await deleteRoomCard(card.id); onDelete(card.id) }}
+                className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold">
+                {lang === 'de' ? 'Löschen' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
