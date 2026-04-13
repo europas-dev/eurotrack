@@ -4,12 +4,10 @@ import { twMerge } from 'tailwind-merge'
 import type { Duration, GapInfo, Hotel, PriceResult } from './types'
 import { calcRoomCardTotal, bedsForType, deriveB } from './roomCardUtils'
 
-// ─── Class merge ─────────────────────────────────────────────────────────────
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// ─── Date helpers ─────────────────────────────────────────────────────────────
 export function calculateNights(startDate: string, endDate: string): number {
   if (!startDate || !endDate) return 0
   const diff = new Date(endDate).getTime() - new Date(startDate).getTime()
@@ -48,12 +46,13 @@ export function formatDateShort(iso: string, lang: 'de' | 'en' = 'de'): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+// ── THE FIX: Forces European layout (13 Apr) ──
 export function formatDateChip(iso: string): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (isNaN(d.getTime())) return '—'
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-  return `${d.getDate()} ${months[d.getMonth()]}`
+  return `${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]}`
 }
 
 export function formatDateDMY(iso: string): string {
@@ -63,7 +62,6 @@ export function formatDateDMY(iso: string): string {
   return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`
 }
 
-// ─── Currency ─────────────────────────────────────────────────────────────────
 export function formatCurrency(value: number | undefined | null): string {
   if (value == null || isNaN(value)) return '—'
   return new Intl.NumberFormat('de-DE', {
@@ -72,7 +70,6 @@ export function formatCurrency(value: number | undefined | null): string {
   }).format(value)
 }
 
-// ─── Number input ─────────────────────────────────────────────────────────────
 export function normalizeNumberInput(raw: string | number): number {
   if (raw === '' || raw == null) return 0
   if (typeof raw === 'number') return isNaN(raw) ? 0 : raw
@@ -85,7 +82,6 @@ export function normalizeNumberInput(raw: string | number): number {
   return isNaN(n) ? 0 : n
 }
 
-// ─── Room type label ──────────────────────────────────────────────────────────
 export function getRoomTypeLabel(roomType: string, lang: 'de' | 'en' = 'de'): string {
   if (lang === 'de') {
     if (roomType === 'EZ') return 'EZ – Einzelzimmer'
@@ -114,7 +110,6 @@ export function getDurationTotalBeds(d: Pick<Duration, 'roomType' | 'numberOfRoo
   return getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom)
 }
 
-// ─── Pricing ───────────────────────────────────────────────────
 export function getDurationTotal(d: Duration): number {
   const roomCards = d.roomCards || [];
   const extraTotal = (d.extraCosts || []).reduce((s, e) => s + (Number(e.amount) || 0), 0);
@@ -150,10 +145,8 @@ export function calcDurationPrice(d: Duration): PriceResult {
 
 export function getDurationCostForMonth(d: Duration, year: number, month: number): number {
   if (!d.startDate || !d.endDate) return 0
-
   const monthStart = new Date(Date.UTC(year, month, 1))
   const monthEnd   = new Date(Date.UTC(year, month + 1, 1))
-
   const dStart = new Date(d.startDate)
   const dEnd   = new Date(d.endDate)
 
@@ -186,7 +179,6 @@ export function calcHotelUnpaidCost(hotel: Hotel): number {
   return (hotel.durations ?? []).filter(d => !d.isPaid).reduce((s, d) => s + getDurationTotal(d as Duration), 0)
 }
 
-// ─── THE FIX: Free Beds now correctly measures unique slots occupied ───
 export function calcHotelFreeBeds(hotel: Hotel): number {
   return (hotel.durations ?? []).reduce((s, d) => {
     const rCards = d.roomCards || [];
@@ -196,7 +188,6 @@ export function calcHotelFreeBeds(hotel: Hotel): number {
     if (rCards.length > 0) {
       rCards.forEach((c: any) => {
         tBeds += bedsForType(c.roomType, c.bedCount);
-        // Only count unique bed slots!
         const uniqueSlots = new Set((c.employees || []).map((e: any) => e.slotIndex || 0));
         tAssigned += uniqueSlots.size;
       });
@@ -256,9 +247,10 @@ export function getEmployeeStatus(checkIn: string, checkOut: string): 'active' |
   return 'active'
 }
 
+// ── THE FIX: Tab formatting updated to use formatDateChip (13 Apr) ──
 export function getDurationTabLabel(d: Duration, lang: 'de' | 'en' = 'de'): string {
   if (!d.startDate || !d.endDate) return lang === 'de' ? 'Neue Dauer' : 'New duration'
-  return `${formatDateShort(d.startDate, lang)} – ${formatDateShort(d.endDate, lang)}`
+  return `${formatDateChip(d.startDate)} – ${formatDateChip(d.endDate)}`
 }
 
 export function getDurationRowLabel(d: Duration, lang: 'de' | 'en' = 'de'): string {
