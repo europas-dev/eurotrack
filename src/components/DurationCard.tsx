@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
   CalendarDays, Copy, Loader2, Minus, Plus, Tag, Trash2, 
-  Check, PlusCircle, X, Moon, DoorClosed, Bed, CheckCircle, Calculator
+  Check, PlusCircle, X, Moon, DoorClosed, Bed, CheckCircle, Calculator, AlertCircle
 } from 'lucide-react'
 import {
   cn, calculateNights, formatCurrency, normalizeNumberInput,
@@ -216,49 +216,49 @@ export default function DurationCard({
   return (
     <div className={cn('rounded-2xl border relative', dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')}>
       
-      {/* ABSOLUTE TRASH ICON - Top Right */}
+      {/* ABSOLUTE TRASH ICON */}
       <button onClick={() => setConfirm(true)}
-        className={cn('absolute top-4 right-4 p-2.5 rounded-lg transition-all border',
+        className={cn('absolute top-4 right-4 p-2 rounded-lg transition-all border',
           dk ? 'border-red-500/20 text-red-400 hover:bg-red-500/10' : 'border-red-200 text-red-500 hover:bg-red-50'
         )}>
         <Trash2 size={16} />
       </button>
 
-      <div className="flex gap-5 p-5 pr-16 flex-wrap items-start">
+      <div className="flex gap-4 p-4 pr-14 flex-wrap items-start">
 
-        {/* ── Left Side: Core Controls ── */}
-        <div className="flex flex-col gap-5 flex-1 min-w-[320px]">
+        {/* ── Left Side: Core Controls (Shrinkable min-width) ── */}
+        <div className="flex flex-col gap-4 flex-1 min-w-[280px]">
 
           {/* ROW 1: Dates, Presets & Icon Stats */}
-          <div className="flex items-end gap-3 flex-wrap">
+          <div className="flex items-end gap-2 flex-wrap">
             <div className="flex flex-col gap-1 relative">
               <label className={labelCls}>IN</label>
-              <div className="relative w-[140px] h-[38px]">
+              <div className="relative w-[125px] h-[36px]">
                 <input type="date" value={local.startDate || ''}
                   onChange={e => patch({ startDate: e.target.value })}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
-                <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none')}>
+                <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none pr-3')}>
                   <span className={local.startDate ? (dk ? 'text-white' : 'text-slate-900') : (dk ? 'text-slate-500' : 'text-slate-400')}>
                     {forceDMY(local.startDate)}
                   </span>
-                  <CalendarDays size={16} className={dk ? 'text-slate-500' : 'text-slate-400'} />
+                  <CalendarDays size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} />
                 </div>
               </div>
             </div>
             
             <div className="flex flex-col gap-1 relative">
               <label className={labelCls}>OUT</label>
-              <div className="relative w-[140px] h-[38px]">
+              <div className="relative w-[125px] h-[36px]">
                 <input type="date" value={local.endDate || ''} min={local.startDate || undefined}
                   onChange={e => { setCheckoutOffset(null); patch({ endDate: e.target.value }) }}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
-                <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none')}>
+                <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none pr-3')}>
                   <span className={local.endDate ? (dk ? 'text-white' : 'text-slate-900') : (dk ? 'text-slate-500' : 'text-slate-400')}>
                     {forceDMY(local.endDate)}
                   </span>
-                  <CalendarDays size={16} className={dk ? 'text-slate-500' : 'text-slate-400'} />
+                  <CalendarDays size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} />
                 </div>
               </div>
             </div>
@@ -268,12 +268,12 @@ export default function DurationCard({
                 {[{ label: '1W', days: 7 }, { label: '1M', days: 30 }].map(p => (
                   <div key={p.label} className="flex items-center">
                     <button onClick={() => applyPreset(p.days)}
-                      className={cn('px-2.5 py-2 rounded-l-lg text-sm font-bold border transition-all',
+                      className={cn('px-2 py-1.5 rounded-l-lg text-sm font-bold border transition-all',
                         checkoutOffset === p.days ? 'bg-blue-600 text-white border-blue-600' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
                       )}>{p.label}</button>
                     <div className="flex flex-col">
-                      <button onClick={() => applyPreset(p.days, 1)} className={cn('px-1.5 text-[9px] leading-[11px] py-0.5 border-y border-r rounded-tr-lg', dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}>+</button>
-                      <button onClick={() => applyPreset(p.days, -1)} className={cn('px-1.5 text-[9px] leading-[11px] py-0.5 border-b border-r rounded-br-lg', dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}>−</button>
+                      <button onClick={() => applyPreset(p.days, 1)} className={cn('px-1.5 text-[9px] leading-[10px] py-0.5 border-y border-r rounded-tr-lg', dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}>+</button>
+                      <button onClick={() => applyPreset(p.days, -1)} className={cn('px-1.5 text-[9px] leading-[10px] py-0.5 border-b border-r rounded-br-lg', dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}>−</button>
                     </div>
                   </div>
                 ))}
@@ -282,37 +282,37 @@ export default function DurationCard({
 
             {/* Icon-based Stats Badge */}
             {hasDates && (
-              <div className={cn('self-end flex items-center gap-3 px-3 py-2 rounded-xl border text-sm font-bold shrink-0 mb-0.5',
+              <div className={cn('self-end flex items-center gap-3 px-3 py-1.5 rounded-xl border text-sm font-bold shrink-0 mb-0.5',
                 dk ? 'bg-white/5 border-white/10 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700')}>
                 <span className={cn('flex items-center gap-1 text-base font-black', dk ? 'text-white' : 'text-slate-900')}><Moon size={14} className="text-blue-500" /> {nights}</span>
                 {roomCards.length > 0 && (
                   <>
                     <span className="opacity-40">|</span>
-                    <span className="flex items-center gap-1.5" title="Rooms"><DoorClosed size={14} className={dk ? 'text-slate-400' : 'text-slate-500'} /> {roomCards.length}</span>
+                    <span className="flex items-center gap-1" title="Rooms"><DoorClosed size={14} className={dk ? 'text-slate-400' : 'text-slate-500'} /> {roomCards.length}</span>
                     <span className="opacity-40">|</span>
-                    <span className="flex items-center gap-1.5" title="Total Beds"><Bed size={14} className={dk ? 'text-slate-400' : 'text-slate-500'} /> {totalBeds}</span>
+                    <span className="flex items-center gap-1" title="Total Beds"><Bed size={14} className={dk ? 'text-slate-400' : 'text-slate-500'} /> {totalBeds}</span>
                     <span className="opacity-40">|</span>
                     {freeBeds > 0 ? (
-                      <span className="flex items-center gap-1.5 text-emerald-500" title="Free Beds"><CheckCircle size={14} /> {freeBeds}</span>
+                      <span className="flex items-center gap-1 text-red-500" title="Free Beds"><AlertCircle size={14} /> {freeBeds}</span>
                     ) : (
-                      <span className="flex items-center gap-1.5 text-slate-400"><Minus size={14} /> 0</span>
+                      <span className="flex items-center gap-1 text-emerald-500"><CheckCircle size={14} /> {lang === 'de' ? 'Voll' : 'Full'}</span>
                     )}
                   </>
                 )}
               </div>
             )}
             
-            {saving && <Loader2 size={16} className="animate-spin text-blue-400 self-end mb-2 ml-2" />}
+            {saving && <Loader2 size={16} className="animate-spin text-blue-400 self-end mb-1 ml-1" />}
           </div>
 
           {/* ROW 2: Invoice & Rooms */}
-          <div className="flex items-end gap-5 flex-wrap">
+          <div className="flex items-end gap-3 flex-wrap">
             <div className="flex flex-col gap-1">
               <label className={labelCls}>{lang === 'de' ? 'Rechnungs-Nr.' : 'Invoice No.'}</label>
               <input type="text" value={local.rechnungNr || ''}
                 onChange={e => patch({ rechnungNr: e.target.value })}
                 placeholder="RE-2026-..."
-                className={cn(inputCls, 'w-40')} />
+                className={cn(inputCls, 'w-32')} />
             </div>
 
             {hasDates && (
@@ -324,7 +324,7 @@ export default function DurationCard({
                     if (count === 0) {
                       return (
                         <button key={rt} onClick={() => handleAddRoomCard(rt)} disabled={!!addingType}
-                          className={cn('px-3 py-2 rounded-lg text-sm font-bold border transition-all flex items-center gap-1.5',
+                          className={cn('px-2.5 py-1.5 rounded-lg text-sm font-bold border transition-all flex items-center gap-1',
                             dk ? 'border-white/10 text-slate-400 hover:border-white/20 hover:text-white' : 'border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-700'
                           )}>
                           {addingType === rt ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} {rt}
@@ -334,16 +334,16 @@ export default function DurationCard({
                     return (
                       <div key={rt} className="flex items-center">
                         <button onClick={() => handleRemoveLastOfType(rt)}
-                          className={cn('px-2.5 py-2 rounded-l-lg text-sm font-bold border-y border-l transition-all',
+                          className={cn('px-2 py-1.5 rounded-l-lg text-sm font-bold border-y border-l transition-all',
                             dk ? 'border-white/10 text-slate-400 hover:bg-red-900/20 hover:text-red-400' : 'border-slate-200 text-slate-500 hover:bg-red-50 hover:text-red-500'
                           )}><Minus size={14} /></button>
-                        <button className={cn('px-3 py-2 text-sm font-bold border-y transition-all',
+                        <button className={cn('px-2.5 py-1.5 text-sm font-bold border-y transition-all',
                           dk ? 'border-blue-500/40 bg-blue-500/10 text-blue-400' : 'border-blue-400 bg-blue-50 text-blue-600'
                         )}>
                           {rt} <span className={cn('ml-1 px-1.5 rounded-md text-[11px] font-black', dk ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100 text-blue-700')}>{count}</span>
                         </button>
                         <button onClick={() => handleAddRoomCard(rt)} disabled={!!addingType}
-                          className={cn('px-2.5 py-2 rounded-r-lg text-sm font-bold border-y border-r transition-all',
+                          className={cn('px-2 py-1.5 rounded-r-lg text-sm font-bold border-y border-r transition-all',
                             dk ? 'border-white/10 text-slate-400 hover:bg-blue-900/20 hover:text-blue-400' : 'border-slate-200 text-slate-500 hover:bg-blue-50 hover:text-blue-500'
                           )}><Plus size={14} /></button>
                       </div>
@@ -355,20 +355,20 @@ export default function DurationCard({
           </div>
         </div>
 
-        {/* ── Right Side: Redesigned & Reordered Total Cost Card ── */}
+        {/* ── Right Side: Redesigned Total Cost Card (flex-1 fills space safely) ── */}
         {hasDates && (
           <div className={cn(
-            'flex-1 min-w-[400px] shrink-0 rounded-2xl border p-5 flex flex-col gap-4',
+            'flex-1 min-w-[340px] shrink-0 rounded-2xl border p-4 flex flex-col gap-3',
             dk ? 'bg-white/[0.03] border-white/10' : 'bg-slate-50 border-slate-200'
           )}>
             
             {/* ROW 1: Brutto / Netto Full Width */}
             <div className="flex items-center gap-3">
               <button onClick={toggleBruttoNetto}
-                className={cn('shrink-0 px-4 py-2.5 rounded-lg text-sm font-bold border transition-all flex items-center gap-1.5 whitespace-nowrap',
+                className={cn('shrink-0 px-3 py-2 rounded-lg text-sm font-bold border transition-all flex items-center gap-1.5 whitespace-nowrap',
                   local.useBruttoNetto ? 'bg-amber-500 text-white border-amber-500' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
                 )}>
-                <Calculator size={16} /> Brutto / Netto
+                <Calculator size={14} /> Brutto / Netto
               </button>
 
               {local.useBruttoNetto && (
@@ -377,66 +377,64 @@ export default function DurationCard({
                     <span className={labelCls}>Netto €</span>
                     <input type="number" min={0} step="0.01" value={local.netto ?? ''} placeholder="0.00"
                       onChange={e => patch({ netto: e.target.value === '' ? null : normalizeNumberInput(e.target.value), brutto: null })}
-                      className={cn(inputCls, 'w-full')} />
+                      className={cn(inputCls, 'w-full py-1.5')} />
                   </div>
-                  <div className="flex flex-col gap-1 w-20">
+                  <div className="flex flex-col gap-1 w-16">
                     <span className={labelCls}>MwSt %</span>
                     <input type="number" min={0} max={99} step="1" value={local.mwst ?? ''} placeholder="%"
                       onChange={e => patch({ mwst: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
-                      className={cn(inputCls, 'w-full')} />
+                      className={cn(inputCls, 'w-full py-1.5')} />
                   </div>
                   <div className="flex flex-col gap-1 flex-1">
                     <span className={labelCls}>Brutto €</span>
                     <input type="number" min={0} step="0.01" value={local.brutto ?? ''} placeholder="0.00"
                       onChange={e => patch({ brutto: e.target.value === '' ? null : normalizeNumberInput(e.target.value), netto: null })}
-                      className={cn(inputCls, 'w-full')} />
+                      className={cn(inputCls, 'w-full py-1.5')} />
                   </div>
                 </div>
               )}
             </div>
 
-            {/* ROW 2: Toggles (Discount & Extra Cost inline) */}
-            {!local.useBruttoNetto && (
-              <div className="flex items-center gap-3 flex-wrap">
-                <div className="flex items-center">
-                  <button onClick={() => patch({ hasDiscount: !local.hasDiscount })}
-                    className={cn('shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold border transition-all',
-                      local.hasDiscount ? 'bg-blue-600 text-white border-blue-600' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                    )}>
-                    <Tag size={14} />{lang === 'de' ? 'Rabatt' : 'Disc.'}
-                  </button>
-                  {local.hasDiscount && (
-                    <div className="flex items-center ml-1.5">
-                      <button onClick={() => patch({ discountType: local.discountType === 'percentage' ? 'fixed' : 'percentage' })}
-                        className={cn('px-3 py-2 rounded-l-lg rounded-r-none border text-sm font-bold border-r-0', dk ? 'border-white/10 bg-white/5 text-slate-300' : 'border-slate-200 bg-white text-slate-700')}>
-                        {local.discountType === 'percentage' ? '%' : '€'}
-                      </button>
-                      <input type="number" min={0} value={local.discountValue || ''}
-                        onChange={e => patch({ discountValue: normalizeNumberInput(e.target.value) })}
-                        className={cn('px-3 py-2 rounded-r-lg rounded-l-none border text-sm outline-none w-20', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} />
-                    </div>
-                  )}
-                </div>
-
-                <button onClick={addExtraCost} className={cn('px-3 py-2 rounded-lg text-sm font-bold border flex items-center gap-1.5 transition-all',
-                  dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50')}>
-                  <PlusCircle size={14} /> {lang === 'de' ? 'Extrakosten' : 'Extra Cost'}
+            {/* ROW 2: Toggles (Discount & Extra Cost ALWAYS VISIBLE) */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center">
+                <button onClick={() => patch({ hasDiscount: !local.hasDiscount })}
+                  className={cn('shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold border transition-all',
+                    local.hasDiscount ? 'bg-blue-600 text-white border-blue-600' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                  )}>
+                  <Tag size={14} />{lang === 'de' ? 'Rabatt' : 'Disc.'}
                 </button>
+                {local.hasDiscount && (
+                  <div className="flex items-center ml-1.5">
+                    <button onClick={() => patch({ discountType: local.discountType === 'percentage' ? 'fixed' : 'percentage' })}
+                      className={cn('px-2.5 py-2 rounded-l-lg rounded-r-none border text-sm font-bold border-r-0', dk ? 'border-white/10 bg-white/5 text-slate-300' : 'border-slate-200 bg-white text-slate-700')}>
+                      {local.discountType === 'percentage' ? '%' : '€'}
+                    </button>
+                    <input type="number" min={0} value={local.discountValue || ''}
+                      onChange={e => patch({ discountValue: normalizeNumberInput(e.target.value) })}
+                      className={cn('px-2.5 py-2 rounded-r-lg rounded-l-none border text-sm outline-none w-16', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} />
+                  </div>
+                )}
               </div>
-            )}
+
+              <button onClick={addExtraCost} className={cn('px-3 py-2 rounded-lg text-sm font-bold border flex items-center gap-1.5 transition-all',
+                dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50')}>
+                <PlusCircle size={14} /> {lang === 'de' ? 'Extrakosten' : 'Extra Cost'}
+              </button>
+            </div>
 
             {/* Extra Costs Input Blocks */}
-            {extraCosts.length > 0 && !local.useBruttoNetto && (
+            {extraCosts.length > 0 && (
               <div className="flex flex-col gap-2 mt-1">
                 {extraCosts.map(ec => (
                   <div key={ec.id} className="flex items-center gap-2">
                     <input type="text" value={ec.note} onChange={e => patchExtraCost(ec.id, { note: e.target.value })}
                       placeholder={lang === 'de' ? 'Notiz...' : 'Note...'}
-                      className={cn('flex-1 px-3 py-2 rounded-lg text-sm outline-none border', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} />
+                      className={cn('flex-1 px-3 py-1.5 rounded-lg text-sm outline-none border', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} />
                     <input type="number" min={0} step="0.01" value={ec.amount || ''} placeholder="€"
                       onChange={e => patchExtraCost(ec.id, { amount: normalizeNumberInput(e.target.value) })}
-                      className={cn('w-28 px-3 py-2 rounded-lg text-sm outline-none border', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} />
-                    <button onClick={() => removeExtraCost(ec.id)} className={cn('p-2 rounded-lg transition-all', dk ? 'text-red-400 hover:bg-red-500/10' : 'text-red-500 hover:bg-red-50')}><X size={16} /></button>
+                      className={cn('w-24 px-3 py-1.5 rounded-lg text-sm outline-none border', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} />
+                    <button onClick={() => removeExtraCost(ec.id)} className={cn('p-1.5 rounded-lg transition-all', dk ? 'text-red-400 hover:bg-red-500/10' : 'text-red-500 hover:bg-red-50')}><X size={14} /></button>
                   </div>
                 ))}
               </div>
@@ -445,38 +443,36 @@ export default function DurationCard({
             <div className={cn('border-t my-1', dk ? 'border-white/[0.06]' : 'border-slate-100')} />
 
             {/* ROW 3: Paid & Deposit | Total */}
-            <div className="flex items-start gap-4">
-              <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-2">
                 <button onClick={() => patch({ isPaid: !local.isPaid })}
-                  className={cn('flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all w-[130px]',
-                    local.isPaid ? 'bg-green-600 text-white border-green-600' : dk ? 'border-white/10 text-slate-400' : 'border-slate-200 text-slate-600'
+                  className={cn('flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all',
+                    local.isPaid ? 'bg-green-600 text-white border-green-600' : dk ? 'border-red-500/50 text-red-400 hover:bg-red-500/10' : 'border-red-400 text-red-600 hover:bg-red-50'
                   )}>
                   {local.isPaid && <Check size={16} />}
                   {local.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Unbezahlt' : 'Unpaid')}
                 </button>
                 
-                <div className="flex items-center gap-2">
-                  <button onClick={() => patch({ depositEnabled: !local.depositEnabled })}
-                    className={cn('flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-bold border transition-all',
-                      local.depositEnabled ? 'bg-purple-600 text-white border-purple-600' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
-                    )}>
-                    {lang === 'de' ? 'Kaution' : 'Deposit'}
-                  </button>
-                  {local.depositEnabled && (
-                    <input type="number" min={0} step="0.01" value={local.depositAmount ?? ''} placeholder="€"
-                      onChange={e => patch({ depositAmount: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
-                      className={cn('px-3 py-2.5 rounded-xl border text-sm outline-none w-28', dk ? 'bg-white/5 border-purple-500/30 text-white' : 'bg-white border-purple-300 text-slate-900')} />
-                  )}
-                </div>
+                <button onClick={() => patch({ depositEnabled: !local.depositEnabled })}
+                  className={cn('flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-bold border transition-all',
+                    local.depositEnabled ? 'bg-purple-600 text-white border-purple-600' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                  )}>
+                  {lang === 'de' ? 'Kaution' : 'Deposit'}
+                </button>
+                {local.depositEnabled && (
+                  <input type="number" min={0} step="0.01" value={local.depositAmount ?? ''} placeholder="€"
+                    onChange={e => patch({ depositAmount: e.target.value === '' ? null : normalizeNumberInput(e.target.value) })}
+                    className={cn('px-3 py-2.5 rounded-xl border text-sm outline-none w-24', dk ? 'bg-white/5 border-purple-500/30 text-white' : 'bg-white border-purple-300 text-slate-900')} />
+                )}
               </div>
 
               <div className="ml-auto flex flex-col items-end">
                 <span className={labelCls}>{lang === 'de' ? 'Gesamt' : 'Total'}</span>
-                <span className={cn('text-4xl font-black leading-none mt-1', dk ? 'text-white' : 'text-slate-900')}>
+                <span className={cn('text-3xl font-black leading-none mt-1', dk ? 'text-white' : 'text-slate-900')}>
                   {formatCurrency(displayTotal)}
                 </span>
                 {stdPricePerBedNetto > 0 && (
-                  <span className={cn('text-sm mt-2 font-bold', dk ? 'text-slate-500' : 'text-slate-400')}>
+                  <span className={cn('text-[11px] mt-1.5 font-bold', dk ? 'text-slate-500' : 'text-slate-400')}>
                     {formatCurrency(stdPricePerBedNetto)} netto/bed/N
                   </span>
                 )}
@@ -491,8 +487,8 @@ export default function DurationCard({
         <div className="flex justify-center py-6"><Loader2 size={24} className="animate-spin text-blue-400" /></div>
       )}
       {!loadingCards && roomCards.length > 0 && (
-        <div className={cn('border-t px-5 py-4', dk ? 'border-white/10' : 'border-slate-100')}>
-          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))' }}>
+        <div className={cn('border-t px-4 py-4', dk ? 'border-white/10' : 'border-slate-100')}>
+          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))' }}>
             {roomCards.map(card => (
               <RoomCardComponent
                 key={card.id} card={card}
