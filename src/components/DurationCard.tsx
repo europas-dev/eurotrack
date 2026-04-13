@@ -5,7 +5,7 @@ import {
   Check, PlusCircle, X, Moon, DoorClosed, Bed, CheckCircle, Calculator, AlertCircle
 } from 'lucide-react'
 import {
-  cn, calculateNights, formatCurrency, normalizeNumberInput,
+  cn, calculateNights, formatCurrency, normalizeNumberInput, calcDurationFreeBeds
 } from '../lib/utils'
 import { calcRoomCardTotal, extractPricingFields } from '../lib/roomCardUtils'
 import { deleteDuration, updateDuration } from '../lib/supabase'
@@ -77,19 +77,9 @@ export default function DurationCard({
     0
   ) : 0
   
+  // Real-time Free Bed Logic using the bulletproof utility function
   const today = new Date().toISOString().split('T')[0];
-  const assignedBeds = hasDates ? roomCards.reduce((s, c) => {
-    let occupiedSlots = 0;
-    const beds = c.roomType === 'EZ' ? 1 : c.roomType === 'DZ' ? 2 : c.roomType === 'TZ' ? 3 : (c.bedCount || 2);
-    for (let i = 0; i < beds; i++) {
-      const slotEmps = (c.employees || []).filter(e => (e.slotIndex ?? 0) === i);
-      if (slotEmps.some(e => e.checkOut > today)) {
-        occupiedSlots++;
-      }
-    }
-    return s + occupiedSlots;
-  }, 0) : 0;
-  const freeBeds = totalBeds - assignedBeds
+  const freeBeds = calcDurationFreeBeds({ ...local, roomCards }, today);
 
   const extraCosts: ExtraCost[] = local.extraCosts ?? []
   const extraTotal = extraCosts.reduce((s, e) => s + (Number(e.amount) || 0), 0)
@@ -137,22 +127,22 @@ export default function DurationCard({
   )
   const labelCls = cn('text-[10px] font-bold uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')
 
-  // ── THE FIX: Safe Supabase Database Saving ──
+  // ── FIX: Database Save Issue (Prevents Data Wipe on Refresh) ──
   function queueSave(next: Duration) {
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(async () => {
       try { 
         setSaving(true); 
-        // We MUST separate roomCards from the payload because Supabase will reject the save
-        // if we try to shove a sub-array into the durations SQL table.
+        // DO NOT SEND ROOM CARDS ARRAY TO SQL DATABASE! IT WILL FAIL!
         const { roomCards: _discard, ...dbPayload } = next; 
         await updateDuration(local.id, dbPayload); 
-        onUpdate(local.id, next); // Keep the UI synced with full data
+        onUpdate(local.id, next); // Sync full object to parent UI safely
       }
       catch (e) { console.error(e) }
       finally { setSaving(false) }
     }, 400)
   }
+
   function patch(changes: Partial<Duration>) {
     const next = { ...local, roomCards, ...changes } as Duration
     setLocal(next); queueSave(next)
@@ -241,6 +231,7 @@ export default function DurationCard({
   return (
     <div className={cn('rounded-2xl border relative', dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')}>
       
+      {/* ABSOLUTE TRASH ICON */}
       <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirm(true); }}
         className={cn('absolute top-4 right-4 p-2.5 rounded-lg transition-all border z-20 cursor-pointer hover:scale-105 active:scale-95',
           dk ? 'border-red-500/20 text-red-400 bg-red-500/5 hover:bg-red-500/20' : 'border-red-200 text-red-500 bg-red-50 hover:bg-red-100'
@@ -248,13 +239,14 @@ export default function DurationCard({
         <Trash2 size={16} />
       </button>
 
-      <div className="flex gap-6 p-5 pr-16 flex-col 2xl:flex-row items-start">
+      {/* ── THE FIX: flex-wrap forces safe stacking on smaller screens ── */}
+      <div className="flex flex-wrap gap-6 p-5 pr-16 items-start">
 
         {/* ── Left Side: Core Controls ── */}
-        <div className="flex flex-col gap-4 flex-1 w-full 2xl:w-auto 2xl:max-w-[420px]">
+        <div className="flex flex-col gap-4 flex-1 min-w-[320px] max-w-[450px]">
 
           {/* ROW 1: Dates, Presets & Stats */}
-          <div className="flex items-end gap-2 flex-wrap lg:flex-nowrap">
+          <div className="flex items-end gap-2 flex-wrap">
             <div className="flex flex-col gap-1 relative">
               <label className={labelCls}>IN</label>
               <div className="relative w-[130px] h-[38px] cursor-pointer" onClick={() => openPicker(inDateRef)}>
@@ -338,7 +330,7 @@ export default function DurationCard({
                 className={cn(inputCls, 'w-32 h-[38px]')} />
             </div>
             
-            <div className="flex flex-col gap-1 flex-1 min-w-[150px] max-w-[220px]">
+            <div className="flex flex-col gap-1 flex-1 min-w-[150px]">
               <label className={labelCls}>{lang === 'de' ? 'Buchungsreferenz / Notiz' : 'Booking ref / note'}</label>
               <input type="text" value={local.bookingId || ''}
                 onChange={e => patch({ bookingId: e.target.value })}
@@ -394,15 +386,15 @@ export default function DurationCard({
           )}
         </div>
 
-        {/* ── Right Side: Expanded Single-Line Flow Total Cost Card ── */}
+        {/* ── Right Side: Fluid Total Cost Card ── */}
         {hasDates && (
           <div className={cn(
-            'flex-1 w-full xl:w-auto min-w-[320px] 2xl:min-w-[540px] shrink-0 rounded-2xl border p-4 flex flex-col gap-3',
+            'flex-1 min-w-[360px] max-w-[620px] rounded-2xl border p-4 flex flex-col gap-3',
             dk ? 'bg-white/[0.03] border-white/10' : 'bg-slate-50 border-slate-200'
           )}>
             
-            {/* ROW 1: Brutto / Netto Horizontal Row */}
-            <div className="flex items-center gap-3 flex-wrap w-full">
+            {/* ROW 1: Brutto / Netto */}
+            <div className="flex flex-wrap items-center gap-3 w-full">
               <button onClick={toggleBruttoNetto}
                 className={cn('shrink-0 px-3 py-1.5 rounded-lg text-sm font-bold border transition-all flex items-center gap-1.5 whitespace-nowrap h-[38px]',
                   local.useBruttoNetto ? 'bg-amber-500 text-white border-amber-500' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
@@ -436,10 +428,9 @@ export default function DurationCard({
 
             <div className={cn('border-t', dk ? 'border-white/[0.06]' : 'border-slate-100')} />
 
-            {/* ROW 2: Toggles (Discount & Extra Inline Layout) ALWAYS VISIBLE */}
+            {/* ROW 2: Toggles (Discount & Extra Inline) ALWAYS VISIBLE */}
             <div className="flex items-start gap-3 flex-wrap w-full">
               
-              {/* Discount Group */}
               <div className="flex items-center gap-1.5 flex-wrap">
                 <button onClick={() => patch({ hasDiscount: !local.hasDiscount })}
                   className={cn('shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold border transition-all h-[38px]',
@@ -460,34 +451,34 @@ export default function DurationCard({
                 )}
               </div>
 
-              {/* Extra Costs Group */}
               <div className="flex items-start gap-1.5 flex-wrap flex-1">
                 <button onClick={addExtraCost} className={cn('shrink-0 px-3 py-1.5 rounded-lg text-sm font-bold border flex items-center gap-1.5 transition-all h-[38px]',
                   dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50')}>
                   <PlusCircle size={14} /> {lang === 'de' ? 'Extra' : 'Extra'}
                 </button>
                 
-                {/* Maps horizontally if only 1, otherwise stacks cleanly */}
-                <div className="flex flex-col gap-2 flex-1">
-                  {extraCosts.map(ec => (
-                    <div key={ec.id} className="flex items-center gap-1.5 w-full h-[38px]">
-                      <input type="text" value={ec.note} onChange={e => patchExtraCost(ec.id, { note: e.target.value })}
-                        placeholder={lang === 'de' ? 'Notiz...' : 'Note...'}
-                        className={cn('flex-1 min-w-[80px] px-3 py-1.5 rounded-lg text-sm outline-none border h-full', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} />
-                      <input type="number" min={0} step="0.01" value={ec.amount || ''} placeholder="0.00"
-                        onChange={e => patchExtraCost(ec.id, { amount: normalizeNumberInput(e.target.value) })}
-                        className={cn('w-28 shrink-0 px-3 py-1.5 rounded-lg text-sm outline-none border h-full', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} />
-                      <button onClick={() => removeExtraCost(ec.id)} className={cn('shrink-0 p-2 rounded-lg transition-all h-full', dk ? 'text-red-400 hover:bg-red-500/10' : 'text-red-500 hover:bg-red-50')}><X size={16} /></button>
-                    </div>
-                  ))}
-                </div>
+                {extraCosts.length > 0 && (
+                  <div className="flex flex-col gap-2 w-full sm:w-auto flex-1">
+                    {extraCosts.map(ec => (
+                      <div key={ec.id} className="flex items-center gap-1.5 w-full h-[38px]">
+                        <input type="text" value={ec.note} onChange={e => patchExtraCost(ec.id, { note: e.target.value })}
+                          placeholder={lang === 'de' ? 'Notiz...' : 'Note...'}
+                          className={cn('flex-1 min-w-[100px] px-3 py-1.5 rounded-lg text-sm outline-none border h-full', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} />
+                        <input type="number" min={0} step="0.01" value={ec.amount || ''} placeholder="0.00"
+                          onChange={e => patchExtraCost(ec.id, { amount: normalizeNumberInput(e.target.value) })}
+                          className={cn('w-28 shrink-0 px-3 py-1.5 rounded-lg text-sm outline-none border h-full', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} />
+                        <button onClick={() => removeExtraCost(ec.id)} className={cn('shrink-0 p-2 rounded-lg transition-all h-full', dk ? 'text-red-400 hover:bg-red-500/10' : 'text-red-500 hover:bg-red-50')}><X size={16} /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
             <div className={cn('border-t my-1', dk ? 'border-white/[0.06]' : 'border-slate-100')} />
 
             {/* ROW 3: Paid/Unpaid & Deposit | Total */}
-            <div className="flex items-end justify-between w-full flex-wrap gap-4">
+            <div className="flex flex-wrap items-end justify-between w-full gap-4">
               <div className="flex items-center gap-2 flex-wrap">
                 <button onClick={() => patch({ isPaid: !local.isPaid })}
                   className={cn('flex items-center justify-center gap-1.5 px-4 h-[42px] rounded-xl text-sm font-bold border transition-all min-w-[120px]',
@@ -551,7 +542,7 @@ export default function DurationCard({
         </div>
       )}
 
-      {/* MODAL */}
+      {/* MODAL FIX: Confirm(false) strictly called first! */}
       {confirmDelete && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
           <div className={cn('w-full max-w-md rounded-2xl border p-6 shadow-xl',
@@ -567,7 +558,11 @@ export default function DurationCard({
                 {lang === 'de' ? 'Abbrechen' : 'Cancel'}
               </button>
               <button
-                onClick={async () => { await deleteDuration(local.id); onDelete(local.id) }}
+                onClick={async () => { 
+                  setConfirm(false); 
+                  await deleteDuration(local.id); 
+                  onDelete(local.id); 
+                }}
                 className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow-md shadow-red-900/20">
                 {lang === 'de' ? 'Löschen' : 'Delete'}
               </button>
