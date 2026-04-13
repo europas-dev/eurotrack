@@ -2,7 +2,7 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import type { Duration, GapInfo, Hotel, PriceResult } from './types'
-import { calcRoomCardTotal, bedsForType, resolveBrutto } from './roomCardUtils'
+import { calcRoomCardTotal, bedsForType, deriveB } from './roomCardUtils'
 
 // ─── Class merge ─────────────────────────────────────────────────────────────
 export function cn(...inputs: ClassValue[]) {
@@ -124,7 +124,7 @@ export function getDurationTotal(d: Duration): number {
   let bruttoBase = 0;
 
   if (d.useBruttoNetto) {
-    bruttoBase = resolveBrutto(d.netto, d.mwst, d.brutto) + extraTotal;
+    bruttoBase = deriveB(d.brutto, d.netto, d.mwst) + extraTotal;
   } else {
     // Sum up all individual Room Card totals
     const rcTotal = roomCards.reduce((s, c) => s + calcRoomCardTotal(c, d.startDate, d.endDate), 0);
