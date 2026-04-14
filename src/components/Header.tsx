@@ -194,21 +194,31 @@ export default function Header({
     }).catch(() => {}).finally(() => setProfileLoading(false));
   }, []);
 
+  // THE FIX: Directly force the font onto the body tag so it applies instantly everywhere
   function applyFont(family: string, size: number) {
     const font = FONTS.find(f => f.value === family);
-    if (font) document.documentElement.style.setProperty('--font-body', font.family);
+    if (font) {
+      document.body.style.fontFamily = font.family;
+      document.documentElement.style.setProperty('--font-body', font.family);
+    }
     document.documentElement.style.setProperty('--font-size-base', `${size}px`);
     document.documentElement.style.fontSize = `${size}px`;
   }
+
   function handleFontFamilyChange(value: string) {
     setFontFamilyState(value); const font = FONTS.find(f => f.value === value);
-    if (font) document.documentElement.style.setProperty('--font-body', font.family);
+    if (font) {
+      document.body.style.fontFamily = font.family;
+      document.documentElement.style.setProperty('--font-body', font.family);
+    }
   }
+
   function handleFontSizeChange(value: number) {
     const clamped = Math.min(20, Math.max(12, value)); setFontSizeState(clamped);
     document.documentElement.style.setProperty('--font-size-base', `${clamped}px`);
     document.documentElement.style.fontSize = `${clamped}px`;
   }
+
   async function handleSavePersonalization() {
     setSavingPersonalize(true); setPersonalizeMsg('');
     try { await updateMyProfile({ fontFamily, fontSize }); setPersonalizeMsg(lang === 'de' ? '✓ Gespeichert' : '✓ Saved'); setTimeout(() => setPersonalizeMsg(''), 2500); }
@@ -412,11 +422,11 @@ export default function Header({
         </div>
       )}
 
-      {/* SETTINGS DRAWER */}
+      {/* THE FIX: Settings Drawer - Removed blur and dark overlay so user can see dashboard in real time */}
       {showSettings && (
-        <div className="fixed inset-0 z-50 flex">
-          <div className="flex-1 bg-black/50 backdrop-blur-sm" onClick={() => setShowSettings(false)} />
-          <div className={cn('relative w-full max-w-md h-full flex flex-col shadow-2xl border-l', drawerBg, dk ? 'border-white/10' : 'border-slate-200')} style={{ animation: 'slideInRight 220ms cubic-bezier(0.16,1,0.3,1)' }}>
+        <div className="fixed inset-0 z-50 flex pointer-events-none">
+          <div className="flex-1 pointer-events-auto bg-black/10" onClick={() => setShowSettings(false)} />
+          <div className={cn('relative w-full max-w-md h-full flex flex-col shadow-2xl border-l pointer-events-auto', drawerBg, dk ? 'border-white/10' : 'border-slate-200')} style={{ animation: 'slideInRight 220ms cubic-bezier(0.16,1,0.3,1)' }}>
             <div className={cn('flex items-center justify-between px-6 py-4 border-b shrink-0', dk ? 'border-white/10' : 'border-slate-200')}>
               <h2 className={cn('text-lg font-black', dk ? 'text-white' : 'text-slate-900')}>{lang === 'de' ? 'Einstellungen' : 'Settings'}</h2>
               <button onClick={() => setShowSettings(false)} className={cn('p-2 rounded-lg', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}><X size={18} /></button>
@@ -539,10 +549,34 @@ export default function Header({
         </div>
       )}
 
+      {/* THE FIX: Global Subtle Scrollbar CSS */}
       <style>{`
         @keyframes slideInRight {
           from { transform: translateX(100%); opacity: 0.6; }
           to   { transform: translateX(0);    opacity: 1;   }
+        }
+        
+        /* Subtle Custom Scrollbar applied to everything */
+        ::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+          background: rgba(156, 163, 175, 0.5); 
+          border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+          background: rgba(107, 114, 128, 0.8);
+        }
+        /* Dark mode scrollbar support */
+        .dark ::-webkit-scrollbar-thumb {
+          background: rgba(71, 85, 105, 0.5);
+        }
+        .dark ::-webkit-scrollbar-thumb:hover {
+          background: rgba(100, 116, 139, 0.8);
         }
       `}</style>
     </>
