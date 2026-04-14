@@ -67,20 +67,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [activeDurationTab, setActiveDurationTab] = useState(0);
   const saveTimer = useRef<any>(null);
 
-  const hiddenMatchText = useMemo(() => {
-    if (!searchQuery) return null;
-    const q = searchQuery.toLowerCase();
-    for (const d of (localHotel.durations || [])) {
-      if (d.rechnungNr?.toLowerCase().includes(q)) return `Invoice ${d.rechnungNr}`;
-      for (const rc of (d.roomCards || [])) {
-        for (const emp of (rc.employees || [])) {
-          if (emp.name?.toLowerCase().includes(q)) return `Emp: ${emp.name}`;
-        }
-      }
-    }
-    return null;
-  }, [localHotel, searchQuery]);
-
   const { totalCost, freeBeds, totalBeds, employees } = useMemo(() => {
     let tCost = 0; let tFree = 0; let tBeds = 0; const allEmps: any[] = [];
     const today = new Date().toISOString().split('T')[0];
@@ -125,20 +111,16 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         await updateHotel(localHotel.id, next);
         onUpdate(localHotel.id, next);
       } catch (e: any) { 
-        console.error("Database Save Failed:", e);
-        alert(`Error: ${e.message}`);
+        console.error("Save Error:", e);
+        alert(lang === 'de' ? `Speichern fehlgeschlagen: ${e.message}` : `Save failed: ${e.message}`);
       }
       finally { setSaving(false); }
     }, 400);
   }
 
-  const handleEnterBlur = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+  const handleEnterBlur = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') (e.target as HTMLElement).blur();
   };
-
-  const statLblCls = cn('text-[10px] uppercase tracking-widest font-bold mb-0.5', dk ? 'text-slate-500' : 'text-slate-400');
-  const inputCls = cn('w-full px-3 py-2 rounded-lg text-sm font-bold outline-none border transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/10 text-white placeholder-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400');
-  const labelCls = cn('flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest mb-1.5', dk ? 'text-slate-400' : 'text-slate-500');
 
   async function addDuration() {
     try {
@@ -157,6 +139,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     }
   }
 
+  const labelCls = cn('flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest mb-1.5', dk ? 'text-slate-400' : 'text-slate-500');
+  const inputCls = cn('w-full px-3 py-2 rounded-lg text-sm font-bold outline-none border transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900');
+
   return (
     <div className="space-y-1 relative" style={{ zIndex: 40 - (index % 30) }}>
       <div className={cn('rounded-2xl border transition-all duration-200 shadow-sm relative', dk ? 'bg-[#0F172A] border-white/5 hover:border-white/10' : 'bg-white border-slate-200 hover:border-slate-300')}>
@@ -171,18 +156,18 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               <HighlightText text={localHotel.name} query={searchQuery} />
             </h3>
             <p className={cn("text-[10px] font-bold uppercase tracking-widest truncate mt-0.5", dk ? "text-slate-500" : "text-slate-400")}>
-              <CityInlineEdit value={localHotel.city || ''} options={cityOptions} isDarkMode={dk} hotelId={localHotel.id} onChange={val => patchHotel({ city: val || null })} lang={lang} />
+              <CityInlineEdit value={localHotel.city || ''} options={cityOptions} isDarkMode={dk} hotelId={localHotel.id} onChange={(val:any) => patchHotel({ city: val || null })} lang={lang} />
             </p>
           </div>
 
           <div className="flex-[1.5] px-2 min-w-[140px]" onClick={e => e.stopPropagation()}>
-            <CompanyMultiSelect selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={tags => patchHotel({ companyTag: tags })} />
+            <CompanyMultiSelect selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} />
           </div>
 
           <div className="flex-[1.5] px-2 min-w-[150px]">
             <div className="grid grid-cols-2 gap-1.5 w-max">
               {localHotel.durations.map((d: any) => (
-                <div key={d.id} title={getDurationTooltip(d, lang)} className={cn('px-2 py-1.5 rounded-lg text-[10px] font-bold border truncate transition-colors text-center cursor-help', dk ? 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200')}>
+                <div key={d.id} title={getDurationTooltip(d, lang)} className={cn('px-2 py-1.5 rounded-lg text-[10px] font-bold border truncate transition-colors text-center cursor-help', dk ? 'bg-white/5 border-white/10 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700')}>
                   {d.startDate && d.endDate ? `${formatShortDate(d.startDate, lang)} - ${formatShortDate(d.endDate, lang)}` : 'New'}
                 </div>
               ))}
@@ -190,53 +175,34 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
 
           <div className="flex-[2] min-w-[200px] px-2">
-            <div className="grid grid-cols-3 gap-1.5 w-max max-w-full">
+            <div className="grid grid-cols-3 gap-1.5 w-max">
               {visibleEmps.map((emp: any, i: number) => {
                 const status = getEmployeeStatus(emp.checkIn, emp.checkOut);
                 return (
-                  <div key={i} title={emp.name} className={cn("px-2 py-1 rounded border text-[10px] font-bold truncate text-center transition-all max-w-[85px]", 
-                    status === 'active' ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400" :
-                    status === 'upcoming' ? "bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400" :
-                    status === 'ending-soon' ? "bg-orange-500/10 border-orange-500/30 text-orange-600 dark:text-orange-400" :
-                    "bg-slate-100 border-slate-200 text-slate-500 dark:bg-white/5 dark:border-white/10 dark:text-slate-400"
+                  <div key={i} title={emp.name} className={cn("px-2 py-1 rounded border text-[10px] font-bold truncate text-center", 
+                    status === 'active' ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600" : "bg-slate-100 border-slate-200 text-slate-500"
                   )}>
                     <HighlightText text={emp.name} query={searchQuery} />
                   </div>
                 );
               })}
-              {hiddenEmpsCount > 0 && (
-                <div className={cn("px-2 py-1 rounded border text-[10px] font-black flex items-center justify-center", dk ? "bg-white/5 border-white/10 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-600")}>
-                  +{hiddenEmpsCount}
-                </div>
-              )}
             </div>
           </div>
 
           <div className="ml-auto flex items-center gap-5 pr-4 shrink-0">
-            <div className="text-center min-w-[40px]">
-              <p className={statLblCls}>{lang === 'de' ? 'Frei' : 'Free'}</p>
-              <p className={cn('text-lg font-black', freeBeds > 0 ? 'text-red-500' : 'text-emerald-500')}>{freeBeds}</p>
-            </div>
-            <div className="text-center min-w-[40px]">
-              <p className={statLblCls}>{lang === 'de' ? 'Betten' : 'Beds'}</p>
-              <p className={cn('text-lg font-black', dk ? 'text-slate-300' : 'text-slate-700')}>{totalBeds}</p>
-            </div>
             <div className="text-right min-w-[100px]">
-              <p className={statLblCls}>{lang === 'de' ? 'Kosten' : 'Cost'}</p>
+              <p className={cn('text-[10px] uppercase font-bold text-slate-500')}>{lang === 'de' ? 'Kosten' : 'Cost'}</p>
               <p className={cn('text-lg font-black', dk ? 'text-white' : 'text-slate-900')}>{formatCurrency(totalCost)}</p>
             </div>
-            
             <div className="flex items-center gap-1 bg-black/5 dark:bg-white/5 p-1 rounded-xl">
-               <button onClick={(e) => { e.stopPropagation(); onTogglePin(); }} className={cn("p-1.5 rounded-lg transition-all", isPinned ? "text-yellow-500" : dk ? "text-slate-500 hover:text-yellow-500" : "text-slate-400 hover:text-yellow-500")}>
-                 <Star size={16} className={isPinned ? "fill-yellow-500" : ""} />
-               </button>
+               <button onClick={(e) => { e.stopPropagation(); onTogglePin?.(); }} className={cn("p-1.5 rounded-lg", isPinned ? "text-yellow-500" : "text-slate-400")}><Star size={16} className={isPinned ? "fill-yellow-500" : ""} /></button>
                <div className="relative group">
-                  <button onClick={(e) => e.stopPropagation()} className={cn("p-1.5 rounded-lg transition-all", dk ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600")}><Clock size={16} /></button>
-                  <div className="absolute right-0 bottom-full mb-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[10px] font-bold rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all z-[100] shadow-xl">
-                     Updated by {localHotel.lastupdatedby || 'Admin'} on {new Date(localHotel.lastupdatedat || localHotel.created_at).toLocaleDateString()}
+                  <button onClick={(e) => e.stopPropagation()} className="p-1.5 text-slate-400"><Clock size={16} /></button>
+                  <div className="absolute right-0 bottom-full mb-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 z-[100]">
+                     Updated by {localHotel.lastupdatedby || 'Admin'}
                   </div>
                </div>
-               <button onClick={e => { e.stopPropagation(); setConfirmDelete(true); }} className={cn("p-1.5 rounded-lg transition-all", dk ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-slate-400 hover:text-red-500 hover:bg-red-50")}><Trash2 size={16} /></button>
+               <button onClick={e => { e.stopPropagation(); setConfirmDelete(true); }} className="p-1.5 text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
             </div>
           </div>
         </div>
@@ -246,23 +212,23 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             <div className="flex flex-wrap xl:flex-nowrap gap-3 items-end">
               <div className="flex-[2.5_2.5_0%] min-w-[180px]">
                  <label className={labelCls}><MapPin size={12}/> {lang === 'de' ? 'Adresse' : 'Address'}</label>
-                 <input value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} onKeyDown={handleEnterBlur} placeholder="..." className={inputCls} />
+                 <input value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} />
               </div>
               <div className="flex-[1.5_1.5_0%] min-w-[140px]">
-                 <label className={labelCls}><User size={12}/> {lang === 'de' ? 'Ansprechpartner' : 'Contact Person'}</label>
-                 <input value={localHotel.contactPerson || ''} onChange={e => patchHotel({ contactPerson: e.target.value })} onKeyDown={handleEnterBlur} placeholder="..." className={inputCls} />
+                 <label className={labelCls}><User size={12}/> {lang === 'de' ? 'Ansprechpartner' : 'Contact'}</label>
+                 <input value={localHotel.contactPerson || ''} onChange={e => patchHotel({ contactPerson: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} />
               </div>
               <div className="flex-[1.5_1.5_0%] min-w-[140px]">
                  <label className={labelCls}><Phone size={12}/> {lang === 'de' ? 'Telefon' : 'Phone'}</label>
-                 <input value={localHotel.phone || ''} onChange={e => patchHotel({ phone: e.target.value })} onKeyDown={handleEnterBlur} placeholder="..." className={inputCls} />
+                 <input value={localHotel.phone || ''} onChange={e => patchHotel({ phone: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} />
               </div>
               <div className="flex-[1.5_1.5_0%] min-w-[160px]">
                  <label className={labelCls}><Mail size={12}/> Email</label>
-                 <input value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })} onKeyDown={handleEnterBlur} placeholder="..." className={inputCls} />
+                 <input value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} />
               </div>
               <div className="flex-[1.5_1.5_0%] min-w-[160px]">
                  <label className={labelCls}><Globe size={12}/> {lang === 'de' ? 'Webseite' : 'Website'}</label>
-                 <input value={localHotel.website || ''} onChange={e => patchHotel({ website: e.target.value })} onKeyDown={handleEnterBlur} placeholder="..." className={inputCls} />
+                 <input value={localHotel.website || ''} onChange={e => patchHotel({ website: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} />
               </div>
               <div className="flex-[1_1_0%] min-w-[120px]">
                  <label className={labelCls}><Building size={12}/> {lang === 'de' ? 'Land' : 'Country'}</label>
@@ -271,10 +237,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             </div>
             <div className="flex items-center gap-2 flex-wrap pt-2">
               {(localHotel.durations || []).map((d: any, i: number) => (
-                <button key={d.id || i} onClick={() => setActiveDurationTab(i)} className={cn('px-4 py-2 rounded-lg text-sm font-bold border transition-all shadow-sm', activeDurationTab === i ? 'bg-blue-600 text-white border-blue-600' : dk ? 'bg-[#1E293B] border-white/10 text-slate-300' : 'bg-white border-slate-200')}>{getDurationTabLabel(d, lang)}</button>
+                <button key={d.id || i} onClick={() => setActiveDurationTab(i)} className={cn('px-4 py-2 rounded-lg text-sm font-bold border transition-all', activeDurationTab === i ? 'bg-blue-600 text-white' : dk ? 'bg-[#1E293B] text-slate-300' : 'bg-white text-slate-700')}>{getDurationTabLabel(d, lang)}</button>
               ))}
-              <button onClick={addDuration} className={cn('px-4 py-2 rounded-lg text-sm font-bold border flex items-center gap-1.5 shadow-sm', dk ? 'bg-white/5 border-white/10' : 'bg-slate-50')}>
-                {creatingDuration ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} {lang === 'de' ? 'Neue Dauer' : 'Add duration'}
+              <button onClick={addDuration} className="px-4 py-2 rounded-lg text-sm font-bold border bg-blue-600/10 text-blue-500">
+                {creatingDuration ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
               </button>
             </div>
             {localHotel.durations[activeDurationTab] && (
@@ -283,21 +249,30 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
         )}
       </div>
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className={cn('w-full max-w-md rounded-3xl border p-8 shadow-2xl', dk ? 'bg-[#0F172A] text-white' : 'bg-white text-slate-900')}>
+            <h3 className="text-2xl font-black mb-4">{lang === 'de' ? 'Hotel löschen?' : 'Delete hotel?'}</h3>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConfirmDelete(false)} className="px-6 py-2.5 font-bold">Cancel</button>
+              <button onClick={async () => { await deleteHotel(localHotel.id); onDelete(localHotel.id); }} className="px-6 py-2.5 font-bold bg-red-600 text-white rounded-xl">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-export function ModernDropdown({ value, options, onChange, isDarkMode, lang, placeholder = 'Select' }: { value: string, options: string[], onChange: (v: string) => void, isDarkMode: boolean, lang?: string, placeholder?: string }) {
+export function ModernDropdown({ value, options, onChange, isDarkMode, lang, placeholder = 'Select' }: any) {
   const [open, setOpen] = useState(false);
-  const [addingNew, setAddingNew] = useState(false);
-  const [newVal, setNewVal] = useState('');
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setAddingNew(false); setNewVal(''); } }
+    function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
   }, []);
-  const allOptions = Array.from(new Set([...options, value])).filter(Boolean).sort();
   const displayValue = (val: string) => {
     if (lang !== 'de') return val;
     const de: any = { 'Germany': 'Deutschland', 'Switzerland': 'Schweiz', 'Austria': 'Österreich', 'Netherlands': 'Niederlande', 'Poland': 'Polen', 'Belgium': 'Belgien', 'France': 'Frankreich', 'Luxembourg': 'Luxemburg' };
@@ -305,26 +280,15 @@ export function ModernDropdown({ value, options, onChange, isDarkMode, lang, pla
   };
   return (
     <div ref={ref} className="relative w-full h-[38px]">
-      <button onClick={() => setOpen(!open)} className={cn('w-full h-full px-3 flex items-center justify-between rounded-lg border text-sm font-bold outline-none transition-all', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
+      <button onClick={() => setOpen(!open)} className={cn('w-full h-full px-3 flex items-center justify-between rounded-lg border text-sm font-bold', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200')}>
         <span className="truncate">{displayValue(value) || placeholder}</span>
-        <ChevronDown size={16} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
+        <ChevronDown size={16} />
       </button>
       {open && (
-        <div className={cn('absolute top-full mt-1 left-0 right-0 z-[100] rounded-xl border shadow-xl py-1 overflow-hidden', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
-          <div className="max-h-48 overflow-y-auto">
-            {allOptions.map(opt => (
-              <button key={opt} onClick={() => { onChange(opt); setOpen(false); }} className={cn('w-full text-left px-3 py-2 text-sm font-bold', value === opt ? (isDarkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-50 text-blue-600') : (isDarkMode ? 'text-slate-300 hover:bg-white/5' : 'text-slate-700 hover:bg-slate-50'))}>{displayValue(opt)}</button>
-            ))}
-          </div>
-          <div className={cn('my-1 border-t', isDarkMode ? 'border-white/10' : 'border-slate-100')} />
-          {!addingNew ? (
-            <button onClick={() => setAddingNew(true)} className={cn('w-full text-left px-3 py-2 text-sm font-bold flex items-center gap-1.5', isDarkMode ? 'text-blue-400' : 'text-blue-600')}><Plus size={14} /> {lang === 'de' ? 'Neu' : 'Add'}</button>
-          ) : (
-            <div className="px-2 py-1.5 flex items-center gap-1">
-              <input autoFocus value={newVal} onChange={e => setNewVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && newVal.trim()) { onChange(newVal.trim()); setOpen(false); setAddingNew(false); } }} className={cn('flex-1 text-sm outline-none border-b bg-transparent', isDarkMode ? 'border-blue-500 text-white' : 'border-blue-500 text-slate-900')} />
-              <button onClick={() => { if(newVal.trim()) { onChange(newVal.trim()); setOpen(false); } }}><Check size={16} /></button>
-            </div>
-          )}
+        <div className={cn('absolute top-full mt-1 left-0 right-0 z-[100] rounded-xl border shadow-xl py-1', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white')}>
+          {options.map((opt:any) => (
+            <button key={opt} onClick={() => { onChange(opt); setOpen(false); }} className={cn('w-full text-left px-3 py-2 text-sm font-bold', value === opt ? 'text-blue-500 bg-blue-500/10' : dk ? 'text-slate-300' : 'text-slate-700')}>{displayValue(opt)}</button>
+          ))}
         </div>
       )}
     </div>
@@ -356,7 +320,7 @@ function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange }: a
       {open && (
         <div className={cn('absolute top-full mt-1 left-0 z-[100] rounded-xl border shadow-xl min-w-[160px] py-1', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
           {options.map((opt: string) => (
-            <button key={opt} onClick={(e) => { e.stopPropagation(); onChange(selected.includes(opt) ? selected.filter((t: any) => t !== opt) : [...selected, opt]); }} className={cn('w-full text-left px-3 py-2 text-xs font-bold', selected.includes(opt) ? 'text-blue-500' : 'text-slate-500')}>{opt}</button>
+            <button key={opt} onClick={(e) => { e.stopPropagation(); onChange(selected.includes(opt) ? selected.filter((t: any) => t !== opt) : [...selected, opt]); }} className={cn('w-full text-left px-3 py-2 text-xs font-bold', selected.includes(opt) ? 'text-blue-500 bg-blue-500/10' : dk ? 'text-slate-300' : 'text-slate-700')}>{opt}</button>
           ))}
         </div>
       )}
