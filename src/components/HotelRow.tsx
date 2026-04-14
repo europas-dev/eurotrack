@@ -26,7 +26,6 @@ interface HotelRowProps {
   onUpdate: (id: string, updated: any) => void;
 }
 
-// Format helper: "1 Apr - 14 Apr"
 function formatShortDate(isoString?: string | null, lang: string = 'de'): string {
   if (!isoString) return '';
   const d = new Date(isoString);
@@ -85,7 +84,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const { totalCost, freeBeds, totalBeds, employees } = useMemo(() => {
     let tCost = 0; let tFree = 0; let tBeds = 0; const allEmps: any[] = [];
     const today = new Date().toISOString().split('T')[0];
-
     (localHotel.durations || []).forEach((d: any) => {
       const rCards = d.roomCards || [];
       const extraTotal = (d.extraCosts || []).reduce((s: number, e: any) => s + (Number(e.amount) || 0), 0);
@@ -102,7 +100,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       }
       tCost += Math.max(0, bruttoBase);
     });
-
     return { totalCost: tCost, freeBeds: tFree, totalBeds: tBeds, employees: allEmps };
   }, [localHotel]);
 
@@ -129,17 +126,14 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         onUpdate(localHotel.id, next);
       } catch (e: any) { 
         console.error("Database Save Failed:", e);
-        alert(`Fehler beim Speichern: ${e.message}`);
+        alert(`Error: ${e.message}`);
       }
       finally { setSaving(false); }
     }, 400);
   }
 
   const handleEnterBlur = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      e.currentTarget.blur();
-    }
+    if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
   };
 
   const statLblCls = cn('text-[10px] uppercase tracking-widest font-bold mb-0.5', dk ? 'text-slate-500' : 'text-slate-400');
@@ -157,8 +151,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       setOpen(true);
       setActiveDurationTab(nextDurations.length - 1);
     } catch (e: any) {
-      console.error("Failed to create duration:", e);
-      alert(`Fehler beim Erstellen der Dauer: ${e.message}`);
+      alert(`Error: ${e.message}`);
     } finally {
       setCreatingDuration(false);
     }
@@ -180,11 +173,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             <p className={cn("text-[10px] font-bold uppercase tracking-widest truncate mt-0.5", dk ? "text-slate-500" : "text-slate-400")}>
               <CityInlineEdit value={localHotel.city || ''} options={cityOptions} isDarkMode={dk} hotelId={localHotel.id} onChange={val => patchHotel({ city: val || null })} lang={lang} />
             </p>
-            {hiddenMatchText && !open && (
-              <span className="inline-block mt-1 px-1.5 py-0.5 bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-400 text-[9px] font-bold rounded-full truncate max-w-full">
-                🔍 {hiddenMatchText}
-              </span>
-            )}
           </div>
 
           <div className="flex-[1.5] px-2 min-w-[140px]" onClick={e => e.stopPropagation()}>
@@ -239,13 +227,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             </div>
             
             <div className="flex items-center gap-1 bg-black/5 dark:bg-white/5 p-1 rounded-xl">
-               <button onClick={(e) => { e.stopPropagation(); onTogglePin(); }} className={cn("p-1.5 rounded-lg transition-all", isPinned ? "text-yellow-500" : dk ? "text-slate-500 hover:text-yellow-500 hover:bg-white/5" : "text-slate-400 hover:text-yellow-500 hover:bg-white")}>
+               <button onClick={(e) => { e.stopPropagation(); onTogglePin(); }} className={cn("p-1.5 rounded-lg transition-all", isPinned ? "text-yellow-500" : dk ? "text-slate-500 hover:text-yellow-500" : "text-slate-400 hover:text-yellow-500")}>
                  <Star size={16} className={isPinned ? "fill-yellow-500" : ""} />
                </button>
                <div className="relative group">
-                  <button onClick={(e) => e.stopPropagation()} className={cn("p-1.5 rounded-lg transition-all", dk ? "text-slate-500 hover:text-slate-300 hover:bg-white/5" : "text-slate-400 hover:text-slate-600 hover:bg-white")}><Clock size={16} /></button>
+                  <button onClick={(e) => e.stopPropagation()} className={cn("p-1.5 rounded-lg transition-all", dk ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600")}><Clock size={16} /></button>
                   <div className="absolute right-0 bottom-full mb-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[10px] font-bold rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all z-[100] shadow-xl">
-                     Updated by {localHotel.updated_by || localHotel.lastUpdatedBy || 'Admin'} on {new Date(localHotel.updated_at || localHotel.lastUpdatedAt || localHotel.created_at).toLocaleDateString()}
+                     Updated by {localHotel.lastupdatedby || 'Admin'} on {new Date(localHotel.lastupdatedat || localHotel.created_at).toLocaleDateString()}
                   </div>
                </div>
                <button onClick={e => { e.stopPropagation(); setConfirmDelete(true); }} className={cn("p-1.5 rounded-lg transition-all", dk ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-slate-400 hover:text-red-500 hover:bg-red-50")}><Trash2 size={16} /></button>
@@ -258,99 +246,43 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             <div className="flex flex-wrap xl:flex-nowrap gap-3 items-end">
               <div className="flex-[2.5_2.5_0%] min-w-[180px]">
                  <label className={labelCls}><MapPin size={12}/> {lang === 'de' ? 'Adresse' : 'Address'}</label>
-                 <input value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} onKeyDown={handleEnterBlur} placeholder={lang === 'de' ? 'Adresse eingeben...' : 'Enter address...'} className={inputCls} />
+                 <input value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} onKeyDown={handleEnterBlur} placeholder="..." className={inputCls} />
               </div>
               <div className="flex-[1.5_1.5_0%] min-w-[140px]">
                  <label className={labelCls}><User size={12}/> {lang === 'de' ? 'Ansprechpartner' : 'Contact Person'}</label>
-                 <input value={localHotel.contactPerson || ''} onChange={e => patchHotel({ contactPerson: e.target.value })} onKeyDown={handleEnterBlur} placeholder={lang === 'de' ? 'Name eingeben...' : 'Enter name...'} className={inputCls} />
+                 <input value={localHotel.contactPerson || ''} onChange={e => patchHotel({ contactPerson: e.target.value })} onKeyDown={handleEnterBlur} placeholder="..." className={inputCls} />
               </div>
               <div className="flex-[1.5_1.5_0%] min-w-[140px]">
                  <label className={labelCls}><Phone size={12}/> {lang === 'de' ? 'Telefon' : 'Phone'}</label>
-                 <div className={cn('flex items-center rounded-lg border overflow-hidden transition-all focus-within:border-blue-500 h-[38px]', dk ? 'bg-[#1E293B] border-white/10' : 'bg-white border-slate-200')}>
-                    <input value={localHotel.phone || ''} onChange={e => patchHotel({ phone: e.target.value })} onKeyDown={handleEnterBlur} placeholder={lang === 'de' ? 'Nummer eingeben...' : 'Enter number...'} className={cn('w-full px-3 py-2 text-sm font-bold outline-none bg-transparent h-full', dk ? 'text-white' : 'text-slate-900')} />
-                 </div>
+                 <input value={localHotel.phone || ''} onChange={e => patchHotel({ phone: e.target.value })} onKeyDown={handleEnterBlur} placeholder="..." className={inputCls} />
               </div>
               <div className="flex-[1.5_1.5_0%] min-w-[160px]">
                  <label className={labelCls}><Mail size={12}/> Email</label>
-                 <div className="relative flex items-center h-[38px]">
-                   <input value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })} onKeyDown={handleEnterBlur} placeholder={lang === 'de' ? 'Email eingeben...' : 'Enter email...'} className={cn(inputCls, 'h-full pr-8')} />
-                   {localHotel.email && (
-                     <a href={`mailto:${localHotel.email}`} className="absolute right-1.5 p-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 transition-all shadow-sm">
-                       <Mail size={14} />
-                     </a>
-                   )}
-                 </div>
+                 <input value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })} onKeyDown={handleEnterBlur} placeholder="..." className={inputCls} />
               </div>
               <div className="flex-[1.5_1.5_0%] min-w-[160px]">
                  <label className={labelCls}><Globe size={12}/> {lang === 'de' ? 'Webseite' : 'Website'}</label>
-                 <div className="relative flex items-center h-[38px]">
-                   <input value={localHotel.website || ''} onChange={e => patchHotel({ website: e.target.value })} onKeyDown={handleEnterBlur} placeholder={lang === 'de' ? 'Link eingeben...' : 'Enter link...'} className={cn(inputCls, 'h-full pr-8')} />
-                   {localHotel.website && (
-                     <a href={localHotel.website.startsWith('http') ? localHotel.website : `https://${localHotel.website}`} target="_blank" rel="noreferrer" className="absolute right-1.5 p-1.5 bg-emerald-500 text-white rounded hover:bg-emerald-600 transition-all shadow-sm">
-                       <Globe size={14} />
-                     </a>
-                   )}
-                 </div>
+                 <input value={localHotel.website || ''} onChange={e => patchHotel({ website: e.target.value })} onKeyDown={handleEnterBlur} placeholder="..." className={inputCls} />
               </div>
               <div className="flex-[1_1_0%] min-w-[120px]">
                  <label className={labelCls}><Building size={12}/> {lang === 'de' ? 'Land' : 'Country'}</label>
                  <ModernDropdown value={localHotel.country || 'Germany'} options={DEFAULT_COUNTRIES} onChange={v => patchHotel({ country: v })} isDarkMode={dk} lang={lang} />
               </div>
             </div>
-
-            <textarea className={cn(inputCls, 'min-h-[50px] resize-y font-normal mt-2')} value={localHotel.notes || ''} onChange={e => patchHotel({ notes: e.target.value })} placeholder={lang === 'de' ? 'Zusätzliche Notizen eingeben...' : 'Enter additional notes...'} />
-
             <div className="flex items-center gap-2 flex-wrap pt-2">
               {(localHotel.durations || []).map((d: any, i: number) => (
-                <button key={d.id || i} onClick={() => setActiveDurationTab(i)}
-                  className={cn('px-4 py-2 rounded-lg text-sm font-bold border transition-all shadow-sm',
-                    activeDurationTab === i ? 'bg-blue-600 text-white border-blue-600' : dk ? 'bg-[#1E293B] border-white/10 text-slate-300 hover:bg-white/10' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                  )}>{getDurationTabLabel(d, lang)}</button>
+                <button key={d.id || i} onClick={() => setActiveDurationTab(i)} className={cn('px-4 py-2 rounded-lg text-sm font-bold border transition-all shadow-sm', activeDurationTab === i ? 'bg-blue-600 text-white border-blue-600' : dk ? 'bg-[#1E293B] border-white/10 text-slate-300' : 'bg-white border-slate-200')}>{getDurationTabLabel(d, lang)}</button>
               ))}
-              <button onClick={addDuration} disabled={creatingDuration}
-                className={cn('px-4 py-2 rounded-lg text-sm font-bold border transition-all flex items-center gap-1.5 shadow-sm',
-                  dk ? 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                )}>
-                {creatingDuration ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                {lang === 'de' ? 'Neue Dauer' : 'Add duration'}
+              <button onClick={addDuration} className={cn('px-4 py-2 rounded-lg text-sm font-bold border flex items-center gap-1.5 shadow-sm', dk ? 'bg-white/5 border-white/10' : 'bg-slate-50')}>
+                {creatingDuration ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} {lang === 'de' ? 'Neue Dauer' : 'Add duration'}
               </button>
             </div>
-
-            {(localHotel.durations || []).length > 0 ? (
-              <DurationCard duration={localHotel.durations[activeDurationTab]} isDarkMode={dk} lang={lang} 
-                onUpdate={(id, upd) => {
-                  const next = { ...localHotel, durations: localHotel.durations.map((d: any) => d.id === id ? upd : d) };
-                  setLocalHotel(next); onUpdate(localHotel.id, next);
-                }}
-                onDelete={(id) => {
-                  const next = { ...localHotel, durations: localHotel.durations.filter((d: any) => d.id !== id) };
-                  setLocalHotel(next); onUpdate(localHotel.id, next);
-                }}
-              />
-            ) : (
-               <button onClick={addDuration} disabled={creatingDuration}
-                className={cn('w-full mt-2 py-6 rounded-xl border-2 border-dashed text-sm font-bold transition-all flex items-center justify-center gap-2',
-                  dk ? 'border-white/10 text-slate-400 hover:border-blue-500/50 hover:text-blue-400 hover:bg-blue-500/5' : 'border-slate-300 text-slate-500 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50'
-                )}>
-                {creatingDuration ? <><Loader2 size={18} className="animate-spin"/> {lang === 'de' ? 'Erstelle...' : 'Creating...'}</> : <><Plus size={18}/> {lang === 'de' ? 'Erste Dauer hinzufügen' : 'Add first duration'}</>}
-              </button>
+            {localHotel.durations[activeDurationTab] && (
+              <DurationCard duration={localHotel.durations[activeDurationTab]} isDarkMode={dk} lang={lang} onUpdate={(id, upd) => { const next = { ...localHotel, durations: localHotel.durations.map((d: any) => d.id === id ? upd : d) }; setLocalHotel(next); onUpdate(localHotel.id, next); }} onDelete={(id) => { const next = { ...localHotel, durations: localHotel.durations.filter((d: any) => d.id !== id) }; setLocalHotel(next); onUpdate(localHotel.id, next); }} />
             )}
           </div>
         )}
       </div>
-
-      {confirmDelete && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className={cn('w-full max-w-md rounded-3xl border p-8 shadow-2xl', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
-            <h3 className="text-2xl font-black mb-4">{lang === 'de' ? 'Hotel löschen?' : 'Delete hotel?'}</h3>
-            <p className="text-slate-500 mb-8">{lang === 'de' ? 'Diese Aktion kann nicht rückgängig gemacht werden.' : 'This action cannot be undone.'}</p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setConfirmDelete(false)} className={cn('px-6 py-2.5 font-bold rounded-xl border transition-all', dk ? 'border-white/10 hover:bg-white/5' : 'border-slate-200 hover:bg-slate-50')}>Cancel</button>
-              <button onClick={async () => { await deleteHotel(localHotel.id); onDelete(localHotel.id); }} className="px-6 py-2.5 font-bold rounded-xl bg-red-600 hover:bg-red-700 text-white transition-all">Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -360,49 +292,37 @@ export function ModernDropdown({ value, options, onChange, isDarkMode, lang, pla
   const [addingNew, setAddingNew] = useState(false);
   const [newVal, setNewVal] = useState('');
   const ref = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setAddingNew(false); setNewVal(''); } }
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
   }, []);
-
   const allOptions = Array.from(new Set([...options, value])).filter(Boolean).sort();
-
   const displayValue = (val: string) => {
     if (lang !== 'de') return val;
-    const deTranslations: Record<string, string> = {
-      'Germany': 'Deutschland', 'Switzerland': 'Schweiz', 'Austria': 'Österreich',
-      'Netherlands': 'Niederlande', 'Poland': 'Polen', 'Belgium': 'Belgien',
-      'France': 'Frankreich', 'Luxembourg': 'Luxemburg'
-    };
-    return deTranslations[val] || val;
+    const de: any = { 'Germany': 'Deutschland', 'Switzerland': 'Schweiz', 'Austria': 'Österreich', 'Netherlands': 'Niederlande', 'Poland': 'Polen', 'Belgium': 'Belgien', 'France': 'Frankreich', 'Luxembourg': 'Luxemburg' };
+    return de[val] || val;
   };
-
   return (
     <div ref={ref} className="relative w-full h-[38px]">
-      <button onClick={() => setOpen(!open)} className={cn('w-full h-full px-3 flex items-center justify-between rounded-lg border text-sm font-bold outline-none transition-all', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white hover:border-blue-500' : 'bg-white border-slate-200 text-slate-900 hover:border-blue-500')}>
+      <button onClick={() => setOpen(!open)} className={cn('w-full h-full px-3 flex items-center justify-between rounded-lg border text-sm font-bold outline-none transition-all', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
         <span className="truncate">{displayValue(value) || placeholder}</span>
         <ChevronDown size={16} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
       </button>
       {open && (
         <div className={cn('absolute top-full mt-1 left-0 right-0 z-[100] rounded-xl border shadow-xl py-1 overflow-hidden', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
-          <div className="max-h-48 overflow-y-auto no-scrollbar">
+          <div className="max-h-48 overflow-y-auto">
             {allOptions.map(opt => (
-              <button key={opt} onClick={() => { onChange(opt); setOpen(false); }} className={cn('w-full text-left px-3 py-2.5 text-sm font-bold transition-all', value === opt ? (isDarkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-50 text-blue-600') : (isDarkMode ? 'text-slate-300 hover:bg-white/5' : 'text-slate-700 hover:bg-slate-50'))}>
-                {displayValue(opt)}
-              </button>
+              <button key={opt} onClick={() => { onChange(opt); setOpen(false); }} className={cn('w-full text-left px-3 py-2 text-sm font-bold', value === opt ? (isDarkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-50 text-blue-600') : (isDarkMode ? 'text-slate-300 hover:bg-white/5' : 'text-slate-700 hover:bg-slate-50'))}>{displayValue(opt)}</button>
             ))}
           </div>
           <div className={cn('my-1 border-t', isDarkMode ? 'border-white/10' : 'border-slate-100')} />
           {!addingNew ? (
-            <button onClick={() => { setAddingNew(true); setNewVal(''); }} className={cn('w-full text-left px-3 py-2.5 text-sm font-bold flex items-center gap-1.5 transition-all', isDarkMode ? 'text-blue-400 hover:bg-white/5' : 'text-blue-600 hover:bg-blue-50')}>
-              <Plus size={14} /> {lang === 'de' ? 'Neu hinzufügen' : 'Add New'}
-            </button>
+            <button onClick={() => setAddingNew(true)} className={cn('w-full text-left px-3 py-2 text-sm font-bold flex items-center gap-1.5', isDarkMode ? 'text-blue-400' : 'text-blue-600')}><Plus size={14} /> {lang === 'de' ? 'Neu' : 'Add'}</button>
           ) : (
             <div className="px-2 py-1.5 flex items-center gap-1">
-              <input autoFocus value={newVal} onChange={e => setNewVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && newVal.trim()) { onChange(newVal.trim()); setOpen(false); setAddingNew(false); } if (e.key === 'Escape') setAddingNew(false); }} placeholder="..." className={cn('flex-1 text-sm outline-none border-b bg-transparent py-1', isDarkMode ? 'border-blue-500 text-white' : 'border-blue-500 text-slate-900')} />
-              <button onClick={() => { if(newVal.trim()){ onChange(newVal.trim()); setOpen(false); setAddingNew(false); } }} className="text-blue-500 hover:text-blue-400 p-1"><Check size={16} /></button>
+              <input autoFocus value={newVal} onChange={e => setNewVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && newVal.trim()) { onChange(newVal.trim()); setOpen(false); setAddingNew(false); } }} className={cn('flex-1 text-sm outline-none border-b bg-transparent', isDarkMode ? 'border-blue-500 text-white' : 'border-blue-500 text-slate-900')} />
+              <button onClick={() => { if(newVal.trim()) { onChange(newVal.trim()); setOpen(false); } }}><Check size={16} /></button>
             </div>
           )}
         </div>
@@ -411,92 +331,33 @@ export function ModernDropdown({ value, options, onChange, isDarkMode, lang, pla
   );
 }
 
-function CityInlineEdit({ value, options, isDarkMode, hotelId, onChange, lang }: { value: string; options: string[]; isDarkMode: boolean; hotelId: string; onChange: (val: string) => void; lang?: string; }) {
+function CityInlineEdit({ value, options, isDarkMode, hotelId, onChange, lang }: any) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
-  const listId = `city-dl-${hotelId}`;
-  if (!editing) {
-    return (
-      <span onClick={e => { e.stopPropagation(); setDraft(value); setEditing(true); }} className="cursor-text hover:underline inline-block min-w-[30px]">
-        {value || <span className={isDarkMode ? 'text-slate-600' : 'text-slate-300'}>{lang === 'de' ? 'Stadt eingeben...' : 'Enter city...'}</span>}
-      </span>
-    );
-  }
-  return (
-    <span onClick={e => e.stopPropagation()}>
-      <input autoFocus list={listId} value={draft} onChange={e => setDraft(e.target.value)}
-        onBlur={() => { onChange(draft); setEditing(false); }}
-        onKeyDown={e => { if (e.key === 'Enter') { onChange(draft); setEditing(false); } if (e.key === 'Escape') setEditing(false); }}
-        className={cn('text-[10px] font-bold uppercase tracking-widest outline-none border-b bg-transparent w-28', isDarkMode ? 'border-blue-500 text-slate-300' : 'border-blue-500 text-slate-500')}
-      />
-      <datalist id={listId}>{options.map(o => <option key={o} value={o} />)}</datalist>
-    </span>
-  );
+  if (!editing) return <span onClick={e => { e.stopPropagation(); setEditing(true); }} className="cursor-text hover:underline">{value || (lang === 'de' ? 'Stadt...' : 'City...')}</span>;
+  return <input autoFocus value={draft} onChange={e => setDraft(e.target.value)} onBlur={() => { onChange(draft); setEditing(false); }} onKeyDown={e => { if(e.key === 'Enter') { onChange(draft); setEditing(false); } }} className="text-[10px] font-bold uppercase outline-none border-b bg-transparent w-28 border-blue-500" />;
 }
 
-function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange }: { selected: string[]; options: string[]; isDarkMode: boolean; lang: string; onChange: (tags: string[]) => void; }) {
-  const dk = isDarkMode;
+function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange }: any) {
   const [open, setOpen] = useState(false);
-  const [addingNew, setAddingNew] = useState(false);
-  const [newVal, setNewVal] = useState('');
   const ref = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
-    function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setAddingNew(false); setNewVal(''); } }
+    function handle(e: any) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
-  }, [open]);
-
-  function toggle(tag: string) { onChange(selected.includes(tag) ? selected.filter(t => t !== tag) : [...selected, tag]); }
-  function removeTag(tag: string, e: React.MouseEvent) { e.stopPropagation(); onChange(selected.filter(t => t !== tag)); }
-  function confirmNew() { const v = newVal.trim(); if (v && !selected.includes(v)) onChange([...selected, v]); setAddingNew(false); setNewVal(''); setOpen(false); }
-
-  const allOptions = Array.from(new Set([...options, ...selected])).filter(Boolean).sort();
-
+  }, []);
   return (
-    <div ref={ref} className="relative">
-      <div className="flex flex-wrap gap-1 cursor-pointer min-h-[24px]" onClick={() => setOpen(o => !o)}>
-        {selected.length > 0 ? selected.map(tag => (
-          <span key={tag} className={cn('inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-bold border shadow-sm', dk ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700')}>
-            {tag} <span onMouseDown={e => { e.preventDefault(); removeTag(tag, e); }} className="cursor-pointer hover:opacity-70 ml-0.5"><X size={12} /></span>
-          </span>
-        )) : (
-          <span className={cn('inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-bold border border-dashed', dk ? 'border-white/20 text-slate-500 hover:border-blue-400 hover:text-blue-400' : 'border-slate-300 text-slate-400 hover:border-blue-400 hover:text-blue-600')}>
-            <Plus size={12} /> {lang === 'de' ? 'Firma' : 'Company'}
-          </span>
-        )}
+    <div ref={ref} className="relative cursor-pointer min-h-[24px]" onClick={() => setOpen(!open)}>
+      <div className="flex flex-wrap gap-1">
+        {selected.length > 0 ? selected.map((tag: string) => (
+          <span key={tag} className={cn('px-2 py-0.5 rounded text-[11px] font-bold border', isDarkMode ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700')}>{tag}</span>
+        )) : <span className="text-[11px] text-slate-400 font-bold border border-dashed px-2 py-0.5 rounded">+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
       </div>
-
       {open && (
-        <div className={cn('absolute top-full mt-1 left-0 z-[100] rounded-xl border shadow-xl min-w-[180px] py-1', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
-          <div className="max-h-48 overflow-y-auto no-scrollbar">
-            {allOptions.length > 0 && (
-              <>
-                <div className={cn('px-3 pt-2 pb-1 text-[9px] font-black uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')}>
-                  {lang === 'de' ? 'Firmen' : 'Companies'}
-                </div>
-                {allOptions.map(opt => (
-                  <button key={opt} onClick={() => toggle(opt)} className={cn('w-full text-left px-3 py-2 text-xs font-bold transition-colors flex items-center gap-2', selected.includes(opt) ? (dk ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-50 text-blue-700') : (dk ? 'text-slate-300 hover:bg-white/5' : 'text-slate-700 hover:bg-slate-50'))}>
-                    <span className={cn('w-4 h-4 rounded-sm border flex items-center justify-center flex-shrink-0', selected.includes(opt) ? 'bg-blue-500 border-blue-500' : (dk ? 'border-white/20' : 'border-slate-300'))}>
-                      {selected.includes(opt) && <Check size={12} className="text-white" />}
-                    </span>
-                    {opt}
-                  </button>
-                ))}
-              </>
-            )}
-          </div>
-          <div className={cn('my-1 border-t', dk ? 'border-white/10' : 'border-slate-100')} />
-          {!addingNew ? (
-            <button onClick={() => { setAddingNew(true); setNewVal(''); }} className={cn('w-full text-left px-3 py-2 text-xs font-bold flex items-center gap-1.5', dk ? 'text-blue-400 hover:bg-white/5' : 'text-blue-600 hover:bg-blue-50')}>
-              <Plus size={14} /> {lang === 'de' ? 'Neue Firma' : 'New company'}
-            </button>
-          ) : (
-            <div className="px-2 py-2 flex items-center gap-1">
-              <input autoFocus value={newVal} onChange={e => setNewVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') confirmNew(); if (e.key === 'Escape') { setAddingNew(false); setNewVal(''); } }} placeholder={lang === 'de' ? 'Firmenname...' : 'Company name...'} className={cn('flex-1 text-xs font-bold outline-none border-b bg-transparent py-1', dk ? 'border-blue-500 text-white placeholder-slate-600' : 'border-blue-500 text-slate-900 placeholder-slate-400')} />
-              <button onClick={confirmNew} className="text-blue-500 hover:text-blue-400 p-1"><Check size={16} /></button>
-            </div>
-          )}
+        <div className={cn('absolute top-full mt-1 left-0 z-[100] rounded-xl border shadow-xl min-w-[160px] py-1', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
+          {options.map((opt: string) => (
+            <button key={opt} onClick={(e) => { e.stopPropagation(); onChange(selected.includes(opt) ? selected.filter((t: any) => t !== opt) : [...selected, opt]); }} className={cn('w-full text-left px-3 py-2 text-xs font-bold', selected.includes(opt) ? 'text-blue-500' : 'text-slate-500')}>{opt}</button>
+          ))}
         </div>
       )}
     </div>
