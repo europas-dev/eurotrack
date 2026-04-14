@@ -23,14 +23,14 @@ export default function Sidebar({
 
   // Custom Year Dropdown State
   const [showYearMenu, setShowYearMenu] = useState(false);
-  const [yearRangeStart, setYearRangeStart] = useState(() => Math.floor(selectedYear / 10) * 10);
+  const [yearOffset, setYearOffset] = useState(0); // Tracks shifting up/down
   const yearMenuRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown if clicked outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (yearMenuRef.current && !yearMenuRef.current.contains(event.target as Node)) {
         setShowYearMenu(false);
+        setYearOffset(0); // Reset shift when closed
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -41,8 +41,9 @@ export default function Sidebar({
     ? ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']
     : ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-  // Generate the 10 years based on the current range
-  const currentDecade = Array.from({ length: 10 }, (_, i) => yearRangeStart + i);
+  // Centers the 10-year list exactly around the currently selected year
+  const centerYear = selectedYear + yearOffset;
+  const currentDecade = Array.from({ length: 10 }, (_, i) => centerYear - 4 + i);
 
   const monthlyTotals = monthNames.map((_, i) =>
     hotels.reduce((sum, hotel) =>
@@ -83,7 +84,6 @@ export default function Sidebar({
           {!collapsed && <span>{lang === 'de' ? 'Alle Monate' : 'All Months'}</span>}
         </button>
 
-        {/* THE FIX: Custom 10-Year Dropdown */}
         {!collapsed && (
           <div className="relative" ref={yearMenuRef}>
             <label className={cn('text-[10px] font-bold uppercase tracking-widest mb-2 block', dk ? 'text-slate-400' : 'text-slate-600')}>
@@ -101,33 +101,31 @@ export default function Sidebar({
 
             {showYearMenu && (
               <div className={cn("absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border shadow-xl overflow-hidden", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
-                {/* Previous 10 Years */}
                 <button 
-                  onClick={() => setYearRangeStart(prev => prev - 10)}
+                  onClick={() => setYearOffset(prev => prev - 10)}
                   className={cn("w-full py-2 flex justify-center items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-all", dk ? "bg-white/5 hover:bg-white/10 text-slate-400" : "bg-slate-50 hover:bg-slate-100 text-slate-500")}
                 >
-                  <ChevronUp size={12} /> {lang === 'de' ? 'Vorherige 10 Jahre' : 'Previous 10 Years'}
+                  <ChevronUp size={12} /> {lang === 'de' ? 'Vorherige 10' : 'Previous 10'}
                 </button>
                 
-                {/* The 10 Years List */}
-                <div className="max-h-48 overflow-y-auto">
+                <div className="flex flex-col">
                   {currentDecade.map(y => (
                     <button 
                       key={y} 
-                      onClick={() => { setSelectedYear(y); setShowYearMenu(false); }}
-                      className={cn("w-full px-4 py-2 text-sm font-bold transition-all text-left", selectedYear === y ? "bg-blue-600 text-white" : dk ? "text-slate-300 hover:bg-white/5" : "text-slate-700 hover:bg-slate-50")}
+                      onClick={() => { setSelectedYear(y); setShowYearMenu(false); setYearOffset(0); }}
+                      className={cn("w-full px-4 py-1.5 text-sm font-bold transition-all text-left", 
+                        selectedYear === y ? "bg-blue-600 text-white" : dk ? "text-slate-300 hover:bg-white/5" : "text-slate-700 hover:bg-slate-50")}
                     >
                       {y}
                     </button>
                   ))}
                 </div>
 
-                {/* Next 10 Years */}
                 <button 
-                  onClick={() => setYearRangeStart(prev => prev + 10)}
+                  onClick={() => setYearOffset(prev => prev + 10)}
                   className={cn("w-full py-2 flex justify-center items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-all", dk ? "bg-white/5 hover:bg-white/10 text-slate-400" : "bg-slate-50 hover:bg-slate-100 text-slate-500")}
                 >
-                  {lang === 'de' ? 'Nächste 10 Jahre' : 'Next 10 Years'} <ChevronDown size={12} />
+                  {lang === 'de' ? 'Nächste 10' : 'Next 10'} <ChevronDown size={12} />
                 </button>
               </div>
             )}
