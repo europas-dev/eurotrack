@@ -16,7 +16,6 @@ import {
   FileText, Info, Printer, FileSpreadsheet
 } from 'lucide-react';
 
-// --- ALL YOUR ORIGINAL CONSTANTS AND HELPER FUNCTIONS ARE RESTORED ---
 const AVATARS = [
   { id: 'fox',       emoji: '🦊', bg: '#f97316' },
   { id: 'wolf',      emoji: '🐺', bg: '#3b82f6' },
@@ -119,7 +118,6 @@ export default function Header({
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [settingsTab,  setSettingsTab]  = useState<'profile' | 'security' | 'access'>('profile');
 
-  // --- FULL PROFILE & SETTINGS STATE RESTORED ---
   const [profile,          setProfile]        = useState<any>(null);
   const [profileLoading,   setProfileLoading] = useState(false);
   const [editingName,      setEditingName]    = useState(false);
@@ -185,7 +183,6 @@ export default function Header({
     dk ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900');
   const btnPrimary = 'flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-all';
 
-  // --- FULL LOGIC LOADERS RESTORED ---
   useEffect(() => {
     setProfileLoading(true);
     getMyProfile().then(p => {
@@ -236,7 +233,6 @@ export default function Header({
     return () => clearTimeout(t);
   }, [shareSearch]);
 
-  // Handlers
   async function handleSaveProfile() { setSavingProfile(true); setProfileMsg(''); try { const updated = await updateMyProfile({ full_name: editName, avatar: selectedAvatar }); setProfile(updated); setEditingName(false); setProfileMsg(lang === 'de' ? '✓ Gespeichert' : '✓ Saved'); setTimeout(() => setProfileMsg(''), 2500); } catch (e: any) { setProfileMsg(`Error: ${e.message}`); } finally { setSavingProfile(false); } }
   async function handleSaveUsername() { setSavingUsername(true); setUsernameMsg(''); try { await updateMyUsername(newUsername); setProfile((p: any) => ({ ...p, username: newUsername })); setUsernameMsg(lang === 'de' ? '✓ Benutzername aktualisiert' : '✓ Username updated'); setTimeout(() => setUsernameMsg(''), 3000); } catch (e: any) { setUsernameMsg(`Error: ${e.message}`); } finally { setSavingUsername(false); } }
   async function handleSaveEmail() { setSavingEmail(true); setEmailMsg(''); try { await updateMyEmail(newEmail); setEmailMsg(lang === 'de' ? '✓ Bestätigungslink gesendet' : '✓ Confirmation link sent — check your email'); } catch (e: any) { setEmailMsg(`Error: ${e.message}`); } finally { setSavingEmail(false); } }
@@ -263,7 +259,6 @@ export default function Header({
     );
   }
 
-  // Row UI Components for settings
   const CollabRow = ({ c }: { c: any }) => (
     <div className={cn('flex items-center gap-3 px-3 py-2.5 rounded-xl border', dk ? 'bg-white/3 border-white/8' : 'bg-slate-50 border-slate-200')}>
       <div className={cn('w-8 h-8 rounded-full flex items-center justify-center font-black text-xs shrink-0', dk ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600')}>{(c.fullName || c.username || c.email || '?')[0].toUpperCase()}</div>
@@ -322,10 +317,7 @@ export default function Header({
           </div>
         </div>
 
-        {/* --- GLOBAL HEADER UTILITIES --- */}
         <div className="flex items-center gap-1 ml-auto relative">
-          
-          {/* THE FIX: PRINT AND EXPORT ARE COMPLETELY SEPARATED */}
           <button onClick={onPrint} className={iconBtn} title={lang === 'de' ? 'Drucken / PDF' : 'Print / Save as PDF'}>
             <Printer size={18} />
           </button>
@@ -372,9 +364,7 @@ export default function Header({
         </div>
       </header>
 
-      {/* ════════════════════════════════════════════════════════════════
-          SHARE MODAL (Restored Full Logic)
-      ════════════════════════════════════════════════════════════════ */}
+      {/* SHARE MODAL */}
       {showShare && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={e => { if (e.target === e.currentTarget) setShowShare(false); }}>
           <div className={cn('w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden max-h-[85vh] flex flex-col', surface)}>
@@ -422,9 +412,7 @@ export default function Header({
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════════════════════
-          SETTINGS DRAWER (Restored Full Logic)
-      ════════════════════════════════════════════════════════════════ */}
+      {/* SETTINGS DRAWER */}
       {showSettings && (
         <div className="fixed inset-0 z-50 flex">
           <div className="flex-1 bg-black/50 backdrop-blur-sm" onClick={() => setShowSettings(false)} />
@@ -440,7 +428,6 @@ export default function Header({
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               
-              {/* Profile Tab */}
               {settingsTab === 'profile' && (
                 <>
                   {profileLoading ? <div className="flex items-center justify-center py-12"><Loader2 size={22} className="animate-spin text-blue-500" /></div> : (
@@ -504,7 +491,6 @@ export default function Header({
                 </>
               )}
 
-              {/* Security Tab */}
               {settingsTab === 'security' && (
                 <>
                   {profile?.email && <div className={cn('rounded-xl border p-4', dk ? 'border-white/10 bg-white/2' : 'border-slate-200 bg-slate-50')}><SectionLabel dk={dk}>{lang === 'de' ? 'Aktuelle E-Mail' : 'Current Email'}</SectionLabel><div className="flex items-center gap-2"><Mail size={13} className={dk ? 'text-slate-400' : 'text-slate-500'} /><span className={cn('text-sm font-bold', dk ? 'text-white' : 'text-slate-900')}>{profile.email}</span></div></div>}
@@ -514,7 +500,6 @@ export default function Header({
                 </>
               )}
 
-              {/* Access Tab */}
               {settingsTab === 'access' && isAdmin && (
                 <>
                   <div>
