@@ -12,9 +12,8 @@ export const DEFAULT_COUNTRIES = [
   'Germany', 'Switzerland', 'Austria', 'Netherlands', 'Poland', 'Belgium', 'France', 'Luxembourg'
 ];
 
-export function getCountryOptions(lang: string = 'de') {
-  const de: any = { 'Germany': 'Deutschland', 'Switzerland': 'Schweiz', 'Austria': 'Österreich', 'Netherlands': 'Niederlande', 'Poland': 'Polen', 'Belgium': 'Belgien', 'France': 'Frankreich', 'Luxembourg': 'Luxemburg' };
-  return DEFAULT_COUNTRIES.map(c => lang === 'de' ? (de[c] || c) : c);
+export function getCountryOptions() {
+  return DEFAULT_COUNTRIES; // Strictly strings to prevent React Error #31
 }
 
 const getCountryCode = (country: string) => {
@@ -45,7 +44,7 @@ const HighlightText = ({ text, query }: { text: string; query?: string }) => {
   );
 };
 
-export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', isPinned = false, onTogglePin = () => {}, companyOptions = [], cityOptions = [], onDelete, onUpdate, allHotelNames = [] }: any) {
+export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', isPinned = false, onTogglePin = () => {}, companyOptions = [], cityOptions = [], onDelete, onUpdate }: any) {
   const [open, setOpen] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [localHotel, setLocalHotel] = useState({
@@ -59,20 +58,20 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [activeDurationTab, setActiveDurationTab] = useState(0);
   const saveTimer = useRef<any>(null);
 
-  // Hidden Match Logic for Search
+  // Hidden Match Logic for Search with Translation
   const hiddenMatchText = useMemo(() => {
     if (!searchQuery) return null;
     const q = searchQuery.toLowerCase();
     for (const d of (localHotel.durations || [])) {
-      if (d.rechnungNr?.toLowerCase().includes(q)) return `Invoice: ${d.rechnungNr}`;
+      if (d.rechnungNr?.toLowerCase().includes(q)) return lang === 'de' ? `Treffer: Rechnung` : `Invoice Match`;
       for (const rc of (d.roomCards || [])) {
         for (const emp of (rc.employees || [])) {
-          if (emp.name?.toLowerCase().includes(q)) return `Matches Employee`;
+          if (emp.name?.toLowerCase().includes(q)) return lang === 'de' ? `Treffer: Mitarbeiter` : `Employee Match`;
         }
       }
     }
     return null;
-  }, [localHotel, searchQuery]);
+  }, [localHotel, searchQuery, lang]);
 
   const { totalCost, freeBeds, totalBeds, employees } = useMemo(() => {
     let tCost = 0; let tFree = 0; let tBeds = 0; const allEmps: any[] = [];
@@ -188,12 +187,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             </div>
             
             <div className="flex items-center gap-1 bg-black/5 dark:bg-white/5 p-1 rounded-xl">
-               <button onClick={(e) => { e.stopPropagation(); onTogglePin?.(); }} className={cn("p-1.5 rounded-lg", isPinned ? "text-yellow-500" : "text-slate-400")}><Star size={16} className={isPinned ? "fill-yellow-500" : ""} /></button>
+               <button onClick={(e) => { e.stopPropagation(); onTogglePin?.(); }} className={cn("p-1.5 rounded-lg", isPinned ? "text-yellow-500" : "text-slate-400 hover:text-yellow-500 transition-colors")}><Star size={16} className={isPinned ? "fill-yellow-500" : ""} /></button>
                <div className="relative group">
-                  <button onClick={(e) => e.stopPropagation()} className="p-1.5 text-slate-400"><Clock size={16} /></button>
+                  <button onClick={(e) => e.stopPropagation()} className="p-1.5 text-slate-400 hover:text-slate-300 transition-colors"><Clock size={16} /></button>
                   <div className="absolute right-0 bottom-full mb-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 z-[100]">Updated by {localHotel.lastupdatedby || localHotel.lastUpdatedBy || 'Admin'}</div>
                </div>
-               <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-1.5 text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
+               <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
             </div>
           </div>
         </div>
@@ -204,15 +203,15 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             
             {showNotes && (
               <div className="animate-in fade-in slide-in-from-top-2 duration-200 mb-4">
-                <textarea value={localHotel.notes || ''} onChange={e => patchHotel({ notes: e.target.value })} className={cn(inputCls, 'min-h-[80px] h-auto resize-y')} placeholder={lang === 'de' ? "Notizen hier schreiben..." : "Write private notes here..."} />
+                <textarea autoComplete="off" value={localHotel.notes || ''} onChange={e => patchHotel({ notes: e.target.value })} className={cn(inputCls, 'min-h-[80px] h-auto resize-y')} placeholder={lang === 'de' ? "Notizen hier schreiben..." : "Write private notes here..."} />
               </div>
             )}
 
             <div className="flex flex-wrap xl:flex-nowrap gap-3 items-end">
               <div className="flex-[2.5] min-w-[180px]">
-                 <div className="flex justify-between items-center mb-1.5">
-                    <label className={cn('flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest', dk ? 'text-slate-400' : 'text-slate-500')}><MapPin size={12}/> {lang === 'de' ? 'Adresse' : 'Address'}</label>
-                    <button onClick={() => setShowNotes(!showNotes)} className={cn("transition-colors", localHotel.notes ? "text-blue-500" : "text-slate-400 hover:text-blue-500")} title={lang === 'de' ? 'Notizen' : 'Notes'}>
+                 <div className="flex items-center gap-2 mb-1.5">
+                    <label className={cn('flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest mb-0', dk ? 'text-slate-400' : 'text-slate-500')}><MapPin size={12}/> {lang === 'de' ? 'Adresse' : 'Address'}</label>
+                    <button onClick={() => setShowNotes(!showNotes)} className={cn("p-1 rounded transition-colors", localHotel.notes ? "text-blue-500 bg-blue-500/10" : dk ? "text-slate-500 hover:text-blue-400 hover:bg-white/5" : "text-slate-400 hover:text-blue-600 hover:bg-slate-100")} title={lang === 'de' ? 'Notizen' : 'Notes'}>
                       <StickyNote size={14} />
                     </button>
                  </div>
@@ -265,7 +264,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             </div>
             
             <div className="pt-2">
-              <div className={cn("inline-flex items-center gap-1 p-1 rounded-xl shadow-inner border", dk ? "bg-[#0F172A]/50 border-white/5" : "bg-slate-100 border-slate-200")}>
+              <div className={cn("inline-flex items-center gap-1 p-1 rounded-xl shadow-inner border flex-wrap", dk ? "bg-[#0F172A]/50 border-white/5" : "bg-slate-100 border-slate-200")}>
                 {(localHotel.durations || []).map((d: any, i: number) => (
                   <button key={d.id || i} onClick={() => setActiveDurationTab(i)} className={cn('px-4 py-1.5 rounded-lg text-xs font-bold transition-all', activeDurationTab === i ? (dk ? 'bg-[#1E293B] text-blue-400 shadow-sm border border-white/10' : 'bg-white text-blue-600 shadow-sm border border-slate-200') : (dk ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700'))}>
                     {getDurationTabLabel(d, lang)}
@@ -314,6 +313,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   );
 }
 
+// DROPDOWN WITH ADD NEW OPTION RESTORED
 export function ModernDropdown({ value, options, onChange, isDarkMode, lang, placeholder = 'Select' }: any) {
   const [open, setOpen] = useState(false);
   const [addingNew, setAddingNew] = useState(false);
@@ -326,29 +326,33 @@ export function ModernDropdown({ value, options, onChange, isDarkMode, lang, pla
     return () => document.removeEventListener('mousedown', handle);
   }, []);
 
+  const displayValue = (val: string) => {
+    if (lang !== 'de') return val;
+    const de: any = { 'Germany': 'Deutschland', 'Switzerland': 'Schweiz', 'Austria': 'Österreich', 'Netherlands': 'Niederlande', 'Poland': 'Polen', 'Belgium': 'Belgien', 'France': 'Frankreich', 'Luxembourg': 'Luxemburg' };
+    return de[val] || val;
+  };
+
   return (
     <div ref={ref} className="relative w-full h-[38px]">
-      <button onClick={() => setOpen(!open)} className={cn('w-full h-full px-3 flex items-center justify-between rounded-lg border text-sm font-bold', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
-        <span className="truncate">{value || placeholder}</span>
-        <ChevronDown size={16} />
+      <button onClick={() => setOpen(!open)} className={cn('w-full h-full px-3 flex items-center justify-between rounded-lg border text-sm font-bold outline-none transition-all', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
+        <span className="truncate">{displayValue(value) || placeholder}</span>
+        <ChevronDown size={16} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
       </button>
       {open && (
-        <div className={cn('absolute top-full mt-1 left-0 right-0 z-[100] rounded-xl border shadow-xl py-1 overflow-hidden', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white')}>
-          <div className="max-h-48 overflow-y-auto">
-            {options.map((opt:any) => {
-              const label = typeof opt === 'string' ? opt : opt.label;
-              const val = typeof opt === 'string' ? opt : opt.value;
-              return (
-                <button key={val} onClick={() => { onChange(val); setOpen(false); }} className={cn('w-full text-left px-3 py-2 text-sm font-bold', value === val ? 'text-blue-500 bg-blue-500/10' : isDarkMode ? 'text-slate-300 hover:bg-white/5' : 'text-slate-700 hover:bg-slate-50')}>{label}</button>
-              );
-            })}
+        <div className={cn('absolute top-full mt-1 left-0 right-0 z-[100] rounded-xl border shadow-xl py-1 overflow-hidden', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
+          <div className="max-h-48 overflow-y-auto no-scrollbar">
+            {options.map((opt:any) => (
+              <button key={opt} onClick={() => { onChange(opt); setOpen(false); }} className={cn('w-full text-left px-3 py-2.5 text-sm font-bold transition-all', value === opt ? (isDarkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-50 text-blue-600') : (isDarkMode ? 'text-slate-300 hover:bg-white/5' : 'text-slate-700 hover:bg-slate-50'))}>
+                {displayValue(opt)}
+              </button>
+            ))}
           </div>
           <div className={cn('my-1 border-t', isDarkMode ? 'border-white/10' : 'border-slate-100')} />
           {!addingNew ? (
-            <button onClick={() => setAddingNew(true)} className={cn('w-full text-left px-3 py-2 text-sm font-bold flex items-center gap-1.5', isDarkMode ? 'text-blue-400 hover:bg-white/5' : 'text-blue-600 hover:bg-blue-50')}><Plus size={14} /> {lang === 'de' ? 'Neu' : 'Add New'}</button>
+            <button onClick={() => setAddingNew(true)} className={cn('w-full text-left px-3 py-2.5 text-sm font-bold flex items-center gap-1.5 transition-all', isDarkMode ? 'text-blue-400 hover:bg-white/5' : 'text-blue-600 hover:bg-blue-50')}><Plus size={14} /> {lang === 'de' ? 'Neu hinzufügen' : 'Add New'}</button>
           ) : (
             <div className="px-2 py-1.5 flex items-center gap-1">
-              <input autoFocus value={newVal} onChange={e => setNewVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && newVal.trim()) { onChange(newVal.trim()); setOpen(false); setAddingNew(false); } }} className={cn('flex-1 text-sm outline-none border-b bg-transparent py-1', isDarkMode ? 'border-blue-500 text-white' : 'border-blue-500 text-slate-900')} />
+              <input autoComplete="off" autoFocus value={newVal} onChange={e => setNewVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && newVal.trim()) { onChange(newVal.trim()); setOpen(false); setAddingNew(false); } }} className={cn('flex-1 text-sm outline-none border-b bg-transparent py-1', isDarkMode ? 'border-blue-500 text-white' : 'border-blue-500 text-slate-900')} />
               <button onClick={() => { if(newVal.trim()) { onChange(newVal.trim()); setOpen(false); setAddingNew(false); } }} className="p-1 text-blue-500"><Check size={16} /></button>
             </div>
           )}
@@ -362,7 +366,7 @@ function CityInlineEdit({ value, options, isDarkMode, hotelId, onChange, lang }:
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
   if (!editing) return <span onClick={e => { e.stopPropagation(); setEditing(true); }} className="cursor-text hover:underline">{value || (lang === 'de' ? 'Stadt...' : 'City...')}</span>;
-  return <input autoFocus value={draft} onChange={e => setDraft(e.target.value)} onBlur={() => { onChange(draft); setEditing(false); }} onKeyDown={e => { if(e.key === 'Enter') { onChange(draft); setEditing(false); } }} className="text-[10px] font-bold uppercase outline-none border-b bg-transparent w-28 border-blue-500" />;
+  return <input autoComplete="off" autoFocus value={draft} onChange={e => setDraft(e.target.value)} onBlur={() => { onChange(draft); setEditing(false); }} onKeyDown={e => { if(e.key === 'Enter') { onChange(draft); setEditing(false); } }} className="text-[10px] font-bold uppercase outline-none border-b bg-transparent w-28 border-blue-500" />;
 }
 
 function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange }: any) {
@@ -379,14 +383,16 @@ function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange }: a
     <div ref={ref} className="relative cursor-pointer min-h-[24px]" onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>
       <div className="flex flex-wrap gap-1">
         {selected.length > 0 ? selected.map((tag: string) => (
-          <span key={tag} className={cn('px-2 py-0.5 rounded text-[11px] font-bold border', isDarkMode ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700')}>{tag}</span>
-        )) : <span className="text-[11px] text-slate-400 font-bold border border-dashed px-2 py-0.5 rounded">+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
+          <span key={tag} onClick={(e) => { e.stopPropagation(); onChange(selected.filter((t: any) => t !== tag)); }} className={cn('px-2 py-0.5 rounded text-[11px] font-bold border hover:opacity-70 flex items-center gap-1', isDarkMode ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700')}>{tag} <X size={10} /></span>
+        )) : <span className={cn("text-[10px] font-bold border border-dashed px-2 py-0.5 rounded transition-colors", isDarkMode ? "text-slate-500 border-white/20 hover:text-blue-400 hover:border-blue-400" : "text-slate-400 border-slate-300 hover:text-blue-600 hover:border-blue-500")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
       </div>
       {open && (
-        <div className={cn('absolute top-full mt-1 left-0 z-[100] rounded-xl border shadow-xl min-w-[160px] py-1', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
-          {options.map((opt: string) => (
-            <button key={opt} onClick={(e) => { e.stopPropagation(); onChange(selected.includes(opt) ? selected.filter((t: any) => t !== opt) : [...selected, opt]); }} className={cn('w-full text-left px-3 py-2 text-xs font-bold', selected.includes(opt) ? 'text-blue-500 bg-blue-500/10' : isDarkMode ? 'text-slate-300' : 'text-slate-700')}>{opt}</button>
-          ))}
+        <div className={cn('absolute top-full mt-1 left-0 z-[100] rounded-xl border shadow-xl min-w-[160px] py-1 overflow-hidden', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
+          <div className="max-h-48 overflow-y-auto no-scrollbar">
+            {options.map((opt: string) => (
+              <button key={opt} onClick={(e) => { e.stopPropagation(); onChange(selected.includes(opt) ? selected.filter((t: any) => t !== opt) : [...selected, opt]); }} className={cn('w-full text-left px-3 py-2 text-xs font-bold transition-all', selected.includes(opt) ? 'text-blue-500 bg-blue-500/10' : isDarkMode ? 'text-slate-300 hover:bg-white/5' : 'text-slate-700 hover:bg-slate-50')}>{opt}</button>
+            ))}
+          </div>
         </div>
       )}
     </div>
