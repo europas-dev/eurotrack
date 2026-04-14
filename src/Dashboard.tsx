@@ -1,7 +1,6 @@
 // src/pages/Dashboard.tsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase, deleteHotel, createHotel } from './lib/supabase';
-// NOTICE: We are now importing the master math functions from utils!
 import { cn, formatCurrency, hotelMatchesSearch, exportToCSV, printDocument, calcHotelTotalCost, calcHotelFreeBedsToday } from './lib/utils';
 import type { AccessLevel } from './lib/supabase';
 import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Undo2, Redo2, Star, Calendar, RefreshCw, MapPin, Building, Building2 } from 'lucide-react';
@@ -68,7 +67,10 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [newHotelName, setNewHotelName] = useState('');
   const [newHotelCity, setNewHotelCity] = useState('');
   const [newHotelCompany, setNewHotelCompany] = useState('');
-  const [newHotelCountry, setNewHotelCountry] = useState(lang === 'de' ? 'Deutschland' : 'Germany');
+  
+  // FIXED: State holds the universal English word so the database stays consistent
+  const [newHotelCountry, setNewHotelCountry] = useState('Germany');
+  
   const [newHotelSaving, setNewHotelSaving] = useState(false);
   const newHotelNameRef = useRef<HTMLInputElement>(null);
 
@@ -82,7 +84,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     setShowSortMenu(menu === 'sort' ? !showSortMenu : false);
   };
 
-  // Year filter synced with Supabase
   useEffect(() => { 
     let isMounted = true;
     setLoading(true);
@@ -144,7 +145,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     if (e.key === 'Enter') e.currentTarget.blur();
   };
 
-  // Staff Visibility fix: Everyone active sees all hotels
   const visibleHotels = useMemo(() => {
     if (!accessLevel || accessLevel.role === 'pending') return [];
     return hotels; 
@@ -196,7 +196,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         else if (fbType === 'range') targetDate = new Date(fbStartDate); 
         
         const targetIso = targetDate.toISOString().split('T')[0];
-        // Using global calc function
         const hasFree = (h.durations || []).some((d: any) => calcHotelFreeBedsToday(h) > 0);
         if (!hasFree) return false;
       }
@@ -221,7 +220,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       
       keys.forEach(k => {
         const curr = map.get(k) || { count: 0, cost: 0 };
-        // USES GLOBAL MATH
         map.set(k, { count: curr.count + 1, cost: curr.cost + calcHotelTotalCost(h) });
       });
     });
@@ -247,7 +245,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     });
   }, [filteredPreGroup, groupBy, activeGroup, sortBy, sortDir]);
 
-  // THE FIX: Uses global math so header matches rows perfectly
   const totalSpend = finalFiltered.reduce((s, h) => s + calcHotelTotalCost(h), 0);
   const freeBedsTotal = finalFiltered.reduce((s, h) => s + calcHotelFreeBedsToday(h), 0);
 
@@ -280,7 +277,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       setHotels(next); 
       pushToHistory(next);
       setAddingHotel(false); 
-      setNewHotelName(''); setNewHotelCity(''); setNewHotelCompany(''); setNewHotelCountry(lang === 'de' ? 'Deutschland' : 'Germany');
+      // FIXED: Restoring state back to universal english base
+      setNewHotelName(''); setNewHotelCity(''); setNewHotelCompany(''); setNewHotelCountry('Germany');
     } catch (e: any) { 
       console.error("Database Create Failed:", e); 
       alert(lang === 'de' ? `Fehler beim Speichern: ${e.message}` : `Error saving: ${e.message}`); 
@@ -312,7 +310,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
   return (
     <div className={cn('flex h-screen overflow-hidden', dk ? 'bg-[#020617]' : 'bg-slate-50')}>
-      {/* Sidebar now automatically receives properly calculated visibleHotels */}
       <Sidebar theme={theme} lang={lang} selectedYear={selectedYear} setSelectedYear={setSelectedYear} selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(v => !v)} hotels={visibleHotels} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
