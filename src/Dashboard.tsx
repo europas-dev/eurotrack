@@ -6,7 +6,7 @@ import type { AccessLevel } from './lib/supabase';
 import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Undo2, Redo2, Star, Calendar, RefreshCw, MapPin, Building, Building2 } from 'lucide-react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
-import { HotelRow, ModernDropdown, DEFAULT_COUNTRIES } from './components/HotelRow';
+import { HotelRow, ModernDropdown, getCountryOptions } from './components/HotelRow';
 
 interface DashboardProps {
   theme: 'dark' | 'light';
@@ -22,6 +22,9 @@ interface DashboardProps {
 
 export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly = false, accessLevel, onSignOut }: DashboardProps) {
   const dk = theme === 'dark';
+
+  // Strict enforcement: viewers and pending users cannot edit.
+  const isStrictViewer = viewOnly || accessLevel?.role === 'viewer' || accessLevel?.role === 'pending';
 
   const [hotels, setHotels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +68,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [newHotelName, setNewHotelName] = useState('');
   const [newHotelCity, setNewHotelCity] = useState('');
   const [newHotelCompany, setNewHotelCompany] = useState('');
-  const [newHotelCountry, setNewHotelCountry] = useState('Germany');
+  const [newHotelCountry, setNewHotelCountry] = useState(lang === 'de' ? 'Deutschland' : 'Germany');
   const [newHotelSaving, setNewHotelSaving] = useState(false);
   const newHotelNameRef = useRef<HTMLInputElement>(null);
 
@@ -156,9 +159,10 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   };
   const calcFreeBedsToday = (h: any) => getFreeBedsForDate(h, new Date().toISOString().split('T')[0]);
 
+  // Global Access: removed the flawed `hotelIds` filter. Everyone active sees all hotels.
   const visibleHotels = useMemo(() => {
-    if (!accessLevel || accessLevel.role === 'admin' || accessLevel.role === 'superadmin') return hotels;
-    return hotels.filter(h => (accessLevel as any).hotelIds?.includes(h.id));
+    if (!accessLevel || accessLevel.role === 'pending') return [];
+    return hotels; 
   }, [hotels, accessLevel]);
 
   const uniqueCities = useMemo(() => Array.from(new Set(hotels.map(h => h.city).filter(Boolean))), [hotels]);
@@ -300,7 +304,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       setHotels(next); 
       pushToHistory(next);
       setAddingHotel(false); 
-      setNewHotelName(''); setNewHotelCity(''); setNewHotelCompany(''); setNewHotelCountry('Germany');
+      setNewHotelName(''); setNewHotelCity(''); setNewHotelCompany(''); setNewHotelCountry(lang === 'de' ? 'Deutschland' : 'Germany');
     } catch (e: any) { 
       console.error("Database Create Failed:", e); 
       alert(lang === 'de' ? `Fehler beim Speichern: ${e.message}` : `Error saving: ${e.message}`); 
@@ -335,9 +339,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       <Sidebar theme={theme} lang={lang} selectedYear={selectedYear} setSelectedYear={setSelectedYear} selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(v => !v)} hotels={visibleHotels} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Header theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchScope={searchScope} setSearchScope={setSearchScope} onSignOut={onSignOut} onExportCsv={handleExportCsv} onPrint={handlePrint} viewOnly={viewOnly} userRole={accessLevel?.role ?? 'viewer'} />
+        <Header theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchScope={searchScope} setSearchScope={setSearchScope} onSignOut={onSignOut} onExportCsv={handleExportCsv} onPrint={handlePrint} viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} />
 
-        <div className={cn('px-8 py-4 border-b shrink-0', dk ? 'bg-[#0F172A] border-white/5' : 'bg-white border-slate-200')}>
+        <div className={cn('px-8 py-4 border-b shrink-0 z-10 relative', dk ? 'bg-[#0F172A] border-white/5' : 'bg-white border-slate-200')}>
           <div className="flex items-center gap-12 flex-wrap">
             {[
               { label: lang === 'de' ? 'Freie Betten Heute' : 'Free Beds Today', value: String(freeBedsTotal), cls: freeBedsTotal > 0 ? 'text-red-500' : 'text-emerald-500' },
@@ -354,17 +358,19 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
         <main className="flex-1 overflow-y-auto p-6 relative">
           
-          <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
+          <div className="flex items-center justify-between mb-6 gap-3 flex-wrap relative z-50">
             <h2 className={cn('text-2xl font-black tracking-tight', dk ? 'text-white' : 'text-slate-900')}>
               {selectedMonth !== null ? `${monthNames[selectedMonth]} ${selectedYear}` : `Dashboard ${selectedYear}`}
             </h2>
 
             <div className="flex items-center gap-2 relative">
-              <div className={cn("flex items-center mr-2 rounded-full p-1 border shadow-sm", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
-                 <button onClick={handleUndo} disabled={historyIndex <= 0} className={cn("p-1.5 rounded-full transition-all disabled:opacity-30", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")} title={lang === 'de' ? "Rückgängig (Ctrl+Z)" : "Undo (Ctrl+Z)"}><Undo2 size={16} /></button>
-                 <div className={cn("w-px h-4 mx-0.5", dk ? "bg-white/10" : "bg-slate-200")} />
-                 <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className={cn("p-1.5 rounded-full transition-all disabled:opacity-30", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")} title={lang === 'de' ? "Wiederholen (Ctrl+Y)" : "Redo (Ctrl+Y)"}><Redo2 size={16} /></button>
-              </div>
+              {!isStrictViewer && (
+                <div className={cn("flex items-center mr-2 rounded-full p-1 border shadow-sm", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+                   <button onClick={handleUndo} disabled={historyIndex <= 0} className={cn("p-1.5 rounded-full transition-all disabled:opacity-30", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")} title={lang === 'de' ? "Rückgängig (Ctrl+Z)" : "Undo (Ctrl+Z)"}><Undo2 size={16} /></button>
+                   <div className={cn("w-px h-4 mx-0.5", dk ? "bg-white/10" : "bg-slate-200")} />
+                   <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className={cn("p-1.5 rounded-full transition-all disabled:opacity-30", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")} title={lang === 'de' ? "Wiederholen (Ctrl+Y)" : "Redo (Ctrl+Y)"}><Redo2 size={16} /></button>
+                </div>
+              )}
 
               <button onClick={() => toggleMenu('timeline')} className={cn(btnCls, tlType !== 'all' ? 'border-blue-500 text-blue-500 bg-blue-500/10' : '')}>
                 <Calendar size={16} /> {lang === 'de' ? 'Zeitraum' : 'Timeline'}
@@ -382,7 +388,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                 <Star size={16} className={showBookmarks ? 'fill-yellow-500 text-yellow-500' : ''} /> {lang === 'de' ? 'Lesezeichen' : 'Bookmarks'}
               </button>
 
-              {!viewOnly && (
+              {!isStrictViewer && (
                 <button onClick={() => setAddingHotel(true)} className="ml-4 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl flex items-center gap-2 text-sm shadow-lg transition-all">
                   <Plus size={18} /> {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
                 </button>
@@ -390,7 +396,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             </div>
 
             {showTimelineMenu && (
-               <div className={cn("absolute right-[400px] top-16 z-50 p-5 rounded-xl border shadow-xl w-[340px]", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+               <div className={cn("absolute right-[400px] top-12 z-[200] p-5 rounded-xl border shadow-2xl w-[340px]", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
                   <div className="flex items-center justify-between mb-4 border-b pb-3 border-slate-200 dark:border-white/10">
                      <p className={cn("text-xs font-black uppercase tracking-widest", dk ? "text-slate-300" : "text-slate-700")}>{lang === 'de' ? 'Buchungszeitraum' : 'Booking Timeline'}</p>
                      <button onClick={() => setShowTimelineMenu(false)} className={cn("p-1 rounded-md", dk ? "hover:bg-white/10" : "hover:bg-slate-100")}><X size={14}/></button>
@@ -420,7 +426,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             )}
 
             {showFilterMenu && (
-               <div className={cn("absolute right-72 top-16 z-50 p-5 rounded-xl border shadow-xl w-[380px] space-y-5", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+               <div className={cn("absolute right-72 top-12 z-[200] p-5 rounded-xl border shadow-2xl w-[380px] space-y-5", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
                   <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-white/10">
                      <p className={cn("text-xs font-black uppercase tracking-widest", dk ? "text-slate-300" : "text-slate-700")}>{lang === 'de' ? 'Filter & Gruppierung' : 'Filters & Grouping'}</p>
                      <button onClick={() => setShowFilterMenu(false)} className={cn("p-1 rounded-md", dk ? "hover:bg-white/10" : "hover:bg-slate-100")}><X size={14}/></button>
@@ -481,7 +487,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             )}
 
             {showSortMenu && (
-               <div className={cn("absolute right-48 top-16 z-50 p-5 rounded-xl border shadow-xl w-[280px]", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+               <div className={cn("absolute right-48 top-12 z-[200] p-5 rounded-xl border shadow-2xl w-[280px]", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
                   <div className="flex items-center justify-between mb-4 border-b pb-3 border-slate-200 dark:border-white/10">
                      <p className={cn("text-xs font-black uppercase tracking-widest", dk ? "text-slate-300" : "text-slate-700")}>{lang === 'de' ? 'Dashboard Sortieren' : 'Sort Dashboard'}</p>
                      <button onClick={() => setShowSortMenu(false)} className={cn("p-1 rounded-md", dk ? "hover:bg-white/10" : "hover:bg-slate-100")}><X size={14}/></button>
@@ -519,11 +525,10 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           {loading ? (
             <div className="text-center py-20"><Loader2 size={40} className="animate-spin text-blue-600 mx-auto" /></div>
           ) : (
-            <div className="space-y-3 pb-24">
+            <div className="space-y-3 pb-24 relative z-0">
               
-              {/* THE FIX: Quick-Add Row */}
-              {addingHotel && (
-                <div className={cn('rounded-2xl border p-4 shadow-sm', dk ? 'bg-[#0B1224] border-blue-500/40' : 'bg-white border-blue-400')}>
+              {addingHotel && !isStrictViewer && (
+                <div className={cn('rounded-2xl border p-4 shadow-md mb-4 relative z-50', dk ? 'bg-[#0B1224] border-blue-500/40' : 'bg-white border-blue-400')}>
                   <datalist id="city-list">
                     {uniqueCities.map(c => <option key={c} value={c} />)}
                   </datalist>
@@ -554,7 +559,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                        <label className={labelCls}><Building size={10}/> {lang === 'de' ? 'Land' : 'Country'}</label>
                        <ModernDropdown 
                           value={newHotelCountry} 
-                          options={DEFAULT_COUNTRIES} 
+                          options={getCountryOptions(lang)} 
                           onChange={v => setNewHotelCountry(v)} 
                           isDarkMode={dk} lang={lang} 
                        />
