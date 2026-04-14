@@ -1,7 +1,8 @@
 // src/pages/Dashboard.tsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase, deleteHotel, createHotel } from './lib/supabase';
-import { cn, formatCurrency, calcDurationFreeBeds, hotelMatchesSearch, exportToCSV, printDocument } from './lib/utils';
+// NOTICE: We are now importing the master math functions from utils!
+import { cn, formatCurrency, hotelMatchesSearch, exportToCSV, printDocument, calcHotelTotalCost, calcHotelFreeBedsToday } from './lib/utils';
 import type { AccessLevel } from './lib/supabase';
 import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Undo2, Redo2, Star, Calendar, RefreshCw, MapPin, Building, Building2 } from 'lucide-react';
 import Header from './components/Header';
@@ -23,7 +24,6 @@ interface DashboardProps {
 export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly = false, accessLevel, onSignOut }: DashboardProps) {
   const dk = theme === 'dark';
 
-  // Strict enforcement: viewers and pending users cannot edit.
   const isStrictViewer = viewOnly || accessLevel?.role === 'viewer' || accessLevel?.role === 'pending';
 
   const [hotels, setHotels] = useState<any[]>([]);
@@ -82,7 +82,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     setShowSortMenu(menu === 'sort' ? !showSortMenu : false);
   };
 
-  // FIX 3: Year Filter actually triggers fresh data load
+  // Year filter synced with Supabase
   useEffect(() => { 
     let isMounted = true;
     setLoading(true);
@@ -93,7 +93,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         const { data, error: supabaseError } = await supabase
           .from('hotels')
           .select('*, durations(*, roomCards(*, employees(*)), extraCosts(*), employees(*))')
-          .eq('year', selectedYear) // This forces the year filtering
+          .eq('year', selectedYear)
           .order('created_at', { ascending: false });
 
         if (supabaseError) throw supabaseError;
@@ -144,34 +144,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     if (e.key === 'Enter') e.currentTarget.blur();
   };
 
-  // FIX 1: Exact Math Synchronization with HotelRow
-  const calcCost = (h: any) => {
-    return (h.durations || []).reduce((total: number, d: any) => {
-      const rCards = d.roomCards || [];
-      const extraTotal = (d.extraCosts || []).reduce((s: number, e: any) => s + (Number(e.amount) || 0), 0);
-      
-      let bruttoBase = d.useBruttoNetto ? (d.brutto || 0) : rCards.reduce((s: number, c: any) => {
-        if (!d.startDate || !d.endDate) return s + 0;
-        const days = Math.ceil((new Date(d.endDate).getTime() - new Date(d.startDate).getTime()) / (1000 * 3600 * 24));
-        const price = c.useManualPrice ? (c.manualPrice || 0) : (d.pricePerNightPerRoom || 0);
-        return s + (days > 0 ? days * price : 0);
-      }, 0);
-      
-      bruttoBase += extraTotal;
-      
-      if (!d.useBruttoNetto && d.hasDiscount && d.discountValue) {
-        bruttoBase = d.discountType === 'fixed' ? bruttoBase - d.discountValue : bruttoBase * (1 - d.discountValue / 100);
-      }
-      return total + Math.max(0, bruttoBase);
-    }, 0);
-  };
-
-  const getFreeBedsForDate = (h: any, dateIso: string) => {
-    return (h.durations || []).reduce((s: number, d: any) => s + calcDurationFreeBeds(d, dateIso), 0);
-  };
-  const calcFreeBedsToday = (h: any) => getFreeBedsForDate(h, new Date().toISOString().split('T')[0]);
-
-  // Global Access: removed the flawed `hotelIds` filter. Everyone active sees all hotels.
+  // Staff Visibility fix: Everyone active sees all hotels
   const visibleHotels = useMemo(() => {
     if (!accessLevel || accessLevel.role === 'pending') return [];
     return hotels; 
@@ -185,20 +158,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       if (showBookmarks && !bookmarks.includes(h.id)) return false;
 
       if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        let matches = false;
-        const tags = Array.isArray(h.companyTag) ? h.companyTag.join(' ') : (h.companyTag || '');
-        const emps = (h.durations || []).flatMap((d: any) => (d.roomCards || []).flatMap((rc: any) => (rc.employees || []).map((e: any) => e.name || ''))).join(' ');
-        const invs = (h.durations || []).map((d:any) => d.rechnungNr || '').join(' ');
-
-        if (searchScope === 'all') matches = h.name?.toLowerCase().includes(q) || h.city?.toLowerCase().includes(q) || tags.toLowerCase().includes(q) || emps.toLowerCase().includes(q) || invs.toLowerCase().includes(q);
-        else if (searchScope === 'hotel') matches = h.name?.toLowerCase().includes(q);
-        else if (searchScope === 'city') matches = h.city?.toLowerCase().includes(q);
-        else if (searchScope === 'company') matches = tags.toLowerCase().includes(q);
-        else if (searchScope === 'employee') matches = emps.toLowerCase().includes(q);
-        else if (searchScope === 'invoice') matches = invs.toLowerCase().includes(q);
-
-        if (!matches) return false;
+        if (!hotelMatchesSearch(h, searchQuery)) return false;
       }
       
       if (selectedMonth !== null) {
@@ -236,7 +196,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         else if (fbType === 'range') targetDate = new Date(fbStartDate); 
         
         const targetIso = targetDate.toISOString().split('T')[0];
-        if (getFreeBedsForDate(h, targetIso) <= 0) return false;
+        // Using global calc function
+        const hasFree = (h.durations || []).some((d: any) => calcHotelFreeBedsToday(h) > 0);
+        if (!hasFree) return false;
       }
 
       if (filterPaid === 'paid' && !(h.durations || []).every((d: any) => d.isPaid)) return false;
@@ -259,7 +221,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       
       keys.forEach(k => {
         const curr = map.get(k) || { count: 0, cost: 0 };
-        map.set(k, { count: curr.count + 1, cost: curr.cost + calcCost(h) });
+        // USES GLOBAL MATH
+        map.set(k, { count: curr.count + 1, cost: curr.cost + calcHotelTotalCost(h) });
       });
     });
     return Array.from(map.entries()).map(([name, data]) => ({ name, ...data })).sort((a,b) => b.cost - a.cost);
@@ -276,16 +239,17 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     return [...list].sort((a, b) => {
       let va: any, vb: any;
       if (sortBy === 'name') { va = a.name?.toLowerCase(); vb = b.name?.toLowerCase(); }
-      else if (sortBy === 'cost') { va = calcCost(a); vb = calcCost(b); }
-      else if (sortBy === 'free_beds') { va = calcFreeBedsToday(a); vb = calcFreeBedsToday(b); }
+      else if (sortBy === 'cost') { va = calcHotelTotalCost(a); vb = calcHotelTotalCost(b); }
+      else if (sortBy === 'free_beds') { va = calcHotelFreeBedsToday(a); vb = calcHotelFreeBedsToday(b); }
       else if (sortBy === 'last_updated') { va = new Date(a.updated_at || 0).getTime(); vb = new Date(b.updated_at || 0).getTime(); }
       else { va = new Date(a.created_at || 0).getTime(); vb = new Date(b.created_at || 0).getTime(); }
       return (va < vb ? -1 : va > vb ? 1 : 0) * (sortDir === 'asc' ? 1 : -1);
     });
   }, [filteredPreGroup, groupBy, activeGroup, sortBy, sortDir]);
 
-  const totalSpend = finalFiltered.reduce((s, h) => s + calcCost(h), 0);
-  const freeBedsTotal = finalFiltered.reduce((s, h) => s + calcFreeBedsToday(h), 0);
+  // THE FIX: Uses global math so header matches rows perfectly
+  const totalSpend = finalFiltered.reduce((s, h) => s + calcHotelTotalCost(h), 0);
+  const freeBedsTotal = finalFiltered.reduce((s, h) => s + calcHotelFreeBedsToday(h), 0);
 
   const generateReportTitle = () => {
     let parts = [];
@@ -298,8 +262,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     return `Dashboard Report: ${parts.join(' | ')}`;
   };
 
-  const handleExportCsv = () => exportToCSV(finalFiltered, calcCost, totalSpend, generateReportTitle(), lang);
-  const handlePrint = () => printDocument(finalFiltered, calcCost, totalSpend, generateReportTitle(), lang);
+  const handleExportCsv = () => exportToCSV(finalFiltered, calcHotelTotalCost, totalSpend, generateReportTitle(), lang);
+  const handlePrint = () => printDocument(finalFiltered, calcHotelTotalCost, totalSpend, generateReportTitle(), lang);
 
   async function handleSaveNewHotel() {
     if (!newHotelName.trim()) return;
@@ -330,7 +294,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     await deleteHotel(id);
   }
 
-  // FIX 2: Live UI Update Syncs Math Automatically
   function handleRowUpdate(id: string, updates: any) {
     const next = hotels.map(h => h.id === id ? { ...h, ...updates } : h);
     setHotels(next); pushToHistory(next);
@@ -349,6 +312,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
   return (
     <div className={cn('flex h-screen overflow-hidden', dk ? 'bg-[#020617]' : 'bg-slate-50')}>
+      {/* Sidebar now automatically receives properly calculated visibleHotels */}
       <Sidebar theme={theme} lang={lang} selectedYear={selectedYear} setSelectedYear={setSelectedYear} selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(v => !v)} hotels={visibleHotels} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -546,7 +510,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                     {uniqueCities.map(c => <option key={c} value={c} />)}
                   </datalist>
                   
-                  {/* FIX 4: autoComplete="off" prevents browser suggestions */}
                   <div className="flex flex-wrap lg:flex-nowrap gap-3 items-end">
                     <div className="flex-[2.5_2.5_0%] min-w-[200px]">
                        <label className={labelCls}>{lang === 'de' ? 'Hotelname *' : 'Hotel Name *'}</label>
@@ -573,7 +536,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                        <label className={labelCls}><Building size={10}/> {lang === 'de' ? 'Land' : 'Country'}</label>
                        <ModernDropdown 
                           value={newHotelCountry} 
-                          options={getCountryOptions(lang)} 
+                          options={getCountryOptions()} 
                           onChange={(v:any) => setNewHotelCountry(v)} 
                           isDarkMode={dk} lang={lang} 
                        />
