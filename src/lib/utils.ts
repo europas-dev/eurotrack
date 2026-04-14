@@ -60,7 +60,6 @@ export function calcDurationFreeBeds(duration: any, targetDateIso: string): numb
   const targetDate = new Date(targetDateIso);
   const durEnd = new Date(duration.endDate);
   
-  // If the duration is already expired, there are no "free beds" for today/future
   if (targetDate > durEnd) return 0;
 
   let totalBeds = 0;
@@ -75,7 +74,6 @@ export function calcDurationFreeBeds(duration: any, targetDateIso: string): numb
       if (!emp.checkIn || !emp.checkOut) return;
       const inDate = new Date(emp.checkIn);
       const outDate = new Date(emp.checkOut);
-      // Occupied if target date is within checkIn and checkOut
       if (targetDate >= inDate && targetDate < outDate) {
         occupiedBeds += 1;
       }
@@ -126,7 +124,6 @@ export function getDurationCostForMonth(d: any, targetYear: number, targetMonthI
   const overlapNights = calculateNights(overlapStart.toISOString().split('T')[0], overlapEnd.toISOString().split('T')[0]);
   if (overlapNights <= 0) return 0;
 
-  // Calculate full cost of duration
   const rcTotal = (d.roomCards || []).reduce((sum: number, c: any) => sum + (c.roomBrutto || c.totalBrutto || 0), 0);
   const exTotal = (d.extraCosts || []).reduce((sum: number, ex: any) => sum + (Number(ex.amount) || 0), 0);
   let total = d.useBruttoNetto ? (d.brutto || 0) : rcTotal;
@@ -135,7 +132,6 @@ export function getDurationCostForMonth(d: any, targetYear: number, targetMonthI
     total = d.discountType === 'fixed' ? total - d.discountValue : total * (1 - d.discountValue / 100);
   }
   
-  // Pro-rate the cost based on nights overlapping this month
   return (total / totalNights) * overlapNights;
 }
 
@@ -145,7 +141,7 @@ export function getDurationTabLabel(d: any, lang: 'de' | 'en'): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EXPORT & PRINT FUNCTIONS (WYSIWYG)
+// EXPORT & PRINT FUNCTIONS (WYSIWYG) - FULLY TRANSLATED
 // ─────────────────────────────────────────────────────────────────────────────
 
 function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de' | 'en') {
@@ -187,9 +183,13 @@ function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de'
 export function exportToCSV(hotels: any[], calcCost: (h: any) => number, grandTotal: number, reportTitle: string, lang: 'de' | 'en') {
   const data = buildReportData(hotels, calcCost, lang);
   const showDeposit = data.some(d => d.hasDeposit);
+  const isDe = lang === 'de';
 
-  let headers = ['Hotel', 'City', 'Company', 'Contact', 'Address', 'Phone', 'Invoice No.', 'Durations', 'Employees', 'Status', 'Total Cost'];
-  if (showDeposit) headers.push('Deposit');
+  let headers = isDe 
+    ? ['Hotelname', 'Stadt', 'Firma', 'Kontakt', 'Adresse', 'Telefon', 'Rechnungsnr.', 'Zeitraum', 'Mitarbeiter', 'Status', 'Gesamtkosten']
+    : ['Hotel Name', 'City', 'Company', 'Contact', 'Address', 'Phone', 'Invoice No.', 'Durations', 'Employees', 'Status', 'Total Cost'];
+  
+  if (showDeposit) headers.push(isDe ? 'Kaution' : 'Deposit');
 
   const rows = data.map(d => {
     const row = [d.hotel, d.city, d.company, d.contact, d.address, d.phone, d.invoice, d.dates, d.employees, d.status, d.cost];
@@ -197,14 +197,13 @@ export function exportToCSV(hotels: any[], calcCost: (h: any) => number, grandTo
     return row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
   });
 
-  // Grand Total Row
   const totalRow = Array(headers.length).fill('""');
-  totalRow[headers.length - 2] = `"GRAND TOTAL"`;
+  totalRow[headers.length - 2] = isDe ? `"GESAMTSUMME"` : `"GRAND TOTAL"`;
   totalRow[headers.length - 1] = `"${formatCurrency(grandTotal)}"`;
   rows.push(totalRow.join(','));
 
   const csvContent = headers.map(h => `"${h}"`).join(',') + '\n' + rows.join('\n');
-  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' }); // \uFEFF ensures UTF-8 BOM for Excel
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -217,6 +216,7 @@ export function printDocument(hotels: any[], calcCost: (h: any) => number, grand
   const data = buildReportData(hotels, calcCost, lang);
   const showDeposit = data.some(d => d.hasDeposit);
   const dateStr = new Date().toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+  const isDe = lang === 'de';
 
   let html = `
     <html>
@@ -239,22 +239,22 @@ export function printDocument(hotels: any[], calcCost: (h: any) => number, grand
         <div class="header">
           <h1 class="title">Europas GmbH</h1>
           <p class="subtitle">${reportTitle}</p>
-          <p class="subtitle">Generated on: ${dateStr}</p>
+          <p class="subtitle">${isDe ? 'Erstellt am:' : 'Generated on:'} ${dateStr}</p>
         </div>
         <table>
           <thead>
             <tr>
-              <th style="width: 12%;">Hotel Name</th>
-              <th style="width: 8%;">City</th>
-              <th style="width: 8%;">Company</th>
-              <th style="width: 10%;">Contact</th>
-              <th style="width: 10%;">Phone</th>
-              <th style="width: 12%;">Invoice No.</th>
-              <th style="width: 10%;">Durations</th>
-              <th style="width: 15%;">Employees</th>
+              <th style="width: 12%;">${isDe ? 'Hotelname' : 'Hotel Name'}</th>
+              <th style="width: 8%;">${isDe ? 'Stadt' : 'City'}</th>
+              <th style="width: 8%;">${isDe ? 'Firma' : 'Company'}</th>
+              <th style="width: 10%;">${isDe ? 'Kontakt' : 'Contact'}</th>
+              <th style="width: 10%;">${isDe ? 'Telefon' : 'Phone'}</th>
+              <th style="width: 12%;">${isDe ? 'Rechnungsnr.' : 'Invoice No.'}</th>
+              <th style="width: 10%;">${isDe ? 'Zeitraum' : 'Durations'}</th>
+              <th style="width: 15%;">${isDe ? 'Mitarbeiter' : 'Employees'}</th>
               <th style="width: 7%;">Status</th>
-              <th style="width: 8%;">Cost</th>
-              ${showDeposit ? '<th style="width: 8%;">Deposit</th>' : ''}
+              <th style="width: 8%;">${isDe ? 'Kosten' : 'Cost'}</th>
+              ${showDeposit ? `<th style="width: 8%;">${isDe ? 'Kaution' : 'Deposit'}</th>` : ''}
             </tr>
           </thead>
           <tbody>
@@ -280,10 +280,10 @@ export function printDocument(hotels: any[], calcCost: (h: any) => number, grand
           </tbody>
         </table>
         <div class="grand-total">
-          GRAND TOTAL: ${formatCurrency(grandTotal)}
+          ${isDe ? 'GESAMTSUMME' : 'GRAND TOTAL'}: ${formatCurrency(grandTotal)}
         </div>
         <div class="footer">
-          Report securely generated by Europas GmbH Management System.
+          ${isDe ? 'Bericht sicher generiert von der Europas GmbH Management Software.' : 'Report securely generated by Europas GmbH Management System.'}
         </div>
       </body>
     </html>
@@ -295,7 +295,6 @@ export function printDocument(hotels: any[], calcCost: (h: any) => number, grand
     printWindow.document.write(html);
     printWindow.document.close();
     printWindow.focus();
-    // Tiny delay ensures styles load before print dialog opens
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
   }
 }
