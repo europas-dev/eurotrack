@@ -142,16 +142,27 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     if (e.key === 'Enter') e.currentTarget.blur();
   };
 
-  const calcCost = (h: any) => (h.durations || []).reduce((s: number, d: any) => {
-    const rcTotal = (d.roomCards || []).reduce((sum: number, c: any) => sum + (c.roomBrutto || c.totalBrutto || 0), 0);
-    const exTotal = (d.extraCosts || []).reduce((sum: number, e: any) => sum + (Number(e.amount) || 0), 0);
-    let total = d.useBruttoNetto ? (d.brutto || 0) : rcTotal;
-    total += exTotal;
-    if (!d.useBruttoNetto && d.hasDiscount && d.discountValue) {
-      total = d.discountType === 'fixed' ? total - d.discountValue : total * (1 - d.discountValue / 100);
-    }
-    return s + Math.max(0, total);
-  }, 0);
+const calcCost = (h: any) => {
+    return (h.durations || []).reduce((total: number, d: any) => {
+      const rCards = d.roomCards || [];
+      const extraTotal = (d.extraCosts || []).reduce((s: number, e: any) => s + (Number(e.amount) || 0), 0);
+      
+      let bruttoBase = d.useBruttoNetto ? (d.brutto || 0) : rCards.reduce((s: number, c: any) => {
+        // Calculate exact total per room card based on duration length
+        if (!d.startDate || !d.endDate) return s + 0;
+        const days = Math.ceil((new Date(d.endDate).getTime() - new Date(d.startDate).getTime()) / (1000 * 3600 * 24));
+        const price = c.useManualPrice ? (c.manualPrice || 0) : (d.pricePerNightPerRoom || 0);
+        return s + (days > 0 ? days * price : 0);
+      }, 0);
+      
+      bruttoBase += extraTotal;
+      
+      if (!d.useBruttoNetto && d.hasDiscount && d.discountValue) {
+        bruttoBase = d.discountType === 'fixed' ? bruttoBase - d.discountValue : bruttoBase * (1 - d.discountValue / 100);
+      }
+      return total + Math.max(0, bruttoBase);
+    }, 0);
+  };
 
   const getFreeBedsForDate = (h: any, dateIso: string) => {
     return (h.durations || []).reduce((s: number, d: any) => s + calcDurationFreeBeds(d, dateIso), 0);
