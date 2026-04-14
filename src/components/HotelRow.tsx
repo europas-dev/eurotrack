@@ -12,6 +12,15 @@ export const DEFAULT_COUNTRIES = [
   'Germany', 'Switzerland', 'Austria', 'Netherlands', 'Poland', 'Belgium', 'France', 'Luxembourg'
 ];
 
+// THE FIX: Adding this function back so Dashboard.tsx stops crashing
+export function getCountryOptions(lang: string = 'de') {
+  const de: any = { 'Germany': 'Deutschland', 'Switzerland': 'Schweiz', 'Austria': 'Österreich', 'Netherlands': 'Niederlande', 'Poland': 'Polen', 'Belgium': 'Belgien', 'France': 'Frankreich', 'Luxembourg': 'Luxemburg' };
+  return DEFAULT_COUNTRIES.map(c => ({
+    value: c,
+    label: lang === 'de' ? (de[c] || c) : c
+  }));
+}
+
 interface HotelRowProps {
   entry: any;
   index: number;
@@ -112,7 +121,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         onUpdate(localHotel.id, next);
       } catch (e: any) { 
         console.error("Save Error:", e);
-        alert(lang === 'de' ? `Speichern fehlgeschlagen: ${e.message}` : `Save failed: ${e.message}`);
+        alert(lang === 'de' ? `Fehler: ${e.message}` : `Error: ${e.message}`);
       }
       finally { setSaving(false); }
     }, 400);
@@ -287,7 +296,7 @@ export function ModernDropdown({ value, options, onChange, isDarkMode, lang, pla
       {open && (
         <div className={cn('absolute top-full mt-1 left-0 right-0 z-[100] rounded-xl border shadow-xl py-1', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white')}>
           {options.map((opt:any) => (
-            <button key={opt} onClick={() => { onChange(opt); setOpen(false); }} className={cn('w-full text-left px-3 py-2 text-sm font-bold', value === opt ? 'text-blue-500 bg-blue-500/10' : dk ? 'text-slate-300' : 'text-slate-700')}>{displayValue(opt)}</button>
+            <button key={opt} onClick={() => { onChange(opt); setOpen(false); }} className={cn('w-full text-left px-3 py-2 text-sm font-bold', value === opt ? 'text-blue-500 bg-blue-500/10' : isDarkMode ? 'text-slate-300' : 'text-slate-700')}>{displayValue(opt)}</button>
           ))}
         </div>
       )}
@@ -320,7 +329,7 @@ function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange }: a
       {open && (
         <div className={cn('absolute top-full mt-1 left-0 z-[100] rounded-xl border shadow-xl min-w-[160px] py-1', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
           {options.map((opt: string) => (
-            <button key={opt} onClick={(e) => { e.stopPropagation(); onChange(selected.includes(opt) ? selected.filter((t: any) => t !== opt) : [...selected, opt]); }} className={cn('w-full text-left px-3 py-2 text-xs font-bold', selected.includes(opt) ? 'text-blue-500 bg-blue-500/10' : dk ? 'text-slate-300' : 'text-slate-700')}>{opt}</button>
+            <button key={opt} onClick={(e) => { e.stopPropagation(); onChange(selected.includes(opt) ? selected.filter((t: any) => t !== opt) : [...selected, opt]); }} className={cn('w-full text-left px-3 py-2 text-xs font-bold', selected.includes(opt) ? 'text-blue-500' : 'text-slate-500')}>{opt}</button>
           ))}
         </div>
       )}
