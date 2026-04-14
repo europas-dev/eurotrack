@@ -1,6 +1,6 @@
 // src/components/Sidebar.tsx
-import React from 'react';
-import { ChevronLeft, ChevronRight, LayoutDashboard, Minus, Plus } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, LayoutDashboard, ChevronUp, ChevronDown } from 'lucide-react';
 import { cn, getDurationCostForMonth, formatCurrency } from '../lib/utils';
 
 interface SidebarProps {
@@ -21,11 +21,28 @@ export default function Sidebar({
 }: SidebarProps) {
   const dk = theme === 'dark';
 
+  // Custom Year Dropdown State
+  const [showYearMenu, setShowYearMenu] = useState(false);
+  const [yearRangeStart, setYearRangeStart] = useState(() => Math.floor(selectedYear / 10) * 10);
+  const yearMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown if clicked outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (yearMenuRef.current && !yearMenuRef.current.contains(event.target as Node)) {
+        setShowYearMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const monthNames = lang === 'de'
     ? ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']
     : ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-  const years = Array.from({ length: 11 }, (_, i) => selectedYear - 5 + i);
+  // Generate the 10 years based on the current range
+  const currentDecade = Array.from({ length: 10 }, (_, i) => yearRangeStart + i);
 
   const monthlyTotals = monthNames.map((_, i) =>
     hotels.reduce((sum, hotel) =>
@@ -41,7 +58,6 @@ export default function Sidebar({
       dk ? 'bg-[#0B1224] border-white/5 text-white' : 'bg-white border-slate-200 text-slate-900',
       collapsed ? 'w-20' : 'w-64'
     )}>
-      {/* THE FIX: Main Logo Moved Here */}
       <div className={cn('p-4 border-b flex items-center justify-between', dk ? 'border-white/5' : 'border-slate-200')}>
         {!collapsed && (
           <div className="text-xl font-black italic whitespace-nowrap select-none">
@@ -67,22 +83,54 @@ export default function Sidebar({
           {!collapsed && <span>{lang === 'de' ? 'Alle Monate' : 'All Months'}</span>}
         </button>
 
-        {/* THE FIX: Plus/Minus Year Selector & Dark Mode Bug Fix */}
+        {/* THE FIX: Custom 10-Year Dropdown */}
         {!collapsed && (
-          <div>
+          <div className="relative" ref={yearMenuRef}>
             <label className={cn('text-[10px] font-bold uppercase tracking-widest mb-2 block', dk ? 'text-slate-400' : 'text-slate-600')}>
               {lang === 'de' ? 'Jahr' : 'Year'}
             </label>
-            <div className="flex items-center gap-1">
-              <button onClick={() => setSelectedYear(selectedYear - 1)} className={cn('p-2 rounded-lg border transition-all', dk ? 'border-white/10 hover:bg-white/10 text-slate-400' : 'border-slate-200 hover:bg-slate-100 text-slate-600')}><Minus size={14} /></button>
-              <select value={selectedYear} onChange={e => setSelectedYear(parseInt(e.target.value))}
-                className={cn('flex-1 px-2 py-1.5 rounded-lg border text-sm font-bold outline-none text-center appearance-none cursor-pointer',
-                  dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-blue-500' // bg-[#1E293B] fixes the white dropdown bug
-                     : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-blue-500')}>
-                {years.map(y => <option key={y} value={y} className={dk ? 'bg-[#1E293B] text-white' : ''}>{y}</option>)}
-              </select>
-              <button onClick={() => setSelectedYear(selectedYear + 1)} className={cn('p-2 rounded-lg border transition-all', dk ? 'border-white/10 hover:bg-white/10 text-slate-400' : 'border-slate-200 hover:bg-slate-100 text-slate-600')}><Plus size={14} /></button>
-            </div>
+            <button 
+              onClick={() => setShowYearMenu(!showYearMenu)}
+              className={cn('w-full px-4 py-2 rounded-lg border text-sm font-bold flex justify-between items-center transition-all',
+                dk ? 'bg-[#1E293B] border-white/10 text-white hover:border-blue-500' 
+                   : 'bg-slate-50 border-slate-200 text-slate-900 hover:border-blue-500')}
+            >
+              {selectedYear}
+              <ChevronDown size={14} className={dk ? 'text-slate-400' : 'text-slate-500'} />
+            </button>
+
+            {showYearMenu && (
+              <div className={cn("absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border shadow-xl overflow-hidden", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+                {/* Previous 10 Years */}
+                <button 
+                  onClick={() => setYearRangeStart(prev => prev - 10)}
+                  className={cn("w-full py-2 flex justify-center items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-all", dk ? "bg-white/5 hover:bg-white/10 text-slate-400" : "bg-slate-50 hover:bg-slate-100 text-slate-500")}
+                >
+                  <ChevronUp size={12} /> {lang === 'de' ? 'Vorherige 10 Jahre' : 'Previous 10 Years'}
+                </button>
+                
+                {/* The 10 Years List */}
+                <div className="max-h-48 overflow-y-auto">
+                  {currentDecade.map(y => (
+                    <button 
+                      key={y} 
+                      onClick={() => { setSelectedYear(y); setShowYearMenu(false); }}
+                      className={cn("w-full px-4 py-2 text-sm font-bold transition-all text-left", selectedYear === y ? "bg-blue-600 text-white" : dk ? "text-slate-300 hover:bg-white/5" : "text-slate-700 hover:bg-slate-50")}
+                    >
+                      {y}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Next 10 Years */}
+                <button 
+                  onClick={() => setYearRangeStart(prev => prev + 10)}
+                  className={cn("w-full py-2 flex justify-center items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-all", dk ? "bg-white/5 hover:bg-white/10 text-slate-400" : "bg-slate-50 hover:bg-slate-100 text-slate-500")}
+                >
+                  {lang === 'de' ? 'Nächste 10 Jahre' : 'Next 10 Years'} <ChevronDown size={12} />
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -114,7 +162,6 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* THE FIX: Exact Decimals applied via formatCurrency */}
       {!collapsed && (
         <div className={cn('p-6 border-t', dk ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200')}>
           <p className={cn('text-[10px] font-bold uppercase tracking-widest mb-1', dk ? 'text-slate-400' : 'text-slate-600')}>
