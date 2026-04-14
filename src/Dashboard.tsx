@@ -6,7 +6,7 @@ import type { AccessLevel } from './lib/supabase';
 import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Undo2, Redo2, Star, Calendar, RefreshCw, MapPin, Building, Building2 } from 'lucide-react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
-import { HotelRow, COUNTRIES } from './components/HotelRow';
+import { HotelRow, ModernDropdown, DEFAULT_COUNTRIES } from './components/HotelRow';
 
 interface DashboardProps {
   theme: 'dark' | 'light';
@@ -65,8 +65,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [newHotelName, setNewHotelName] = useState('');
   const [newHotelCity, setNewHotelCity] = useState('');
   const [newHotelCompany, setNewHotelCompany] = useState('');
-  const [newHotelCountry, setNewHotelCountry] = useState('DE');
-  const [isAddingCustomCompany, setIsAddingCustomCompany] = useState(false);
+  const [newHotelCountry, setNewHotelCountry] = useState('Germany');
   const [newHotelSaving, setNewHotelSaving] = useState(false);
   const newHotelNameRef = useRef<HTMLInputElement>(null);
 
@@ -80,27 +79,39 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     setShowSortMenu(menu === 'sort' ? !showSortMenu : false);
   };
 
-  useEffect(() => { loadHotels(); }, [selectedYear]);
+  // THE FIX: Bulletproof fetching logic. Ensures abort controller avoids infinite loading state on unmount or tab switch.
+  useEffect(() => { 
+    let isMounted = true;
+    setLoading(true);
+    
+    async function fetchHotels() {
+      try {
+        setError('');
+        const { data, error: supabaseError } = await supabase
+          .from('hotels')
+          .select('*, durations(*, roomCards(*, employees(*)), extraCosts(*), employees(*))')
+          .eq('year', selectedYear)
+          .order('created_at', { ascending: false });
 
-  async function loadHotels() {
-    try {
-      setLoading(true); setError('');
-      const { data, error: supabaseError } = await supabase
-        .from('hotels')
-        .select('*, durations(*, roomCards(*, employees(*)), extraCosts(*), employees(*))')
-        .eq('year', selectedYear)
-        .order('created_at', { ascending: false });
-
-      if (supabaseError) throw supabaseError;
-      setHotels(data || []);
-      setHistory([data || []]);
-      setHistoryIndex(0);
-    } catch (err: any) { 
-      console.error("Database Error:", err);
-      setError(err.message || 'Failed to load'); 
-    } 
-    finally { setLoading(false); }
-  }
+        if (supabaseError) throw supabaseError;
+        if (isMounted) {
+          setHotels(data || []);
+          setHistory([data || []]);
+          setHistoryIndex(0);
+          setLoading(false);
+        }
+      } catch (err: any) { 
+        console.error("Database Fetch Error:", err);
+        if (isMounted) {
+          setError(err.message || 'Failed to load data');
+          setLoading(false);
+        }
+      }
+    }
+    
+    fetchHotels();
+    return () => { isMounted = false; };
+  }, [selectedYear]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -124,6 +135,10 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     const next = bookmarks.includes(id) ? bookmarks.filter(b => b !== id) : [...bookmarks, id];
     setBookmarks(next);
     localStorage.setItem('eurotrack_bookmarks', JSON.stringify(next));
+  };
+
+  const handleEnterBlur = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') e.currentTarget.blur();
   };
 
   const calcCost = (h: any) => (h.durations || []).reduce((s: number, d: any) => {
@@ -261,18 +276,17 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     let parts = [];
     if (selectedMonth !== null) parts.push(`${monthNames[selectedMonth]} ${selectedYear}`);
     else parts.push(`Year ${selectedYear}`);
-    
     if (filterPaid === 'paid') parts.push('Paid Only');
     if (filterPaid === 'unpaid') parts.push('Unpaid Only');
     if (filterDeposit === 'with') parts.push('With Deposit');
     if (activeGroup) parts.push(`Group: ${activeGroup}`);
-    
     return `Dashboard Report: ${parts.join(' | ')}`;
   };
 
   const handleExportCsv = () => exportToCSV(finalFiltered, calcCost, totalSpend, generateReportTitle(), lang);
   const handlePrint = () => printDocument(finalFiltered, calcCost, totalSpend, generateReportTitle(), lang);
 
+  // THE FIX: Strict error checking to prevent silent failures and vanishing data.
   async function handleSaveNewHotel() {
     if (!newHotelName.trim()) return;
     setNewHotelSaving(true);
@@ -285,10 +299,14 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         year: selectedYear 
       });
       const next = [{ ...hotel, durations: [] }, ...hotels];
-      setHotels(next); pushToHistory(next);
+      setHotels(next); 
+      pushToHistory(next);
       setAddingHotel(false); 
-      setNewHotelName(''); setNewHotelCity(''); setNewHotelCompany(''); setNewHotelCountry('DE'); setIsAddingCustomCompany(false);
-    } catch (e: any) { console.error("Create Failed:", e); alert(e.message); } 
+      setNewHotelName(''); setNewHotelCity(''); setNewHotelCompany(''); setNewHotelCountry('Germany');
+    } catch (e: any) { 
+      console.error("Database Create Failed:", e); 
+      alert(lang === 'de' ? `Fehler beim Speichern: ${e.message}` : `Error saving: ${e.message}`); 
+    } 
     finally { setNewHotelSaving(false); }
   }
 
@@ -311,6 +329,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       {children}
     </button>
   );
+
+  const labelCls = cn('flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest mb-1', dk ? 'text-slate-400' : 'text-slate-500');
 
   return (
     <div className={cn('flex h-screen overflow-hidden', dk ? 'bg-[#020617]' : 'bg-slate-50')}>
@@ -503,47 +523,51 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           ) : (
             <div className="space-y-3 pb-24">
               
+              {/* THE FIX: Quick-Add Row (Modern Custom Dropdowns, No Emojis, Blurring Inputs) */}
               {addingHotel && (
                 <div className={cn('rounded-2xl border p-4 shadow-sm', dk ? 'bg-[#0B1224] border-blue-500/40' : 'bg-white border-blue-400')}>
                   <datalist id="city-list">
                     {uniqueCities.map(c => <option key={c} value={c} />)}
                   </datalist>
-                  <div className="grid grid-cols-12 gap-3 items-end">
-                    <div className="col-span-12 md:col-span-3">
-                       <label className={cn('block text-[10px] font-bold uppercase tracking-widest mb-1.5', dk ? 'text-slate-400' : 'text-slate-500')}>{lang === 'de' ? 'Hotelname *' : 'Hotel Name *'}</label>
-                       <input ref={newHotelNameRef} autoFocus className={cn('w-full px-3 py-2 rounded-lg border outline-none text-sm font-bold transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder="NH Hotel..." />
+                  <div className="flex flex-wrap lg:flex-nowrap gap-3 items-end">
+                    
+                    <div className="flex-[2_2_0%] min-w-[200px]">
+                       <label className={labelCls}>{lang === 'de' ? 'Hotelname *' : 'Hotel Name *'}</label>
+                       <input ref={newHotelNameRef} autoFocus onKeyDown={handleEnterBlur} className={cn('w-full px-3 py-1.5 rounded-lg border outline-none text-xs font-bold transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder={lang === 'de' ? "Hotelname eingeben..." : "Enter hotel name..."} />
                     </div>
-                    <div className="col-span-12 md:col-span-3">
-                       <label className={cn('flex items-center gap-1 block text-[10px] font-bold uppercase tracking-widest mb-1.5', dk ? 'text-slate-400' : 'text-slate-500')}><MapPin size={10}/> {lang === 'de' ? 'Stadt' : 'City'}</label>
-                       <input list="city-list" className={cn('w-full px-3 py-2 rounded-lg border outline-none text-sm font-bold transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder="Essen..." />
+                    
+                    <div className="flex-[1.5_1.5_0%] min-w-[150px]">
+                       <label className={labelCls}><MapPin size={10}/> {lang === 'de' ? 'Stadt' : 'City'}</label>
+                       <input list="city-list" onKeyDown={handleEnterBlur} className={cn('w-full px-3 py-1.5 rounded-lg border outline-none text-xs font-bold transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder={lang === 'de' ? "Stadt eingeben..." : "Enter city..."} />
                     </div>
-                    <div className="col-span-12 md:col-span-3">
-                       <label className={cn('flex items-center gap-1 block text-[10px] font-bold uppercase tracking-widest mb-1.5', dk ? 'text-slate-400' : 'text-slate-500')}><Building2 size={10}/> {lang === 'de' ? 'Firma' : 'Company'}</label>
-                       {isAddingCustomCompany ? (
-                         <div className="flex gap-1">
-                           <input autoFocus value={newHotelCompany} onChange={e => setNewHotelCompany(e.target.value)} onBlur={() => { if(!newHotelCompany) setIsAddingCustomCompany(false); }} placeholder="New Company..." className={cn('flex-1 px-3 py-2 rounded-lg border outline-none text-sm font-bold transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} />
-                           <button onClick={() => setIsAddingCustomCompany(false)} className={cn('p-2 rounded-lg border', dk ? 'border-white/10 text-slate-400 hover:bg-white/10' : 'border-slate-200 text-slate-500 hover:bg-slate-100')}><X size={14}/></button>
-                         </div>
-                       ) : (
-                         <select value={newHotelCompany} onChange={e => { if(e.target.value === '__NEW__') setIsAddingCustomCompany(true); else setNewHotelCompany(e.target.value); }} className={cn('w-full px-3 py-2 rounded-lg border outline-none text-sm font-bold transition-all focus:border-blue-500 appearance-none cursor-pointer', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')}>
-                            <option value="">-- {lang === 'de' ? 'Wählen' : 'Select'} --</option>
-                            <option value="__NEW__" className="font-bold text-blue-500">+ {lang === 'de' ? 'Neue Firma' : 'Add New'}</option>
-                            {uniqueCompanies.map(c => <option key={c} value={c} className={dk?'bg-[#1E293B]':''}>{c}</option>)}
-                         </select>
-                       )}
+                    
+                    <div className="flex-[1.5_1.5_0%] min-w-[150px]">
+                       <label className={labelCls}><Building2 size={10}/> {lang === 'de' ? 'Firma' : 'Company'}</label>
+                       <ModernDropdown 
+                          value={newHotelCompany} 
+                          options={uniqueCompanies} 
+                          onChange={v => setNewHotelCompany(v)} 
+                          isDarkMode={dk} lang={lang} 
+                          placeholder={lang === 'de' ? 'Auswählen...' : 'Select...'} 
+                       />
                     </div>
-                    <div className="col-span-12 md:col-span-2">
-                       <label className={cn('flex items-center gap-1 block text-[10px] font-bold uppercase tracking-widest mb-1.5', dk ? 'text-slate-400' : 'text-slate-500')}><Building size={10}/> {lang === 'de' ? 'Land' : 'Country'}</label>
-                       <select value={newHotelCountry} onChange={e => setNewHotelCountry(e.target.value)} className={cn('w-full px-3 py-2 rounded-lg border outline-none text-sm font-bold transition-all focus:border-blue-500 appearance-none cursor-pointer', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')}>
-                          {COUNTRIES.map(c => <option key={c.code} value={c.code} className={dk?'bg-[#1E293B]':''}>{c.flag} {c.name}</option>)}
-                       </select>
+                    
+                    <div className="flex-[1_1_0%] min-w-[150px]">
+                       <label className={labelCls}><Building size={10}/> {lang === 'de' ? 'Land' : 'Country'}</label>
+                       <ModernDropdown 
+                          value={newHotelCountry} 
+                          options={DEFAULT_COUNTRIES} 
+                          onChange={v => setNewHotelCountry(v)} 
+                          isDarkMode={dk} lang={lang} 
+                       />
                     </div>
-                    <div className="col-span-12 md:col-span-1 flex gap-2">
-                       <button onClick={handleSaveNewHotel} disabled={newHotelSaving || !newHotelName.trim()} className="flex-1 p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md disabled:opacity-50 transition-all flex items-center justify-center">
-                          {newHotelSaving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+                    
+                    <div className="flex shrink-0 gap-2 w-24">
+                       <button onClick={handleSaveNewHotel} disabled={newHotelSaving || !newHotelName.trim()} className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md disabled:opacity-50 transition-all flex items-center justify-center">
+                          {newHotelSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                        </button>
-                       <button onClick={() => setAddingHotel(false)} className={cn("flex-1 p-2 rounded-lg flex items-center justify-center transition-all border", dk ? "border-white/10 hover:bg-white/10 text-slate-300" : "border-slate-200 hover:bg-slate-100 text-slate-600")}>
-                          <X size={18} />
+                       <button onClick={() => setAddingHotel(false)} className={cn("flex-1 py-1.5 rounded-lg flex items-center justify-center transition-all border", dk ? "border-white/10 hover:bg-white/10 text-slate-300" : "border-slate-200 hover:bg-slate-100 text-slate-600")}>
+                          <X size={14} />
                        </button>
                     </div>
                   </div>
