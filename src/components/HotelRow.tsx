@@ -12,13 +12,10 @@ export const DEFAULT_COUNTRIES = [
   'Germany', 'Switzerland', 'Austria', 'Netherlands', 'Poland', 'Belgium', 'France', 'Luxembourg'
 ];
 
-// THE FIX: Adding this function back so Dashboard.tsx stops crashing
+// THE FIX: Returns simple strings to prevent React Error #31
 export function getCountryOptions(lang: string = 'de') {
   const de: any = { 'Germany': 'Deutschland', 'Switzerland': 'Schweiz', 'Austria': 'Österreich', 'Netherlands': 'Niederlande', 'Poland': 'Polen', 'Belgium': 'Belgien', 'France': 'Frankreich', 'Luxembourg': 'Luxemburg' };
-  return DEFAULT_COUNTRIES.map(c => ({
-    value: c,
-    label: lang === 'de' ? (de[c] || c) : c
-  }));
+  return DEFAULT_COUNTRIES.map(c => lang === 'de' ? (de[c] || c) : c);
 }
 
 interface HotelRowProps {
@@ -121,7 +118,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         onUpdate(localHotel.id, next);
       } catch (e: any) { 
         console.error("Save Error:", e);
-        alert(lang === 'de' ? `Fehler: ${e.message}` : `Error: ${e.message}`);
+        alert(`Error: ${e.message}`);
       }
       finally { setSaving(false); }
     }, 400);
@@ -149,7 +146,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   }
 
   const labelCls = cn('flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest mb-1.5', dk ? 'text-slate-400' : 'text-slate-500');
-  const inputCls = cn('w-full px-3 py-2 rounded-lg text-sm font-bold outline-none border transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900');
+  const inputCls = cn('w-full px-3 py-2 rounded-lg text-sm font-bold outline-none border transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/10 text-white placeholder-slate-500' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400');
 
   return (
     <div className="space-y-1 relative" style={{ zIndex: 40 - (index % 30) }}>
@@ -221,27 +218,27 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             <div className="flex flex-wrap xl:flex-nowrap gap-3 items-end">
               <div className="flex-[2.5_2.5_0%] min-w-[180px]">
                  <label className={labelCls}><MapPin size={12}/> {lang === 'de' ? 'Adresse' : 'Address'}</label>
-                 <input value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} />
+                 <input value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} onKeyDown={handleEnterBlur} placeholder="..." className={inputCls} />
               </div>
               <div className="flex-[1.5_1.5_0%] min-w-[140px]">
                  <label className={labelCls}><User size={12}/> {lang === 'de' ? 'Ansprechpartner' : 'Contact'}</label>
-                 <input value={localHotel.contactPerson || ''} onChange={e => patchHotel({ contactPerson: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} />
+                 <input value={localHotel.contactPerson || ''} onChange={e => patchHotel({ contactPerson: e.target.value })} onKeyDown={handleEnterBlur} placeholder="..." className={inputCls} />
               </div>
               <div className="flex-[1.5_1.5_0%] min-w-[140px]">
                  <label className={labelCls}><Phone size={12}/> {lang === 'de' ? 'Telefon' : 'Phone'}</label>
-                 <input value={localHotel.phone || ''} onChange={e => patchHotel({ phone: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} />
+                 <input value={localHotel.phone || ''} onChange={e => patchHotel({ phone: e.target.value })} onKeyDown={handleEnterBlur} placeholder="..." className={inputCls} />
               </div>
               <div className="flex-[1.5_1.5_0%] min-w-[160px]">
                  <label className={labelCls}><Mail size={12}/> Email</label>
-                 <input value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} />
+                 <input value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })} onKeyDown={handleEnterBlur} placeholder="..." className={inputCls} />
               </div>
               <div className="flex-[1.5_1.5_0%] min-w-[160px]">
                  <label className={labelCls}><Globe size={12}/> {lang === 'de' ? 'Webseite' : 'Website'}</label>
-                 <input value={localHotel.website || ''} onChange={e => patchHotel({ website: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} />
+                 <input value={localHotel.website || ''} onChange={e => patchHotel({ website: e.target.value })} onKeyDown={handleEnterBlur} placeholder="..." className={inputCls} />
               </div>
               <div className="flex-[1_1_0%] min-w-[120px]">
                  <label className={labelCls}><Building size={12}/> {lang === 'de' ? 'Land' : 'Country'}</label>
-                 <ModernDropdown value={localHotel.country || 'Germany'} options={DEFAULT_COUNTRIES} onChange={v => patchHotel({ country: v })} isDarkMode={dk} lang={lang} />
+                 <ModernDropdown value={localHotel.country || 'Germany'} options={getCountryOptions(lang)} onChange={(v:string) => patchHotel({ country: v })} isDarkMode={dk} lang={lang} />
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap pt-2">
@@ -282,22 +279,25 @@ export function ModernDropdown({ value, options, onChange, isDarkMode, lang, pla
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
   }, []);
-  const displayValue = (val: string) => {
-    if (lang !== 'de') return val;
-    const de: any = { 'Germany': 'Deutschland', 'Switzerland': 'Schweiz', 'Austria': 'Österreich', 'Netherlands': 'Niederlande', 'Poland': 'Polen', 'Belgium': 'Belgien', 'France': 'Frankreich', 'Luxembourg': 'Luxemburg' };
-    return de[val] || val;
-  };
+
+  // Accept either string options or objects, but render text correctly
   return (
     <div ref={ref} className="relative w-full h-[38px]">
-      <button onClick={() => setOpen(!open)} className={cn('w-full h-full px-3 flex items-center justify-between rounded-lg border text-sm font-bold', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200')}>
-        <span className="truncate">{displayValue(value) || placeholder}</span>
+      <button onClick={() => setOpen(!open)} className={cn('w-full h-full px-3 flex items-center justify-between rounded-lg border text-sm font-bold', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
+        <span className="truncate">{value || placeholder}</span>
         <ChevronDown size={16} />
       </button>
       {open && (
-        <div className={cn('absolute top-full mt-1 left-0 right-0 z-[100] rounded-xl border shadow-xl py-1', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white')}>
-          {options.map((opt:any) => (
-            <button key={opt} onClick={() => { onChange(opt); setOpen(false); }} className={cn('w-full text-left px-3 py-2 text-sm font-bold', value === opt ? 'text-blue-500 bg-blue-500/10' : isDarkMode ? 'text-slate-300' : 'text-slate-700')}>{displayValue(opt)}</button>
-          ))}
+        <div className={cn('absolute top-full mt-1 left-0 right-0 z-[100] rounded-xl border shadow-xl py-1 overflow-hidden', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white')}>
+          <div className="max-h-48 overflow-y-auto">
+            {options.map((opt:any) => {
+              const label = typeof opt === 'string' ? opt : opt.label;
+              const val = typeof opt === 'string' ? opt : opt.value;
+              return (
+                <button key={val} onClick={() => { onChange(val); setOpen(false); }} className={cn('w-full text-left px-3 py-2 text-sm font-bold', value === val ? 'text-blue-500 bg-blue-500/10' : isDarkMode ? 'text-slate-300' : 'text-slate-700')}>{label}</button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -329,7 +329,7 @@ function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange }: a
       {open && (
         <div className={cn('absolute top-full mt-1 left-0 z-[100] rounded-xl border shadow-xl min-w-[160px] py-1', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
           {options.map((opt: string) => (
-            <button key={opt} onClick={(e) => { e.stopPropagation(); onChange(selected.includes(opt) ? selected.filter((t: any) => t !== opt) : [...selected, opt]); }} className={cn('w-full text-left px-3 py-2 text-xs font-bold', selected.includes(opt) ? 'text-blue-500' : 'text-slate-500')}>{opt}</button>
+            <button key={opt} onClick={(e) => { e.stopPropagation(); onChange(selected.includes(opt) ? selected.filter((t: any) => t !== opt) : [...selected, opt]); }} className={cn('w-full text-left px-3 py-2 text-xs font-bold', selected.includes(opt) ? 'text-blue-500 bg-blue-500/10' : isDarkMode ? 'text-slate-300' : 'text-slate-700')}>{opt}</button>
           ))}
         </div>
       )}
