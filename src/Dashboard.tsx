@@ -79,7 +79,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     setShowSortMenu(menu === 'sort' ? !showSortMenu : false);
   };
 
-  // THE FIX: Bulletproof fetching logic. Ensures abort controller avoids infinite loading state on unmount or tab switch.
   useEffect(() => { 
     let isMounted = true;
     setLoading(true);
@@ -286,7 +285,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const handleExportCsv = () => exportToCSV(finalFiltered, calcCost, totalSpend, generateReportTitle(), lang);
   const handlePrint = () => printDocument(finalFiltered, calcCost, totalSpend, generateReportTitle(), lang);
 
-  // THE FIX: Strict error checking to prevent silent failures and vanishing data.
   async function handleSaveNewHotel() {
     if (!newHotelName.trim()) return;
     setNewHotelSaving(true);
@@ -321,7 +319,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     setHotels(next); pushToHistory(next);
   }
 
-  const btnCls = cn('px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all', dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-100');
+  const btnCls = cn('px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all shadow-sm', dk ? 'bg-[#0F172A] border-white/10 text-slate-300 hover:bg-white/5' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50');
   const Pill = ({ active, onClick, children }: { active: boolean, onClick: () => void, children: React.ReactNode }) => (
     <button onClick={onClick} className={cn('px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap', 
       active ? 'bg-blue-600 text-white shadow-md' : dk ? 'bg-[#1E293B] border border-white/10 text-slate-400 hover:bg-white/10' : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-200'
@@ -330,7 +328,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     </button>
   );
 
-  const labelCls = cn('flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest mb-1', dk ? 'text-slate-400' : 'text-slate-500');
+  const labelCls = cn('flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest mb-1.5', dk ? 'text-slate-400' : 'text-slate-500');
 
   return (
     <div className={cn('flex h-screen overflow-hidden', dk ? 'bg-[#020617]' : 'bg-slate-50')}>
@@ -362,7 +360,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             </h2>
 
             <div className="flex items-center gap-2 relative">
-              <div className={cn("flex items-center mr-2 rounded-full p-1 border", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+              <div className={cn("flex items-center mr-2 rounded-full p-1 border shadow-sm", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
                  <button onClick={handleUndo} disabled={historyIndex <= 0} className={cn("p-1.5 rounded-full transition-all disabled:opacity-30", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")} title={lang === 'de' ? "Rückgängig (Ctrl+Z)" : "Undo (Ctrl+Z)"}><Undo2 size={16} /></button>
                  <div className={cn("w-px h-4 mx-0.5", dk ? "bg-white/10" : "bg-slate-200")} />
                  <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className={cn("p-1.5 rounded-full transition-all disabled:opacity-30", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")} title={lang === 'de' ? "Wiederholen (Ctrl+Y)" : "Redo (Ctrl+Y)"}><Redo2 size={16} /></button>
@@ -523,22 +521,22 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           ) : (
             <div className="space-y-3 pb-24">
               
-              {/* THE FIX: Quick-Add Row (Modern Custom Dropdowns, No Emojis, Blurring Inputs) */}
+              {/* THE FIX: Quick-Add Row */}
               {addingHotel && (
                 <div className={cn('rounded-2xl border p-4 shadow-sm', dk ? 'bg-[#0B1224] border-blue-500/40' : 'bg-white border-blue-400')}>
                   <datalist id="city-list">
                     {uniqueCities.map(c => <option key={c} value={c} />)}
                   </datalist>
+                  
                   <div className="flex flex-wrap lg:flex-nowrap gap-3 items-end">
-                    
-                    <div className="flex-[2_2_0%] min-w-[200px]">
+                    <div className="flex-[2.5_2.5_0%] min-w-[200px]">
                        <label className={labelCls}>{lang === 'de' ? 'Hotelname *' : 'Hotel Name *'}</label>
-                       <input ref={newHotelNameRef} autoFocus onKeyDown={handleEnterBlur} className={cn('w-full px-3 py-1.5 rounded-lg border outline-none text-xs font-bold transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder={lang === 'de' ? "Hotelname eingeben..." : "Enter hotel name..."} />
+                       <input ref={newHotelNameRef} autoFocus onKeyDown={handleEnterBlur} className={cn('w-full px-3 py-2 rounded-lg border outline-none text-xs font-bold transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder={lang === 'de' ? "Name eingeben..." : "Enter name..."} />
                     </div>
                     
                     <div className="flex-[1.5_1.5_0%] min-w-[150px]">
                        <label className={labelCls}><MapPin size={10}/> {lang === 'de' ? 'Stadt' : 'City'}</label>
-                       <input list="city-list" onKeyDown={handleEnterBlur} className={cn('w-full px-3 py-1.5 rounded-lg border outline-none text-xs font-bold transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder={lang === 'de' ? "Stadt eingeben..." : "Enter city..."} />
+                       <input list="city-list" onKeyDown={handleEnterBlur} className={cn('w-full px-3 py-2 rounded-lg border outline-none text-xs font-bold transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder={lang === 'de' ? "Stadt eingeben..." : "Enter city..."} />
                     </div>
                     
                     <div className="flex-[1.5_1.5_0%] min-w-[150px]">
@@ -548,7 +546,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                           options={uniqueCompanies} 
                           onChange={v => setNewHotelCompany(v)} 
                           isDarkMode={dk} lang={lang} 
-                          placeholder={lang === 'de' ? 'Auswählen...' : 'Select...'} 
+                          placeholder={lang === 'de' ? 'Firma...' : 'Company...'} 
                        />
                     </div>
                     
@@ -562,11 +560,11 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                        />
                     </div>
                     
-                    <div className="flex shrink-0 gap-2 w-24">
-                       <button onClick={handleSaveNewHotel} disabled={newHotelSaving || !newHotelName.trim()} className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md disabled:opacity-50 transition-all flex items-center justify-center">
+                    <div className="flex shrink-0 gap-2 w-[100px]">
+                       <button onClick={handleSaveNewHotel} disabled={newHotelSaving || !newHotelName.trim()} className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md disabled:opacity-50 transition-all flex items-center justify-center">
                           {newHotelSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                        </button>
-                       <button onClick={() => setAddingHotel(false)} className={cn("flex-1 py-1.5 rounded-lg flex items-center justify-center transition-all border", dk ? "border-white/10 hover:bg-white/10 text-slate-300" : "border-slate-200 hover:bg-slate-100 text-slate-600")}>
+                       <button onClick={() => setAddingHotel(false)} className={cn("flex-1 py-2 rounded-lg flex items-center justify-center transition-all border", dk ? "border-white/10 hover:bg-white/10 text-slate-300" : "border-slate-200 hover:bg-slate-100 text-slate-600")}>
                           <X size={14} />
                        </button>
                     </div>
