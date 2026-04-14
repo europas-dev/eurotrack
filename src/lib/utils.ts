@@ -149,6 +149,7 @@ export function getDurationCostForMonth(d: any, targetYear: number, targetMonthI
   const mStart = new Date(targetYear, targetMonthIndex, 1);
   const mEnd = new Date(targetYear, targetMonthIndex + 1, 0);
 
+  // If duration doesn't overlap with this month at all, return 0
   if (e < mStart || s > mEnd) return 0;
 
   const overlapStart = s < mStart ? mStart : s;
@@ -160,15 +161,22 @@ export function getDurationCostForMonth(d: any, targetYear: number, targetMonthI
   const overlapNights = calculateNights(overlapStart.toISOString().split('T')[0], overlapEnd.toISOString().split('T')[0]);
   if (overlapNights <= 0) return 0;
 
-  const rcTotal = (d.roomCards || []).reduce((sum: number, c: any) => sum + (c.roomBrutto || c.totalBrutto || 0), 0);
-  const exTotal = (d.extraCosts || []).reduce((sum: number, ex: any) => sum + (Number(ex.amount) || 0), 0);
-  let total = d.useBruttoNetto ? (d.brutto || 0) : rcTotal;
-  total += exTotal;
+  // Calculate the EXACT total for this duration using the Master Math
+  const rCards = d.roomCards || [];
+  const extraTotal = (d.extraCosts || []).reduce((sum: number, ex: any) => sum + (Number(ex.amount) || 0), 0);
+  
+  let bruttoBase = d.useBruttoNetto ? (d.brutto || 0) : rCards.reduce((s: number, c: any) => {
+    return s + calcRoomCardTotal(c, d.startDate, d.endDate);
+  }, 0);
+  
+  bruttoBase += extraTotal;
+  
   if (!d.useBruttoNetto && d.hasDiscount && d.discountValue) {
-    total = d.discountType === 'fixed' ? total - d.discountValue : total * (1 - d.discountValue / 100);
+    bruttoBase = d.discountType === 'fixed' ? bruttoBase - d.discountValue : bruttoBase * (1 - d.discountValue / 100);
   }
   
-  return (total / totalNights) * overlapNights;
+  // Prorate the total cost based on how many nights fell into THIS specific month
+  return (bruttoBase / totalNights) * overlapNights;
 }
 
 export function getDurationTabLabel(d: any, lang: 'de' | 'en'): string {
