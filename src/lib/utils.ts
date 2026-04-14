@@ -1,298 +1,301 @@
 // src/lib/utils.ts
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import type { Duration, GapInfo, Hotel, PriceResult } from './types'
-import { calcRoomCardTotal, bedsForType, deriveB } from './roomCardUtils'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function calculateNights(startDate: string, endDate: string): number {
-  if (!startDate || !endDate) return 0
-  const diff = new Date(endDate).getTime() - new Date(startDate).getTime()
-  return Math.max(0, Math.ceil(diff / 86400000))
+export function calculateNights(start?: string | null, end?: string | null): number {
+  if (!start || !end) return 0;
+  const s = new Date(start);
+  const e = new Date(end);
+  if (isNaN(s.getTime()) || isNaN(e.getTime())) return 0;
+  const diffTime = e.getTime() - s.getTime();
+  return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
 }
 
-export function getNightsBetween(startDate: string, endDate: string): string[] {
-  if (!startDate || !endDate) return []
-  const nights: string[] = []
-  const cur = new Date(startDate)
-  const end = new Date(endDate)
-  while (cur < end) {
-    nights.push(cur.toISOString().split('T')[0])
-    cur.setDate(cur.getDate() + 1)
-  }
-  return nights
+export function formatCurrency(amount: number): string {
+  return amount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 }
 
-export function formatDateDisplay(iso: string, lang: 'de' | 'en' = 'de'): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return '—'
-  if (lang === 'de') {
-    return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`
-  }
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+export function normalizeNumberInput(val: string): number {
+  const parsed = parseFloat(val.replace(',', '.'));
+  return isNaN(parsed) ? 0 : parsed;
 }
 
-export function formatDateShort(iso: string, lang: 'de' | 'en' = 'de'): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return '—'
-  if (lang === 'de') {
-    return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.`
-  }
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+export function formatDateDisplay(isoString?: string | null, lang: 'de' | 'en' = 'de'): string {
+  if (!isoString) return '—';
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
-export function formatDateChip(iso: string): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return '—'
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-  return `${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]}`
+export function formatDateChip(isoString?: string | null): string {
+  if (!isoString) return '';
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return '';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}.${mm}`;
 }
 
-export function formatDateDMY(iso: string): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return ''
-  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`
-}
-
-export function formatCurrency(value: number | undefined | null): string {
-  if (value == null || isNaN(value)) return '—'
-  return new Intl.NumberFormat('de-DE', {
-    style: 'currency', currency: 'EUR',
-    minimumFractionDigits: 0, maximumFractionDigits: 2,
-  }).format(value)
-}
-
-export function normalizeNumberInput(raw: string | number): number {
-  if (raw === '' || raw == null) return 0
-  if (typeof raw === 'number') return isNaN(raw) ? 0 : raw
-  let s = String(raw).trim()
-  if (s === '') return 0
-  if (s.includes(',')) {
-    s = s.replace(/\./g, '').replace(',', '.')
-  }
-  const n = parseFloat(s)
-  return isNaN(n) ? 0 : n
-}
-
-export function getRoomTypeLabel(roomType: string, lang: 'de' | 'en' = 'de'): string {
-  if (lang === 'de') {
-    if (roomType === 'EZ') return 'EZ – Einzelzimmer'
-    if (roomType === 'DZ') return 'DZ – Doppelzimmer'
-    if (roomType === 'TZ') return 'TZ – Dreibettzimmer'
-    if (roomType === 'WG') return 'WG – Wohngemeinschaft'
-    return roomType
-  }
-  if (roomType === 'EZ') return 'EZ – Single room'
-  if (roomType === 'DZ') return 'DZ – Double room'
-  if (roomType === 'TZ') return 'TZ – Triple room'
-  if (roomType === 'WG') return 'WG – Shared flat'
-  return roomType
-}
-
-export function getTotalBeds(roomType: string, numberOfRooms: number, bedsPerRoom?: number): number {
-  const n = Math.max(1, numberOfRooms || 1)
-  if (roomType === 'EZ') return n * 1
-  if (roomType === 'DZ') return n * 2
-  if (roomType === 'TZ') return n * 3
-  if (roomType === 'WG') return n * Math.max(1, bedsPerRoom || 1)
-  return n * 2
-}
-
-export function getDurationTotalBeds(d: Pick<Duration, 'roomType' | 'numberOfRooms' | 'bedsPerRoom'>): number {
-  return getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom)
-}
-
-export function getDurationTotal(d: Duration): number {
-  const roomCards = d.roomCards || [];
-  const extraTotal = (d.extraCosts || []).reduce((s, e) => s + (Number(e.amount) || 0), 0);
-
-  let bruttoBase = 0;
-
-  if (d.useBruttoNetto) {
-    bruttoBase = deriveB(d.brutto, d.netto, d.mwst) + extraTotal;
-  } else {
-    const rcTotal = roomCards.reduce((s, c) => s + calcRoomCardTotal(c, d.startDate, d.endDate), 0);
-    bruttoBase = rcTotal + extraTotal;
-  }
-
-  let discountedTotal = bruttoBase;
-  if (!d.useBruttoNetto && d.hasDiscount && d.discountValue && d.discountValue > 0) {
-    discountedTotal = d.discountType === 'fixed'
-      ? bruttoBase - d.discountValue
-      : bruttoBase * (1 - d.discountValue / 100);
-  }
+export function getEmployeeStatus(checkIn?: string | null, checkOut?: string | null): 'upcoming' | 'active' | 'ending-soon' | 'completed' | 'none' {
+  if (!checkIn || !checkOut) return 'none';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const inDate = new Date(checkIn);
+  const outDate = new Date(checkOut);
   
-  return Math.max(0, discountedTotal);
+  if (outDate < today) return 'completed';
+  if (inDate > today) return 'upcoming';
+  
+  const diffDays = Math.ceil((outDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays <= 2) return 'ending-soon';
+  return 'active';
 }
 
-export function calcDurationPrice(d: Duration): PriceResult {
-  const total = getDurationTotal(d);
-  const nights = calculateNights(d.startDate, d.endDate);
-  return {
-    total,
-    perNight: nights > 0 ? total / nights : 0,
-    nights,
-  }
-}
+export function calcDurationFreeBeds(duration: any, targetDateIso: string): number {
+  if (!duration.startDate || !duration.endDate || !duration.roomCards) return 0;
+  const targetDate = new Date(targetDateIso);
+  const durEnd = new Date(duration.endDate);
+  
+  // If the duration is already expired, there are no "free beds" for today/future
+  if (targetDate > durEnd) return 0;
 
-export function getDurationCostForMonth(d: Duration, year: number, month: number): number {
-  if (!d.startDate || !d.endDate) return 0
-  const monthStart = new Date(Date.UTC(year, month, 1))
-  const monthEnd   = new Date(Date.UTC(year, month + 1, 1))
-  const dStart = new Date(d.startDate)
-  const dEnd   = new Date(d.endDate)
+  let totalBeds = 0;
+  let occupiedBeds = 0;
 
-  if (dEnd <= monthStart || dStart >= monthEnd) return 0
-  const overlapStart = dStart > monthStart ? dStart : monthStart
-  const overlapEnd   = dEnd   < monthEnd   ? dEnd   : monthEnd
-
-  const overlapNights = Math.max(0, (overlapEnd.getTime() - overlapStart.getTime()) / 86400000)
-  const totalNights   = calculateNights(d.startDate, d.endDate)
-  if (totalNights === 0) return 0
-
-  const total = getDurationTotal(d)
-  return (overlapNights / totalNights) * total
-}
-
-export function calcHotelTotalNights(hotel: Hotel): number {
-  return (hotel.durations ?? []).reduce((s, d) => s + calculateNights(d.startDate, d.endDate), 0)
-}
-
-export function calcHotelTotalCost(hotel: Hotel): number {
-  return (hotel.durations ?? []).reduce((s, d) => s + getDurationTotal(d as Duration), 0)
-}
-
-export function calcHotelPaidCost(hotel: Hotel): number {
-  return (hotel.durations ?? []).filter(d => d.isPaid).reduce((s, d) => s + getDurationTotal(d as Duration), 0)
-}
-
-export function calcHotelUnpaidCost(hotel: Hotel): number {
-  return (hotel.durations ?? []).filter(d => !d.isPaid).reduce((s, d) => s + getDurationTotal(d as Duration), 0)
-}
-
-// ── FLAWLESS STRICT TIMELINE MATH FOR FREE BEDS ──
-export function calcDurationFreeBeds(d: Duration, dateStr: string): number {
-  if (!d.startDate || !d.endDate) return 0;
-  // If duration ended today or in the past, it's irrelevant for tonight
-  if (d.endDate <= dateStr) return 0;
-  // If we are looking at a date before the duration even begins, pretend today is the start date
-  const evalDate = dateStr < d.startDate ? d.startDate : dateStr;
-  const evalTime = new Date(evalDate).getTime();
-
-  const rCards = d.roomCards || [];
-  let tBeds = 0;
-  let tAssigned = 0;
-
-  if (rCards.length > 0) {
-    rCards.forEach((c: any) => {
-      const beds = bedsForType(c.roomType, c.bedCount);
-      tBeds += beds;
-      for (let i = 0; i < beds; i++) {
-        const emps = (c.employees || []).filter((e: any) => (e.slotIndex ?? 0) === i);
-        // A bed is occupied ONLY if someone arrived by today AND leaves strictly AFTER today
-        if (emps.some((e: any) => {
-          const inTime = new Date(e.checkIn || d.startDate).getTime();
-          const outTime = new Date(e.checkOut || d.endDate).getTime();
-          return inTime <= evalTime && outTime > evalTime;
-        })) {
-          tAssigned++;
-        }
+  duration.roomCards.forEach((rc: any) => {
+    const bedCount = rc.roomType === 'EZ' ? 1 : rc.roomType === 'DZ' ? 2 : rc.roomType === 'TZ' ? 3 : (rc.bedCount || 2);
+    totalBeds += bedCount;
+    
+    const emps = rc.employees || [];
+    emps.forEach((emp: any) => {
+      if (!emp.checkIn || !emp.checkOut) return;
+      const inDate = new Date(emp.checkIn);
+      const outDate = new Date(emp.checkOut);
+      // Occupied if target date is within checkIn and checkOut
+      if (targetDate >= inDate && targetDate < outDate) {
+        occupiedBeds += 1;
       }
     });
-  } else {
-    // Fallback for old durations without room cards
-    const beds = getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom);
-    tBeds += beds;
-    for (let i = 0; i < beds; i++) {
-      const emps = (d.employees || []).filter((e: any) => (e.slotIndex ?? 0) === i);
-      if (emps.some((e: any) => {
-        const inTime = new Date(e.checkIn || d.startDate).getTime();
-        const outTime = new Date(e.checkOut || d.endDate).getTime();
-        return inTime <= evalTime && outTime > evalTime;
-      })) {
-        tAssigned++;
+  });
+
+  return Math.max(0, totalBeds - occupiedBeds);
+}
+
+export function hotelMatchesSearch(hotel: any, query: string): boolean {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  
+  const hName = hotel.name?.toLowerCase() || '';
+  const hCity = hotel.city?.toLowerCase() || '';
+  const tags = Array.isArray(hotel.companyTag) ? hotel.companyTag.join(' ').toLowerCase() : (hotel.companyTag?.toLowerCase() || '');
+  
+  let match = hName.includes(q) || hCity.includes(q) || tags.includes(q);
+  if (match) return true;
+
+  for (const d of (hotel.durations || [])) {
+    if (d.rechnungNr?.toLowerCase().includes(q)) return true;
+    if (d.bookingId?.toLowerCase().includes(q)) return true;
+    for (const rc of (d.roomCards || [])) {
+      for (const emp of (rc.employees || [])) {
+        if (emp.name?.toLowerCase().includes(q)) return true;
       }
     }
   }
-  return Math.max(0, tBeds - tAssigned);
+  return false;
 }
 
-export function calcHotelFreeBedsOnDate(hotel: Hotel, date: Date): number {
-  const dateStr = date.toISOString().split('T')[0];
-  return (hotel.durations ?? []).reduce((s, d) => s + calcDurationFreeBeds(d as Duration, dateStr), 0);
-}
+export function getDurationCostForMonth(d: any, targetYear: number, targetMonthIndex: number): number {
+  if (!d.startDate || !d.endDate) return 0;
+  const s = new Date(d.startDate);
+  const e = new Date(d.endDate);
+  const mStart = new Date(targetYear, targetMonthIndex, 1);
+  const mEnd = new Date(targetYear, targetMonthIndex + 1, 0);
 
-export function calcHotelFreeBeds(hotel: Hotel): number {
-  return calcHotelFreeBedsOnDate(hotel, new Date());
-}
+  if (e < mStart || s > mEnd) return 0;
 
-function daysFromNow(days: number): Date {
-  const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() + days); return d
-}
-export function hotelHasFreeBedsToday(h: Hotel)    { return calcHotelFreeBedsOnDate(h, daysFromNow(0)) > 0 }
-export function hotelHasFreeBedsTomorrow(h: Hotel)  { return calcHotelFreeBedsOnDate(h, daysFromNow(1)) > 0 }
-export function hotelHasFreeBedsIn5Days(h: Hotel)   { return calcHotelFreeBedsOnDate(h, daysFromNow(5)) > 0 }
-export function hotelHasFreeBedsIn7Days(h: Hotel)   { return calcHotelFreeBedsOnDate(h, daysFromNow(7)) > 0 }
+  const overlapStart = s < mStart ? mStart : s;
+  const overlapEnd = e > mEnd ? mEnd : e;
+  
+  const totalNights = calculateNights(d.startDate, d.endDate);
+  if (totalNights <= 0) return 0;
+  
+  const overlapNights = calculateNights(overlapStart.toISOString().split('T')[0], overlapEnd.toISOString().split('T')[0]);
+  if (overlapNights <= 0) return 0;
 
-export function getEmployeeStatus(checkIn: string, checkOut: string): 'active' | 'ending-soon' | 'completed' | 'upcoming' {
-  if (!checkIn || !checkOut) return 'upcoming'
-  const now     = new Date(); now.setHours(0,0,0,0)
-  const inDate  = new Date(checkIn)
-  const outDate = new Date(checkOut)
-  const diffDays = Math.ceil((outDate.getTime() - now.getTime()) / 86400000)
-  if (outDate < now)   return 'completed'
-  if (inDate  > now)   return 'upcoming'
-  if (diffDays <= 3)   return 'ending-soon'
-  return 'active'
-}
-
-export function getDurationTabLabel(d: Duration, lang: 'de' | 'en' = 'de'): string {
-  if (!d.startDate || !d.endDate) return lang === 'de' ? 'Neue Dauer' : 'New duration'
-  return `${formatDateChip(d.startDate)} – ${formatDateChip(d.endDate)}`
-}
-
-export function getDurationRowLabel(d: Duration, lang: 'de' | 'en' = 'de'): string {
-  if (!d.startDate || !d.endDate) return lang === 'de' ? 'Neue Dauer' : 'New duration'
-  return `${formatDateChip(d.startDate)} – ${formatDateChip(d.endDate)}`
-}
-
-export function getDurationGapInfo(d: Duration): GapInfo[] {
-  if (!d.startDate || !d.endDate) return []
-  const totalBeds = getTotalBeds(d.roomType, d.numberOfRooms, d.bedsPerRoom)
-  const gaps: GapInfo[] = []
-
-  for (let i = 0; i < totalBeds; i++) {
-    const emp = (d.employees ?? [])[i]
-    if (!emp) {
-      gaps.push({ slotIndex: i, type: 'full', availableFrom: d.startDate, availableTo: d.endDate })
-    } else {
-      if (emp.checkIn > d.startDate)
-        gaps.push({ slotIndex: i, type: 'start', availableFrom: d.startDate, availableTo: emp.checkIn })
-      if (emp.checkOut < d.endDate)
-        gaps.push({ slotIndex: i, type: 'end', availableFrom: emp.checkOut, availableTo: d.endDate })
-    }
+  // Calculate full cost of duration
+  const rcTotal = (d.roomCards || []).reduce((sum: number, c: any) => sum + (c.roomBrutto || c.totalBrutto || 0), 0);
+  const exTotal = (d.extraCosts || []).reduce((sum: number, ex: any) => sum + (Number(ex.amount) || 0), 0);
+  let total = d.useBruttoNetto ? (d.brutto || 0) : rcTotal;
+  total += exTotal;
+  if (!d.useBruttoNetto && d.hasDiscount && d.discountValue) {
+    total = d.discountType === 'fixed' ? total - d.discountValue : total * (1 - d.discountValue / 100);
   }
-  return gaps
+  
+  // Pro-rate the cost based on nights overlapping this month
+  return (total / totalNights) * overlapNights;
 }
 
-export function hotelMatchesSearch(hotel: Hotel, query: string): boolean {
-  if (!query) return true
-  const q = query.toLowerCase()
-  const fields = [
-    hotel.name, hotel.city, hotel.companyTag,
-    hotel.address, hotel.contactPerson, hotel.phone,
-    hotel.email, hotel.webLink, hotel.notes,
-    ...(hotel.durations ?? []).flatMap(d => [
-      d.rechnungNr, d.bookingId, d.extensionNote,
-      ...(d.employees ?? []).filter(Boolean).map(e => e!.name),
-    ]),
-  ]
-  return fields.some(f => f && f.toLowerCase().includes(q))
+export function getDurationTabLabel(d: any, lang: 'de' | 'en'): string {
+  if (d.startDate && d.endDate) return `${formatDateChip(d.startDate)} – ${formatDateChip(d.endDate)}`;
+  return lang === 'de' ? 'Neue Dauer' : 'New Duration';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPORT & PRINT FUNCTIONS (WYSIWYG)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de' | 'en') {
+  return hotels.map(h => {
+    const company = Array.isArray(h.companyTag) ? h.companyTag.join(', ') : (h.companyTag || '—');
+    const invoice = (h.durations || []).map((d: any) => d.rechnungNr).filter(Boolean).join(', ') || '—';
+    const dates = (h.durations || []).map((d: any) => d.startDate && d.endDate ? `${formatDateChip(d.startDate)} - ${formatDateChip(d.endDate)}` : '').filter(Boolean).join(', ') || '—';
+    const employees = (h.durations || []).flatMap((d: any) => (d.roomCards || []).flatMap((rc: any) => (rc.employees || []).map((e: any) => e.name))).filter(Boolean).join(', ') || '—';
+    const cost = formatCurrency(calcCost(h));
+    
+    // Status Logic
+    const isFullyPaid = h.durations?.length > 0 && h.durations.every((d: any) => d.isPaid);
+    const hasUnpaid = h.durations?.some((d: any) => !d.isPaid);
+    const status = isFullyPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : hasUnpaid ? (lang === 'de' ? 'Offen' : 'Unpaid') : '—';
+
+    // Deposit Logic
+    const hasDeposit = h.durations?.some((d: any) => d.depositEnabled);
+    const depositAmount = (h.durations || []).reduce((sum: number, d: any) => sum + (d.depositEnabled ? (Number(d.depositAmount) || 0) : 0), 0);
+    const depositStr = hasDeposit ? formatCurrency(depositAmount) : '—';
+
+    return {
+      hotel: h.name || '—',
+      city: h.city || '—',
+      company,
+      contact: h.contactPerson || '—',
+      address: h.address || '—',
+      phone: h.phone || '—',
+      invoice,
+      dates,
+      employees,
+      cost,
+      status,
+      depositStr,
+      hasDeposit
+    };
+  });
+}
+
+export function exportToCSV(hotels: any[], calcCost: (h: any) => number, grandTotal: number, reportTitle: string, lang: 'de' | 'en') {
+  const data = buildReportData(hotels, calcCost, lang);
+  const showDeposit = data.some(d => d.hasDeposit);
+
+  let headers = ['Hotel', 'City', 'Company', 'Contact', 'Address', 'Phone', 'Invoice No.', 'Durations', 'Employees', 'Status', 'Total Cost'];
+  if (showDeposit) headers.push('Deposit');
+
+  const rows = data.map(d => {
+    const row = [d.hotel, d.city, d.company, d.contact, d.address, d.phone, d.invoice, d.dates, d.employees, d.status, d.cost];
+    if (showDeposit) row.push(d.depositStr);
+    return row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+  });
+
+  // Grand Total Row
+  const totalRow = Array(headers.length).fill('""');
+  totalRow[headers.length - 2] = `"GRAND TOTAL"`;
+  totalRow[headers.length - 1] = `"${formatCurrency(grandTotal)}"`;
+  rows.push(totalRow.join(','));
+
+  const csvContent = headers.map(h => `"${h}"`).join(',') + '\n' + rows.join('\n');
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' }); // \uFEFF ensures UTF-8 BOM for Excel
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Europas_GmbH_Report_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function printDocument(hotels: any[], calcCost: (h: any) => number, grandTotal: number, reportTitle: string, lang: 'de' | 'en') {
+  const data = buildReportData(hotels, calcCost, lang);
+  const showDeposit = data.some(d => d.hasDeposit);
+  const dateStr = new Date().toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+
+  let html = `
+    <html>
+      <head>
+        <title>Europas GmbH Report</title>
+        <style>
+          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #111827; padding: 20px; font-size: 11px; }
+          .header { border-bottom: 2px solid #111827; padding-bottom: 10px; margin-bottom: 20px; }
+          .title { font-size: 24px; font-weight: 900; margin: 0 0 5px 0; }
+          .subtitle { font-size: 12px; color: #4B5563; margin: 0; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed; }
+          th, td { border: 1px solid #E5E7EB; padding: 8px; text-align: left; vertical-align: top; word-wrap: break-word; }
+          th { background-color: #F9FAFB; font-weight: bold; text-transform: uppercase; font-size: 10px; }
+          .grand-total { font-size: 14px; font-weight: 900; text-align: right; margin-top: 20px; border-top: 2px solid #111827; padding-top: 10px; }
+          .footer { margin-top: 40px; font-size: 9px; color: #6B7280; text-align: center; }
+          @media print { body { padding: 0; } @page { size: landscape; margin: 1cm; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1 class="title">Europas GmbH</h1>
+          <p class="subtitle">${reportTitle}</p>
+          <p class="subtitle">Generated on: ${dateStr}</p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 12%;">Hotel Name</th>
+              <th style="width: 8%;">City</th>
+              <th style="width: 8%;">Company</th>
+              <th style="width: 10%;">Contact</th>
+              <th style="width: 10%;">Phone</th>
+              <th style="width: 12%;">Invoice No.</th>
+              <th style="width: 10%;">Durations</th>
+              <th style="width: 15%;">Employees</th>
+              <th style="width: 7%;">Status</th>
+              <th style="width: 8%;">Cost</th>
+              ${showDeposit ? '<th style="width: 8%;">Deposit</th>' : ''}
+            </tr>
+          </thead>
+          <tbody>
+  `;
+
+  data.forEach(d => {
+    html += `<tr>
+      <td><strong>${d.hotel}</strong></td>
+      <td>${d.city}</td>
+      <td>${d.company}</td>
+      <td>${d.contact}<br><span style="font-size:9px; color:#6B7280">${d.address}</span></td>
+      <td>${d.phone}</td>
+      <td>${d.invoice}</td>
+      <td>${d.dates}</td>
+      <td>${d.employees}</td>
+      <td><strong>${d.status}</strong></td>
+      <td><strong>${d.cost}</strong></td>
+      ${showDeposit ? `<td>${d.depositStr}</td>` : ''}
+    </tr>`;
+  });
+
+  html += `
+          </tbody>
+        </table>
+        <div class="grand-total">
+          GRAND TOTAL: ${formatCurrency(grandTotal)}
+        </div>
+        <div class="footer">
+          Report securely generated by Europas GmbH Management System.
+        </div>
+      </body>
+    </html>
+  `;
+
+  const printWindow = window.open('', '_blank');
+  if (printWindow) {
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    // Tiny delay ensures styles load before print dialog opens
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+  }
 }
