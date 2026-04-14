@@ -72,48 +72,26 @@ export async function getAllUsers(): Promise<any[]> {
   return (data ?? []).map((p: any) => ({ ...p, fullName: p.full_name ?? '' }))
 }
 
-/**
- * setUserRole
- *
- * Strategy (tried in order):
- *   1. Call the `set_user_role` Postgres RPC (SECURITY DEFINER — bypasses RLS).
- *      → This is the RECOMMENDED path. See SUPABASE_SETUP.md to create it.
- *   2. If RPC is not found (code PGRST202), fall back to a direct UPDATE.
- *      The direct UPDATE only succeeds if the RLS policy allows it
- *      (see SUPABASE_SETUP.md for the policy).
- *
- * After a successful change the function verifies the DB value actually
- * changed and throws if it didn't (so the UI can show a real error rather
- * than silently reverting).
- */
 export async function setUserRole(userId: string, role: UserRole): Promise<void> {
-  // ── 1. Try RPC ───────────────────────────────────────────────────────────
   const { error: rpcErr } = await supabase.rpc('set_user_role', {
     target_id: userId,
     new_role:  role,
   })
 
   if (rpcErr) {
-    // PGRST202 = function not found → fall through to direct UPDATE
     if (!rpcErr.code?.startsWith('PGRST202') && rpcErr.code !== '42883') {
-      // Any other RPC error (e.g. permission denied inside the function)
       throw new Error(`Role change failed (RPC): ${rpcErr.message}`)
     }
-    // ── 2. Fallback: direct UPDATE ──────────────────────────────────────────
     const { error: updateErr } = await supabase
       .from('profiles')
       .update({ role })
       .eq('id', userId)
 
     if (updateErr) {
-      throw new Error(
-        `Role change failed. Please create the set_user_role function in Supabase. ` +
-        `Details: ${updateErr.message}`
-      )
+      throw new Error(`Role change failed. Details: ${updateErr.message}`)
     }
   }
 
-  // ── 3. Verify the change actually landed ────────────────────────────────
   const { data: check } = await supabase
     .from('profiles')
     .select('role')
@@ -121,11 +99,7 @@ export async function setUserRole(userId: string, role: UserRole): Promise<void>
     .maybeSingle()
 
   if (check && (check as any).role !== role) {
-    throw new Error(
-      `Database did not accept the role change (RLS policy likely blocking it). ` +
-      `Current role is still '${(check as any).role}'. ` +
-      `See SUPABASE_SETUP.md to fix RLS policies or add the set_user_role function.`
-    )
+    throw new Error(`Database did not accept the role change (RLS policy likely blocking it).`)
   }
 }
 
@@ -170,14 +144,12 @@ export async function updateMyProfile(updates: {
   avatar?:     string | null
   fontFamily?: string
   fontSize?:   number
-  fontScale?:  number // legacy compat
 }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
   const fullName = updates.full_name ?? updates.fullName
 
-  // ── 1. profiles table (canonical) ────────────────────────────────────────
   const rowPatch: Record<string, any> = {}
   if (fullName           !== undefined) rowPatch.full_name   = fullName
   if (updates.username   !== undefined) rowPatch.username    = updates.username
@@ -186,14 +158,10 @@ export async function updateMyProfile(updates: {
   if (updates.fontSize   !== undefined) rowPatch.font_size   = updates.fontSize
 
   if (Object.keys(rowPatch).length > 0) {
-    const { error: rowErr } = await supabase
-      .from('profiles')
-      .update(rowPatch)
-      .eq('id', user.id)
+    const { error: rowErr } = await supabase.from('profiles').update(rowPatch).eq('id', user.id)
     if (rowErr) console.warn('[updateMyProfile] profiles update warn:', rowErr.message)
   }
 
-  // ── 2. auth user_metadata (fallback mirror) ───────────────────────────────
   const metaPatch: Record<string, any> = {}
   if (fullName           !== undefined) metaPatch.full_name  = fullName
   if (updates.username   !== undefined) metaPatch.username   = updates.username
@@ -209,7 +177,6 @@ export async function updateMyProfile(updates: {
   return getMyProfile()
 }
 
-// ─── Security: username ────────────────────────────────────────────────────
 export async function updateMyUsername(newUsername: string): Promise<void> {
   const trimmed = newUsername.trim()
   if (!trimmed) throw new Error('Username cannot be empty')
@@ -219,22 +186,18 @@ export async function updateMyUsername(newUsername: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  const { data: existing } = await supabase
-    .from('profiles').select('id').eq('username', trimmed).neq('id', user.id).maybeSingle()
+  const { data: existing } = await supabase.from('profiles').select('id').eq('username', trimmed).neq('id', user.id).maybeSingle()
   if (existing) throw new Error('This username is already taken')
 
-  const { error: dbErr } = await supabase
-    .from('profiles').update({ username: trimmed }).eq('id', user.id)
+  const { error: dbErr } = await supabase.from('profiles').update({ username: trimmed }).eq('id', user.id)
   if (dbErr) throw dbErr
 
   await supabase.auth.updateUser({ data: { username: trimmed } })
 }
 
-// ─── Security: email ───────────────────────────────────────────────────────
 export async function updateMyEmail(newEmail: string): Promise<void> {
   const trimmed = newEmail.trim()
-  if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed))
-    throw new Error('Please enter a valid email address')
+  if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) throw new Error('Please enter a valid email address')
 
   const { error } = await supabase.auth.updateUser({ email: trimmed })
   if (error) throw error
@@ -242,36 +205,25 @@ export async function updateMyEmail(newEmail: string): Promise<void> {
   if (user) await supabase.from('profiles').update({ email: trimmed }).eq('id', user.id)
 }
 
-// ─── Security: password ────────────────────────────────────────────────────
-export async function updateMyPassword(
-  currentPassword: string,
-  newPassword: string,
-): Promise<void> {
+export async function updateMyPassword(currentPassword: string, newPassword: string): Promise<void> {
   if (newPassword.length < 6) throw new Error('New password must be at least 6 characters')
 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user?.email) throw new Error('Could not determine current email')
 
-  const { error: reAuthErr } = await supabase.auth.signInWithPassword({
-    email: user.email, password: currentPassword,
-  })
+  const { error: reAuthErr } = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword })
   if (reAuthErr) throw new Error('Current password is incorrect')
 
   const { error } = await supabase.auth.updateUser({ password: newPassword })
   if (error) throw error
 }
 
-// ─── Security: password reset email ───────────────────────────────────────
 export async function sendPasswordReset(email: string): Promise<void> {
   const { error } = await supabase.auth.resetPasswordForEmail(email)
   if (error) throw error
 }
 
-// ─── Access: grant / change user role (admin / superadmin) ────────────────
-export async function grantUserAccess(
-  userId: string,
-  role: 'viewer' | 'editor' | 'admin',
-): Promise<void> {
+export async function grantUserAccess(userId: string, role: 'viewer' | 'editor' | 'admin'): Promise<void> {
   await setUserRole(userId, role)
 }
 
@@ -290,8 +242,7 @@ export async function searchProfiles(query: string): Promise<any[]> {
   } catch { return [] }
 }
 
-// ─── Collaborators ─────────────────────────────────────────────────────────
-export async function inviteCollaborator(userId: string, role: 'viewer' | 'editor'): Promise<any> {
+export async function inviteCollaborator(userId: string, role: 'viewer' | 'editor' | 'admin'): Promise<any> {
   await grantUserAccess(userId, role)
 }
 export async function updateCollaboratorPermission(userId: string, role: 'viewer' | 'editor' | 'admin'): Promise<any> {
@@ -368,6 +319,8 @@ function normalizeDuration(d: any): any {
     employees: (d.employees ?? []).map(normalizeEmployee).filter(Boolean),
   }
 }
+
+// Ensure country and year are normalized for the frontend
 function normalizeHotel(h: any): any {
   if (!h || typeof h !== 'object') return null
   const rawTag = h.companytag ?? h.companyTag ?? null
@@ -377,6 +330,8 @@ function normalizeHotel(h: any): any {
     webLink:       h.weblink       ?? h.webLink       ?? '',
     phone:         h.phone         ?? '',
     notes:         h.notes         ?? '',
+    country:       h.country       ?? 'Germany',
+    year:          h.year          ?? new Date().getFullYear(),
     lastUpdatedBy: h.lastupdatedby ?? h.lastUpdatedBy ?? '',
     lastUpdatedAt: h.lastupdatedat ?? h.lastUpdatedAt ?? '',
     durations: (h.durations ?? []).map(normalizeDuration).filter(Boolean),
@@ -394,10 +349,13 @@ export async function getHotels() {
   if (error) throw error
   return (data ?? []).map(normalizeHotel).filter(Boolean)
 }
+
+// Appended year and country explicitly to insert
 export async function createHotel(data: {
-  name: string; city?: string | null; companyTag?: string[] | string | null
-  address?: string | null; contactPerson?: string | null; phone?: string | null
-  email?: string | null; webLink?: string | null; notes?: string | null
+  name: string; city?: string | null; companyTag?: string[] | string | null;
+  address?: string | null; contactPerson?: string | null; phone?: string | null;
+  email?: string | null; webLink?: string | null; notes?: string | null;
+  country?: string | null; year?: number | null;
 }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
@@ -405,7 +363,8 @@ export async function createHotel(data: {
   const { data: result, error } = await supabase
     .from('hotels')
     .insert({
-      name: data.name, city: data.city ?? null,
+      name: data.name, 
+      city: data.city ?? null,
       companytag:    serialiseCompanyTag(tags),
       address:       data.address       ?? null,
       contactperson: data.contactPerson ?? null,
@@ -413,21 +372,28 @@ export async function createHotel(data: {
       email:         data.email         ?? null,
       weblink:       data.webLink       ?? null,
       notes:         data.notes         ?? null,
+      country:       data.country       ?? 'Germany',
+      year:          data.year          ?? new Date().getFullYear(),
       lastupdatedat: new Date().toISOString(),
       lastupdatedby: user.email ?? user.id,
     })
     .select().single()
-  if (error) throw error
+  
+  if (error) throw new Error(`Supabase Error: ${error.message}`)
   if (!result) throw new Error('Hotel created but no data returned')
   return normalizeHotel({ ...result, durations: [] })
 }
+
+// Appended year and country explicitly to update
 export async function updateHotel(id: string, data: any) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
   const rawTag = data.companyTag ?? data.companytag ?? null
   const tags = Array.isArray(rawTag) ? rawTag : (rawTag ? [rawTag] : [])
-  const { error } = await supabase.from('hotels').update({
-    name: data.name, city: data.city ?? null,
+  
+  const payload: any = {
+    name: data.name, 
+    city: data.city ?? null,
     companytag:    serialiseCompanyTag(tags),
     address:       data.address       ?? null,
     contactperson: data.contactPerson ?? data.contactperson ?? null,
@@ -437,19 +403,22 @@ export async function updateHotel(id: string, data: any) {
     notes:         data.notes         ?? null,
     lastupdatedat: new Date().toISOString(),
     lastupdatedby: user.email ?? user.id,
-  }).eq('id', id)
-  if (error) throw error
+  };
+
+  if (data.country) payload.country = data.country;
+  if (data.year) payload.year = data.year;
+
+  const { error } = await supabase.from('hotels').update(payload).eq('id', id)
+  if (error) throw new Error(`Supabase Update Error: ${error.message}`)
 }
+
 export async function deleteHotel(id: string) {
   const { error } = await supabase.from('hotels').delete().eq('id', id)
   if (error) throw error
 }
 
-// ─── Durations ─────────────────────────────────────────────────────────────
 export async function createDuration(data: any) {
-  const { data: result, error } = await supabase
-    .from('durations')
-    .insert({
+  const { data: result, error } = await supabase.from('durations').insert({
       hotelid:              data.hotelId,
       startdate:            data.startDate            ?? '',
       enddate:              data.endDate              ?? '',
@@ -472,12 +441,12 @@ export async function createDuration(data: any) {
       depositenabled:       data.depositEnabled       ?? false,
       depositamount:        data.depositAmount        ?? null,
       extensionnote:        data.extensionNote        ?? null,
-    })
-    .select().single()
+    }).select().single()
   if (error) throw error
   if (!result) throw new Error('Duration created but no data returned')
   return normalizeDuration({ ...result, employees: [] })
 }
+
 export async function updateDuration(id: string, data: any) {
   const { error } = await supabase.from('durations').update({
     startdate:            data.startDate            ?? data.startdate,
@@ -502,27 +471,19 @@ export async function updateDuration(id: string, data: any) {
   }).eq('id', id)
   if (error) throw error
 }
+
 export async function deleteDuration(id: string) {
   const { error } = await supabase.from('durations').delete().eq('id', id)
   if (error) throw error
 }
 
-// ─── Employees ─────────────────────────────────────────────────────────────
 export async function createEmployee(durationId: string, slotIndex: number, data: any) {
-  const { data: result, error } = await supabase
-    .from('employees')
-    .insert({ durationid: durationId, slotindex: slotIndex, name: data.name,
-      checkin: data.checkIn ?? null, checkout: data.checkOut ?? null })
-    .select().single()
+  const { data: result, error } = await supabase.from('employees').insert({ durationid: durationId, slotindex: slotIndex, name: data.name, checkin: data.checkIn ?? null, checkout: data.checkOut ?? null }).select().single()
   if (error) throw error
   return normalizeEmployee(result)
 }
 export async function updateEmployee(id: string, data: any) {
-  const { error } = await supabase.from('employees').update({
-    name: data.name,
-    checkin:  data.checkIn  ?? data.checkin  ?? null,
-    checkout: data.checkOut ?? data.checkout ?? null,
-  }).eq('id', id)
+  const { error } = await supabase.from('employees').update({ name: data.name, checkin: data.checkIn ?? data.checkin ?? null, checkout: data.checkOut ?? data.checkout ?? null }).eq('id', id)
   if (error) throw error
 }
 export async function deleteEmployee(id: string) {
