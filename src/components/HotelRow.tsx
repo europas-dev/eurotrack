@@ -33,7 +33,19 @@ function formatCurrency(amount: number): string {
   return amount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 }
 
-export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', isPinned = false, onTogglePin = () => {}, companyOptions = [], cityOptions = [], onDelete, onUpdate }: any) {
+const HighlightText = ({ text, query }: { text: string; query?: string }) => {
+  if (!query || !text) return <>{text}</>;
+  const parts = text.split(new RegExp(`(${query})`, 'gi'));
+  return (
+    <>
+      {parts.map((part, i) => 
+        part.toLowerCase() === query.toLowerCase() ? <mark key={i} className="bg-yellow-400 text-black px-0.5 rounded font-bold">{part}</mark> : part
+      )}
+    </>
+  );
+};
+
+export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', isPinned = false, onTogglePin = () => {}, companyOptions = [], cityOptions = [], onDelete, onUpdate, allHotelNames = [] }: any) {
   const [open, setOpen] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [localHotel, setLocalHotel] = useState({
@@ -46,6 +58,21 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [activeDurationTab, setActiveDurationTab] = useState(0);
   const saveTimer = useRef<any>(null);
+
+  // Hidden Match Logic for Search
+  const hiddenMatchText = useMemo(() => {
+    if (!searchQuery) return null;
+    const q = searchQuery.toLowerCase();
+    for (const d of (localHotel.durations || [])) {
+      if (d.rechnungNr?.toLowerCase().includes(q)) return `Invoice: ${d.rechnungNr}`;
+      for (const rc of (d.roomCards || [])) {
+        for (const emp of (rc.employees || [])) {
+          if (emp.name?.toLowerCase().includes(q)) return `Matches Employee`;
+        }
+      }
+    }
+    return null;
+  }, [localHotel, searchQuery]);
 
   const { totalCost, freeBeds, totalBeds, employees } = useMemo(() => {
     let tCost = 0; let tFree = 0; let tBeds = 0; const allEmps: any[] = [];
@@ -104,10 +131,17 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
 
           <div className="flex-[2] py-2 min-w-[180px] pr-2">
-            <h3 className={cn('text-[15px] font-black leading-tight truncate', dk ? 'text-white' : 'text-slate-900')}>{localHotel.name}</h3>
+            <h3 className={cn('text-[15px] font-black leading-tight truncate', dk ? 'text-white' : 'text-slate-900')}>
+              <HighlightText text={localHotel.name} query={searchQuery} />
+            </h3>
             <p className={cn("text-[10px] font-bold uppercase tracking-widest truncate mt-0.5", dk ? "text-slate-500" : "text-slate-400")}>
               <CityInlineEdit value={localHotel.city || ''} options={cityOptions} isDarkMode={dk} hotelId={localHotel.id} onChange={(val:any) => patchHotel({ city: val })} lang={lang} />
             </p>
+            {hiddenMatchText && !open && (
+              <span className="inline-block mt-1 px-1.5 py-0.5 bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-400 text-[9px] font-bold rounded-full truncate">
+                🔍 {hiddenMatchText}
+              </span>
+            )}
           </div>
 
           <div className="flex-[1] px-2" onClick={e => e.stopPropagation()}>
@@ -131,7 +165,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 const borderCls = status === 'active' ? "border-emerald-500" : status === 'upcoming' ? "border-blue-500" : status === 'ending-soon' ? "border-orange-500" : "border-slate-300 dark:border-slate-600";
                 return (
                   <div key={i} className={cn("px-2 py-0.5 rounded border-2 text-[10px] font-bold truncate text-center min-w-[70px]", borderCls, dk ? "bg-white/5 text-white" : "bg-slate-50 text-slate-900")}>
-                    {emp.name}
+                    <HighlightText text={emp.name} query={searchQuery} />
                   </div>
                 );
               })}
@@ -168,48 +202,42 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         {open && (
           <div className={cn('p-5 space-y-6 rounded-b-2xl', dk ? 'bg-[#0B1224]' : 'bg-slate-50/50')} onClick={e => e.stopPropagation()}>
             
-            {/* Header with Notes Toggle */}
-            <div className="flex justify-between items-center -mb-2 border-b pb-3 border-slate-200 dark:border-white/10">
-               <h4 className={cn("text-xs font-black uppercase tracking-widest", dk ? "text-slate-500" : "text-slate-400")}>{lang === 'de' ? 'Hotel Details' : 'Hotel Details'}</h4>
-               <button onClick={() => setShowNotes(!showNotes)} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border", showNotes ? "bg-blue-600 text-white border-blue-600 shadow-sm" : dk ? "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50")}>
-                 <StickyNote size={14} /> {lang === 'de' ? (showNotes ? 'Notizen ausblenden' : 'Notizen anzeigen') : (showNotes ? 'Hide Notes' : 'Show Notes')}
-               </button>
-            </div>
-
-            {/* Notes Textarea (Conditional) */}
             {showNotes && (
-              <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="animate-in fade-in slide-in-from-top-2 duration-200 mb-4">
                 <textarea value={localHotel.notes || ''} onChange={e => patchHotel({ notes: e.target.value })} className={cn(inputCls, 'min-h-[80px] h-auto resize-y')} placeholder={lang === 'de' ? "Notizen hier schreiben..." : "Write private notes here..."} />
               </div>
             )}
 
             <div className="flex flex-wrap xl:flex-nowrap gap-3 items-end">
               <div className="flex-[2.5] min-w-[180px]">
-                 <label className={labelCls}><MapPin size={12}/> {lang === 'de' ? 'Adresse' : 'Address'}</label>
-                 <input value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} placeholder="..." />
+                 <div className="flex justify-between items-center mb-1.5">
+                    <label className={cn('flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest', dk ? 'text-slate-400' : 'text-slate-500')}><MapPin size={12}/> {lang === 'de' ? 'Adresse' : 'Address'}</label>
+                    <button onClick={() => setShowNotes(!showNotes)} className={cn("transition-colors", localHotel.notes ? "text-blue-500" : "text-slate-400 hover:text-blue-500")} title={lang === 'de' ? 'Notizen' : 'Notes'}>
+                      <StickyNote size={14} />
+                    </button>
+                 </div>
+                 <input autoComplete="off" value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} placeholder="..." />
               </div>
               
               <div className="flex-[1.5] min-w-[140px]">
                  <label className={labelCls}><User size={12}/> {lang === 'de' ? 'Ansprechpartner' : 'Contact'}</label>
-                 <input value={localHotel.contactPerson || ''} onChange={e => patchHotel({ contactPerson: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} placeholder="..." />
+                 <input autoComplete="off" value={localHotel.contactPerson || ''} onChange={e => patchHotel({ contactPerson: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} placeholder="..." />
               </div>
               
-              {/* Phone with Country Code Prefix */}
               <div className="flex-[1.5] min-w-[140px]">
                  <label className={labelCls}><Phone size={12}/> {lang === 'de' ? 'Telefon' : 'Phone'}</label>
                  <div className={cn('flex items-center rounded-lg border overflow-hidden transition-all focus-within:border-blue-500 h-[38px]', dk ? 'bg-[#1E293B] border-white/10' : 'bg-white border-slate-200')}>
                     <span className={cn("px-2.5 text-xs font-bold border-r h-full flex items-center shrink-0", dk ? "bg-[#0F172A]/50 border-white/10 text-slate-400" : "bg-slate-50 border-slate-200 text-slate-500")}>
                       {getCountryCode(localHotel.country || 'Germany')}
                     </span>
-                    <input value={localHotel.phone || ''} onChange={e => patchHotel({ phone: e.target.value })} onKeyDown={handleEnterBlur} className={cn('w-full px-2 py-2 text-sm font-bold outline-none bg-transparent h-full', dk ? 'text-white' : 'text-slate-900')} placeholder="..." />
+                    <input autoComplete="off" value={localHotel.phone || ''} onChange={e => patchHotel({ phone: e.target.value })} onKeyDown={handleEnterBlur} className={cn('w-full px-2 py-2 text-sm font-bold outline-none bg-transparent h-full', dk ? 'text-white' : 'text-slate-900')} placeholder="..." />
                  </div>
               </div>
               
-              {/* Email with Clickable Icon */}
               <div className="flex-[1.5] min-w-[160px]">
                  <label className={labelCls}><Mail size={12}/> Email</label>
                  <div className="relative flex items-center h-[38px]">
-                   <input value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })} onKeyDown={handleEnterBlur} className={cn(inputCls, 'pr-10')} placeholder="..." />
+                   <input autoComplete="off" value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })} onKeyDown={handleEnterBlur} className={cn(inputCls, 'pr-10')} placeholder="..." />
                    {localHotel.email && (
                      <a href={`mailto:${localHotel.email}`} className="absolute right-1.5 p-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-all shadow-sm">
                        <Mail size={14} />
@@ -218,11 +246,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                  </div>
               </div>
               
-              {/* Website with Clickable Icon */}
               <div className="flex-[1.5] min-w-[160px]">
                  <label className={labelCls}><Globe size={12}/> {lang === 'de' ? 'Webseite' : 'Website'}</label>
                  <div className="relative flex items-center h-[38px]">
-                   <input value={localHotel.website || ''} onChange={e => patchHotel({ website: e.target.value })} onKeyDown={handleEnterBlur} className={cn(inputCls, 'pr-10')} placeholder="..." />
+                   <input autoComplete="off" value={localHotel.website || ''} onChange={e => patchHotel({ website: e.target.value })} onKeyDown={handleEnterBlur} className={cn(inputCls, 'pr-10')} placeholder="..." />
                    {localHotel.website && (
                      <a href={localHotel.website.startsWith('http') ? localHotel.website : `https://${localHotel.website}`} target="_blank" rel="noreferrer" className="absolute right-1.5 p-1.5 bg-emerald-500 text-white rounded-md hover:bg-emerald-600 transition-all shadow-sm">
                        <ExternalLink size={14} />
@@ -237,7 +264,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               </div>
             </div>
             
-            {/* Sleek Segmented Duration Tabs */}
             <div className="pt-2">
               <div className={cn("inline-flex items-center gap-1 p-1 rounded-xl shadow-inner border", dk ? "bg-[#0F172A]/50 border-white/5" : "bg-slate-100 border-slate-200")}>
                 {(localHotel.durations || []).map((d: any, i: number) => (
@@ -288,7 +314,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   );
 }
 
-// DROPDOWN WITH ADD NEW OPTION RESTORED
 export function ModernDropdown({ value, options, onChange, isDarkMode, lang, placeholder = 'Select' }: any) {
   const [open, setOpen] = useState(false);
   const [addingNew, setAddingNew] = useState(false);
@@ -343,13 +368,15 @@ function CityInlineEdit({ value, options, isDarkMode, hotelId, onChange, lang }:
 function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange }: any) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  
   useEffect(() => {
     function handle(e: any) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
   }, []);
+  
   return (
-    <div ref={ref} className="relative cursor-pointer min-h-[24px]" onClick={() => setOpen(!open)}>
+    <div ref={ref} className="relative cursor-pointer min-h-[24px]" onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>
       <div className="flex flex-wrap gap-1">
         {selected.length > 0 ? selected.map((tag: string) => (
           <span key={tag} className={cn('px-2 py-0.5 rounded text-[11px] font-bold border', isDarkMode ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700')}>{tag}</span>
