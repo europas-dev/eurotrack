@@ -6,7 +6,7 @@ import type { AccessLevel } from './lib/supabase';
 import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Undo2, Redo2, Star, Calendar, RefreshCw, MapPin, Building, Building2 } from 'lucide-react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
-import { HotelRow, ModernDropdown, DEFAULT_COUNTRIES } from './components/HotelRow';
+import { HotelRow, ModernDropdown, getCountryOptions, DEFAULT_COUNTRIES } from './components/HotelRow';
 interface DashboardProps {
   theme: 'dark' | 'light';
   lang: 'de' | 'en';
