@@ -21,16 +21,15 @@ export default function Sidebar({
 }: SidebarProps) {
   const dk = theme === 'dark';
 
-  // Custom Year Dropdown State
   const [showYearMenu, setShowYearMenu] = useState(false);
-  const [yearOffset, setYearOffset] = useState(0); // Tracks shifting up/down
+  const [yearOffset, setYearOffset] = useState(0); 
   const yearMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (yearMenuRef.current && !yearMenuRef.current.contains(event.target as Node)) {
         setShowYearMenu(false);
-        setYearOffset(0); // Reset shift when closed
+        setYearOffset(0); 
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -41,7 +40,6 @@ export default function Sidebar({
     ? ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']
     : ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-  // Centers the 10-year list exactly around the currently selected year
   const centerYear = selectedYear + yearOffset;
   const currentDecade = Array.from({ length: 10 }, (_, i) => centerYear - 4 + i);
 
