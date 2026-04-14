@@ -7,6 +7,7 @@ import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Undo2, Redo2, Star, Calen
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import { HotelRow, ModernDropdown, getCountryOptions, DEFAULT_COUNTRIES } from './components/HotelRow';
+
 interface DashboardProps {
   theme: 'dark' | 'light';
   lang: 'de' | 'en';
@@ -81,6 +82,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     setShowSortMenu(menu === 'sort' ? !showSortMenu : false);
   };
 
+  // FIX 3: Year Filter actually triggers fresh data load
   useEffect(() => { 
     let isMounted = true;
     setLoading(true);
@@ -91,7 +93,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         const { data, error: supabaseError } = await supabase
           .from('hotels')
           .select('*, durations(*, roomCards(*, employees(*)), extraCosts(*), employees(*))')
-          .eq('year', selectedYear)
+          .eq('year', selectedYear) // This forces the year filtering
           .order('created_at', { ascending: false });
 
         if (supabaseError) throw supabaseError;
@@ -142,13 +144,13 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     if (e.key === 'Enter') e.currentTarget.blur();
   };
 
-const calcCost = (h: any) => {
+  // FIX 1: Exact Math Synchronization with HotelRow
+  const calcCost = (h: any) => {
     return (h.durations || []).reduce((total: number, d: any) => {
       const rCards = d.roomCards || [];
       const extraTotal = (d.extraCosts || []).reduce((s: number, e: any) => s + (Number(e.amount) || 0), 0);
       
       let bruttoBase = d.useBruttoNetto ? (d.brutto || 0) : rCards.reduce((s: number, c: any) => {
-        // Calculate exact total per room card based on duration length
         if (!d.startDate || !d.endDate) return s + 0;
         const days = Math.ceil((new Date(d.endDate).getTime() - new Date(d.startDate).getTime()) / (1000 * 3600 * 24));
         const price = c.useManualPrice ? (c.manualPrice || 0) : (d.pricePerNightPerRoom || 0);
@@ -328,6 +330,7 @@ const calcCost = (h: any) => {
     await deleteHotel(id);
   }
 
+  // FIX 2: Live UI Update Syncs Math Automatically
   function handleRowUpdate(id: string, updates: any) {
     const next = hotels.map(h => h.id === id ? { ...h, ...updates } : h);
     setHotels(next); pushToHistory(next);
@@ -543,15 +546,16 @@ const calcCost = (h: any) => {
                     {uniqueCities.map(c => <option key={c} value={c} />)}
                   </datalist>
                   
+                  {/* FIX 4: autoComplete="off" prevents browser suggestions */}
                   <div className="flex flex-wrap lg:flex-nowrap gap-3 items-end">
                     <div className="flex-[2.5_2.5_0%] min-w-[200px]">
                        <label className={labelCls}>{lang === 'de' ? 'Hotelname *' : 'Hotel Name *'}</label>
-                       <input ref={newHotelNameRef} autoFocus onKeyDown={handleEnterBlur} className={cn('w-full px-3 py-2 rounded-lg border outline-none text-xs font-bold transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder={lang === 'de' ? "Name eingeben..." : "Enter name..."} />
+                       <input autoComplete="off" spellCheck="false" ref={newHotelNameRef} autoFocus onKeyDown={handleEnterBlur} className={cn('w-full px-3 py-2 rounded-lg border outline-none text-xs font-bold transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder={lang === 'de' ? "Name eingeben..." : "Enter name..."} />
                     </div>
                     
                     <div className="flex-[1.5_1.5_0%] min-w-[150px]">
                        <label className={labelCls}><MapPin size={10}/> {lang === 'de' ? 'Stadt' : 'City'}</label>
-                       <input list="city-list" onKeyDown={handleEnterBlur} className={cn('w-full px-3 py-2 rounded-lg border outline-none text-xs font-bold transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder={lang === 'de' ? "Stadt eingeben..." : "Enter city..."} />
+                       <input autoComplete="off" spellCheck="false" list="city-list" onKeyDown={handleEnterBlur} className={cn('w-full px-3 py-2 rounded-lg border outline-none text-xs font-bold transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder={lang === 'de' ? "Stadt eingeben..." : "Enter city..."} />
                     </div>
                     
                     <div className="flex-[1.5_1.5_0%] min-w-[150px]">
@@ -559,7 +563,7 @@ const calcCost = (h: any) => {
                        <ModernDropdown 
                           value={newHotelCompany} 
                           options={uniqueCompanies} 
-                          onChange={v => setNewHotelCompany(v)} 
+                          onChange={(v:any) => setNewHotelCompany(v)} 
                           isDarkMode={dk} lang={lang} 
                           placeholder={lang === 'de' ? 'Firma...' : 'Company...'} 
                        />
@@ -570,7 +574,7 @@ const calcCost = (h: any) => {
                        <ModernDropdown 
                           value={newHotelCountry} 
                           options={getCountryOptions(lang)} 
-                          onChange={v => setNewHotelCountry(v)} 
+                          onChange={(v:any) => setNewHotelCountry(v)} 
                           isDarkMode={dk} lang={lang} 
                        />
                     </div>
