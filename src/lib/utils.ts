@@ -1,6 +1,8 @@
 // src/lib/utils.ts
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+// IMPORT THE ROOM CARD MATH SO THE DASHBOARD CAN USE IT
+import { calcRoomCardTotal } from './roomCardUtils'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -83,6 +85,40 @@ export function calcDurationFreeBeds(duration: any, targetDateIso: string): numb
   return Math.max(0, totalBeds - occupiedBeds);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// NEW MASTER MATH FUNCTIONS (Syncs Dashboard and Rows)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function calcHotelTotalCost(hotel: any): number {
+  let tCost = 0;
+  (hotel.durations || []).forEach((d: any) => {
+    const rCards = d.roomCards || [];
+    const extraTotal = (d.extraCosts || []).reduce((s: number, e: any) => s + (Number(e.amount) || 0), 0);
+    
+    let bruttoBase = d.useBruttoNetto ? (d.brutto || 0) : rCards.reduce((s: number, c: any) => {
+      // This perfectly matches the HotelRow calculation using roomCardUtils
+      return s + calcRoomCardTotal(c, d.startDate, d.endDate);
+    }, 0);
+    
+    bruttoBase += extraTotal;
+    
+    if (!d.useBruttoNetto && d.hasDiscount && d.discountValue) {
+      bruttoBase = d.discountType === 'fixed' ? bruttoBase - d.discountValue : bruttoBase * (1 - d.discountValue / 100);
+    }
+    tCost += Math.max(0, bruttoBase);
+  });
+  return tCost;
+}
+
+export function calcHotelFreeBedsToday(hotel: any): number {
+  const today = new Date().toISOString().split('T')[0];
+  return (hotel.durations || []).reduce((total: number, d: any) => {
+    return total + calcDurationFreeBeds(d, today);
+  }, 0);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function hotelMatchesSearch(hotel: any, query: string): boolean {
   if (!query) return true;
   const q = query.toLowerCase();
@@ -141,7 +177,7 @@ export function getDurationTabLabel(d: any, lang: 'de' | 'en'): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EXPORT & PRINT FUNCTIONS (WYSIWYG) - FULLY TRANSLATED
+// EXPORT & PRINT FUNCTIONS
 // ─────────────────────────────────────────────────────────────────────────────
 
 function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de' | 'en') {
@@ -152,12 +188,10 @@ function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de'
     const employees = (h.durations || []).flatMap((d: any) => (d.roomCards || []).flatMap((rc: any) => (rc.employees || []).map((e: any) => e.name))).filter(Boolean).join(', ') || '—';
     const cost = formatCurrency(calcCost(h));
     
-    // Status Logic
     const isFullyPaid = h.durations?.length > 0 && h.durations.every((d: any) => d.isPaid);
     const hasUnpaid = h.durations?.some((d: any) => !d.isPaid);
     const status = isFullyPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : hasUnpaid ? (lang === 'de' ? 'Offen' : 'Unpaid') : '—';
 
-    // Deposit Logic
     const hasDeposit = h.durations?.some((d: any) => d.depositEnabled);
     const depositAmount = (h.durations || []).reduce((sum: number, d: any) => sum + (d.depositEnabled ? (Number(d.depositAmount) || 0) : 0), 0);
     const depositStr = hasDeposit ? formatCurrency(depositAmount) : '—';
