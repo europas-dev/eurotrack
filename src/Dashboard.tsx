@@ -32,23 +32,24 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchScope, setSearchScope] = useState('all');
+  
+  // Menu States
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showTimelineMenu, setShowTimelineMenu] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
   
+  // Logic States
   const [tlType, setTlType] = useState<'all'|'today'|'tomorrow'|'3days'|'7days'|'range'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'cost' | 'free_beds' | 'last_added' | 'last_updated'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  
-  const [fbType, setFbType] = useState<'all'|'today'|'tomorrow'|'3days'|'7days'|'range'>('all');
-  const [filterPaid, setFilterPaid] = useState<'all' | 'paid' | 'unpaid'>('all');
-  const [filterDeposit, setFilterDeposit] = useState<'all' | 'with' | 'without'>('all');
-  const [groupBy, setGroupBy] = useState<'none' | 'hotel' | 'company' | 'city'>('none');
-
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [bookmarks, setBookmarks] = useState<string[]>(() => JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]'));
+  
+  // History / Undo
   const [history, setHistory] = useState<any[][]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  
+  // Add Hotel
   const [addingHotel, setAddingHotel] = useState(false);
   const [newHotelName, setNewHotelName] = useState('');
   const [newHotelCity, setNewHotelCity] = useState('');
@@ -56,6 +57,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [newHotelCountry, setNewHotelCountry] = useState('Germany');
   const [newHotelSaving, setNewHotelSaving] = useState(false);
   const newHotelNameRef = useRef<HTMLInputElement>(null);
+  
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
 
@@ -116,29 +118,12 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         const normalizedData = (data || []).map((h: any) => ({
           ...h,
           companyTag: h.company_tag ?? [],
-          lastUpdatedBy: h.last_updated_by,
-          lastUpdatedAt: h.last_updated_at,
           durations: (h.durations || []).map((d: any) => ({
             ...d,
             hotelId: d.hotel_id,
             startDate: d.start_date,
             endDate: d.end_date,
             roomType: d.room_type,
-            numberOfRooms: d.number_of_rooms,
-            pricePerNightPerRoom: d.price_per_night_per_room,
-            useManualPrices: d.use_manual_prices,
-            nightlyPrices: d.nightly_prices,
-            autoDistribute: d.auto_distribute,
-            useBruttoNetto: d.use_brutto_netto,
-            hasDiscount: d.has_discount,
-            discountType: d.discount_type,
-            discountValue: d.discount_value,
-            isPaid: d.is_paid,
-            rechnungNr: d.rechnung_nr,
-            bookingId: d.booking_id,
-            depositEnabled: d.deposit_enabled,
-            depositAmount: d.deposit_amount,
-            extensionNote: d.extension_note,
             roomCards: (d.room_cards || []).map((rc: any) => ({
               ...rc,
               durationId: rc.duration_id,
@@ -146,16 +131,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
               roomType: rc.room_type,
               bedCount: rc.bed_count,
               pricingTab: rc.pricing_tab ?? 'per_room',
-              roomNetto: rc.room_netto, roomMwst: rc.room_mwst, roomBrutto: rc.room_brutto,
-              bedNetto: rc.bed_netto, bedMwst: rc.bed_mwst, bedBrutto: rc.bed_brutto,
-              totalNetto: rc.total_netto, totalMwst: rc.total_mwst, totalBrutto: rc.total_brutto,
-              roomEnergyNetto: rc.room_energy_netto, roomEnergyMwst: rc.room_energy_mwst, roomEnergyBrutto: rc.room_energy_brutto,
-              bedEnergyNetto: rc.bed_energy_netto, bedEnergyMwst: rc.bed_energy_mwst, bedEnergyBrutto: rc.bed_energy_brutto,
-              totalEnergyNetto: rc.total_energy_netto, totalEnergyMwst: rc.total_energy_mwst, totalEnergyBrutto: rc.total_energy_brutto,
-              hasDiscount: rc.has_discount, discountType: rc.discount_type, discountValue: rc.discount_value,
               employees: (rc.employees || []).map((e: any) => ({
                 ...e,
-                slotIndex: e.slot_index ?? e.slotindex ?? 0,
+                slotIndex: e.slot_index ?? 0,
                 checkIn: e.checkin,
                 checkOut: e.checkout
               }))
@@ -178,82 +156,46 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     return () => { isMounted = false; };
   }, [selectedYear]);
 
-  function pushToHistory(newState: any[]) {
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(newState);
-    setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-  }
-  function handleUndo() { if (historyIndex > 0) { setHistoryIndex(historyIndex - 1); setHotels(history[historyIndex - 1]); } }
-  function handleRedo() { if (historyIndex < history.length - 1) { setHistoryIndex(historyIndex + 1); setHotels(history[historyIndex + 1]); } }
-
-  const toggleBookmark = (id: string) => {
-    const next = bookmarks.includes(id) ? bookmarks.filter(b => b !== id) : [...bookmarks, id];
-    setBookmarks(next);
-    localStorage.setItem('eurotrack_bookmarks', JSON.stringify(next));
-  };
-
   const visibleHotels = useMemo(() => (!accessLevel || accessLevel.role === 'pending') ? [] : hotels, [hotels, accessLevel]);
   const uniqueCompanies = useMemo(() => Array.from(new Set(hotels.flatMap(h => h.companyTag || []).filter(Boolean))), [hotels]);
   const uniqueCities = useMemo(() => Array.from(new Set(hotels.map(h => h.city).filter(Boolean))), [hotels]);
 
-  const filteredPreGroup = useMemo(() => {
+  const finalFiltered = useMemo(() => {
     return visibleHotels.filter(h => {
       if (showBookmarks && !bookmarks.includes(h.id)) return false;
       if (searchQuery && !hotelMatchesSearch(h, searchQuery)) return false;
-      if (selectedMonth !== null) {
-        const overlap = (h.durations || []).some((d: any) => {
-          if (!d.startDate || !d.endDate) return false;
-          const dStart = new Date(d.startDate); const dEnd = new Date(d.endDate);
-          const mStart = new Date(selectedYear, selectedMonth, 1); const mEnd = new Date(selectedYear, selectedMonth + 1, 0);
-          return dStart <= mEnd && dEnd >= mStart;
-        });
-        if (!overlap) return false;
-      }
       return true;
-    });
-  }, [visibleHotels, searchQuery, showBookmarks, bookmarks, selectedMonth, selectedYear]);
-
-  const finalFiltered = useMemo(() => {
-    return [...filteredPreGroup].sort((a, b) => {
-      let va: any, vb: any;
-      if (sortBy === 'name') { va = a.name?.toLowerCase(); vb = b.name?.toLowerCase(); }
-      else if (sortBy === 'cost') { va = calcHotelTotalCost(a); vb = calcHotelTotalCost(b); }
-      else { va = new Date(a.created_at || 0).getTime(); vb = new Date(b.created_at || 0).getTime(); }
+    }).sort((a, b) => {
+      let va = a.name?.toLowerCase(); let vb = b.name?.toLowerCase();
+      if (sortBy === 'cost') { va = calcHotelTotalCost(a); vb = calcHotelTotalCost(b); }
       return (va < vb ? -1 : va > vb ? 1 : 0) * (sortDir === 'asc' ? 1 : -1);
     });
-  }, [filteredPreGroup, sortBy, sortDir]);
+  }, [visibleHotels, searchQuery, showBookmarks, bookmarks, sortBy, sortDir]);
 
   const totalSpend = finalFiltered.reduce((s, h) => s + calcHotelTotalCost(h), 0);
   const freeBedsTotal = finalFiltered.reduce((s, h) => s + calcHotelFreeBedsToday(h), 0);
 
-  async function handleSaveNewHotel() {
-    if (!newHotelName.trim()) return;
-    setNewHotelSaving(true);
-    try {
-      const hotel = await createHotel({ 
-        name: newHotelName.trim(), 
-        city: newHotelCity.trim() || null, 
-        companyTag: newHotelCompany ? [newHotelCompany.trim()] : [],
-        country: newHotelCountry,
-        year: selectedYear 
-      });
-      const next = [{ ...hotel, durations: [] }, ...hotels];
-      setHotels(next); pushToHistory(next); setAddingHotel(false); 
-      setNewHotelName(''); setNewHotelCity(''); setNewHotelCompany(''); setNewHotelCountry('Germany');
-    } catch (e: any) { alert(`Error: ${e.message}`); } 
-    finally { setNewHotelSaving(false); }
-  }
-
-  const btnCls = cn('px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all shadow-sm z-50 relative', dk ? 'bg-[#0F172A] border-white/10 text-slate-300 hover:bg-white/5' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50');
-  const activeBtnCls = 'bg-blue-500 text-white border-transparent shadow-md';
+  // STYLING VARIABLES
+  const btnCls = (active: boolean) => cn(
+    'px-4 py-2 rounded-xl border text-sm font-bold flex items-center gap-2 transition-all shadow-sm z-[100] relative',
+    active ? 'bg-blue-500 text-white border-transparent' : dk ? 'bg-[#0F172A] border-white/10 text-slate-300 hover:bg-white/5' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+  );
   const labelCls = cn('flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest mb-1.5', dk ? 'text-slate-400' : 'text-slate-500');
 
   return (
     <div className={cn('flex h-screen overflow-hidden', dk ? 'bg-[#020617]' : 'bg-slate-50')}>
       <Sidebar theme={theme} lang={lang} selectedYear={selectedYear} setSelectedYear={setSelectedYear} selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(v => !v)} hotels={visibleHotels} />
+      
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        <Header theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchScope={searchScope} setSearchScope={setSearchScope} onSignOut={onSignOut} onExportCsv={exportToCSV} onPrint={printDocument} viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} />
+        <Header theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchScope={searchScope} setSearchScope={setSearchScope} onSignOut={onSignOut} onExportCsv={() => exportToCSV(finalFiltered, calcHotelTotalCost, totalSpend, "Report", lang)} onPrint={() => printDocument(finalFiltered, calcHotelTotalCost, totalSpend, "Report", lang)} viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} />
+        
+        {/* RESTORED: THE OFFLINE BANNER */}
+        {(!isOnline || offlineMode) && (
+           <div className="bg-amber-500/10 border-b border-amber-500/20 text-amber-600 dark:text-amber-400 px-6 py-2.5 text-xs font-black flex items-center justify-center gap-2 z-[60] relative animate-in slide-in-from-top duration-300">
+             <CloudOff size={14} strokeWidth={3} /> {lang === 'de' ? 'OFFLINE MODUS AKTIV - ÄNDERUNGEN WERDEN LOKAL GESPEICHERT' : 'OFFLINE MODE ACTIVE - CHANGES SAVED LOCALLY'}
+           </div>
+        )}
+
         <div className={cn('px-8 py-4 border-b shrink-0 z-40 relative', dk ? 'bg-[#0F172A] border-white/5' : 'bg-white border-slate-200')}>
           <div className="flex items-center justify-between flex-wrap gap-4 w-full">
             <div className="flex items-center gap-12 flex-wrap">
@@ -265,38 +207,27 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                 <div key={label}><p className={cn('text-[10px] font-bold uppercase tracking-widest mb-1', dk ? 'text-slate-500' : 'text-slate-400')}>{label}</p><p className={cn('text-2xl font-black', cls)}>{value}</p></div>
               ))}
             </div>
-            {activeUsers.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className={cn("text-[10px] font-bold uppercase tracking-widest mr-2", dk ? "text-slate-500" : "text-slate-400")}>{lang === 'de' ? 'Live dabei:' : 'Live now:'}</span>
-                <div className="flex -space-x-2">
-                  {activeUsers.map((u: any, i: number) => (
-                    <div key={i} className="relative group cursor-pointer">
-                      <div className="w-8 h-8 rounded-full bg-blue-600 border-2 border-white dark:border-[#020617] flex items-center justify-center text-white text-xs font-bold shadow-sm z-10 relative">{u.name.substring(0, 2).toUpperCase()}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
-        <main className="flex-1 overflow-y-auto p-6 relative">
-          <div className="flex items-center justify-between mb-6 gap-3 flex-wrap relative z-[60]">
+
+        <main className="flex-1 overflow-y-auto p-6 relative scroll-smooth no-scrollbar">
+          <div className="flex items-center justify-between mb-6 gap-3 flex-wrap relative z-[100]">
             <h2 className={cn('text-2xl font-black tracking-tight', dk ? 'text-white' : 'text-slate-900')}>{selectedMonth !== null ? `${monthNames[selectedMonth]} ${selectedYear}` : `Dashboard ${selectedYear}`}</h2>
-            <div className="flex items-center gap-2 relative">
+            
+            <div className="flex items-center gap-2">
+              <button onClick={() => toggleMenu('timeline')} className={btnCls(tlType !== 'all')}><Calendar size={16} /> {lang === 'de' ? 'Zeitraum' : 'Timeline'}</button>
+              <button onClick={() => toggleMenu('filter')} className={btnCls(showFilterMenu)}><Filter size={16} /> Filter</button>
+              <button onClick={() => toggleMenu('sort')} className={btnCls(showSortMenu)}><ArrowUpDown size={16} /> {lang === 'de' ? 'Sortieren' : 'Sort'}</button>
+              <button onClick={() => setShowBookmarks(!showBookmarks)} className={cn(btnCls(showBookmarks), showBookmarks && 'bg-yellow-500')}><Star size={16} className={showBookmarks ? 'fill-white' : ''} /> {lang === 'de' ? 'Lesezeichen' : 'Bookmarks'}</button>
               {!isStrictViewer && (
-                <div className={cn("flex items-center mr-2 rounded-full p-1 border shadow-sm z-50", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
-                   <button onClick={handleUndo} disabled={historyIndex <= 0} className={cn("p-1.5 rounded-full transition-all disabled:opacity-30", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")}><Undo2 size={16} /></button>
-                   <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className={cn("p-1.5 rounded-full transition-all disabled:opacity-30", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")}><Redo2 size={16} /></button>
-                </div>
+                <button onClick={() => setAddingHotel(true)} className="ml-4 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl flex items-center gap-2 text-sm shadow-lg transition-all transform active:scale-95">
+                  <Plus size={18} strokeWidth={3} /> {lang === 'de' ? 'HOTEL HINZUFÜGEN' : 'ADD HOTEL'}
+                </button>
               )}
-              <button onClick={() => toggleMenu('timeline')} className={cn(btnCls, tlType !== 'all' ? activeBtnCls : '')}><Calendar size={16} /> {lang === 'de' ? 'Zeitraum' : 'Timeline'}</button>
-              <button onClick={() => toggleMenu('filter')} className={cn(btnCls, (fbType !== 'all' || filterPaid !== 'all' || groupBy !== 'none') ? activeBtnCls : '')}><Filter size={16} /> Filter</button>
-              <button onClick={() => toggleMenu('sort')} className={btnCls}><ArrowUpDown size={16} /> {lang === 'de' ? 'Sortieren' : 'Sort'}</button>
-              <button onClick={() => setShowBookmarks(!showBookmarks)} className={cn(btnCls, showBookmarks && 'bg-yellow-500 text-white border-transparent')}><Star size={16} className={showBookmarks ? 'fill-white' : ''} /> {lang === 'de' ? 'Lesezeichen' : 'Bookmarks'}</button>
-              {!isStrictViewer && (<button onClick={() => setAddingHotel(true)} className="ml-4 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl flex items-center gap-2 text-sm shadow-lg transition-all"><Plus size={18} /> {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}</button>)}
             </div>
           </div>
-          <div className="space-y-3 pb-24 relative z-0">
+
+          <div className="flex flex-col gap-4 pb-24 relative z-0">
               {finalFiltered.map((hotel, index) => (
                 <HotelRow key={hotel.id} entry={hotel} index={index} isDarkMode={dk} lang={lang} searchQuery={searchQuery} companyOptions={uniqueCompanies} cityOptions={uniqueCities} onDelete={hId => setHotels(hotels.filter(h=>h.id!==hId))} onUpdate={(hId, up) => setHotels(hotels.map(h=>h.id===hId?{...h,...up}:h))} />
               ))}
