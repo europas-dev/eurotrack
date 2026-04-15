@@ -147,7 +147,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
               roomNo: rc.room_no,
               roomType: rc.room_type,
               bedCount: rc.bed_count,
-              pricingTab: rc.pricing_tab,
+              pricingTab: rc.pricing_tab ?? 'per_room',
               roomNetto: rc.room_netto, roomMwst: rc.room_mwst, roomBrutto: rc.room_brutto,
               bedNetto: rc.bed_netto, bedMwst: rc.bed_mwst, bedBrutto: rc.bed_brutto,
               totalNetto: rc.total_netto, totalMwst: rc.total_mwst, totalBrutto: rc.total_brutto,
@@ -155,8 +155,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
               bedEnergyNetto: rc.bed_energy_netto, bedEnergyMwst: rc.bed_energy_mwst, bedEnergyBrutto: rc.bed_energy_brutto,
               totalEnergyNetto: rc.total_energy_netto, totalEnergyMwst: rc.total_energy_mwst, totalEnergyBrutto: rc.total_energy_brutto,
               hasDiscount: rc.has_discount, discountType: rc.discount_type, discountValue: rc.discount_value,
-              pricingTab: rc.pricing_tab ?? 'per_room',
-              durationId: rc.duration_id,
               employees: (rc.employees || []).map((e: any) => ({
                 ...e,
                 slotIndex: e.slot_index ?? e.slotindex ?? 0,
