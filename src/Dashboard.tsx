@@ -39,7 +39,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [tlEnd, setTlEnd] = useState(new Date().toISOString().split('T')[0]);
   const [fbType, setFbType] = useState<'all'|'today'|'tomorrow'|'3days'|'7days'|'range'>('all');
   const [filterPaid, setFilterPaid] = useState<'all' | 'paid' | 'unpaid'>('all');
-  const [filterDeposit, setFilterDeposit] = useState<'all' | 'with' | 'without'>('all');
   const [groupBy, setGroupBy] = useState<'none' | 'hotel' | 'company' | 'city' | 'country'>('none');
   const [sortBy, setSortBy] = useState<'name' | 'cost' | 'bed_price' | 'free_beds' | 'created_at'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -49,6 +48,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [history, setHistory] = useState<any[][]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [addingHotel, setAddingHotel] = useState(false);
+  
   const [newHotelName, setNewHotelName] = useState('');
   const [newHotelCity, setNewHotelCity] = useState('');
   const [newHotelCompany, setNewHotelCompany] = useState('');
@@ -90,6 +90,10 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     fetchHotels(); return () => { isM = false; };
   }, [selectedYear]);
 
+  // CRITICAL FIX: Define constants before they are used in JSX
+  const uniqueCompanies = useMemo(() => Array.from(new Set(hotels.flatMap(h => h.companyTag || []).filter(Boolean))), [hotels]);
+  const uniqueCities = useMemo(() => Array.from(new Set(hotels.map(h => h.city).filter(Boolean))), [hotels]);
+
   function pushToHistory(next: any[]) { const nH = history.slice(0, historyIndex + 1); nH.push(next); setHistory(nH); setHistoryIndex(nH.length - 1); }
   const handleUndo = () => { if (historyIndex > 0) { setHistoryIndex(historyIndex - 1); setHotels(history[historyIndex - 1]); } };
   const handleRedo = () => { if (historyIndex < history.length - 1) { setHistoryIndex(historyIndex + 1); setHotels(history[historyIndex + 1]); } };
@@ -110,7 +114,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
          const hasOverlap = (h.durations || []).some((d: any) => d.startDate <= tlEnd && d.endDate >= tlStart);
          if (!hasOverlap) return false;
       }
-      if (fbType !== 'all') { /* Predictive Free Beds Logic */ if (calcHotelFreeBedsToday(h) === 0) return false; }
+      if (fbType !== 'all') { if (calcHotelFreeBedsToday(h) === 0) return false; }
       return true;
     }).sort((a, b) => {
       let va: any = a.name?.toLowerCase(); let vb: any = b.name?.toLowerCase();
@@ -236,10 +240,10 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
               {addingHotel && !isStrictViewer && (
                 <div className={cn('rounded-3xl border-2 p-6 shadow-2xl mb-4 animate-in slide-in-from-top duration-300', dk ? 'bg-[#0B1224] border-blue-500/40' : 'bg-white border-blue-400')}>
                   <div className="flex flex-wrap lg:flex-nowrap gap-4 items-end">
-                    <div className="flex-1 min-w-[200px]"><label className={labelCls}>{lang === 'de' ? 'Hotelname' : 'Hotel Name'}</label><input autoFocus className={cn('w-full px-4 py-3 rounded-xl border-2 outline-none text-sm font-bold transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/5 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder="Riveria..." /></div>
-                    <div className="w-48"><label className={labelCls}><MapPin size={10}/> {lang === 'de' ? 'Stadt' : 'City'}</label><input className={cn('w-full px-4 py-3 rounded-xl border-2 outline-none text-sm font-bold transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/5 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder="Essen..." /></div>
-                    <div className="w-64"><label className={labelCls}><Building2 size={10}/> {lang === 'de' ? 'Firma' : 'Company'}</label><ModernDropdown value={newHotelCompany} options={uniqueCompanies} onChange={v => setNewHotelCompany(v)} isDarkMode={dk} lang={lang} /></div>
-                    <div className="w-48"><label className={labelCls}><Globe size={10}/> {lang === 'de' ? 'Land' : 'Country'}</label><ModernDropdown value={newHotelCountry} options={getCountryOptions()} onChange={v => setNewHotelCountry(v)} isDarkMode={dk} lang={lang} /></div>
+                    <div className="flex-1 min-w-[200px]"><label className="text-[10px] font-black uppercase opacity-50 mb-1">{lang === 'de' ? 'Hotelname' : 'Hotel Name'}</label><input autoFocus className={cn('w-full px-4 py-3 rounded-xl border-2 outline-none text-sm font-bold transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/5 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder="Riveria..." /></div>
+                    <div className="w-48"><label className="text-[10px] font-black uppercase opacity-50 mb-1"><MapPin size={10}/> {lang === 'de' ? 'Stadt' : 'City'}</label><input className={cn('w-full px-4 py-3 rounded-xl border-2 outline-none text-sm font-bold transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/5 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder="Essen..." /></div>
+                    <div className="w-64"><label className="text-[10px] font-black uppercase opacity-50 mb-1"><Building2 size={10}/> {lang === 'de' ? 'Firma' : 'Company'}</label><ModernDropdown value={newHotelCompany} options={uniqueCompanies} onChange={v => setNewHotelCompany(v)} isDarkMode={dk} lang={lang} /></div>
+                    <div className="w-48"><label className="text-[10px] font-black uppercase opacity-50 mb-1"><Globe size={10}/> {lang === 'de' ? 'Land' : 'Country'}</label><ModernDropdown value={newHotelCountry} options={getCountryOptions()} onChange={v => setNewHotelCountry(v)} isDarkMode={dk} lang={lang} /></div>
                     <div className="flex gap-2 shrink-0"><button onClick={handleSaveNewHotel} disabled={newHotelSaving || !newHotelName.trim()} className="px-6 h-[50px] bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg disabled:opacity-50 font-black">{newHotelSaving ? <Loader2 size={20} className="animate-spin" /> : <Check size={20} />}</button><button onClick={() => setAddingHotel(false)} className={cn("px-4 h-[50px] rounded-xl flex items-center justify-center transition-all border-2", dk ? "border-white/10 hover:bg-white/10 text-slate-300" : "border-slate-200 hover:bg-slate-100 text-slate-600")}><X size={20} /></button></div>
                   </div>
                 </div>
