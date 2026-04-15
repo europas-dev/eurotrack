@@ -1,8 +1,8 @@
 // src/components/HotelRow.tsx
 import React, { useMemo, useRef, useState, useEffect } from 'react';
-import { Check, ChevronDown, ChevronRight, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search } from 'lucide-react';
 import {
-  cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatDateChip
+  cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatDateChip, formatLastUpdated // FIXED: Imported formatLastUpdated
 } from '../lib/utils';
 import { createDuration, updateHotel, deleteHotel } from '../lib/supabase';
 import { calcRoomCardTotal } from '../lib/roomCardUtils';
@@ -13,7 +13,7 @@ export const DEFAULT_COUNTRIES = [
 ];
 
 export function getCountryOptions() {
-  return DEFAULT_COUNTRIES; // Strictly strings to prevent React Error #31
+  return DEFAULT_COUNTRIES; 
 }
 
 const getCountryCode = (country: string) => {
@@ -58,7 +58,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [activeDurationTab, setActiveDurationTab] = useState(0);
   const saveTimer = useRef<any>(null);
 
-  // Hidden Match Logic for Search with Translation
   const hiddenMatchText = useMemo(() => {
     if (!searchQuery) return null;
     const q = searchQuery.toLowerCase();
@@ -190,7 +189,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                <button onClick={(e) => { e.stopPropagation(); onTogglePin?.(); }} className={cn("p-1.5 rounded-lg", isPinned ? "text-yellow-500" : "text-slate-400 hover:text-yellow-500 transition-colors")}><Star size={16} className={isPinned ? "fill-yellow-500" : ""} /></button>
                <div className="relative group">
                   <button onClick={(e) => e.stopPropagation()} className="p-1.5 text-slate-400 hover:text-slate-300 transition-colors"><Clock size={16} /></button>
-                  <div className="absolute right-0 bottom-full mb-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 z-[100]">Updated by {localHotel.lastupdatedby || localHotel.lastUpdatedBy || 'Admin'}</div>
+                  {/* FIXED: Using our new formatLastUpdated utility */}
+                  <div className="absolute right-0 bottom-full mb-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 z-[100] whitespace-nowrap pointer-events-none">
+                    {formatLastUpdated(localHotel.lastupdatedby || localHotel.lastUpdatedBy, localHotel.lastupdatedat || localHotel.lastUpdatedAt, lang)}
+                  </div>
                </div>
                <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
             </div>
@@ -369,28 +371,61 @@ function CityInlineEdit({ value, options, isDarkMode, hotelId, onChange, lang }:
   return <input autoComplete="off" autoFocus value={draft} onChange={e => setDraft(e.target.value)} onBlur={() => { onChange(draft); setEditing(false); }} onKeyDown={e => { if(e.key === 'Enter') { onChange(draft); setEditing(false); } }} className="text-[10px] font-bold uppercase outline-none border-b bg-transparent w-28 border-blue-500" />;
 }
 
+// FIXED: Transformed static badge into a dynamic multi-select with instant Create functionality
 function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange }: any) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const ref = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
-    function handle(e: any) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    function handle(e: any) { 
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false); 
+        setQuery('');
+      }
+    }
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
   }, []);
+
+  const safeOptions = Array.isArray(options) ? options : [];
+  const filteredOptions = safeOptions.filter((o: string) => o.toLowerCase().includes(query.toLowerCase()));
+  const exactMatch = safeOptions.some((o: string) => o.toLowerCase() === query.trim().toLowerCase());
+  
+  const handleToggle = (opt: string) => {
+    onChange(selected.includes(opt) ? selected.filter((t: any) => t !== opt) : [...selected, opt]);
+  };
+
+  const handleAddNew = () => {
+    if (query.trim() && !exactMatch) {
+      onChange([...selected, query.trim()]);
+      setQuery('');
+    }
+  };
   
   return (
-    <div ref={ref} className="relative cursor-pointer min-h-[24px]" onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>
+    <div ref={ref} className="relative cursor-pointer min-h-[24px]" onClick={(e) => { e.stopPropagation(); setOpen(true); }}>
       <div className="flex flex-wrap gap-1">
         {selected.length > 0 ? selected.map((tag: string) => (
           <span key={tag} onClick={(e) => { e.stopPropagation(); onChange(selected.filter((t: any) => t !== tag)); }} className={cn('px-2 py-0.5 rounded text-[11px] font-bold border hover:opacity-70 flex items-center gap-1', isDarkMode ? 'bg-white/5 border-white/10 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700')}>{tag} <X size={10} /></span>
         )) : <span className={cn("text-[10px] font-bold border border-dashed px-2 py-0.5 rounded transition-colors", isDarkMode ? "text-slate-500 border-white/20 hover:text-blue-400 hover:border-blue-400" : "text-slate-400 border-slate-300 hover:text-blue-600 hover:border-blue-500")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
       </div>
       {open && (
-        <div className={cn('absolute top-full mt-1 left-0 z-[100] rounded-xl border shadow-xl min-w-[160px] py-1 overflow-hidden', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
-          <div className="max-h-48 overflow-y-auto no-scrollbar">
-            {options.map((opt: string) => (
-              <button key={opt} onClick={(e) => { e.stopPropagation(); onChange(selected.includes(opt) ? selected.filter((t: any) => t !== opt) : [...selected, opt]); }} className={cn('w-full text-left px-3 py-2 text-xs font-bold transition-all', selected.includes(opt) ? 'text-blue-500 bg-blue-500/10' : isDarkMode ? 'text-slate-300 hover:bg-white/5' : 'text-slate-700 hover:bg-slate-50')}>{opt}</button>
+        <div className={cn('absolute top-full mt-1 left-0 z-[100] rounded-xl border shadow-xl min-w-[200px] overflow-hidden flex flex-col', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')} onClick={e => e.stopPropagation()}>
+          <div className={cn("flex items-center px-3 py-2 border-b", isDarkMode ? "border-white/10 bg-[#1E293B]" : "border-slate-100 bg-slate-50")}>
+            <Search size={14} className={isDarkMode ? "text-slate-400" : "text-slate-500"} />
+            <input autoFocus value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAddNew(); }} placeholder={lang === 'de' ? "Suchen oder erstellen..." : "Search or create..."} className={cn("ml-2 bg-transparent text-xs font-bold outline-none w-full", isDarkMode ? "text-white placeholder:text-slate-500" : "text-slate-900 placeholder:text-slate-400")} />
+          </div>
+          <div className="max-h-48 overflow-y-auto no-scrollbar py-1">
+            {query.trim() && !exactMatch && (
+              <button onClick={handleAddNew} className={cn('w-full text-left px-3 py-2 text-xs font-bold flex items-center gap-1.5 transition-all text-blue-500', isDarkMode ? 'hover:bg-white/5' : 'hover:bg-blue-50')}>
+                <Plus size={12} /> "{query.trim()}" erstellen
+              </button>
+            )}
+            {filteredOptions.map((opt: string) => (
+              <button key={opt} onClick={() => handleToggle(opt)} className={cn('w-full text-left px-3 py-2 text-xs font-bold transition-all flex items-center justify-between', selected.includes(opt) ? 'text-blue-500 bg-blue-500/10' : isDarkMode ? 'text-slate-300 hover:bg-white/5' : 'text-slate-700 hover:bg-slate-50')}>
+                {opt} {selected.includes(opt) && <Check size={12} />}
+              </button>
             ))}
           </div>
         </div>
