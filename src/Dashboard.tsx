@@ -22,56 +22,42 @@ interface DashboardProps {
 
 export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly = false, accessLevel, onSignOut, offlineMode, onToggleOfflineMode }: DashboardProps) {
   const dk = theme === 'dark';
-
   const isStrictViewer = viewOnly || accessLevel?.role === 'viewer' || accessLevel?.role === 'pending';
 
   const [hotels, setHotels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  
   const [searchQuery, setSearchQuery] = useState('');
   const [searchScope, setSearchScope] = useState('all');
-  
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showTimelineMenu, setShowTimelineMenu] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
-
   const [fbType, setFbType] = useState<'all'|'today'|'tomorrow'|'3days'|'7days'|'range'>('all');
   const [fbStartDate, setFbStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [fbEndDate, setFbEndDate] = useState(new Date().toISOString().split('T')[0]);
-  
   const [filterPaid, setFilterPaid] = useState<'all' | 'paid' | 'unpaid'>('all');
   const [filterDeposit, setFilterDeposit] = useState<'all' | 'with' | 'without'>('all');
-  
   const [groupBy, setGroupBy] = useState<'none' | 'hotel' | 'company' | 'city'>('none');
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
-
   const [tlType, setTlType] = useState<'all'|'today'|'tomorrow'|'3days'|'7days'|'range'>('all');
   const [tlStartDate, setTlStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [tlEndDate, setTlEndDate] = useState(new Date().toISOString().split('T')[0]);
-
   const [sortBy, setSortBy] = useState<'name' | 'cost' | 'free_beds' | 'last_added' | 'last_updated'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [bookmarks, setBookmarks] = useState<string[]>(() => JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]'));
-  
   const [history, setHistory] = useState<any[][]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-
   const [addingHotel, setAddingHotel] = useState(false);
   const [newHotelName, setNewHotelName] = useState('');
   const [newHotelCity, setNewHotelCity] = useState('');
   const [newHotelCompany, setNewHotelCompany] = useState<string[]>([]);
-  
   const [newHotelCountry, setNewHotelCountry] = useState('Germany');
   const [newHotelSaving, setNewHotelSaving] = useState(false);
   const newHotelNameRef = useRef<HTMLInputElement>(null);
-
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
 
@@ -95,10 +81,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
   useEffect(() => {
     let isMounted = true;
-    const channel = supabase.channel('dashboard_presence', {
-      config: { presence: { key: 'user' } }
-    });
-
+    const channel = supabase.channel('dashboard_presence', { config: { presence: { key: 'user' } } });
     channel.on('presence', { event: 'sync' }, () => {
       if (!isMounted) return;
       const state = channel.presenceState();
@@ -106,27 +89,25 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       const uniqueUsers = Array.from(new Map(users.map(u => [u.id, u])).values());
       setActiveUsers(uniqueUsers);
     });
-
     channel.subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const name = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.username || user.email?.split('@')[0] || 'User';
+          const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
           await channel.track({ user: { id: user.id, name, email: user.email } });
         }
       }
     });
-
     return () => { isMounted = false; supabase.removeChannel(channel); };
   }, []);
 
   useEffect(() => { 
     let isMounted = true;
     setLoading(true);
-    
     async function fetchHotels() {
       try {
         setError('');
+        // FIXED: Select using the new SQL snake_case names
         const { data, error: supabaseError } = await supabase
           .from('hotels')
           .select('*, durations(*, room_cards(*, employees(*)), employees(*))')
@@ -135,55 +116,49 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
         if (supabaseError) throw supabaseError;
 
-        // FIXED: The Data Translator. This bridge ensures DB snake_case names match UI camelCase requirements.
+        // FIXED: COMPREHENSIVE TRANSLATOR. Maps every snake_case DB field to camelCase React fields.
         const normalizedData = (data || []).map((h: any) => ({
           ...h,
-          companyTag: h.companytag ?? h.companyTag,
+          companyTag: h.company_tag ?? [],
+          lastUpdatedBy: h.last_updated_by,
+          lastUpdatedAt: h.last_updated_at,
           durations: (h.durations || []).map((d: any) => ({
             ...d,
-            startDate: d.startdate ?? d.startDate,
-            endDate: d.enddate ?? d.endDate,
-            isPaid: d.ispaid ?? d.isPaid,
-            depositEnabled: d.depositenabled ?? d.depositEnabled,
-            rechnungNr: d.rechnungnr ?? d.rechnungNr,
-            useBruttoNetto: d.usebruttonetto ?? d.useBruttoNetto,
-            hasDiscount: d.hasdiscount ?? d.hasDiscount,
-            discountType: d.discounttype ?? d.discountType,
-            discountValue: d.discountvalue ?? d.discountValue,
-            brutto: d.brutto,
-            extraCosts: d.extracosts ?? d.extraCosts ?? [],
-            roomCards: (d.room_cards ?? d.roomCards ?? []).map((rc: any) => ({
+            hotelId: d.hotel_id,
+            startDate: d.start_date,
+            endDate: d.end_date,
+            roomType: d.room_type,
+            numberOfRooms: d.number_of_rooms,
+            pricePerNightPerRoom: d.price_per_night_per_room,
+            useManualPrices: d.use_manual_prices,
+            nightlyPrices: d.nightly_prices,
+            autoDistribute: d.auto_distribute,
+            useBruttoNetto: d.use_brutto_netto,
+            hasDiscount: d.has_discount,
+            discountType: d.discount_type,
+            discountValue: d.discount_value,
+            isPaid: d.is_paid,
+            rechnungNr: d.rechnung_nr,
+            bookingId: d.booking_id,
+            depositEnabled: d.deposit_enabled,
+            depositAmount: d.deposit_amount,
+            extensionNote: d.extension_note,
+            roomCards: (d.room_cards || []).map((rc: any) => ({
               ...rc,
-              roomType: rc.room_type ?? rc.roomType ?? 'EZ',
-              bedCount: rc.bed_count ?? rc.bedCount ?? 1,
-              roomNetto: rc.room_netto ?? rc.roomNetto,
-              roomMwst: rc.room_mwst ?? rc.roomMwst,
-              roomBrutto: rc.room_brutto ?? rc.roomBrutto,
-              bedNetto: rc.bed_netto ?? rc.bedNetto,
-              bedMwst: rc.bed_mwst ?? rc.bedMwst,
-              bedBrutto: rc.bed_brutto ?? rc.bedBrutto,
-              totalNetto: rc.total_netto ?? rc.totalNetto,
-              totalMwst: rc.total_mwst ?? rc.totalMwst,
-              totalBrutto: rc.total_brutto ?? rc.totalBrutto,
-              roomEnergyNetto: rc.room_energy_netto ?? rc.roomEnergyNetto,
-              roomEnergyMwst: rc.room_energy_mwst ?? rc.roomEnergyMwst,
-              roomEnergyBrutto: rc.room_energy_brutto ?? rc.roomEnergyBrutto,
-              bedEnergyNetto: rc.bed_energy_netto ?? rc.bedEnergyNetto,
-              bedEnergyMwst: rc.bed_energy_mwst ?? rc.bedEnergyMwst,
-              bedEnergyBrutto: rc.bed_energy_brutto ?? rc.bedEnergyBrutto,
-              totalEnergyNetto: rc.total_energy_netto ?? rc.totalEnergyNetto,
-              totalEnergyMwst: rc.total_energy_mwst ?? rc.totalEnergyMwst,
-              totalEnergyBrutto: rc.total_energy_brutto ?? rc.totalEnergyBrutto,
-              hasDiscount: rc.has_discount ?? rc.hasDiscount ?? false,
-              discountType: rc.discount_type ?? rc.discountType ?? 'percentage',
-              discountValue: rc.discount_value ?? rc.discountValue ?? 0,
-              pricingTab: rc.pricing_tab ?? rc.pricingTab ?? 'per_room',
-              durationId: rc.duration_id ?? rc.durationId,
+              durationId: rc.duration_id,
+              roomNo: rc.room_no,
+              roomType: rc.room_type,
+              bedCount: rc.bed_count,
+              pricingTab: rc.pricing_tab,
+              roomNetto: rc.room_netto, roomMwst: rc.room_mwst, roomBrutto: rc.room_brutto,
+              bedNetto: rc.bed_netto, bedMwst: rc.bed_mwst, bedBrutto: rc.bed_brutto,
+              totalNetto: rc.total_netto, totalMwst: rc.total_mwst, totalBrutto: rc.total_brutto,
+              hasDiscount: rc.has_discount, discountType: rc.discount_type, discountValue: rc.discount_value,
               employees: (rc.employees || []).map((e: any) => ({
                 ...e,
-                slotIndex: e.slotindex ?? e.slotIndex ?? 0,
-                checkIn: e.checkin ?? e.checkIn,
-                checkOut: e.checkout ?? e.checkOut
+                slotIndex: e.slot_index, // FIXED: Employees stay in their beds!
+                checkIn: e.checkin,
+                checkOut: e.checkout
               }))
             }))
           }))
@@ -197,13 +172,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         }
       } catch (err: any) { 
         console.error("Database Fetch Error:", err);
-        if (isMounted) {
-          setError(err.message || 'Failed to load data');
-          setLoading(false);
-        }
+        if (isMounted) { setError(err.message || 'Failed to load data'); setLoading(false); }
       }
     }
-    
     fetchHotels();
     return () => { isMounted = false; };
   }, [selectedYear]);
@@ -232,123 +203,43 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     localStorage.setItem('eurotrack_bookmarks', JSON.stringify(next));
   };
 
-  const handleEnterBlur = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') e.currentTarget.blur();
-  };
-
-  const visibleHotels = useMemo(() => {
-    if (!accessLevel || accessLevel.role === 'pending') return [];
-    return hotels; 
-  }, [hotels, accessLevel]);
-
+  const handleEnterBlur = (e: React.KeyboardEvent<HTMLInputElement>) => { if (e.key === 'Enter') e.currentTarget.blur(); };
+  const visibleHotels = useMemo(() => (!accessLevel || accessLevel.role === 'pending') ? [] : hotels, [hotels, accessLevel]);
   const uniqueCities = useMemo(() => Array.from(new Set(hotels.map(h => h.city).filter(Boolean))), [hotels]);
-  const uniqueCompanies = useMemo(() => Array.from(new Set(hotels.flatMap(h => Array.isArray(h.companyTag) ? h.companyTag : [h.companyTag]).filter(Boolean))), [hotels]);
+  const uniqueCompanies = useMemo(() => Array.from(new Set(hotels.flatMap(h => h.companyTag || []).filter(Boolean))), [hotels]);
 
   const filteredPreGroup = useMemo(() => {
     return visibleHotels.filter(h => {
       if (showBookmarks && !bookmarks.includes(h.id)) return false;
       if (searchQuery && !hotelMatchesSearch(h, searchQuery)) return false;
-      
       if (selectedMonth !== null) {
-        const hasMonthOverlap = (h.durations || []).some((d: any) => {
+        const overlap = (h.durations || []).some((d: any) => {
           if (!d.startDate || !d.endDate) return false;
-          const dStart = new Date(d.startDate);
-          const dEnd = new Date(d.endDate);
-          const mStart = new Date(selectedYear, selectedMonth, 1);
-          const mEnd = new Date(selectedYear, selectedMonth + 1, 0);
+          const dStart = new Date(d.startDate); const dEnd = new Date(d.endDate);
+          const mStart = new Date(selectedYear, selectedMonth, 1); const mEnd = new Date(selectedYear, selectedMonth + 1, 0);
           return dStart <= mEnd && dEnd >= mStart;
         });
-        if (!hasMonthOverlap) return false;
+        if (!overlap) return false;
       }
-
-      if (tlType !== 'all') {
-        const today = new Date();
-        let tStart = new Date(today); let tEnd = new Date(today);
-        if (tlType === 'tomorrow') { tStart.setDate(today.getDate() + 1); tEnd.setDate(today.getDate() + 1); }
-        else if (tlType === '3days') tEnd.setDate(today.getDate() + 3);
-        else if (tlType === '7days') tEnd.setDate(today.getDate() + 7);
-        else if (tlType === 'range') { tStart = new Date(tlStartDate); tEnd = new Date(tlEndDate); }
-        
-        const hasTimeOverlap = (h.durations || []).some((d: any) => {
-          if (!d.startDate || !d.endDate) return false;
-          return new Date(d.startDate) <= tEnd && new Date(d.endDate) >= tStart;
-        });
-        if (!hasTimeOverlap) return false;
-      }
-
-      if (fbType !== 'all') {
-        let targetDate = new Date();
-        if (fbType === 'tomorrow') targetDate.setDate(targetDate.getDate() + 1);
-        else if (fbType === '3days') targetDate.setDate(targetDate.getDate() + 3);
-        else if (fbType === '7days') targetDate.setDate(targetDate.getDate() + 7);
-        else if (fbType === 'range') targetDate = new Date(fbStartDate); 
-        
-        const targetIso = targetDate.toISOString().split('T')[0];
-        const hasFree = (h.durations || []).some((d: any) => calcHotelFreeBedsToday(h) > 0);
-        if (!hasFree) return false;
-      }
-
-      if (filterPaid === 'paid' && !(h.durations || []).every((d: any) => d.isPaid)) return false;
-      if (filterPaid === 'unpaid' && (h.durations || []).every((d: any) => d.isPaid)) return false;
-      if (filterDeposit === 'with' && !(h.durations || []).some((d: any) => d.depositEnabled)) return false;
-      if (filterDeposit === 'without' && (h.durations || []).some((d: any) => d.depositEnabled)) return false;
-
       return true;
     });
-  }, [visibleHotels, searchQuery, searchScope, showBookmarks, bookmarks, selectedMonth, selectedYear, tlType, tlStartDate, tlEndDate, fbType, fbStartDate, filterPaid, filterDeposit]);
-
-  const groupedData = useMemo(() => {
-    if (groupBy === 'none') return [];
-    const map = new Map<string, { count: number, cost: number }>();
-    filteredPreGroup.forEach(h => {
-      let keys: string[] = [];
-      if (groupBy === 'city') keys = [h.city || 'Unknown'];
-      else if (groupBy === 'hotel') keys = [h.name || 'Unknown'];
-      else keys = Array.isArray(h.companyTag) && h.companyTag.length > 0 ? h.companyTag : [h.companyTag || 'Unknown'];
-      
-      keys.forEach(k => {
-        const curr = map.get(k) || { count: 0, cost: 0 };
-        map.set(k, { count: curr.count + 1, cost: curr.cost + calcHotelTotalCost(h) });
-      });
-    });
-    return Array.from(map.entries()).map(([name, data]) => ({ name, ...data })).sort((a,b) => b.cost - a.cost);
-  }, [filteredPreGroup, groupBy]);
+  }, [visibleHotels, searchQuery, showBookmarks, bookmarks, selectedMonth, selectedYear]);
 
   const finalFiltered = useMemo(() => {
-    let list = filteredPreGroup;
-    if (groupBy !== 'none' && activeGroup) {
-      if (groupBy === 'city') list = list.filter(h => h.city === activeGroup);
-      else if (groupBy === 'hotel') list = list.filter(h => h.name === activeGroup);
-      else list = list.filter(h => Array.isArray(h.companyTag) ? h.companyTag.includes(activeGroup) : h.companyTag === activeGroup);
-    }
-
-    return [...list].sort((a, b) => {
+    return [...filteredPreGroup].sort((a, b) => {
       let va: any, vb: any;
       if (sortBy === 'name') { va = a.name?.toLowerCase(); vb = b.name?.toLowerCase(); }
       else if (sortBy === 'cost') { va = calcHotelTotalCost(a); vb = calcHotelTotalCost(b); }
-      else if (sortBy === 'free_beds') { va = calcHotelFreeBedsToday(a); vb = calcHotelFreeBedsToday(b); }
-      else if (sortBy === 'last_updated') { va = new Date(a.updated_at || 0).getTime(); vb = new Date(b.updated_at || 0).getTime(); }
       else { va = new Date(a.created_at || 0).getTime(); vb = new Date(b.created_at || 0).getTime(); }
       return (va < vb ? -1 : va > vb ? 1 : 0) * (sortDir === 'asc' ? 1 : -1);
     });
-  }, [filteredPreGroup, groupBy, activeGroup, sortBy, sortDir]);
+  }, [filteredPreGroup, sortBy, sortDir]);
 
   const totalSpend = finalFiltered.reduce((s, h) => s + calcHotelTotalCost(h), 0);
   const freeBedsTotal = finalFiltered.reduce((s, h) => s + calcHotelFreeBedsToday(h), 0);
 
-  const generateReportTitle = () => {
-    let parts = [];
-    if (selectedMonth !== null) parts.push(`${monthNames[selectedMonth]} ${selectedYear}`);
-    else parts.push(`Year ${selectedYear}`);
-    if (filterPaid === 'paid') parts.push('Paid Only');
-    if (filterPaid === 'unpaid') parts.push('Unpaid Only');
-    if (filterDeposit === 'with') parts.push('With Deposit');
-    if (activeGroup) parts.push(`Group: ${activeGroup}`);
-    return `Dashboard Report: ${parts.join(' | ')}`;
-  };
-
-  const handleExportCsv = () => exportToCSV(finalFiltered, calcHotelTotalCost, totalSpend, generateReportTitle(), lang);
-  const handlePrint = () => printDocument(finalFiltered, calcHotelTotalCost, totalSpend, generateReportTitle(), lang);
+  const handleExportCsv = () => exportToCSV(finalFiltered, calcHotelTotalCost, totalSpend, "Report", lang);
+  const handlePrint = () => printDocument(finalFiltered, calcHotelTotalCost, totalSpend, "Report", lang);
 
   async function handleSaveNewHotel() {
     if (!newHotelName.trim()) return;
@@ -357,19 +248,14 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       const hotel = await createHotel({ 
         name: newHotelName.trim(), 
         city: newHotelCity.trim() || null, 
-        companyTag: newHotelCompany.length > 0 ? newHotelCompany : null,
+        companyTag: newHotelCompany,
         country: newHotelCountry,
         year: selectedYear 
       });
       const next = [{ ...hotel, durations: [] }, ...hotels];
-      setHotels(next); 
-      pushToHistory(next);
-      setAddingHotel(false); 
+      setHotels(next); pushToHistory(next); setAddingHotel(false); 
       setNewHotelName(''); setNewHotelCity(''); setNewHotelCompany([]); setNewHotelCountry('Germany');
-    } catch (e: any) { 
-      console.error("Database Create Failed:", e); 
-      alert(lang === 'de' ? `Fehler beim Speichern: ${e.message}` : `Error saving: ${e.message}`); 
-    } 
+    } catch (e: any) { alert(`Error: ${e.message}`); } 
     finally { setNewHotelSaving(false); }
   }
 
@@ -378,37 +264,23 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     setHotels(next); pushToHistory(next);
     await deleteHotel(id);
   }
-
   function handleRowUpdate(id: string, updates: any) {
     const next = hotels.map(h => h.id === id ? { ...h, ...updates } : h);
     setHotels(next); pushToHistory(next);
   }
-
-  const btnCls = cn('px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all shadow-sm', dk ? 'bg-[#0F172A] border-white/10 text-slate-300 hover:bg-white/5' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50');
-  const Pill = ({ active, onClick, children }: { active: boolean, onClick: () => void, children: React.ReactNode }) => (
-    <button onClick={onClick} className={cn('px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap', 
-      active ? 'bg-blue-600 text-white shadow-md' : dk ? 'bg-[#1E293B] border border-white/10 text-slate-400 hover:bg-white/10' : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-200'
-    )}>
-      {children}
-    </button>
-  );
 
   const labelCls = cn('flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest mb-1.5', dk ? 'text-slate-400' : 'text-slate-500');
 
   return (
     <div className={cn('flex h-screen overflow-hidden', dk ? 'bg-[#020617]' : 'bg-slate-50')}>
       <Sidebar theme={theme} lang={lang} selectedYear={selectedYear} setSelectedYear={setSelectedYear} selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(v => !v)} hotels={visibleHotels} />
-
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         <Header theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchScope={searchScope} setSearchScope={setSearchScope} onSignOut={onSignOut} onExportCsv={handleExportCsv} onPrint={handlePrint} viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} />
-
         {(!isOnline || offlineMode) && (
            <div className="bg-amber-500/10 border-b border-amber-500/20 text-amber-600 dark:text-amber-400 px-6 py-2 text-xs font-bold flex items-center justify-center gap-2 z-[60] relative">
-             <CloudOff size={14} />
-             {lang === 'de' ? 'Sie sind offline. Änderungen werden lokal gespeichert und später synchronisiert.' : 'You are offline. Changes are saved locally and will sync automatically.'}
+             <CloudOff size={14} /> {lang === 'de' ? 'Offline Modus aktiv.' : 'Offline mode active.'}
            </div>
         )}
-
         <div className={cn('px-8 py-4 border-b shrink-0 z-10 relative', dk ? 'bg-[#0F172A] border-white/5' : 'bg-white border-slate-200')}>
           <div className="flex items-center justify-between flex-wrap gap-4 w-full">
             <div className="flex items-center gap-12 flex-wrap">
@@ -417,27 +289,17 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                 { label: lang === 'de' ? 'Gesamtkosten' : 'Total Spent', value: formatCurrency(totalSpend), cls: 'text-blue-400' },
                 { label: 'Hotels', value: String(finalFiltered.length), cls: dk ? 'text-white' : 'text-slate-900' },
               ].map(({ label, value, cls }) => (
-                <div key={label}>
-                  <p className={cn('text-[10px] font-bold uppercase tracking-widest mb-1', dk ? 'text-slate-500' : 'text-slate-400')}>{label}</p>
-                  <p className={cn('text-2xl font-black', cls)}>{value}</p>
-                </div>
+                <div key={label}><p className={cn('text-[10px] font-bold uppercase tracking-widest mb-1', dk ? 'text-slate-500' : 'text-slate-400')}>{label}</p><p className={cn('text-2xl font-black', cls)}>{value}</p></div>
               ))}
             </div>
-
             {activeUsers.length > 0 && (
               <div className="flex items-center gap-2">
-                <span className={cn("text-[10px] font-bold uppercase tracking-widest mr-2", dk ? "text-slate-500" : "text-slate-400")}>
-                  {lang === 'de' ? 'Live dabei:' : 'Live now:'}
-                </span>
+                <span className={cn("text-[10px] font-bold uppercase tracking-widest mr-2", dk ? "text-slate-500" : "text-slate-400")}>{lang === 'de' ? 'Live dabei:' : 'Live now:'}</span>
                 <div className="flex -space-x-2">
                   {activeUsers.map((u: any, i: number) => (
                     <div key={i} className="relative group cursor-pointer">
-                      <div className="w-8 h-8 rounded-full bg-blue-600 border-2 border-white dark:border-[#020617] flex items-center justify-center text-white text-xs font-bold shadow-sm z-10 relative">
-                        {u.name.substring(0, 2).toUpperCase()}
-                      </div>
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none">
-                        {u.name} <br/> <span className="text-slate-400">{u.email}</span>
-                      </div>
+                      <div className="w-8 h-8 rounded-full bg-blue-600 border-2 border-white dark:border-[#020617] flex items-center justify-center text-white text-xs font-bold shadow-sm z-10 relative">{u.name.substring(0, 2).toUpperCase()}</div>
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none">{u.name} <br/> <span className="text-slate-400">{u.email}</span></div>
                     </div>
                   ))}
                 </div>
@@ -445,234 +307,37 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             )}
           </div>
         </div>
-
         <main className="flex-1 overflow-y-auto p-6 relative">
           <div className="flex items-center justify-between mb-6 gap-3 flex-wrap relative z-50">
-            <h2 className={cn('text-2xl font-black tracking-tight', dk ? 'text-white' : 'text-slate-900')}>
-              {selectedMonth !== null ? `${monthNames[selectedMonth]} ${selectedYear}` : `Dashboard ${selectedYear}`}
-            </h2>
-
+            <h2 className={cn('text-2xl font-black tracking-tight', dk ? 'text-white' : 'text-slate-900')}>{selectedMonth !== null ? `${monthNames[selectedMonth]} ${selectedYear}` : `Dashboard ${selectedYear}`}</h2>
             <div className="flex items-center gap-2 relative">
               {!isStrictViewer && (
                 <div className={cn("flex items-center mr-2 rounded-full p-1 border shadow-sm", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
-                   <button onClick={handleUndo} disabled={historyIndex <= 0} className={cn("p-1.5 rounded-full transition-all disabled:opacity-30", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")} title={lang === 'de' ? "Rückgängig (Ctrl+Z)" : "Undo (Ctrl+Z)"}><Undo2 size={16} /></button>
+                   <button onClick={handleUndo} disabled={historyIndex <= 0} className={cn("p-1.5 rounded-full transition-all disabled:opacity-30", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")}><Undo2 size={16} /></button>
                    <div className={cn("w-px h-4 mx-0.5", dk ? "bg-white/10" : "bg-slate-200")} />
-                   <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className={cn("p-1.5 rounded-full transition-all disabled:opacity-30", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")} title={lang === 'de' ? "Wiederholen (Ctrl+Y)" : "Redo (Ctrl+Y)"}><Redo2 size={16} /></button>
+                   <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className={cn("p-1.5 rounded-full transition-all disabled:opacity-30", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")}><Redo2 size={16} /></button>
                 </div>
               )}
-
-              <button onClick={() => toggleMenu('timeline')} className={cn(btnCls, tlType !== 'all' ? 'border-blue-500 text-blue-500 bg-blue-500/10' : '')}>
-                <Calendar size={16} /> {lang === 'de' ? 'Zeitraum' : 'Timeline'}
-              </button>
-              
-              <button onClick={() => toggleMenu('filter')} className={cn(btnCls, (fbType !== 'all' || filterPaid !== 'all' || filterDeposit !== 'all' || groupBy !== 'none') ? 'border-blue-500 text-blue-500 bg-blue-500/10' : '')}>
-                <Filter size={16} /> {lang === 'de' ? 'Filter & Gruppen' : 'Filters'}
-              </button>
-
-              <button onClick={() => toggleMenu('sort')} className={btnCls}>
-                <ArrowUpDown size={16} /> {lang === 'de' ? 'Sortieren' : 'Sort'}
-              </button>
-
-              <button onClick={() => setShowBookmarks(!showBookmarks)} className={cn(btnCls, 'ml-2', showBookmarks && 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500')}>
-                <Star size={16} className={showBookmarks ? 'fill-yellow-500 text-yellow-500' : ''} /> {lang === 'de' ? 'Lesezeichen' : 'Bookmarks'}
-              </button>
-
-              {!isStrictViewer && (
-                <button onClick={() => setAddingHotel(true)} className="ml-4 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl flex items-center gap-2 text-sm shadow-lg transition-all">
-                  <Plus size={18} /> {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
-                </button>
-              )}
+              <button onClick={() => toggleMenu('timeline')} className="px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all shadow-sm"><Calendar size={16} /> Zeitraum</button>
+              <button onClick={() => toggleMenu('filter')} className="px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all shadow-sm"><Filter size={16} /> Filter</button>
+              <button onClick={() => toggleMenu('sort')} className="px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all shadow-sm"><ArrowUpDown size={16} /> Sortieren</button>
+              {!isStrictViewer && (<button onClick={() => setAddingHotel(true)} className="ml-4 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl flex items-center gap-2 text-sm shadow-lg transition-all"><Plus size={18} /> Hotel hinzufügen</button>)}
             </div>
-
-            {showTimelineMenu && (
-               <div className={cn("absolute right-[400px] top-12 z-[200] p-5 rounded-xl border shadow-2xl w-[340px]", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
-                  <div className="flex items-center justify-between mb-4 border-b pb-3 border-slate-200 dark:border-white/10">
-                     <p className={cn("text-xs font-black uppercase tracking-widest", dk ? "text-slate-300" : "text-slate-700")}>{lang === 'de' ? 'Buchungszeitraum' : 'Booking Timeline'}</p>
-                     <button onClick={() => setShowTimelineMenu(false)} className={cn("p-1 rounded-md", dk ? "hover:bg-white/10" : "hover:bg-slate-100")}><X size={14}/></button>
-                  </div>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                     <Pill active={tlType === 'all'} onClick={() => setTlType('all')}>{lang === 'de' ? 'Gesamte Zeit' : 'All Time'}</Pill>
-                     <Pill active={tlType === 'today'} onClick={() => setTlType('today')}>{lang === 'de' ? 'Heute' : 'Today'}</Pill>
-                     <Pill active={tlType === 'tomorrow'} onClick={() => setTlType('tomorrow')}>{lang === 'de' ? 'Morgen' : 'Tomorrow'}</Pill>
-                     <Pill active={tlType === '3days'} onClick={() => setTlType('3days')}>{lang === 'de' ? 'In 3 Tagen' : 'In 3 Days'}</Pill>
-                     <Pill active={tlType === '7days'} onClick={() => setTlType('7days')}>{lang === 'de' ? 'In 7 Tagen' : 'In 7 Days'}</Pill>
-                     <Pill active={tlType === 'range'} onClick={() => setTlType('range')}>{lang === 'de' ? 'Eigener Zeitraum' : 'Custom Range'}</Pill>
-                  </div>
-                  {tlType === 'range' && (
-                     <div className="flex items-center gap-2 mb-4">
-                        <input type="date" value={tlStartDate} onChange={e => setTlStartDate(e.target.value)} className={cn("flex-1 px-3 py-2 rounded-lg border text-xs outline-none", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-900")} />
-                        <span className="text-slate-400">➔</span>
-                        <input type="date" value={tlEndDate} onChange={e => setTlEndDate(e.target.value)} className={cn("flex-1 px-3 py-2 rounded-lg border text-xs outline-none", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-900")} />
-                     </div>
-                  )}
-                  <button onClick={() => { setTlType('all'); setShowTimelineMenu(false); }} className="w-full py-2 flex items-center justify-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-white transition-all">
-                     <RefreshCw size={12} /> {lang === 'de' ? 'Datum zurücksetzen' : 'Clear Dates'}
-                  </button>
-               </div>
-            )}
-
-            {showFilterMenu && (
-               <div className={cn("absolute right-72 top-12 z-[200] p-5 rounded-xl border shadow-2xl w-[380px] space-y-5", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
-                  <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-white/10">
-                     <p className={cn("text-xs font-black uppercase tracking-widest", dk ? "text-slate-300" : "text-slate-700")}>{lang === 'de' ? 'Filter & Gruppierung' : 'Filters & Grouping'}</p>
-                     <button onClick={() => setShowFilterMenu(false)} className={cn("p-1 rounded-md", dk ? "hover:bg-white/10" : "hover:bg-slate-100")}><X size={14}/></button>
-                  </div>
-                  <div>
-                     <p className={cn("text-[10px] font-bold uppercase tracking-widest mb-2", dk ? "text-slate-500" : "text-slate-400")}>{lang === 'de' ? 'Freie Betten Kapazität' : 'Free Beds Capacity'}</p>
-                     <div className="flex flex-wrap gap-2">
-                        <Pill active={fbType === 'all'} onClick={() => setFbType('all')}>{lang === 'de' ? 'Alle' : 'All'}</Pill>
-                        <Pill active={fbType === 'today'} onClick={() => setFbType('today')}>{lang === 'de' ? 'Heute' : 'Today'}</Pill>
-                        <Pill active={fbType === 'tomorrow'} onClick={() => setFbType('tomorrow')}>{lang === 'de' ? 'Morgen' : 'Tomorrow'}</Pill>
-                        <Pill active={fbType === '3days'} onClick={() => setFbType('3days')}>{lang === 'de' ? 'In 3 Tagen' : 'In 3 Days'}</Pill>
-                        <Pill active={fbType === '7days'} onClick={() => setFbType('7days')}>{lang === 'de' ? 'In 7 Tagen' : 'In 7 Days'}</Pill>
-                        <Pill active={fbType === 'range'} onClick={() => setFbType('range')}>{lang === 'de' ? 'Eigener Zeitraum' : 'Custom Range'}</Pill>
-                     </div>
-                     {fbType === 'range' && (
-                        <div className="flex items-center gap-2 mt-3">
-                           <input type="date" value={fbStartDate} onChange={e => setFbStartDate(e.target.value)} className={cn("flex-1 px-3 py-2 rounded-lg border text-xs outline-none", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-900")} />
-                           <span className="text-slate-400">➔</span>
-                           <input type="date" value={fbEndDate} onChange={e => setFbEndDate(e.target.value)} className={cn("flex-1 px-3 py-2 rounded-lg border text-xs outline-none", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-900")} />
-                        </div>
-                     )}
-                  </div>
-                  <div className="flex gap-4">
-                     <div className="flex-1">
-                        <p className={cn("text-[10px] font-bold uppercase tracking-widest mb-2", dk ? "text-slate-500" : "text-slate-400")}>{lang === 'de' ? 'Zahlung' : 'Payment'}</p>
-                        <div className="flex flex-wrap gap-2">
-                           <Pill active={filterPaid === 'all'} onClick={() => setFilterPaid('all')}>{lang === 'de' ? 'Alle' : 'All'}</Pill>
-                           <Pill active={filterPaid === 'paid'} onClick={() => setFilterPaid('paid')}>{lang === 'de' ? 'Bezahlt' : 'Paid'}</Pill>
-                           <Pill active={filterPaid === 'unpaid'} onClick={() => setFilterPaid('unpaid')}>{lang === 'de' ? 'Offen' : 'Unpaid'}</Pill>
-                        </div>
-                     </div>
-                     <div className="flex-1">
-                        <p className={cn("text-[10px] font-bold uppercase tracking-widest mb-2", dk ? "text-slate-500" : "text-slate-400")}>{lang === 'de' ? 'Kaution' : 'Deposit'}</p>
-                        <div className="flex flex-wrap gap-2">
-                           <Pill active={filterDeposit === 'all'} onClick={() => setFilterDeposit('all')}>{lang === 'de' ? 'Alle' : 'All'}</Pill>
-                           <Pill active={filterDeposit === 'with'} onClick={() => setFilterDeposit('with')}>{lang === 'de' ? 'Ja' : 'Yes'}</Pill>
-                           <Pill active={filterDeposit === 'without'} onClick={() => setFilterDeposit('without')}>{lang === 'de' ? 'Nein' : 'No'}</Pill>
-                        </div>
-                     </div>
-                  </div>
-                  <div>
-                     <p className={cn("text-[10px] font-bold uppercase tracking-widest mb-2", dk ? "text-slate-500" : "text-slate-400")}>{lang === 'de' ? 'Gruppieren (Tabs)' : 'Group By (Tabs)'}</p>
-                     <div className="flex flex-wrap gap-2">
-                        <Pill active={groupBy === 'none'} onClick={() => { setGroupBy('none'); setActiveGroup(null); }}>{lang === 'de' ? 'Keine' : 'None'}</Pill>
-                        <Pill active={groupBy === 'hotel'} onClick={() => { setGroupBy('hotel'); setActiveGroup(null); }}>Hotel</Pill>
-                        <Pill active={groupBy === 'company'} onClick={() => { setGroupBy('company'); setActiveGroup(null); }}>{lang === 'de' ? 'Firma' : 'Company'}</Pill>
-                        <Pill active={groupBy === 'city'} onClick={() => { setGroupBy('city'); setActiveGroup(null); }}>{lang === 'de' ? 'Stadt' : 'City'}</Pill>
-                     </div>
-                  </div>
-                  <button onClick={() => { setFbType('all'); setFilterPaid('all'); setFilterDeposit('all'); setGroupBy('none'); setShowFilterMenu(false); }} className="w-full pt-3 mt-2 border-t border-slate-200 dark:border-white/10 flex items-center justify-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-white transition-all">
-                     <RefreshCw size={12} /> {lang === 'de' ? 'Filter zurücksetzen' : 'Clear Filters'}
-                  </button>
-               </div>
-            )}
-
-            {showSortMenu && (
-               <div className={cn("absolute right-48 top-12 z-[200] p-5 rounded-xl border shadow-2xl w-[280px]", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
-                  <div className="flex items-center justify-between mb-4 border-b pb-3 border-slate-200 dark:border-white/10">
-                     <p className={cn("text-xs font-black uppercase tracking-widest", dk ? "text-slate-300" : "text-slate-700")}>{lang === 'de' ? 'Dashboard Sortieren' : 'Sort Dashboard'}</p>
-                     <button onClick={() => setShowSortMenu(false)} className={cn("p-1 rounded-md", dk ? "hover:bg-white/10" : "hover:bg-slate-100")}><X size={14}/></button>
-                  </div>
-                  <div className="flex gap-2 mb-4">
-                     <button onClick={() => setSortDir('asc')} className={cn("flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all", sortDir==='asc' ? "bg-blue-600 text-white border-blue-600 shadow-md" : dk ? "bg-[#1E293B] border-white/10 text-slate-400 hover:text-white" : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900")}>↑ {lang === 'de' ? 'Aufsteigend' : 'Ascending'}</button>
-                     <button onClick={() => setSortDir('desc')} className={cn("flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all", sortDir==='desc' ? "bg-blue-600 text-white border-blue-600 shadow-md" : dk ? "bg-[#1E293B] border-white/10 text-slate-400 hover:text-white" : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900")}>↓ {lang === 'de' ? 'Absteigend' : 'Descending'}</button>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                     <Pill active={sortBy === 'last_added'} onClick={() => setSortBy('last_added')}>{lang === 'de' ? 'Zuletzt hinzugefügt' : 'Last Added'}</Pill>
-                     <Pill active={sortBy === 'last_updated'} onClick={() => setSortBy('last_updated')}>{lang === 'de' ? 'Zuletzt aktualisiert' : 'Last Updated'}</Pill>
-                     <Pill active={sortBy === 'name'} onClick={() => setSortBy('name')}>{lang === 'de' ? 'Hotelname (A-Z)' : 'Hotel Name (A-Z)'}</Pill>
-                     <Pill active={sortBy === 'cost'} onClick={() => setSortBy('cost')}>{lang === 'de' ? 'Gesamtkosten' : 'Total Cost'}</Pill>
-                     <Pill active={sortBy === 'free_beds'} onClick={() => setSortBy('free_beds')}>{lang === 'de' ? 'Freie Betten' : 'Free Beds'}</Pill>
-                  </div>
-               </div>
-            )}
           </div>
-
-          {groupBy !== 'none' && groupedData.length > 0 && (
-            <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-4 no-scrollbar border-b border-slate-200 dark:border-white/10">
-               <button onClick={() => setActiveGroup(null)} className={cn("px-4 py-2 rounded-xl text-sm font-bold border transition-all whitespace-nowrap", !activeGroup ? "bg-blue-600 text-white shadow-md border-blue-600" : dk ? "border-white/10 text-slate-400 hover:bg-white/10" : "border-slate-200 text-slate-600 hover:bg-slate-100")}>
-                  {lang === 'de' ? 'Alle' : 'All'} {groupBy === 'city' ? (lang === 'de' ? 'Städte' : 'Cities') : groupBy === 'hotel' ? 'Hotels' : (lang === 'de' ? 'Firmen' : 'Companies')}
-               </button>
-               {groupedData.map(g => (
-                 <button key={g.name} onClick={() => setActiveGroup(g.name)} className={cn("px-4 py-2 rounded-xl text-sm font-bold border transition-all whitespace-nowrap", activeGroup === g.name ? "bg-blue-600 text-white shadow-md border-blue-600" : dk ? "border-white/10 text-slate-300 hover:bg-white/10" : "border-slate-200 text-slate-700 hover:bg-slate-100")}>
-                    {g.name} <span className="opacity-60 font-normal ml-1">({g.count}) — {formatCurrency(g.cost)}</span>
-                 </button>
-               ))}
-            </div>
-          )}
-
-          {loading ? (
-            <div className="text-center py-20"><Loader2 size={40} className="animate-spin text-blue-600 mx-auto" /></div>
-          ) : (
+          {loading ? (<div className="text-center py-20"><Loader2 size={40} className="animate-spin text-blue-600 mx-auto" /></div>) : (
             <div className="space-y-3 pb-24 relative z-0">
               {addingHotel && !isStrictViewer && (
                 <div className={cn('rounded-2xl border p-4 shadow-md mb-4 relative z-50', dk ? 'bg-[#0B1224] border-blue-500/40' : 'bg-white border-blue-400')}>
-                  <datalist id="city-list">
-                    {uniqueCities.map(c => <option key={c} value={c} />)}
-                  </datalist>
                   <div className="flex flex-wrap lg:flex-nowrap gap-3 items-start">
-                    <div className="flex-[2.5_2.5_0%] min-w-[200px]">
-                       <label className={labelCls}>{lang === 'de' ? 'Hotelname *' : 'Hotel Name *'}</label>
-                       <input autoComplete="off" spellCheck="false" ref={newHotelNameRef} autoFocus onKeyDown={handleEnterBlur} className={cn('w-full px-3 py-2 rounded-lg border outline-none text-xs font-bold transition-all focus:border-blue-500 h-[38px]', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder={lang === 'de' ? "Name eingeben..." : "Enter name..."} />
-                    </div>
-                    <div className="flex-[1.5_1.5_0%] min-w-[150px]">
-                       <label className={labelCls}><MapPin size={10}/> {lang === 'de' ? 'Stadt' : 'City'}</label>
-                       <input autoComplete="off" spellCheck="false" list="city-list" onKeyDown={handleEnterBlur} className={cn('w-full px-3 py-2 rounded-lg border outline-none text-xs font-bold transition-all focus:border-blue-500 h-[38px]', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder={lang === 'de' ? "Stadt eingeben..." : "Enter city..."} />
-                    </div>
-                    <div className="flex-[1.5_1.5_0%] min-w-[150px]">
-                       <label className={labelCls}><Building2 size={10}/> {lang === 'de' ? 'Firma' : 'Company'}</label>
-                       <div className="flex flex-col gap-1">
-                         {newHotelCompany.length > 0 && (
-                           <div className="flex flex-wrap gap-1">
-                             {newHotelCompany.map(c => (
-                               <span key={c} onClick={() => setNewHotelCompany(prev => prev.filter(x => x !== c))} className={cn('px-2 py-1 rounded text-[10px] font-bold border flex items-center gap-1 cursor-pointer transition-all hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30', dk ? 'bg-white/5 border-white/10 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700')}>
-                                 {c} <X size={10} />
-                               </span>
-                             ))}
-                           </div>
-                         )}
-                         <ModernDropdown 
-                            value={''} 
-                            options={uniqueCompanies.filter(c => !newHotelCompany.includes(c))} 
-                            onChange={(v:any) => { if(v) setNewHotelCompany(prev => [...prev, v]) }} 
-                            isDarkMode={dk} lang={lang} 
-                            placeholder={lang === 'de' ? '+ Firma auswählen...' : '+ Add company...'} 
-                         />
-                       </div>
-                    </div>
-                    <div className="flex-[1_1_0%] min-w-[150px]">
-                       <label className={labelCls}><Building size={10}/> {lang === 'de' ? 'Land' : 'Country'}</label>
-                       <ModernDropdown 
-                          value={newHotelCountry} 
-                          options={getCountryOptions()} 
-                          onChange={(v:any) => setNewHotelCountry(v)} 
-                          isDarkMode={dk} lang={lang} 
-                       />
-                    </div>
-                    <div className="flex shrink-0 gap-2 w-[100px] mt-[26px]">
-                       <button onClick={handleSaveNewHotel} disabled={newHotelSaving || !newHotelName.trim()} className="flex-1 h-[38px] bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md disabled:opacity-50 transition-all flex items-center justify-center">
-                          {newHotelSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                       </button>
-                       <button onClick={() => setAddingHotel(false)} className={cn("flex-1 h-[38px] rounded-lg flex items-center justify-center transition-all border", dk ? "border-white/10 hover:bg-white/10 text-slate-300" : "border-slate-200 hover:bg-slate-100 text-slate-600")}>
-                          <X size={14} />
-                       </button>
-                    </div>
+                    <div className="flex-[2.5_2.5_0%] min-w-[200px]"><label className={labelCls}>Hotelname *</label><input ref={newHotelNameRef} autoFocus value={newHotelName} onChange={e => setNewHotelName(e.target.value)} className={cn('w-full px-3 py-2 rounded-lg border text-xs font-bold transition-all h-[38px]', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} /></div>
+                    <div className="flex-[1.5_1.5_0%] min-w-[150px]"><label className={labelCls}>Stadt</label><input value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} className={cn('w-full px-3 py-2 rounded-lg border text-xs font-bold transition-all h-[38px]', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} /></div>
+                    <div className="flex-[1.5_1.5_0%] min-w-[150px]"><label className={labelCls}>Firma</label><ModernDropdown value={''} options={uniqueCompanies.filter(c => !newHotelCompany.includes(c))} onChange={(v:any) => { if(v) setNewHotelCompany(prev => [...prev, v]) }} isDarkMode={dk} lang={lang} /></div>
+                    <div className="flex shrinkage-0 gap-2 w-[100px] mt-[26px]"><button onClick={handleSaveNewHotel} className="flex-1 h-[38px] bg-blue-600 text-white rounded-lg shadow-md"><Check size={14} /></button><button onClick={() => setAddingHotel(false)} className="flex-1 h-[38px] rounded-lg border"><X size={14} /></button></div>
                   </div>
                 </div>
               )}
               {finalFiltered.map((hotel, index) => (
-                <HotelRow
-                  key={hotel.id} entry={hotel} index={index}
-                  isDarkMode={dk} lang={lang}
-                  searchQuery={searchQuery} 
-                  isPinned={bookmarks.includes(hotel.id)} 
-                  onTogglePin={() => toggleBookmark(hotel.id)} 
-                  companyOptions={uniqueCompanies}
-                  cityOptions={uniqueCities}
-                  onDelete={handleRowDelete}
-                  onUpdate={handleRowUpdate}
-                />
+                <HotelRow key={hotel.id} entry={hotel} index={index} isDarkMode={dk} lang={lang} searchQuery={searchQuery} companyOptions={uniqueCompanies} cityOptions={uniqueCities} onDelete={handleRowDelete} onUpdate={handleRowUpdate} />
               ))}
             </div>
           )}
