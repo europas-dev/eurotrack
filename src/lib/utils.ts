@@ -1,7 +1,6 @@
 // src/lib/utils.ts
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-// IMPORT THE ROOM CARD MATH SO THE DASHBOARD CAN USE IT
 import { calcRoomCardTotal } from './roomCardUtils'
 
 export function cn(...inputs: ClassValue[]) {
@@ -40,6 +39,17 @@ export function formatDateChip(isoString?: string | null): string {
   const dd = String(d.getDate()).padStart(2, '0');
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   return `${dd}.${mm}`;
+}
+
+// FIXED: Added robust Last Updated formatter with translation support
+export function formatLastUpdated(name?: string, dateIso?: string, lang: 'de' | 'en' = 'de'): string {
+  const uName = name || 'Admin';
+  if (!dateIso) return lang === 'de' ? `Zuletzt aktualisiert von ${uName}` : `Last updated by ${uName}`;
+  const d = new Date(dateIso);
+  if (isNaN(d.getTime())) return lang === 'de' ? `Zuletzt aktualisiert von ${uName}` : `Last updated by ${uName}`;
+  const dateStr = d.toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const timeStr = d.toLocaleTimeString(lang === 'de' ? 'de-DE' : 'en-GB', { hour: '2-digit', minute: '2-digit' });
+  return lang === 'de' ? `Zuletzt aktualisiert von ${uName} am ${dateStr} um ${timeStr}` : `Last updated by ${uName} on ${dateStr} at ${timeStr}`;
 }
 
 export function getEmployeeStatus(checkIn?: string | null, checkOut?: string | null): 'upcoming' | 'active' | 'ending-soon' | 'completed' | 'none' {
@@ -161,7 +171,6 @@ export function getDurationCostForMonth(d: any, targetYear: number, targetMonthI
   const overlapNights = calculateNights(overlapStart.toISOString().split('T')[0], overlapEnd.toISOString().split('T')[0]);
   if (overlapNights <= 0) return 0;
 
-  // Calculate the EXACT total for this duration using the Master Math
   const rCards = d.roomCards || [];
   const extraTotal = (d.extraCosts || []).reduce((sum: number, ex: any) => sum + (Number(ex.amount) || 0), 0);
   
@@ -175,7 +184,6 @@ export function getDurationCostForMonth(d: any, targetYear: number, targetMonthI
     bruttoBase = d.discountType === 'fixed' ? bruttoBase - d.discountValue : bruttoBase * (1 - d.discountValue / 100);
   }
   
-  // Prorate the total cost based on how many nights fell into THIS specific month
   return (bruttoBase / totalNights) * overlapNights;
 }
 
