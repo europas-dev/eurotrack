@@ -14,7 +14,6 @@ type View = 'landing' | 'login' | 'signup' | 'admin-login' | 'dashboard' | 'supe
 type Theme    = 'dark' | 'light';
 type Language = 'de' | 'en';
 
-// ── Persist last view across refreshes for logged-in users ─────────────────
 const VIEW_KEY = 'et_last_view';
 const VALID_PERSISTED: View[] = ['dashboard', 'user-management'];
 function getPersistedView(): View | null {
@@ -47,29 +46,28 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
 }
 
 export default function App() {
-  const [view,          setView]          = useState<View>('landing');
-  const [loading,       setLoading]       = useState(true);
-  const [accessLevel,   setAccessLevel]   = useState<AccessLevel | null>(null);
-  const [theme,         setTheme]         = useState<Theme>('dark');
-  const [lang,          setLang]          = useState<Language>('en');
-  const [offlineBanner, setOfflineBanner] = useState(!navigator.onLine);
+  const [view,           setView]          = useState<View>('landing');
+  const [loading,        setLoading]       = useState(true);
+  const [accessLevel,    setAccessLevel]   = useState<AccessLevel | null>(null);
+  const [theme,          setTheme]         = useState<Theme>('dark');
+  const [lang,           setLang]          = useState<Language>('en');
+  
+  // FIXED: offlineMode state now controls the global connection status
+  const [offlineMode,    setOfflineMode]   = useState(!navigator.onLine);
+  
   const pollRef    = useRef<ReturnType<typeof setInterval> | null>(null);
   const initDone   = useRef(false);
   const signingOut = useRef(false);
 
   const dk = theme === 'dark';
 
-  // ── setView + persist ───────────────────────────────────────────────────
   const navigate = useCallback((v: View) => {
     setView(v);
     persistView(v);
   }, []);
 
-  // ── role → default view (respects persisted view if compatible) ─────────
   const applyRole = useCallback((role: string, persisted: View | null = null) => {
     if (role === 'superadmin') {
-      // Superadmin: honour persisted view (dashboard / user-management)
-      // otherwise go to superadmin-home
       const target = persisted ?? 'superadmin-home';
       setView(target);
     } else if (role === 'pending') {
@@ -105,13 +103,11 @@ export default function App() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }, []);
 
-  // ── mount effect ─────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
 
     supabase.auth.getSession().then(async ({ data: { session }, error }) => {
       if (cancelled) return;
-
       if (error || !session?.user) {
         clearPersistedView();
         setView('landing');
@@ -119,8 +115,6 @@ export default function App() {
         initDone.current = true;
         return;
       }
-
-      // Pass the persisted view so applyRole can restore it
       const persisted = getPersistedView();
       try {
         await resolveAccess(persisted);
@@ -136,10 +130,9 @@ export default function App() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (cancelled || !initDone.current) return;
-
       if (event === 'SIGNED_IN' && session?.user) {
         setLoading(true);
-        await resolveAccess(null); // fresh login → no persisted view
+        await resolveAccess(null);
         setLoading(false);
       } else if (event === 'SIGNED_OUT') {
         if (!signingOut.current) return;
@@ -149,13 +142,13 @@ export default function App() {
         setAccessLevel(null);
         setView('landing');
         setLoading(false);
-      } else if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-        // silent — no action
+        signingOut.current = false;
       }
     });
 
-    const handleOnline  = () => setOfflineBanner(false);
-    const handleOffline = () => setOfflineBanner(true);
+    // Handle real browser connection changes
+    const handleOnline  = () => setOfflineMode(false);
+    const handleOffline = () => setOfflineMode(true);
     window.addEventListener('online',  handleOnline);
     window.addEventListener('offline', handleOffline);
 
@@ -166,7 +159,6 @@ export default function App() {
       window.removeEventListener('online',  handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -185,7 +177,11 @@ export default function App() {
     signingOut.current = false;
   }
 
-  // ── loading ───────────────────────────────────────────────────────────────
+  // FIXED: Function to toggle offline mode from the header
+  const handleToggleOffline = () => {
+    setOfflineMode(prev => !prev);
+  };
+
   if (loading) return (
     <div className="min-h-screen bg-[#020617] flex items-center justify-center">
       <div className="text-center space-y-4">
@@ -196,7 +192,6 @@ export default function App() {
     </div>
   );
 
-  // ── routes ────────────────────────────────────────────────────────────────
   if (view === 'landing') return (
     <Landing
       onLogin={()       => setView('login')}
@@ -280,18 +275,15 @@ export default function App() {
           👁 {lang === 'de' ? 'Nur-Lesen-Modus' : 'View-only mode'}
         </div>
       )}
-      {offlineBanner && (
-        <div className="bg-amber-500 text-black text-xs font-bold text-center py-1.5 px-4 shrink-0">
-          📡 {lang === 'de' ? 'Offline' : 'Offline'}
-        </div>
-      )}
       <div className="flex-1 min-h-0 overflow-hidden">
         <ErrorBoundary>
           <Dashboard
             theme={theme} lang={lang}
             toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
             setLang={setLang}
-            offlineMode={offlineBanner}
+            // FIXED: Passing actual state and handler to Dashboard
+            offlineMode={offlineMode}
+            onToggleOfflineMode={handleToggleOffline}
             viewOnly={isViewOnly}
             accessLevel={accessLevel}
             onSignOut={
