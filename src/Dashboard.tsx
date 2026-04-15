@@ -66,7 +66,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [addingHotel, setAddingHotel] = useState(false);
   const [newHotelName, setNewHotelName] = useState('');
   const [newHotelCity, setNewHotelCity] = useState('');
-  // FIXED: Changed to array to support multiple companies in Add Hotel form
   const [newHotelCompany, setNewHotelCompany] = useState<string[]>([]);
   
   const [newHotelCountry, setNewHotelCountry] = useState('Germany');
@@ -128,7 +127,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     async function fetchHotels() {
       try {
         setError('');
-        
         const { data, error: supabaseError } = await supabase
           .from('hotels')
           .select('*, durations(*, room_cards(*, employees(*)), employees(*))')
@@ -137,7 +135,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
         if (supabaseError) throw supabaseError;
 
-        // FIXED: The Translation Bug. We now accurately map room_type -> roomType so the UI doesn't panic and default to EZ.
+        // FIXED: The Data Translator. This bridge ensures DB snake_case names match UI camelCase requirements.
         const normalizedData = (data || []).map((h: any) => ({
           ...h,
           companyTag: h.companytag ?? h.companyTag,
@@ -158,11 +156,35 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
               ...rc,
               roomType: rc.room_type ?? rc.roomType ?? 'EZ',
               bedCount: rc.bed_count ?? rc.bedCount ?? 1,
+              roomNetto: rc.room_netto ?? rc.roomNetto,
+              roomMwst: rc.room_mwst ?? rc.roomMwst,
               roomBrutto: rc.room_brutto ?? rc.roomBrutto,
+              bedNetto: rc.bed_netto ?? rc.bedNetto,
+              bedMwst: rc.bed_mwst ?? rc.bedMwst,
+              bedBrutto: rc.bed_brutto ?? rc.bedBrutto,
+              totalNetto: rc.total_netto ?? rc.totalNetto,
+              totalMwst: rc.total_mwst ?? rc.totalMwst,
               totalBrutto: rc.total_brutto ?? rc.totalBrutto,
-              useManualPrice: rc.use_manual_price ?? rc.useManualPrice,
-              manualPrice: rc.manual_price ?? rc.manualPrice,
-              durationId: rc.duration_id ?? rc.durationId
+              roomEnergyNetto: rc.room_energy_netto ?? rc.roomEnergyNetto,
+              roomEnergyMwst: rc.room_energy_mwst ?? rc.roomEnergyMwst,
+              roomEnergyBrutto: rc.room_energy_brutto ?? rc.roomEnergyBrutto,
+              bedEnergyNetto: rc.bed_energy_netto ?? rc.bedEnergyNetto,
+              bedEnergyMwst: rc.bed_energy_mwst ?? rc.bedEnergyMwst,
+              bedEnergyBrutto: rc.bed_energy_brutto ?? rc.bedEnergyBrutto,
+              totalEnergyNetto: rc.total_energy_netto ?? rc.totalEnergyNetto,
+              totalEnergyMwst: rc.total_energy_mwst ?? rc.totalEnergyMwst,
+              totalEnergyBrutto: rc.total_energy_brutto ?? rc.totalEnergyBrutto,
+              hasDiscount: rc.has_discount ?? rc.hasDiscount ?? false,
+              discountType: rc.discount_type ?? rc.discountType ?? 'percentage',
+              discountValue: rc.discount_value ?? rc.discountValue ?? 0,
+              pricingTab: rc.pricing_tab ?? rc.pricingTab ?? 'per_room',
+              durationId: rc.duration_id ?? rc.durationId,
+              employees: (rc.employees || []).map((e: any) => ({
+                ...e,
+                slotIndex: e.slotindex ?? e.slotIndex ?? 0,
+                checkIn: e.checkin ?? e.checkIn,
+                checkOut: e.checkout ?? e.checkOut
+              }))
             }))
           }))
         }));
@@ -261,6 +283,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         else if (fbType === '7days') targetDate.setDate(targetDate.getDate() + 7);
         else if (fbType === 'range') targetDate = new Date(fbStartDate); 
         
+        const targetIso = targetDate.toISOString().split('T')[0];
         const hasFree = (h.durations || []).some((d: any) => calcHotelFreeBedsToday(h) > 0);
         if (!hasFree) return false;
       }
@@ -377,7 +400,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       <Sidebar theme={theme} lang={lang} selectedYear={selectedYear} setSelectedYear={setSelectedYear} selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(v => !v)} hotels={visibleHotels} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        {/* FIXED: Passed offline modes and isOnline status up to Header so toggle sits next to DE/EN */}
         <Header theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchScope={searchScope} setSearchScope={setSearchScope} onSignOut={onSignOut} onExportCsv={handleExportCsv} onPrint={handlePrint} viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} />
 
         {(!isOnline || offlineMode) && (
@@ -387,7 +409,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
            </div>
         )}
 
-        {/* FIXED: Placed Live Collaboration Avatars on the far right of the black stats banner */}
         <div className={cn('px-8 py-4 border-b shrink-0 z-10 relative', dk ? 'bg-[#0F172A] border-white/5' : 'bg-white border-slate-200')}>
           <div className="flex items-center justify-between flex-wrap gap-4 w-full">
             <div className="flex items-center gap-12 flex-wrap">
@@ -426,7 +447,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         </div>
 
         <main className="flex-1 overflow-y-auto p-6 relative">
-          
           <div className="flex items-center justify-between mb-6 gap-3 flex-wrap relative z-50">
             <h2 className={cn('text-2xl font-black tracking-tight', dk ? 'text-white' : 'text-slate-900')}>
               {selectedMonth !== null ? `${monthNames[selectedMonth]} ${selectedYear}` : `Dashboard ${selectedYear}`}
@@ -470,7 +490,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                      <p className={cn("text-xs font-black uppercase tracking-widest", dk ? "text-slate-300" : "text-slate-700")}>{lang === 'de' ? 'Buchungszeitraum' : 'Booking Timeline'}</p>
                      <button onClick={() => setShowTimelineMenu(false)} className={cn("p-1 rounded-md", dk ? "hover:bg-white/10" : "hover:bg-slate-100")}><X size={14}/></button>
                   </div>
-                  
                   <div className="flex flex-wrap gap-2 mb-4">
                      <Pill active={tlType === 'all'} onClick={() => setTlType('all')}>{lang === 'de' ? 'Gesamte Zeit' : 'All Time'}</Pill>
                      <Pill active={tlType === 'today'} onClick={() => setTlType('today')}>{lang === 'de' ? 'Heute' : 'Today'}</Pill>
@@ -479,7 +498,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                      <Pill active={tlType === '7days'} onClick={() => setTlType('7days')}>{lang === 'de' ? 'In 7 Tagen' : 'In 7 Days'}</Pill>
                      <Pill active={tlType === 'range'} onClick={() => setTlType('range')}>{lang === 'de' ? 'Eigener Zeitraum' : 'Custom Range'}</Pill>
                   </div>
-
                   {tlType === 'range' && (
                      <div className="flex items-center gap-2 mb-4">
                         <input type="date" value={tlStartDate} onChange={e => setTlStartDate(e.target.value)} className={cn("flex-1 px-3 py-2 rounded-lg border text-xs outline-none", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-900")} />
@@ -487,7 +505,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                         <input type="date" value={tlEndDate} onChange={e => setTlEndDate(e.target.value)} className={cn("flex-1 px-3 py-2 rounded-lg border text-xs outline-none", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-900")} />
                      </div>
                   )}
-
                   <button onClick={() => { setTlType('all'); setShowTimelineMenu(false); }} className="w-full py-2 flex items-center justify-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-white transition-all">
                      <RefreshCw size={12} /> {lang === 'de' ? 'Datum zurücksetzen' : 'Clear Dates'}
                   </button>
@@ -500,7 +517,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                      <p className={cn("text-xs font-black uppercase tracking-widest", dk ? "text-slate-300" : "text-slate-700")}>{lang === 'de' ? 'Filter & Gruppierung' : 'Filters & Grouping'}</p>
                      <button onClick={() => setShowFilterMenu(false)} className={cn("p-1 rounded-md", dk ? "hover:bg-white/10" : "hover:bg-slate-100")}><X size={14}/></button>
                   </div>
-
                   <div>
                      <p className={cn("text-[10px] font-bold uppercase tracking-widest mb-2", dk ? "text-slate-500" : "text-slate-400")}>{lang === 'de' ? 'Freie Betten Kapazität' : 'Free Beds Capacity'}</p>
                      <div className="flex flex-wrap gap-2">
@@ -519,7 +535,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                         </div>
                      )}
                   </div>
-
                   <div className="flex gap-4">
                      <div className="flex-1">
                         <p className={cn("text-[10px] font-bold uppercase tracking-widest mb-2", dk ? "text-slate-500" : "text-slate-400")}>{lang === 'de' ? 'Zahlung' : 'Payment'}</p>
@@ -538,7 +553,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                         </div>
                      </div>
                   </div>
-
                   <div>
                      <p className={cn("text-[10px] font-bold uppercase tracking-widest mb-2", dk ? "text-slate-500" : "text-slate-400")}>{lang === 'de' ? 'Gruppieren (Tabs)' : 'Group By (Tabs)'}</p>
                      <div className="flex flex-wrap gap-2">
@@ -548,7 +562,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                         <Pill active={groupBy === 'city'} onClick={() => { setGroupBy('city'); setActiveGroup(null); }}>{lang === 'de' ? 'Stadt' : 'City'}</Pill>
                      </div>
                   </div>
-
                   <button onClick={() => { setFbType('all'); setFilterPaid('all'); setFilterDeposit('all'); setGroupBy('none'); setShowFilterMenu(false); }} className="w-full pt-3 mt-2 border-t border-slate-200 dark:border-white/10 flex items-center justify-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-white transition-all">
                      <RefreshCw size={12} /> {lang === 'de' ? 'Filter zurücksetzen' : 'Clear Filters'}
                   </button>
@@ -561,12 +574,10 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                      <p className={cn("text-xs font-black uppercase tracking-widest", dk ? "text-slate-300" : "text-slate-700")}>{lang === 'de' ? 'Dashboard Sortieren' : 'Sort Dashboard'}</p>
                      <button onClick={() => setShowSortMenu(false)} className={cn("p-1 rounded-md", dk ? "hover:bg-white/10" : "hover:bg-slate-100")}><X size={14}/></button>
                   </div>
-                  
                   <div className="flex gap-2 mb-4">
                      <button onClick={() => setSortDir('asc')} className={cn("flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all", sortDir==='asc' ? "bg-blue-600 text-white border-blue-600 shadow-md" : dk ? "bg-[#1E293B] border-white/10 text-slate-400 hover:text-white" : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900")}>↑ {lang === 'de' ? 'Aufsteigend' : 'Ascending'}</button>
                      <button onClick={() => setSortDir('desc')} className={cn("flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all", sortDir==='desc' ? "bg-blue-600 text-white border-blue-600 shadow-md" : dk ? "bg-[#1E293B] border-white/10 text-slate-400 hover:text-white" : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900")}>↓ {lang === 'de' ? 'Absteigend' : 'Descending'}</button>
                   </div>
-
                   <div className="flex flex-col gap-1.5">
                      <Pill active={sortBy === 'last_added'} onClick={() => setSortBy('last_added')}>{lang === 'de' ? 'Zuletzt hinzugefügt' : 'Last Added'}</Pill>
                      <Pill active={sortBy === 'last_updated'} onClick={() => setSortBy('last_updated')}>{lang === 'de' ? 'Zuletzt aktualisiert' : 'Last Updated'}</Pill>
@@ -595,27 +606,22 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             <div className="text-center py-20"><Loader2 size={40} className="animate-spin text-blue-600 mx-auto" /></div>
           ) : (
             <div className="space-y-3 pb-24 relative z-0">
-              
               {addingHotel && !isStrictViewer && (
                 <div className={cn('rounded-2xl border p-4 shadow-md mb-4 relative z-50', dk ? 'bg-[#0B1224] border-blue-500/40' : 'bg-white border-blue-400')}>
                   <datalist id="city-list">
                     {uniqueCities.map(c => <option key={c} value={c} />)}
                   </datalist>
-                  
                   <div className="flex flex-wrap lg:flex-nowrap gap-3 items-start">
                     <div className="flex-[2.5_2.5_0%] min-w-[200px]">
                        <label className={labelCls}>{lang === 'de' ? 'Hotelname *' : 'Hotel Name *'}</label>
                        <input autoComplete="off" spellCheck="false" ref={newHotelNameRef} autoFocus onKeyDown={handleEnterBlur} className={cn('w-full px-3 py-2 rounded-lg border outline-none text-xs font-bold transition-all focus:border-blue-500 h-[38px]', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder={lang === 'de' ? "Name eingeben..." : "Enter name..."} />
                     </div>
-                    
                     <div className="flex-[1.5_1.5_0%] min-w-[150px]">
                        <label className={labelCls}><MapPin size={10}/> {lang === 'de' ? 'Stadt' : 'City'}</label>
                        <input autoComplete="off" spellCheck="false" list="city-list" onKeyDown={handleEnterBlur} className={cn('w-full px-3 py-2 rounded-lg border outline-none text-xs font-bold transition-all focus:border-blue-500 h-[38px]', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder={lang === 'de' ? "Stadt eingeben..." : "Enter city..."} />
                     </div>
-                    
                     <div className="flex-[1.5_1.5_0%] min-w-[150px]">
                        <label className={labelCls}><Building2 size={10}/> {lang === 'de' ? 'Firma' : 'Company'}</label>
-                       {/* FIXED: Replaced standard dropdown with an interactive multi-select array in Add Hotel form */}
                        <div className="flex flex-col gap-1">
                          {newHotelCompany.length > 0 && (
                            <div className="flex flex-wrap gap-1">
@@ -635,7 +641,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                          />
                        </div>
                     </div>
-                    
                     <div className="flex-[1_1_0%] min-w-[150px]">
                        <label className={labelCls}><Building size={10}/> {lang === 'de' ? 'Land' : 'Country'}</label>
                        <ModernDropdown 
@@ -645,7 +650,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                           isDarkMode={dk} lang={lang} 
                        />
                     </div>
-                    
                     <div className="flex shrink-0 gap-2 w-[100px] mt-[26px]">
                        <button onClick={handleSaveNewHotel} disabled={newHotelSaving || !newHotelName.trim()} className="flex-1 h-[38px] bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md disabled:opacity-50 transition-all flex items-center justify-center">
                           {newHotelSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
@@ -657,7 +661,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                   </div>
                 </div>
               )}
-
               {finalFiltered.map((hotel, index) => (
                 <HotelRow
                   key={hotel.id} entry={hotel} index={index}
