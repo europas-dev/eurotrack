@@ -387,7 +387,7 @@ export default function DurationCard({
 
       {roomCards.length > 0 && (
         <div className={cn('border-t px-5 py-4', dk ? 'border-white/10' : 'border-slate-100')}>
-          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))' }}>
+          <div className="flex flex-col gap-3">
             {roomCards.map(card => (
               <RoomCardComponent key={card.id} card={card} durationStart={local.startDate} durationEnd={local.endDate} dk={dk} lang={lang} allCardsOfSameType={roomCards.filter(c => c.roomType === card.roomType)} onUpdate={handleCardUpdate} onDelete={handleCardDelete} onApplyToSameType={handleApplyToSameType} bruttoNettoActive={local.useBruttoNetto} />
             ))}
