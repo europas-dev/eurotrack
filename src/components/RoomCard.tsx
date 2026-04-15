@@ -11,10 +11,15 @@ import {
 import {
   bedsForType, calcRoomCardTotal, extractPricingFields,
 } from '../lib/roomCardUtils'
+
+// IMPORT FROM OFFLINE QUEUE INSTEAD OF DIRECT SUPABASE
+import { enqueue } from '../lib/offlineSync'
+
+// Kept employee functions pointing to your original file to prevent breaking them
 import {
-  updateRoomCard, deleteRoomCard,
   createRoomCardEmployee, updateRoomCardEmployee, deleteRoomCardEmployee,
 } from '../lib/supabaseRoomCards'
+
 import type { Employee, PricingTab, RoomCard as RoomCardType } from '../lib/types'
 import { getEmployeeStatus } from '../lib/utils'
 
@@ -479,11 +484,15 @@ export default function RoomCard({
       : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
   )
 
+  // FIXED: The queueSave function now strictly routes through offlineSync
   function queueSave(patch: Partial<RoomCardType>) {
     clearTimeout(saveTimer.current)
     onUpdate(card.id, patch)
     saveTimer.current = setTimeout(async () => {
-      try { setSaving(true); await updateRoomCard(card.id, patch) }
+      try { 
+        setSaving(true); 
+        await enqueue({ type: 'updateRoomCard', payload: { id: card.id, ...patch } })
+      }
       catch (e) { console.error(e) }
       finally { setSaving(false) }
     }, 400)
@@ -593,7 +602,6 @@ export default function RoomCard({
 
         <div className="flex-1" />
 
-        {/* THE FIX: Price button is ALWAYS completely clickable without opacity fading! */}
         <button
           onClick={() => setShowPricing(p => !p)}
           className={cn('px-4 py-2 rounded-lg text-sm font-bold border transition-all flex items-center gap-2',
@@ -822,7 +830,11 @@ export default function RoomCard({
                 {lang === 'de' ? 'Abbrechen' : 'Cancel'}
               </button>
               <button
-                onClick={async () => { await deleteRoomCard(card.id); onDelete(card.id) }}
+                onClick={async () => { 
+                  // FIXED: Delete via offline queue
+                  await enqueue({ type: 'deleteRoomCard', payload: { id: card.id } });
+                  onDelete(card.id) 
+                }}
                 className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold">
                 {lang === 'de' ? 'Löschen' : 'Delete'}
               </button>
