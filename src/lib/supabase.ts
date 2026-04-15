@@ -128,11 +128,6 @@ export async function removeCollaborator(userId: string): Promise<void> {
   await setUserRole(userId, 'pending')
 }
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
-function serialiseCompanyTag(tags: string[]): string {
-  return JSON.stringify(tags || [])
-}
-
 // ─── Hotels ────────────────────────────────────────────────────────────────
 export async function createHotel(data: any) {
   const { data: { user } } = await supabase.auth.getUser()
@@ -285,9 +280,9 @@ export async function deleteRoomCard(id: string) {
 export async function createEmployee(durationId: string, slotIndex: number, data: any) {
   const { data: result, error } = await supabase.from('employees').insert({
     id: data.id, 
-    durationid: durationId,           // FIXED: Translates exactly to DB column 'durationid'
+    duration_id: durationId,           // PERFECT MATCH TO SQL
     room_card_id: data.roomCardId,    
-    slotindex: slotIndex,             // FIXED: Translates exactly to DB column 'slotindex'
+    slot_index: slotIndex,             // PERFECT MATCH TO SQL
     name: data.name,
     checkin: data.checkIn,
     checkout: data.checkOut
