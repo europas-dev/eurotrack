@@ -13,7 +13,7 @@ import {
   User, Lock, UserPlus, Trash2, ChevronDown,
   ChevronRight, Pencil, Shield, Minus, Plus,
   Mail, KeyRound, AtSign, Eye, EyeOff, HelpCircle,
-  FileText, Info, Printer, FileSpreadsheet
+  FileText, Info, Printer, FileSpreadsheet, Wifi, WifiOff // FIXED: Added Wifi icons
 } from 'lucide-react';
 
 const AVATARS = [
@@ -32,16 +32,16 @@ const AVATARS = [
 ];
 
 const FONTS = [
-  { value: 'inter',      label: 'Inter',           family: 'Inter, sans-serif' },
-  { value: 'roboto',     label: 'Roboto',          family: 'Roboto, sans-serif' },
-  { value: 'open-sans',  label: 'Open Sans',       family: '"Open Sans", sans-serif' },
-  { value: 'dm-sans',    label: 'DM Sans',         family: '"DM Sans", sans-serif' },
-  { value: 'nunito',     label: 'Nunito',          family: 'Nunito, sans-serif' },
-  { value: 'poppins',    label: 'Poppins',         family: 'Poppins, sans-serif' },
-  { value: 'georgia',    label: 'Georgia',         family: 'Georgia, serif' },
+  { value: 'inter',      label: 'Inter',            family: 'Inter, sans-serif' },
+  { value: 'roboto',     label: 'Roboto',           family: 'Roboto, sans-serif' },
+  { value: 'open-sans',  label: 'Open Sans',        family: '"Open Sans", sans-serif' },
+  { value: 'dm-sans',    label: 'DM Sans',          family: '"DM Sans", sans-serif' },
+  { value: 'nunito',     label: 'Nunito',           family: 'Nunito, sans-serif' },
+  { value: 'poppins',    label: 'Poppins',          family: 'Poppins, sans-serif' },
+  { value: 'georgia',    label: 'Georgia',          family: 'Georgia, serif' },
   { value: 'playfair',   label: 'Playfair Display', family: '"Playfair Display", serif' },
-  { value: 'lora',       label: 'Lora',            family: 'Lora, serif' },
-  { value: 'jetbrains',  label: 'JetBrains Mono',  family: '"JetBrains Mono", monospace' },
+  { value: 'lora',       label: 'Lora',             family: 'Lora, serif' },
+  { value: 'jetbrains',  label: 'JetBrains Mono',   family: '"JetBrains Mono", monospace' },
 ];
 
 const FONT_SIZES = [12, 13, 14, 15, 16, 17, 18, 19, 20];
@@ -88,6 +88,7 @@ function SectionLabel({ children, dk }: { children: React.ReactNode; dk: boolean
   );
 }
 
+// FIXED: Added offline toggle props to Header
 interface HeaderProps {
   theme: 'dark' | 'light';
   lang: 'de' | 'en';
@@ -102,6 +103,9 @@ interface HeaderProps {
   onPrint?: () => void;
   viewOnly?: boolean;
   userRole?: string;
+  offlineMode?: boolean;
+  onToggleOfflineMode?: () => void;
+  isOnline?: boolean;
 }
 
 export default function Header({
@@ -109,6 +113,7 @@ export default function Header({
   searchQuery, setSearchQuery, searchScope, setSearchScope,
   onSignOut, onExportCsv, onPrint,
   viewOnly = false, userRole = 'viewer',
+  offlineMode, onToggleOfflineMode, isOnline = true
 }: HeaderProps) {
   const dk = theme === 'dark';
   const isAdmin = userRole === 'admin' || userRole === 'superadmin';
@@ -194,7 +199,6 @@ export default function Header({
     }).catch(() => {}).finally(() => setProfileLoading(false));
   }, []);
 
-  // THE FIX: Directly force the font onto the body tag so it applies instantly everywhere
   function applyFont(family: string, size: number) {
     const font = FONTS.find(f => f.value === family);
     if (font) {
@@ -359,6 +363,12 @@ export default function Header({
               <Users size={18} />
             </button>
           )}
+
+          {/* FIXED: Offline Toggle perfectly placed next to language and theme controls */}
+          <button onClick={onToggleOfflineMode} className={iconBtn} title={lang === 'de' ? 'Offline-Modus umschalten' : 'Toggle Offline Mode'}>
+            {(!isOnline || offlineMode) ? <WifiOff size={18} className="text-slate-400" /> : <Wifi size={18} className="text-emerald-500" />}
+          </button>
+
           <button onClick={() => setLang(lang === 'de' ? 'en' : 'de')} className={cn(iconBtn, 'text-xs font-black px-3')}>
             {lang === 'de' ? 'EN' : 'DE'}
           </button>
@@ -422,9 +432,9 @@ export default function Header({
         </div>
       )}
 
-      {/* THE FIX: Settings Drawer - Removed blur and dark overlay so user can see dashboard in real time */}
+      {/* FIXED: Z-Index upgraded to z-[999] so settings drawer will completely cover Timeline and Filter menus */}
       {showSettings && (
-        <div className="fixed inset-0 z-50 flex pointer-events-none">
+        <div className="fixed inset-0 z-[999] flex pointer-events-none">
           <div className="flex-1 pointer-events-auto bg-black/10" onClick={() => setShowSettings(false)} />
           <div className={cn('relative w-full max-w-md h-full flex flex-col shadow-2xl border-l pointer-events-auto', drawerBg, dk ? 'border-white/10' : 'border-slate-200')} style={{ animation: 'slideInRight 220ms cubic-bezier(0.16,1,0.3,1)' }}>
             <div className={cn('flex items-center justify-between px-6 py-4 border-b shrink-0', dk ? 'border-white/10' : 'border-slate-200')}>
@@ -549,14 +559,12 @@ export default function Header({
         </div>
       )}
 
-      {/* THE FIX: Global Subtle Scrollbar CSS */}
       <style>{`
         @keyframes slideInRight {
           from { transform: translateX(100%); opacity: 0.6; }
           to   { transform: translateX(0);    opacity: 1;   }
         }
         
-        /* Subtle Custom Scrollbar applied to everything */
         ::-webkit-scrollbar {
           width: 6px;
           height: 6px;
@@ -571,7 +579,6 @@ export default function Header({
         ::-webkit-scrollbar-thumb:hover {
           background: rgba(107, 114, 128, 0.8);
         }
-        /* Dark mode scrollbar support */
         .dark ::-webkit-scrollbar-thumb {
           background: rgba(71, 85, 105, 0.5);
         }
