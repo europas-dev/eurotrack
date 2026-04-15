@@ -270,7 +270,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         <div className={cn('px-8 py-5 border-b shrink-0 z-40 relative', dk ? 'bg-[#0F172A] border-white/5' : 'bg-white border-slate-200')}>
           <div className="flex items-center justify-between flex-wrap gap-4 w-full">
             <div className="flex items-center gap-12 flex-wrap">
-              <div><p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">{lang === 'de' ? 'Freie Betten Heute' : 'Free Beds Today'}</p><p className={cn('text-3xl font-black', freeBedsTotal > 0 ? 'text-teal-500' : 'text-slate-400')}>{freeBedsTotal}</p></div>
+              <div><p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">{lang === 'de' ? 'Freie Betten Heute' : 'Free Beds Today'}</p><p className={cn('text-3xl font-black', freeBedsTotal > 0 ? 'text-red-500' : 'text-slate-400')}>{freeBedsTotal}</p></div>
               <div><p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">{lang === 'de' ? 'Gesamtkosten' : 'Total Spent'}</p><p className="text-3xl font-black text-teal-600 dark:text-teal-400">{formatCurrency(totalSpend)}</p></div>
               <div><p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Hotels</p><p className="text-3xl font-black">{finalFiltered.length}</p></div>
             </div>
