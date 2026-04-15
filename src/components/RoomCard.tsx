@@ -14,7 +14,6 @@ const noSpinner: React.CSSProperties = {
   WebkitAppearance: 'none' as any,
 }
 
-// 1. VISUAL RULES: Time/Urgency colors
 function empBorderColor(emp: Employee | null, dk: boolean): string {
   if (!emp) return dk ? 'border-white/10' : 'border-slate-200'
   const s = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '')
@@ -54,7 +53,6 @@ function BedSlot({
   const status = employee ? getEmployeeStatus(employee.checkIn ?? '', employee.checkOut ?? '') : null
   const borderCls = empBorderColor(employee, dk)
   
-  // 2. VISUAL RULES: Dashed line for partial stays
   const isPartial = employee && (employee.checkIn > durationStart || employee.checkOut < durationEnd);
 
   const inputCls = cn(
@@ -101,7 +99,6 @@ function BedSlot({
     upcoming:       dk ? 'text-blue-400'   : 'text-blue-500',
   }
 
-  // 3. VISUAL RULES: Sub-arrow for gap replacements
   const IconToUse = isSubstitute ? CornerDownRight : Bed;
 
   if (confirmDel) {
@@ -151,7 +148,6 @@ function BedSlot({
     )
   }
 
-  // 4. ULTRA COMPACT ASSIGN FORM
   return (
     <div className={cn('flex items-center gap-1.5 p-1.5 rounded-lg border flex-wrap sm:flex-nowrap', dk ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200')}>
       <IconToUse size={14} className={dk ? 'text-blue-400 ml-1 hidden sm:block' : 'text-blue-500 ml-1 hidden sm:block'} />
@@ -213,6 +209,18 @@ function NMBRow({
   const totalNetto = (netto ?? derivedNetto ?? 0) * multiplier;
   const totalBrutto = (brutto ?? derivedBrutto ?? 0) * multiplier;
 
+  const eNetto  = energyNettoKey ? card[energyNettoKey] as number | null | undefined : null
+  const eMwst   = energyMwstKey ? card[energyMwstKey] as number | null | undefined : null
+  const eBrutto = energyBruttoKey ? card[energyBruttoKey] as number | null | undefined : null
+
+  const derivedEnergyBrutto = (eBrutto == null || eBrutto === 0) && eNetto && eMwst ? Number((eNetto * (1 + eMwst / 100)).toFixed(2)) : null
+  const derivedEnergyNetto  = (eNetto == null || eNetto === 0) && eBrutto && eMwst ? Number((eBrutto / (1 + eMwst / 100)).toFixed(2)) : null
+
+  const displayEnergyNetto = (eNetto ?? derivedEnergyNetto ?? '') as any;
+  const displayEnergyBrutto = (eBrutto ?? derivedEnergyBrutto ?? '') as any;
+  const totalEnergyNetto = (eNetto ?? derivedEnergyNetto ?? 0) * multiplier;
+  const totalEnergyBrutto = (eBrutto ?? derivedEnergyBrutto ?? 0) * multiplier;
+
   const lbl = cn('text-[10px] font-bold uppercase tracking-widest mb-1', dk ? 'text-slate-500' : 'text-slate-400')
   const disabledInputCls = cn(inputCls, 'opacity-40 cursor-not-allowed pointer-events-none')
 
@@ -234,6 +242,26 @@ function NMBRow({
           {multiplier > 0 && totalBrutto > 0 && (<span className={cn('text-[11px] mt-1.5 font-bold pl-1', dk ? 'text-slate-500' : 'text-slate-400')}>Σ {formatCurrency(totalBrutto)}</span>)}
         </div>
       </div>
+
+      {/* RESTORED: Energy Price Row */}
+      {energyNettoKey && energyMwstKey && energyBruttoKey && (
+        <div className={cn("flex items-start gap-3 flex-wrap p-4 rounded-xl border border-dashed", dk ? "border-yellow-500/30 bg-yellow-500/5" : "border-yellow-400/50 bg-yellow-50")}>
+          <div className="flex flex-col flex-1 min-w-0">
+            <p className={lbl}><Zap size={12} className="inline mr-1 text-yellow-500" />En. Netto</p>
+            <input type="number" min={0} step="0.01" value={displayEnergyNetto} placeholder="0.00" disabled={disabled} onChange={e => onPatch({ [energyNettoKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)} style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-full')} />
+            {multiplier > 0 && totalEnergyNetto > 0 && (<span className={cn('text-[11px] mt-1.5 font-bold pl-1', dk ? 'text-yellow-600/70' : 'text-yellow-600/80')}>Σ {formatCurrency(totalEnergyNetto)}</span>)}
+          </div>
+          <div className="flex flex-col shrink-0">
+            <p className={lbl}>MwSt</p>
+            <input type="number" min={0} max={99} step="0.5" value={(eMwst ?? '') as any} placeholder="%" disabled={disabled} onChange={e => onPatch({ [energyMwstKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)} style={{ ...noSpinner, width: 72 }} className={disabled ? disabledInputCls : inputCls} />
+          </div>
+          <div className="flex flex-col flex-1 min-w-0">
+            <p className={lbl}>En. Brutto</p>
+            <input type="number" min={0} step="0.01" value={displayEnergyBrutto} placeholder="0.00" disabled={disabled} onChange={e => onPatch({ [energyBruttoKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)} style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-full', derivedEnergyBrutto != null && !eBrutto && (dk ? 'text-amber-300' : 'text-amber-600'))} />
+            {multiplier > 0 && totalEnergyBrutto > 0 && (<span className={cn('text-[11px] mt-1.5 font-bold pl-1', dk ? 'text-yellow-600/70' : 'text-yellow-600/80')}>Σ {formatCurrency(totalEnergyBrutto)}</span>)}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -300,13 +328,12 @@ export default function RoomCard({
   const currentMultiplier = activeTab === 'per_bed' ? (beds * nights) : activeTab === 'per_room' ? nights : 1;
 
   return (
-    <div className={cn('rounded-xl border transition-all shadow-sm flex flex-col', bruttoNettoActive ? (dk ? 'bg-[#0d1629] border-white/5 opacity-75' : 'bg-white border-slate-100 opacity-75') : (dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200'))}>
+    <div className={cn('rounded-xl border transition-all shadow-sm flex flex-col w-full', bruttoNettoActive ? (dk ? 'bg-[#0d1629] border-white/5 opacity-75' : 'bg-white border-slate-100 opacity-75') : (dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200'))}>
       
       {/* THE ACCORDION HEADER */}
       <div 
-        className={cn("flex items-center gap-4 px-4 py-3 cursor-pointer", isOpen && (dk ? "border-b border-white/10" : "border-b border-slate-100"))}
+        className={cn("flex items-center gap-4 px-4 py-3 cursor-pointer w-full", isOpen && (dk ? "border-b border-white/10" : "border-b border-slate-100"))}
         onClick={(e) => {
-          // Only toggle if they didn't click inside an input or button
           if ((e.target as HTMLElement).tagName !== 'INPUT' && (e.target as HTMLElement).tagName !== 'BUTTON' && (e.target as HTMLElement).tagName !== 'SELECT') {
             setIsOpen(!isOpen);
           }
@@ -317,7 +344,7 @@ export default function RoomCard({
         </button>
 
         {!isOpen ? (
-           // CLOSED STATE (Idea B: The "At-a-Glance" Summary Grid)
+           // CLOSED STATE
            <>
              <div className="flex items-center gap-3 shrink-0">
                <span className={cn("font-black", dk ? "text-white" : "text-slate-900")}>{card.roomType}</span>
@@ -352,12 +379,22 @@ export default function RoomCard({
              <button onClick={(e) => { e.stopPropagation(); setConfirm(true); }} className={cn('p-1.5 rounded transition-all shrink-0 ml-2', dk ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-red-500 hover:bg-red-50')}><Trash2 size={16} /></button>
            </>
         ) : (
-           // EXPANDED STATE (Editing Header)
+           // EXPANDED STATE
            <div className="flex items-center gap-3 flex-1 flex-wrap">
              <select value={card.roomType} onChange={e => { const rt = e.target.value as any; queueSave({ roomType: rt, bedCount: rt === 'EZ' ? 1 : rt === 'DZ' ? 2 : rt === 'TZ' ? 3 : card.bedCount }) }} className={cn(inputCls, 'w-20 font-bold text-center pl-2 pr-0')}>
                 <option value="EZ">EZ</option><option value="DZ">DZ</option><option value="TZ">TZ</option><option value="WG">WG</option>
              </select>
-             <div className="flex items-center gap-1.5">
+             
+             {/* RESTORED: WG Bed Counter */}
+             {card.roomType === 'WG' && (
+               <div className={cn('flex items-center rounded-lg border overflow-hidden shrink-0 h-[38px]', dk ? 'border-white/10' : 'border-slate-200')}>
+                 <button onClick={(e) => { e.stopPropagation(); queueSave({ bedCount: Math.max(1, card.bedCount - 1) }) }} className={cn('px-2.5 h-full', dk ? 'hover:bg-white/10' : 'hover:bg-slate-50')}><Minus size={14} /></button>
+                 <span className={cn('px-2 text-sm font-bold min-w-[32px] text-center flex items-center justify-center h-full', dk ? 'bg-white/5 text-white' : 'bg-slate-50 text-slate-900')}>{card.bedCount}</span>
+                 <button onClick={(e) => { e.stopPropagation(); queueSave({ bedCount: card.bedCount + 1 }) }} className={cn('px-2.5 h-full', dk ? 'hover:bg-white/10' : 'hover:bg-slate-50')}><Plus size={14} /></button>
+               </div>
+             )}
+
+             <div className="flex items-center gap-1.5 ml-2">
                 <span className={labelCls}>No:</span>
                 <input type="text" value={card.roomNo || ''} onChange={e => queueSave({ roomNo: e.target.value })} placeholder="101" className={cn(inputCls, 'w-20 font-bold')} />
              </div>
@@ -444,14 +481,14 @@ export default function RoomCard({
            )}
            
            {/* HORIZONTAL BED GRID */}
-           <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(320px, 1fr))` }}>
+           <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(300px, 1fr))` }}>
               {Array.from({ length: beds }).map((_, i) => {
                  const slotEmps = employees.filter(e => (e.slotIndex ?? 0) === i).sort((a,b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
                  const slotGaps = gapSlots.filter(g => g.slotIndex === i);
                  
                  return (
                    <div key={i} className="space-y-2">
-                     <div className="flex items-center justify-between pb-1 px-1 border-b border-dashed border-slate-200 dark:border-white/10">
+                     <div className="flex items-center justify-between pb-1 px-1">
                        <span className={cn('text-[10px] font-black tracking-widest flex items-center gap-1.5', dk ? 'text-slate-400' : 'text-slate-500')}>
                          <Bed size={12} /> {lang === 'de' ? `BETT ${i + 1}` : `BED ${i + 1}`}
                        </span>
@@ -473,6 +510,7 @@ export default function RoomCard({
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
       {confirmDelete && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
           <div className={cn('w-full max-w-sm rounded-2xl border p-5 shadow-2xl', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
