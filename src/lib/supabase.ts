@@ -117,6 +117,7 @@ export async function getCollaborators() {
   return (data ?? []).map(p => ({ ...p, userId: p.id, fullName: p.full_name }))
 }
 
+// ─── RESTORED COLLABORATOR EXPORTS FOR HEADER.TSX ──────────────────────────
 export async function inviteCollaborator(userId: string, role: 'viewer' | 'editor' | 'admin'): Promise<any> {
   await grantUserAccess(userId, role)
 }
@@ -127,6 +128,7 @@ export async function removeCollaborator(userId: string): Promise<void> {
   await setUserRole(userId, 'pending')
 }
 
+// ─── Helpers ───────────────────────────────────────────────────────────────
 function serialiseCompanyTag(tags: string[]): string {
   return JSON.stringify(tags || [])
 }
@@ -238,7 +240,6 @@ export async function createRoomCard(data: any) {
 }
 
 export async function updateRoomCard(id: string, data: any) {
-  // FIXED: Explicitly construct the payload to prevent "undefined" values from crashing the update
   const payload: any = {}
   if (data.roomNo !== undefined) payload.room_no = data.roomNo;
   if (data.floor !== undefined) payload.floor = data.floor;
@@ -283,10 +284,10 @@ export async function deleteRoomCard(id: string) {
 // ─── Employees ─────────────────────────────────────────────────────────────
 export async function createEmployee(durationId: string, slotIndex: number, data: any) {
   const { data: result, error } = await supabase.from('employees').insert({
-    id: data.id, // FIXED: Link the UI UUID so the offline queue matches the DB
-    duration_id: durationId,
-    room_card_id: data.roomCardId, // FIXED: Actually attach the employee to the room card!
-    slot_index: slotIndex,
+    id: data.id, 
+    durationid: durationId,           // FIXED: Translates exactly to DB column 'durationid'
+    room_card_id: data.roomCardId,    
+    slotindex: slotIndex,             // FIXED: Translates exactly to DB column 'slotindex'
     name: data.name,
     checkin: data.checkIn,
     checkout: data.checkOut
