@@ -224,7 +224,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     return groups;
   }, [finalFiltered, groupBy]);
 
-  const totalSpend = finalFiltered.reduce((s, h) => s + calcHotelTotalCost(h), 0);
+  const totalSpend = finalFiltered.reduce((s, h) => s + calcHotelTotalCost(h, selectedMonth, selectedYear), 0);
   const freeBedsTotal = finalFiltered.reduce((s, h) => s + calcHotelFreeBedsToday(h), 0);
 
   const closeMenu = () => { setShowFilterMenu(false); setShowTimelineMenu(false); setShowSortMenu(false); };
