@@ -117,6 +117,17 @@ export async function getCollaborators() {
   return (data ?? []).map(p => ({ ...p, userId: p.id, fullName: p.full_name }))
 }
 
+// ─── RESTORED COLLABORATOR EXPORTS FOR HEADER.TSX ──────────────────────────
+export async function inviteCollaborator(userId: string, role: 'viewer' | 'editor' | 'admin'): Promise<any> {
+  await grantUserAccess(userId, role)
+}
+export async function updateCollaboratorPermission(userId: string, role: 'viewer' | 'editor' | 'admin'): Promise<any> {
+  await grantUserAccess(userId, role)
+}
+export async function removeCollaborator(userId: string): Promise<void> {
+  await setUserRole(userId, 'pending')
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────────
 function serialiseCompanyTag(tags: string[]): string {
   return JSON.stringify(tags || [])
@@ -131,7 +142,7 @@ export async function createHotel(data: any) {
   const { data: result, error } = await supabase.from('hotels').insert({
     name: data.name,
     city: data.city,
-    company_tag: tags, // ALIGNED WITH SQL
+    company_tag: tags,
     address: data.address,
     contactperson: data.contactPerson,
     phone: data.phone,
@@ -140,8 +151,8 @@ export async function createHotel(data: any) {
     notes: data.notes,
     country: data.country || 'Germany',
     year: data.year || 2026,
-    last_updated_at: new Date().toISOString(), // ALIGNED WITH SQL
-    last_updated_by: authorName // ALIGNED WITH SQL
+    last_updated_at: new Date().toISOString(),
+    last_updated_by: authorName
   }).select().single()
 
   if (error) throw error
@@ -155,7 +166,7 @@ export async function updateHotel(id: string, data: any) {
   const { error } = await supabase.from('hotels').update({
     name: data.name,
     city: data.city,
-    company_tag: data.companyTag, // ALIGNED WITH SQL
+    company_tag: data.companyTag,
     address: data.address,
     contactperson: data.contactPerson,
     phone: data.phone,
@@ -175,9 +186,9 @@ export async function deleteHotel(id: string) {
 // ─── Durations ─────────────────────────────────────────────────────────────
 export async function createDuration(data: any) {
   const { data: result, error } = await supabase.from('durations').insert({
-    hotel_id: data.hotelId, // ALIGNED WITH SQL
-    start_date: null,       // FIXED: Use null instead of '' to prevent Postgres Date error
-    end_date: null,         // FIXED
+    hotel_id: data.hotelId,
+    start_date: null,
+    end_date: null,
     room_type: 'DZ'
   }).select().single()
   if (error) throw error
@@ -186,7 +197,7 @@ export async function createDuration(data: any) {
 
 export async function updateDuration(id: string, data: any) {
   const { error } = await supabase.from('durations').update({
-    start_date: data.startDate, // ALIGNED WITH SQL
+    start_date: data.startDate,
     end_date: data.endDate,
     room_type: data.roomType,
     number_of_rooms: data.numberOfRooms,
@@ -218,7 +229,7 @@ export async function deleteDuration(id: string) {
 // ─── Room Cards ────────────────────────────────────────────────────────────
 export async function createRoomCard(data: any) {
   const { data: result, error } = await supabase.from('room_cards').insert({
-    duration_id: data.durationId, // ALIGNED WITH SQL
+    duration_id: data.durationId,
     room_type: data.roomType || 'EZ',
     bed_count: data.bedCount || 1,
     pricing_tab: 'per_room'
@@ -257,8 +268,8 @@ export async function deleteRoomCard(id: string) {
 // ─── Employees ─────────────────────────────────────────────────────────────
 export async function createEmployee(durationId: string, slotIndex: number, data: any) {
   const { data: result, error } = await supabase.from('employees').insert({
-    duration_id: durationId, // ALIGNED WITH SQL
-    slot_index: slotIndex,   // ALIGNED WITH SQL
+    duration_id: durationId,
+    slot_index: slotIndex,
     name: data.name,
     checkin: data.checkIn,
     checkout: data.checkOut
