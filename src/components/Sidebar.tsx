@@ -1,7 +1,7 @@
 // src/components/Sidebar.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, LayoutDashboard, ChevronUp, ChevronDown } from 'lucide-react';
-import { cn, getDurationCostForMonth, formatCurrency } from '../lib/utils';
+import { cn, getDurationCostForMonth, formatCurrency, calcHotelTotalCost } from '../lib/utils';
 
 interface SidebarProps {
   theme: 'dark' | 'light';
@@ -43,17 +43,20 @@ export default function Sidebar({
   const centerYear = selectedYear + yearOffset;
   const currentDecade = Array.from({ length: 10 }, (_, i) => centerYear - 4 + i);
 
+  // 1. Monthly totals (for the labels next to each month)
   const monthlyTotals = monthNames.map((_, i) =>
     hotels.reduce((sum, hotel) =>
       sum + (hotel.durations || []).reduce((inner: number, d: any) =>
         inner + getDurationCostForMonth(d, selectedYear, i), 0), 0)
   );
 
-  const yearlyTotal = monthlyTotals.reduce((a, b) => a + b, 0);
+  // 2. Yearly Total (EXACT MATCH TO DASHBOARD TOP BAR)
+  const yearlyTotal = hotels.reduce((sum, hotel) => 
+    sum + calcHotelTotalCost(hotel, null, selectedYear), 0
+  );
 
   return (
     <aside className={cn(
-      // FIXED: Added z-[999] so the sidebar completely crushes any overlapping dashboard menus
       'sticky top-0 h-screen border-r transition-all duration-300 flex flex-col shrink-0 z-[999]',
       dk ? 'bg-[#0B1224] border-white/5 text-white' : 'bg-white border-slate-200 text-slate-900',
       collapsed ? 'w-20' : 'w-64'
@@ -76,7 +79,7 @@ export default function Sidebar({
           className={cn(
             'w-full px-4 py-3 rounded-lg flex items-center gap-3 font-bold text-sm transition-all',
             selectedMonth === null
-              ? 'bg-blue-600 text-white'
+              ? 'bg-teal-600 text-white shadow-md'
               : dk ? 'bg-white/5 text-slate-300 hover:bg-white/10' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
           )}>
           <LayoutDashboard size={18} />
@@ -91,8 +94,8 @@ export default function Sidebar({
             <button 
               onClick={() => setShowYearMenu(!showYearMenu)}
               className={cn('w-full px-4 py-2 rounded-lg border text-sm font-bold flex justify-between items-center transition-all',
-                dk ? 'bg-[#1E293B] border-white/10 text-white hover:border-blue-500' 
-                   : 'bg-slate-50 border-slate-200 text-slate-900 hover:border-blue-500')}
+                dk ? 'bg-[#1E293B] border-white/10 text-white hover:border-teal-500' 
+                   : 'bg-slate-50 border-slate-200 text-slate-900 hover:border-teal-500')}
             >
               {selectedYear}
               <ChevronDown size={14} className={dk ? 'text-slate-400' : 'text-slate-500'} />
@@ -113,7 +116,7 @@ export default function Sidebar({
                       key={y} 
                       onClick={() => { setSelectedYear(y); setShowYearMenu(false); setYearOffset(0); }}
                       className={cn("w-full px-4 py-1.5 text-sm font-bold transition-all text-left", 
-                        selectedYear === y ? "bg-blue-600 text-white" : dk ? "text-slate-300 hover:bg-white/5" : "text-slate-700 hover:bg-slate-50")}
+                        selectedYear === y ? "bg-teal-600 text-white" : dk ? "text-slate-300 hover:bg-white/5" : "text-slate-700 hover:bg-slate-50")}
                     >
                       {y}
                     </button>
@@ -143,13 +146,13 @@ export default function Sidebar({
                 className={cn(
                   'w-full px-3 py-2.5 rounded-lg text-sm font-bold transition-all text-left flex items-center justify-between gap-2',
                   selectedMonth === index
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-teal-600 text-white shadow-md'
                     : dk ? 'text-slate-300 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'
                 )}>
                 <span>{collapsed ? month.slice(0, 3) : month}</span>
                 {!collapsed && monthlyTotals[index] > 0 && (
                   <span className={cn('text-[10px] font-black',
-                    selectedMonth === index ? 'text-blue-100' : dk ? 'text-slate-500' : 'text-slate-400')}>
+                    selectedMonth === index ? 'text-teal-100' : dk ? 'text-slate-500' : 'text-slate-400')}>
                     {formatCurrency(monthlyTotals[index])}
                   </span>
                 )}
@@ -164,7 +167,7 @@ export default function Sidebar({
           <p className={cn('text-[10px] font-bold uppercase tracking-widest mb-1', dk ? 'text-slate-400' : 'text-slate-600')}>
             {lang === 'de' ? 'Jahressumme' : 'Yearly Total'}
           </p>
-          <p className="text-2xl font-black text-emerald-400">
+          <p className="text-2xl font-black text-teal-500">
             {formatCurrency(yearlyTotal)}
           </p>
         </div>
