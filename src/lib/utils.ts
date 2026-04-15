@@ -13,7 +13,24 @@ export function calculateNights(start?: string | null, end?: string | null): num
   const e = new Date(end);
   if (isNaN(s.getTime()) || isNaN(e.getTime())) return 0;
   const diffTime = e.getTime() - s.getTime();
-  return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+  // Using Math.round prevents daylight saving time errors (23 or 25 hour days)
+  return Math.max(0, Math.round(diffTime / (1000 * 60 * 60 * 24)));
+}
+
+/**
+ * NEW: Calculates exactly how many nights of a booking fall within a specific boundary.
+ */
+export function getOverlappingNights(bookingStart: string, bookingEnd: string, filterStart: string, filterEnd: string): number {
+  const bStart = new Date(bookingStart).getTime();
+  const bEnd = new Date(bookingEnd).getTime();
+  const fStart = new Date(filterStart).getTime();
+  const fEnd = new Date(filterEnd).getTime();
+
+  const overlapStart = Math.max(bStart, fStart);
+  const overlapEnd = Math.min(bEnd, fEnd);
+
+  if (overlapStart >= overlapEnd) return 0;
+  return Math.round((overlapEnd - overlapStart) / (1000 * 60 * 60 * 24));
 }
 
 export function formatCurrency(amount: number): string {
@@ -41,7 +58,6 @@ export function formatDateChip(isoString?: string | null): string {
   return `${dd}.${mm}`;
 }
 
-// FIXED: Added robust Last Updated formatter with translation support
 export function formatLastUpdated(name?: string, dateIso?: string, lang: 'de' | 'en' = 'de'): string {
   const uName = name || 'Admin';
   if (!dateIso) return lang === 'de' ? `Zuletzt aktualisiert von ${uName}` : `Last updated by ${uName}`;
@@ -96,17 +112,46 @@ export function calcDurationFreeBeds(duration: any, targetDateIso: string): numb
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NEW MASTER MATH FUNCTIONS (Syncs Dashboard and Rows)
+// UPGRADED MASTER MATH FUNCTIONS (Date-Boundary Aware)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function calcHotelTotalCost(hotel: any): number {
+export function calcHotelTotalCost(hotel: any, selectedMonth?: number | null, selectedYear?: number | null): number {
   let tCost = 0;
+  let filterStart: string | null = null;
+  let filterEnd: string | null = null;
+
+  // Build strict UTC timezone-safe date strings for boundaries
+  if (selectedYear !== null && selectedYear !== undefined) {
+    if (selectedMonth !== null && selectedMonth !== undefined) {
+      const y = selectedYear;
+      const m = selectedMonth + 1; // JS months are 0-indexed
+      const lastDay = new Date(y, m, 0).getDate();
+      filterStart = `${y}-${String(m).padStart(2, '0')}-01`;
+      filterEnd = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    } else {
+      filterStart = `${selectedYear}-01-01`;
+      filterEnd = `${selectedYear}-12-31`;
+    }
+  }
+
   (hotel.durations || []).forEach((d: any) => {
+    if (!d.startDate || !d.endDate) return;
+
+    const totalDurationNights = calculateNights(d.startDate, d.endDate);
+    if (totalDurationNights <= 0) return;
+
+    let overlapNights = totalDurationNights;
+    
+    if (filterStart && filterEnd) {
+      overlapNights = getOverlappingNights(d.startDate, d.endDate, filterStart, filterEnd);
+    }
+
+    if (overlapNights <= 0) return;
+
     const rCards = d.roomCards || [];
     const extraTotal = (d.extraCosts || []).reduce((s: number, e: any) => s + (Number(e.amount) || 0), 0);
     
     let bruttoBase = d.useBruttoNetto ? (d.brutto || 0) : rCards.reduce((s: number, c: any) => {
-      // This perfectly matches the HotelRow calculation using roomCardUtils
       return s + calcRoomCardTotal(c, d.startDate, d.endDate);
     }, 0);
     
@@ -115,8 +160,16 @@ export function calcHotelTotalCost(hotel: any): number {
     if (!d.useBruttoNetto && d.hasDiscount && d.discountValue) {
       bruttoBase = d.discountType === 'fixed' ? bruttoBase - d.discountValue : bruttoBase * (1 - d.discountValue / 100);
     }
-    tCost += Math.max(0, bruttoBase);
+
+    // Apply strict proportional cost if filters are active, otherwise add whole duration cost
+    if (filterStart && filterEnd) {
+      const dailyRate = bruttoBase / totalDurationNights;
+      tCost += Math.max(0, dailyRate * overlapNights);
+    } else {
+      tCost += Math.max(0, bruttoBase);
+    }
   });
+
   return tCost;
 }
 
@@ -154,21 +207,17 @@ export function hotelMatchesSearch(hotel: any, query: string): boolean {
 
 export function getDurationCostForMonth(d: any, targetYear: number, targetMonthIndex: number): number {
   if (!d.startDate || !d.endDate) return 0;
-  const s = new Date(d.startDate);
-  const e = new Date(d.endDate);
-  const mStart = new Date(targetYear, targetMonthIndex, 1);
-  const mEnd = new Date(targetYear, targetMonthIndex + 1, 0);
-
-  // If duration doesn't overlap with this month at all, return 0
-  if (e < mStart || s > mEnd) return 0;
-
-  const overlapStart = s < mStart ? mStart : s;
-  const overlapEnd = e > mEnd ? mEnd : e;
   
+  const y = targetYear;
+  const m = targetMonthIndex + 1;
+  const lastDay = new Date(y, m, 0).getDate();
+  const mStart = `${y}-${String(m).padStart(2, '0')}-01`;
+  const mEnd = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
   const totalNights = calculateNights(d.startDate, d.endDate);
   if (totalNights <= 0) return 0;
   
-  const overlapNights = calculateNights(overlapStart.toISOString().split('T')[0], overlapEnd.toISOString().split('T')[0]);
+  const overlapNights = getOverlappingNights(d.startDate, d.endDate, mStart, mEnd);
   if (overlapNights <= 0) return 0;
 
   const rCards = d.roomCards || [];
