@@ -131,8 +131,26 @@ export default function DurationCard({
     }, 400)
   }
 
-  function patch(changes: Partial<Duration>) {
-    const next = { ...local, roomCards, ...changes } as Duration
+function patch(changes: Partial<Duration>) {
+    // START AUTO-TRIM LOGIC
+    let updatedRoomCards = roomCards;
+    if (changes.endDate) {
+      updatedRoomCards = roomCards.map(card => ({
+        ...card,
+        employees: (card.employees || []).map(emp => {
+          if (emp.checkOut && emp.checkOut > changes.endDate!) {
+            // Instantly send the trim to the offline sync queue
+            enqueue({ type: 'updateEmployee', payload: { id: emp.id, checkOut: changes.endDate } });
+            return { ...emp, checkOut: changes.endDate };
+          }
+          return emp;
+        })
+      }));
+      setRoomCards(updatedRoomCards);
+    }
+    // END AUTO-TRIM LOGIC
+
+    const next = { ...local, roomCards: updatedRoomCards, ...changes } as Duration
     setLocal(next); queueSave(next)
   }
 
