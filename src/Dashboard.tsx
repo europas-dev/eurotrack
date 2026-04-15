@@ -68,7 +68,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [newHotelCity, setNewHotelCity] = useState('');
   const [newHotelCompany, setNewHotelCompany] = useState('');
   
-  // FIXED: State holds the universal English word so the database stays consistent
+  // State holds the universal English word so the database stays consistent
   const [newHotelCountry, setNewHotelCountry] = useState('Germany');
   
   const [newHotelSaving, setNewHotelSaving] = useState(false);
@@ -91,16 +91,41 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     async function fetchHotels() {
       try {
         setError('');
+        
+        // 1. EXACT POSTGRES SYNTAX: Use room_cards (table) and ignore extraCosts (it's a column)
         const { data, error: supabaseError } = await supabase
           .from('hotels')
-          .select('*, durations(*, roomCards(*, employees(*)), extraCosts(*), employees(*))')
+          .select('*, durations(*, room_cards(*, employees(*)), employees(*))')
           .eq('year', selectedYear)
           .order('created_at', { ascending: false });
 
         if (supabaseError) throw supabaseError;
+
+        // 2. MAP TO UI SYNTAX: Translate the database snake_case back to UI camelCase
+        const normalizedData = (data || []).map((h: any) => ({
+          ...h,
+          companyTag: h.companytag ?? h.companyTag,
+          durations: (h.durations || []).map((d: any) => ({
+            ...d,
+            startDate: d.startdate ?? d.startDate,
+            endDate: d.enddate ?? d.endDate,
+            isPaid: d.ispaid ?? d.isPaid,
+            depositEnabled: d.depositenabled ?? d.depositEnabled,
+            rechnungNr: d.rechnungnr ?? d.rechnungNr,
+            useBruttoNetto: d.usebruttonetto ?? d.useBruttoNetto,
+            hasDiscount: d.hasdiscount ?? d.hasDiscount,
+            discountType: d.discounttype ?? d.discountType,
+            discountValue: d.discountvalue ?? d.discountValue,
+            brutto: d.brutto,
+            // Connect the database table to your UI math functions
+            roomCards: d.room_cards ?? d.roomCards ?? [],
+            extraCosts: d.extracosts ?? d.extraCosts ?? [] 
+          }))
+        }));
+
         if (isMounted) {
-          setHotels(data || []);
-          setHistory([data || []]);
+          setHotels(normalizedData);
+          setHistory([normalizedData]);
           setHistoryIndex(0);
           setLoading(false);
         }
@@ -277,7 +302,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       setHotels(next); 
       pushToHistory(next);
       setAddingHotel(false); 
-      // FIXED: Restoring state back to universal english base
       setNewHotelName(''); setNewHotelCity(''); setNewHotelCompany(''); setNewHotelCountry('Germany');
     } catch (e: any) { 
       console.error("Database Create Failed:", e); 
