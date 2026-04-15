@@ -134,13 +134,13 @@ export default function DurationCard({
   function patch(changes: Partial<Duration>) {
     let updatedRoomCards = roomCards;
     
-    // Auto-Trim Logic: If the parent end date shrinks, automatically cut the employees to match
     if (changes.endDate) {
       updatedRoomCards = roomCards.map(card => ({
         ...card,
         employees: (card.employees || []).map(emp => {
           if (emp.checkOut && emp.checkOut > changes.endDate!) {
             enqueue({ type: 'updateEmployee', payload: { id: emp.id, checkOut: changes.endDate } }).catch(console.error);
+            // We return the updated employee here so the UI re-renders the nights immediately
             return { ...emp, checkOut: changes.endDate };
           }
           return emp;
