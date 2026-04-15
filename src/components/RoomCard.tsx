@@ -14,6 +14,13 @@ const noSpinner: React.CSSProperties = {
   WebkitAppearance: 'none' as any,
 }
 
+// RESTORED FOR BUILD: This was missing and caused the Vercel error
+export function getEffectiveNetto(netto: number|null|undefined, mwst: number|null|undefined, brutto: number|null|undefined) {
+  if (netto != null && netto > 0) return netto;
+  if (brutto != null && brutto > 0) return brutto / (1 + (mwst || 7) / 100);
+  return 0;
+}
+
 function empBorderColor(emp: Employee | null, dk: boolean): string {
   if (!emp) return dk ? 'border-white/10' : 'border-slate-200'
   const s = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '')
@@ -49,8 +56,6 @@ function BedSlot({
 
   const effectiveIn  = gapStart ?? durationStart
   const effectiveOut = gapEnd   ?? durationEnd
-  
-  // LIVE CALCULATION: Fixes the "Ghost Night" bug
   const nights = calculateNights(checkIn, checkOut)
   const status = employee ? getEmployeeStatus(employee.checkIn ?? '', employee.checkOut ?? '') : null
   const borderCls = empBorderColor(employee, dk)
@@ -163,6 +168,29 @@ function BedSlot({
   )
 }
 
+function getGapSlots(beds: number, employees: Employee[], durationStart: string, durationEnd: string): { slotIndex: number; gapStart: string; gapEnd: string }[] {
+  const gaps: { slotIndex: number; gapStart: string; gapEnd: string }[] = []
+  const occupied: Record<number, Employee[]> = {}
+  employees.forEach(e => {
+    const si = e.slotIndex ?? 0
+    occupied[si] = occupied[si] ?? []
+    occupied[si].push(e)
+  })
+  for (let i = 0; i < beds; i++) {
+    const occs = (occupied[i] ?? []).sort((a, b) => (a.checkIn ?? '').localeCompare(b.checkIn ?? ''))
+    if (occs.length === 0) continue
+    const first = occs[0]
+    if (first.checkIn && first.checkIn > durationStart) gaps.push({ slotIndex: i, gapStart: durationStart, gapEnd: first.checkIn })
+    for (let j = 0; j < occs.length - 1; j++) {
+      const curr = occs[j]; const next = occs[j + 1]
+      if (curr.checkOut && next.checkIn && curr.checkOut < next.checkIn) gaps.push({ slotIndex: i, gapStart: curr.checkOut, gapEnd: next.checkIn })
+    }
+    const last = occs[occs.length - 1]
+    if (last.checkOut && last.checkOut < durationEnd) gaps.push({ slotIndex: i, gapStart: last.checkOut, gapEnd: durationEnd })
+  }
+  return gaps
+}
+
 function InlineNMBRow({
   nettoKey, mwstKey, bruttoKey, energyNettoKey, energyMwstKey, energyBruttoKey,
   card, dk, inputCls, onPatch, disabled, multiplier
@@ -175,10 +203,7 @@ function InlineNMBRow({
   const sumLbl = cn('text-[11px] font-black mt-1 pl-1 h-4', dk ? 'text-slate-500' : 'text-slate-400')
   const disabledInputCls = cn(inputCls, 'opacity-40 cursor-not-allowed pointer-events-none')
 
-  const totalNetto = (card[nettoKey] as number ?? 0) * multiplier;
-  const totalEnergy = energyNettoKey ? (card[energyNettoKey] as number ?? 0) * multiplier : 0;
-
-  // LINKED MATH LOGIC: Bidirectional Netto/Brutto calculation
+  // Bidirectional Netto/Brutto calculation
   const updateNetto = (v: string) => {
     const n = v === '' ? null : normalizeNumberInput(v);
     const m = card[mwstKey] as number ?? 0;
@@ -198,20 +223,8 @@ function InlineNMBRow({
     onPatch({ [mwstKey]: m, [bruttoKey]: b } as any);
   }
 
-  const updateEnergyNetto = (v: string) => {
-    if (!energyNettoKey || !energyBruttoKey) return;
-    const n = v === '' ? null : normalizeNumberInput(v);
-    const m = card[energyMwstKey!] as number ?? 0;
-    const b = n !== null ? Number((n * (1 + m / 100)).toFixed(2)) : null;
-    onPatch({ [energyNettoKey]: n, [energyBruttoKey]: b } as any);
-  }
-  const updateEnergyBrutto = (v: string) => {
-    if (!energyNettoKey || !energyBruttoKey) return;
-    const b = v === '' ? null : normalizeNumberInput(v);
-    const m = card[energyMwstKey!] as number ?? 0;
-    const n = b !== null ? Number((b / (1 + m / 100)).toFixed(2)) : null;
-    onPatch({ [energyBruttoKey]: b, [energyNettoKey]: n } as any);
-  }
+  const totalNetto = (card[nettoKey] as number ?? 0) * multiplier;
+  const totalEnergy = energyNettoKey ? (card[energyNettoKey] as number ?? 0) * multiplier : 0;
 
   return (
     <div className={cn("flex items-start gap-3 flex-nowrap w-max", disabled && "opacity-50 pointer-events-none")}>
@@ -221,9 +234,9 @@ function InlineNMBRow({
 
       {energyNettoKey && (
         <div className={cn("flex items-start gap-3 px-4 py-2 rounded-xl border border-dashed mx-2", dk ? "border-yellow-500/30 bg-yellow-500/5" : "border-yellow-400/60 bg-yellow-50/50")}>
-          <div className="flex flex-col"><p className={lbl}><Zap size={10} className="inline mr-1 text-yellow-500" />En. Netto</p><input type="number" min={0} step="0.01" value={card[energyNettoKey] ?? ''} placeholder="0.00" disabled={disabled} onChange={e => updateEnergyNetto(e.target.value)} style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-36')} /><div className={cn(sumLbl, "text-yellow-600/70")}>{totalEnergy > 0 && `Σ ${formatCurrency(totalEnergy)}`}</div></div>
+          <div className="flex flex-col"><p className={lbl}><Zap size={10} className="inline mr-1 text-yellow-500" />En. Netto</p><input type="number" min={0} step="0.01" value={card[energyNettoKey] ?? ''} placeholder="0.00" disabled={disabled} onChange={e => onPatch({ [energyNettoKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)} style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-36')} /><div className={cn(sumLbl, "text-yellow-600/70")}>{totalEnergy > 0 && `Σ ${formatCurrency(totalEnergy)}`}</div></div>
           <div className="flex flex-col"><p className={lbl}>MwSt</p><input type="number" min={0} max={99} step="0.5" value={card[energyMwstKey!] ?? ''} placeholder="%" disabled={disabled} onChange={e => onPatch({ [energyMwstKey!]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)} style={{ ...noSpinner }} className={cn(disabled ? disabledInputCls : inputCls, 'w-16')} /><div className={sumLbl}/></div>
-          <div className="flex flex-col"><p className={lbl}>En. Brutto</p><input type="number" min={0} step="0.01" value={card[energyBruttoKey!] ?? ''} placeholder="0.00" disabled={disabled} onChange={e => updateEnergyBrutto(e.target.value)} style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-36')} /><div className={sumLbl}/></div>
+          <div className="flex flex-col"><p className={lbl}>En. Brutto</p><input type="number" min={0} step="0.01" value={card[energyBruttoKey!] ?? ''} placeholder="0.00" disabled={disabled} onChange={e => onPatch({ [energyBruttoKey!]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)} style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-36')} /><div className={sumLbl}/></div>
         </div>
       )}
     </div>
@@ -250,6 +263,7 @@ export default function RoomCard({
   const total  = bruttoNettoActive ? 0 : calcRoomCardTotal(card, durationStart, durationEnd)
   const activeTab: PricingTab = card.pricingTab ?? 'per_room'
   const employees = card.employees ?? []
+  const gapSlots  = getGapSlots(beds, employees, durationStart, durationEnd)
 
   let derivedNettoPerBed = 0;
   if (activeTab === 'per_bed') derivedNettoPerBed = (card.bedNetto ?? 0);
@@ -258,8 +272,6 @@ export default function RoomCard({
 
   const inputCls = cn('px-3 py-2 rounded-lg text-sm font-bold outline-none border transition-all h-[42px]', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900')
   const labelCls = cn('text-[10px] font-bold uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')
-  
-  // NEW GRADIENT STYLE: Indigo-Violet with high contrast white text
   const tabBtn = (active: boolean) => cn('px-5 py-2.5 rounded-lg text-sm font-black border transition-all', 
     active ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-transparent shadow-lg' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
   )
@@ -413,8 +425,7 @@ export default function RoomCard({
 
                   <div className={cn("w-px h-10 mx-2 shrink-0 self-center", dk ? "bg-white/10" : "bg-slate-200")} />
 
-                  {/* TOGGLE GROUP: Disc + Apply to All */}
-                  <div className={cn("flex items-center gap-1 p-1 rounded-xl border", dk ? "bg-white/5 border-white/10" : "bg-slate-50 border-slate-200")}>
+                  <div className={cn("flex items-center gap-1 p-1 rounded-xl border shrink-0", dk ? "bg-white/5 border-white/10" : "bg-slate-50 border-slate-200")}>
                     <button disabled={bruttoNettoActive} onClick={() => queueSave({ hasDiscount: !card.hasDiscount })} className={cn('px-4 h-[42px] rounded-lg text-sm font-bold flex items-center gap-2 transition-all', card.hasDiscount ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md' : 'text-slate-500 hover:bg-black/5')}>
                       <Tag size={16} />{lang === 'de' ? 'Rabatt' : 'Disc.'}
                     </button>
@@ -435,7 +446,6 @@ export default function RoomCard({
              </div>
            )}
 
-           {/* Bed Grid continues... */}
            <div className="grid gap-6 items-start" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(360px, 1fr))` }}>
               {Array.from({ length: beds }).map((_, i) => {
                  const slotEmps = employees.filter(e => (e.slotIndex ?? 0) === i).sort((a,b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
