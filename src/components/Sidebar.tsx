@@ -53,7 +53,8 @@ export default function Sidebar({
 
   return (
     <aside className={cn(
-      'sticky top-0 h-screen border-r transition-all duration-300 flex flex-col shrink-0',
+      // FIXED: Added z-[999] so the sidebar completely crushes any overlapping dashboard menus
+      'sticky top-0 h-screen border-r transition-all duration-300 flex flex-col shrink-0 z-[999]',
       dk ? 'bg-[#0B1224] border-white/5 text-white' : 'bg-white border-slate-200 text-slate-900',
       collapsed ? 'w-20' : 'w-64'
     )}>
