@@ -14,6 +14,7 @@ const noSpinner: React.CSSProperties = {
   WebkitAppearance: 'none' as any,
 }
 
+// 1. VISUAL RULES: Time/Urgency colors
 function empBorderColor(emp: Employee | null, dk: boolean): string {
   if (!emp) return dk ? 'border-white/10' : 'border-slate-200'
   const s = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '')
@@ -53,6 +54,7 @@ function BedSlot({
   const status = employee ? getEmployeeStatus(employee.checkIn ?? '', employee.checkOut ?? '') : null
   const borderCls = empBorderColor(employee, dk)
   
+  // 2. VISUAL RULES: Dashed line for partial stays
   const isPartial = employee && (employee.checkIn > durationStart || employee.checkOut < durationEnd);
 
   const inputCls = cn(
@@ -99,6 +101,7 @@ function BedSlot({
     upcoming:       dk ? 'text-blue-400'   : 'text-blue-500',
   }
 
+  // 3. VISUAL RULES: Sub-arrow for gap replacements
   const IconToUse = isSubstitute ? CornerDownRight : Bed;
 
   if (confirmDel) {
@@ -124,7 +127,7 @@ function BedSlot({
           className={cn('text-sm font-bold flex-1 cursor-pointer truncate', dk ? 'text-white' : 'text-slate-900')}>
           {employee.name}
         </span>
-        <span className={cn('text-[11px] tabular-nums shrink-0 hidden sm:block', dk ? 'text-slate-400' : 'text-slate-500')}>
+        <span className={cn('text-[12px] tabular-nums shrink-0 hidden sm:block', dk ? 'text-slate-400' : 'text-slate-500')}>
           {fmtDate(employee.checkIn ?? '')} ➔ {fmtDate(employee.checkOut ?? '')}
         </span>
         <span className={cn('text-[12px] font-bold shrink-0 w-8 text-right', dk ? 'text-slate-300' : 'text-slate-600')}>{nights}N</span>
@@ -148,14 +151,15 @@ function BedSlot({
     )
   }
 
+  // 4. ULTRA COMPACT ASSIGN FORM
   return (
     <div className={cn('flex items-center gap-1.5 p-1.5 rounded-lg border flex-wrap sm:flex-nowrap', dk ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200')}>
       <IconToUse size={14} className={dk ? 'text-blue-400 ml-1 hidden sm:block' : 'text-blue-500 ml-1 hidden sm:block'} />
       <input ref={inputRef} type="text" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder="Name..." className={cn(inputCls, 'flex-1 min-w-[120px]')} />
-      <input type="date" value={checkIn} min={effectiveIn} max={effectiveOut} onChange={e => setCheckIn(e.target.value)} className={cn(inputCls, 'w-[115px] px-2 text-[10px]')} />
+      <input type="date" value={checkIn} min={effectiveIn} max={effectiveOut} onChange={e => setCheckIn(e.target.value)} className={cn(inputCls, 'w-[125px] px-2 text-[11px]')} />
       <span className="text-slate-400 text-xs hidden sm:block">➔</span>
-      <input type="date" value={checkOut} min={checkIn} max={effectiveOut} onChange={e => setCheckOut(e.target.value)} className={cn(inputCls, 'w-[115px] px-2 text-[10px]')} />
-      <div className={cn('px-2 rounded border text-[10px] font-bold text-center h-[36px] flex items-center justify-center shrink-0', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} style={{ width: 36 }}>{nights}N</div>
+      <input type="date" value={checkOut} min={checkIn} max={effectiveOut} onChange={e => setCheckOut(e.target.value)} className={cn(inputCls, 'w-[125px] px-2 text-[11px]')} />
+      <div className={cn('px-2 rounded border text-[11px] font-bold text-center h-[36px] flex items-center justify-center shrink-0', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} style={{ width: 40 }}>{nights}N</div>
       <button onClick={save} disabled={saving || !name.trim()} className="px-3 h-[36px] rounded bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-bold flex items-center justify-center shrink-0">{saving ? <Loader2 size={14} className="animate-spin" /> : 'Save'}</button>
       <button onClick={() => setEditing(false)} className={cn('px-2 h-[36px] rounded text-sm transition-all shrink-0', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-200 text-slate-500')}><X size={14} /></button>
     </div>
@@ -328,7 +332,7 @@ export default function RoomCard({
   const currentMultiplier = activeTab === 'per_bed' ? (beds * nights) : activeTab === 'per_room' ? nights : 1;
 
   return (
-    <div className={cn('rounded-xl border transition-all shadow-sm flex flex-col w-full', bruttoNettoActive ? (dk ? 'bg-[#0d1629] border-white/5 opacity-75' : 'bg-white border-slate-100 opacity-75') : (dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200'))}>
+    <div className={cn('rounded-xl border transition-all shadow-sm flex flex-col w-full overflow-hidden', bruttoNettoActive ? (dk ? 'bg-[#0d1629] border-white/5 opacity-75' : 'bg-white border-slate-100 opacity-75') : (dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200'))}>
       
       {/* THE ACCORDION HEADER */}
       <div 
@@ -344,7 +348,7 @@ export default function RoomCard({
         </button>
 
         {!isOpen ? (
-           // CLOSED STATE
+           // CLOSED STATE (No Etg, Wide Employee Field)
            <>
              <div className="flex items-center gap-3 shrink-0">
                <span className={cn("font-black", dk ? "text-white" : "text-slate-900")}>{card.roomType}</span>
@@ -352,21 +356,21 @@ export default function RoomCard({
                <span className={cn('text-[10px] font-bold px-2 py-1 rounded bg-blue-500/10 text-blue-500 tabular-nums')}>{nights}N · {beds}B</span>
              </div>
              
-             <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar items-center pl-2">
+             <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar items-center pl-4">
                 {employees.map(emp => {
                    const isPartial = emp.checkIn > durationStart || emp.checkOut < durationEnd;
                    const status = getEmployeeStatus(emp.checkIn||'', emp.checkOut||'');
                    const bg = status === 'active' ? 'bg-emerald-500' : status === 'ending-soon' ? 'bg-red-500' : status === 'upcoming' ? 'bg-blue-500' : 'bg-slate-400';
                    return (
-                     <div key={emp.id} className={cn("flex items-center gap-1.5 px-2 py-1 rounded text-[11px] whitespace-nowrap border", isPartial ? "border-dashed" : "border-solid", dk ? "bg-[#1E293B] border-white/5 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-700")}>
+                     <div key={emp.id} className={cn("flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs whitespace-nowrap border", isPartial ? "border-dashed" : "border-solid", dk ? "bg-[#1E293B] border-white/5 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-700")}>
                         <span className={cn("w-2 h-2 rounded-full", bg)} />
-                        <span className="font-bold truncate max-w-[100px]">{emp.name}</span>
-                        {isPartial && <span className="text-[9px] opacity-60 ml-0.5">{fmtDate(emp.checkIn||'')} ➔ {fmtDate(emp.checkOut||'')}</span>}
+                        <span className="font-bold truncate max-w-[120px]">{emp.name}</span>
+                        {isPartial && <span className="text-[10px] opacity-60 ml-1">{fmtDate(emp.checkIn||'')} ➔ {fmtDate(emp.checkOut||'')}</span>}
                      </div>
                    )
                 })}
                 {employees.length < beds && (
-                   <div className={cn("flex items-center gap-1.5 px-2 py-1 rounded text-[11px] whitespace-nowrap border border-dashed", dk ? "border-amber-500/30 text-amber-500 bg-amber-500/5" : "border-amber-300 text-amber-600 bg-amber-50")}>
+                   <div className={cn("flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-bold whitespace-nowrap border border-dashed", dk ? "border-amber-500/30 text-amber-500 bg-amber-500/5" : "border-amber-300 text-amber-600 bg-amber-50")}>
                       + Empty Bed
                    </div>
                 )}
@@ -376,11 +380,11 @@ export default function RoomCard({
                 <span className={cn('text-lg font-black tabular-nums leading-none', dk ? 'text-white' : 'text-slate-900')}>{roomTotal}</span>
              </div>
              
-             <button onClick={(e) => { e.stopPropagation(); setConfirm(true); }} className={cn('p-1.5 rounded transition-all shrink-0 ml-2', dk ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-red-500 hover:bg-red-50')}><Trash2 size={16} /></button>
+             <button onClick={(e) => { e.stopPropagation(); setConfirm(true); }} className={cn('p-1.5 rounded transition-all shrink-0 ml-4', dk ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-red-500 hover:bg-red-50')}><Trash2 size={16} /></button>
            </>
         ) : (
-           // EXPANDED STATE
-           <div className="flex items-center gap-3 flex-1 flex-wrap">
+           // EXPANDED STATE (Editing Header)
+           <div className="flex items-center gap-3 flex-1 flex-wrap w-full">
              <select value={card.roomType} onChange={e => { const rt = e.target.value as any; queueSave({ roomType: rt, bedCount: rt === 'EZ' ? 1 : rt === 'DZ' ? 2 : rt === 'TZ' ? 3 : card.bedCount }) }} className={cn(inputCls, 'w-20 font-bold text-center pl-2 pr-0')}>
                 <option value="EZ">EZ</option><option value="DZ">DZ</option><option value="TZ">TZ</option><option value="WG">WG</option>
              </select>
@@ -388,9 +392,9 @@ export default function RoomCard({
              {/* RESTORED: WG Bed Counter */}
              {card.roomType === 'WG' && (
                <div className={cn('flex items-center rounded-lg border overflow-hidden shrink-0 h-[38px]', dk ? 'border-white/10' : 'border-slate-200')}>
-                 <button onClick={(e) => { e.stopPropagation(); queueSave({ bedCount: Math.max(1, card.bedCount - 1) }) }} className={cn('px-2.5 h-full', dk ? 'hover:bg-white/10' : 'hover:bg-slate-50')}><Minus size={14} /></button>
+                 <button onClick={(e) => { e.stopPropagation(); queueSave({ bedCount: Math.max(1, card.bedCount - 1) }) }} className={cn('px-2.5 h-full transition-all', dk ? 'hover:bg-white/10' : 'hover:bg-slate-50')}><Minus size={14} /></button>
                  <span className={cn('px-2 text-sm font-bold min-w-[32px] text-center flex items-center justify-center h-full', dk ? 'bg-white/5 text-white' : 'bg-slate-50 text-slate-900')}>{card.bedCount}</span>
-                 <button onClick={(e) => { e.stopPropagation(); queueSave({ bedCount: card.bedCount + 1 }) }} className={cn('px-2.5 h-full', dk ? 'hover:bg-white/10' : 'hover:bg-slate-50')}><Plus size={14} /></button>
+                 <button onClick={(e) => { e.stopPropagation(); queueSave({ bedCount: card.bedCount + 1 }) }} className={cn('px-2.5 h-full transition-all', dk ? 'hover:bg-white/10' : 'hover:bg-slate-50')}><Plus size={14} /></button>
                </div>
              )}
 
@@ -398,40 +402,40 @@ export default function RoomCard({
                 <span className={labelCls}>No:</span>
                 <input type="text" value={card.roomNo || ''} onChange={e => queueSave({ roomNo: e.target.value })} placeholder="101" className={cn(inputCls, 'w-20 font-bold')} />
              </div>
-             <div className="flex items-center gap-1.5">
+             <div className="flex items-center gap-1.5 ml-1">
                 <span className={labelCls}>Etg:</span>
                 <input type="text" value={card.floor || ''} onChange={e => queueSave({ floor: e.target.value })} placeholder="1" className={cn(inputCls, 'w-16')} />
              </div>
-             <span className={cn('text-xs font-bold px-2 py-1.5 rounded bg-blue-500/10 text-blue-500 shrink-0 tabular-nums ml-1')}>{nights}N · {beds}B</span>
+             <span className={cn('text-[11px] font-bold px-2 py-1.5 rounded bg-blue-500/10 text-blue-500 shrink-0 tabular-nums ml-2')}>{nights}N · {beds}B</span>
              
              <div className="flex-1" />
              
              <button onClick={(e) => { e.stopPropagation(); setShowCalendar(c => !c) }} className={cn('px-3 h-[38px] rounded-lg text-sm font-bold border transition-all flex items-center', showCalendar ? 'bg-blue-600 text-white border-blue-600' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}><Calendar size={14}/></button>
-             <button onClick={(e) => { e.stopPropagation(); setShowPricing(p => !p) }} className={cn('px-3 h-[38px] rounded-lg text-sm font-bold border transition-all flex items-center gap-2', showPricing ? 'bg-amber-500 text-white border-amber-500' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}>Price {showPricing ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button>
+             <button onClick={(e) => { e.stopPropagation(); setShowPricing(p => !p) }} className={cn('px-4 h-[38px] rounded-lg text-sm font-bold border transition-all flex items-center gap-2', showPricing ? 'bg-amber-500 text-white border-amber-500' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}>Price {showPricing ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button>
              
-             <div className="flex flex-col items-end min-w-[100px] ml-2">
-               <span className={cn('text-xl font-black tabular-nums leading-none', dk ? 'text-white' : 'text-slate-900')}>{roomTotal}</span>
+             <div className="flex flex-col items-end min-w-[120px] ml-4">
+               <span className={cn('text-2xl font-black tabular-nums leading-none', dk ? 'text-white' : 'text-slate-900')}>{roomTotal}</span>
                {!bruttoNettoActive && derivedNettoPerBed > 0 && (<span className={cn('text-[10px] tabular-nums mt-1 font-bold', dk ? 'text-slate-500' : 'text-slate-400')}>{formatCurrency(derivedNettoPerBed)} n/b/N</span>)}
              </div>
              
-             <button onClick={(e) => { e.stopPropagation(); setConfirm(true); }} className={cn('p-2 rounded-lg border transition-all ml-2', dk ? 'border-red-500/20 text-red-400 hover:bg-red-900/20' : 'border-red-200 text-red-500 hover:bg-red-50')}><Trash2 size={16} /></button>
+             <button onClick={(e) => { e.stopPropagation(); setConfirm(true); }} className={cn('p-2 rounded-lg border transition-all ml-4', dk ? 'border-red-500/20 text-red-400 hover:bg-red-900/20' : 'border-red-200 text-red-500 hover:bg-red-50')}><Trash2 size={16} /></button>
            </div>
         )}
       </div>
 
-      {/* EXPANDED CONTENT (Pricing, Calendar, and Beds Grid) */}
+      {/* EXPANDED CONTENT (Pricing, Calendar, and Horizontal Beds Grid) */}
       {isOpen && (
-        <div className={cn("p-4 rounded-b-xl space-y-5", dk ? "bg-black/20" : "bg-slate-50/50")}>
+        <div className={cn("p-5 border-t", dk ? "bg-black/20 border-white/5" : "bg-slate-50/50 border-slate-100")}>
            
            {/* PRICING PANEL */}
            {showPricing && (
-             <div className={cn("p-4 rounded-xl border", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+             <div className={cn("p-5 rounded-2xl border shadow-sm mb-6", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
                 {bruttoNettoActive && (
                   <div className={cn("p-3 text-xs font-bold rounded-lg mb-4", dk ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-amber-50 text-amber-700 border border-amber-200")}>
                     {lang === 'de' ? 'Preise werden über die Hauptdauer (Brutto/Netto-Modus) gesteuert.' : 'Prices are controlled by the main duration (Brutto/Netto mode active).'}
                   </div>
                 )}
-                <div className="flex items-center gap-2 mb-5">
+                <div className="flex items-center gap-2 mb-6">
                   <button onClick={() => queueSave({ pricingTab: 'per_bed' })} disabled={bruttoNettoActive} className={tabBtn(activeTab === 'per_bed')}>{lang === 'de' ? 'Preis/Bett' : 'Price/Bed'}</button>
                   <button onClick={() => queueSave({ pricingTab: 'per_room' })} disabled={bruttoNettoActive} className={tabBtn(activeTab === 'per_room')}>{lang === 'de' ? 'Preis/Zi.' : 'Price/Room'}</button>
                   <button onClick={() => queueSave({ pricingTab: 'total_room' })} disabled={bruttoNettoActive} className={tabBtn(activeTab === 'total_room')}>{lang === 'de' ? 'Gesamt/Zi.' : 'Total/Room'}</button>
@@ -439,20 +443,20 @@ export default function RoomCard({
                 {activeTab === 'per_bed' && <NMBRow nettoKey="bedNetto" mwstKey="bedMwst" bruttoKey="bedBrutto" energyNettoKey="bedEnergyNetto" energyMwstKey="bedEnergyMwst" energyBruttoKey="bedEnergyBrutto" card={card} dk={dk} inputCls={inputCls} onPatch={queueSave} lang={lang} multiplier={currentMultiplier} nettoLabel={lang === 'de' ? 'Netto/Bett (€)' : 'Netto/Bed (€)'} bruttoLabel={lang === 'de' ? 'Brutto/Bett (€)' : 'Brutto/Bed (€)'} disabled={bruttoNettoActive} />}
                 {activeTab === 'per_room' && <NMBRow nettoKey="roomNetto" mwstKey="roomMwst" bruttoKey="roomBrutto" energyNettoKey="roomEnergyNetto" energyMwstKey="roomEnergyMwst" energyBruttoKey="roomEnergyBrutto" card={card} dk={dk} inputCls={inputCls} onPatch={queueSave} lang={lang} multiplier={currentMultiplier} nettoLabel={lang === 'de' ? 'Netto/Zi. (€)' : 'Netto/Room (€)'} bruttoLabel={lang === 'de' ? 'Brutto/Zi. (€)' : 'Brutto/Room (€)'} disabled={bruttoNettoActive} />}
                 {activeTab === 'total_room' && <NMBRow nettoKey="totalNetto" mwstKey="totalMwst" bruttoKey="totalBrutto" energyNettoKey="totalEnergyNetto" energyMwstKey="totalEnergyMwst" energyBruttoKey="totalEnergyBrutto" card={card} dk={dk} inputCls={inputCls} onPatch={queueSave} lang={lang} multiplier={currentMultiplier} nettoLabel={lang === 'de' ? 'Netto ges. (€)' : 'Netto total (€)'} bruttoLabel={lang === 'de' ? 'Brutto ges. (€)' : 'Brutto total (€)'} disabled={bruttoNettoActive} />}
-                <div className="flex items-end gap-3 flex-wrap mt-4 pt-4 border-t border-slate-200 dark:border-white/10">
-                  <button disabled={bruttoNettoActive} onClick={() => queueSave({ hasDiscount: !card.hasDiscount })} className={cn('px-4 py-2 rounded-lg text-sm font-bold border flex items-center gap-1.5 transition-all', card.hasDiscount ? 'bg-blue-600 text-white border-blue-600' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50', bruttoNettoActive && "opacity-50 pointer-events-none")}>
+                <div className="flex items-end gap-3 flex-wrap mt-6 pt-5 border-t border-slate-200 dark:border-white/10">
+                  <button disabled={bruttoNettoActive} onClick={() => queueSave({ hasDiscount: !card.hasDiscount })} className={cn('px-4 py-2.5 rounded-lg text-sm font-bold border flex items-center gap-1.5 transition-all', card.hasDiscount ? 'bg-blue-600 text-white border-blue-600' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-600 hover:bg-slate-50', bruttoNettoActive && "opacity-50 pointer-events-none")}>
                     <Tag size={14} />{lang === 'de' ? 'Rabatt' : 'Disc.'}
                   </button>
                   {card.hasDiscount && (
                     <div className={cn("flex items-end gap-1", bruttoNettoActive && "opacity-50 pointer-events-none")}>
-                      <button disabled={bruttoNettoActive} onClick={() => queueSave({ discountType: card.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn('px-3 py-2 rounded-l-lg rounded-r-none border-y border-l text-sm font-bold', dk ? 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50')}>
+                      <button disabled={bruttoNettoActive} onClick={() => queueSave({ discountType: card.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn('px-3 py-2.5 rounded-l-lg rounded-r-none border-y border-l text-sm font-bold', dk ? 'border-white/10 bg-white/5 text-slate-200 hover:bg-white/10' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50')}>
                         {card.discountType === 'percentage' ? '%' : '€'}
                       </button>
-                      <input disabled={bruttoNettoActive} type="number" min={0} value={card.discountValue || ''} placeholder={card.discountType === 'percentage' ? '10' : '50'} onChange={e => queueSave({ discountValue: normalizeNumberInput(e.target.value) })} style={{ ...noSpinner, width: 80 }} className={cn('px-3 py-2 rounded-r-lg rounded-l-none border-y border-r text-sm outline-none', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} />
+                      <input disabled={bruttoNettoActive} type="number" min={0} value={card.discountValue || ''} placeholder={card.discountType === 'percentage' ? '10' : '50'} onChange={e => queueSave({ discountValue: normalizeNumberInput(e.target.value) })} style={{ ...noSpinner, width: 80 }} className={cn('px-3 py-2.5 rounded-r-lg rounded-l-none border-y border-r text-sm outline-none', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} />
                     </div>
                   )}
                   {allCardsOfSameType.length > 1 && (
-                    <button onClick={() => onApplyToSameType(card)} className={cn('px-4 py-2 rounded-lg text-sm font-bold border flex items-center gap-1.5 transition-all ml-auto', dk ? 'border-white/10 text-slate-400 hover:bg-white/5 hover:text-blue-400' : 'border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600')}>
+                    <button onClick={() => onApplyToSameType(card)} className={cn('px-4 py-2.5 rounded-lg text-sm font-bold border flex items-center gap-1.5 transition-all ml-auto', dk ? 'border-white/10 text-slate-400 hover:bg-white/5 hover:text-blue-400' : 'border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600')}>
                       <Copy size={14} /> {lang === 'de' ? `Alle ${card.roomType}` : `All ${card.roomType}`}
                     </button>
                   )}
@@ -462,8 +466,8 @@ export default function RoomCard({
 
            {/* CALENDAR PANEL */}
            {showCalendar && durationStart && durationEnd && (
-             <div className={cn('px-4 py-4 rounded-xl border', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
-               <p className={cn('text-[11px] font-bold uppercase tracking-widest mb-3', dk ? 'text-slate-500' : 'text-slate-400')}>{lang === 'de' ? 'Nachtkalender' : 'Night calendar'}</p>
+             <div className={cn('px-5 py-5 rounded-2xl border shadow-sm mb-6', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
+               <p className={cn('text-[11px] font-bold uppercase tracking-widest mb-4', dk ? 'text-slate-500' : 'text-slate-400')}>{lang === 'de' ? 'Nachtkalender' : 'Night calendar'}</p>
                <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(120px,1fr))' }}>
                  {Array.from({ length: nights }).map((_, i) => {
                    const d = new Date(durationStart); d.setDate(d.getDate() + i)
@@ -481,7 +485,7 @@ export default function RoomCard({
            )}
            
            {/* HORIZONTAL BED GRID */}
-           <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(300px, 1fr))` }}>
+           <div className="grid gap-5 items-start" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(360px, 1fr))` }}>
               {Array.from({ length: beds }).map((_, i) => {
                  const slotEmps = employees.filter(e => (e.slotIndex ?? 0) === i).sort((a,b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
                  const slotGaps = gapSlots.filter(g => g.slotIndex === i);
@@ -493,16 +497,19 @@ export default function RoomCard({
                          <Bed size={12} /> {lang === 'de' ? `BETT ${i + 1}` : `BED ${i + 1}`}
                        </span>
                      </div>
-                     {slotEmps.length === 0 ? (
-                        <BedSlot slotIndex={i} employee={null} durationStart={durationStart} durationEnd={durationEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} onUpdated={onEmployeeUpdated} />
-                     ) : (
-                        slotEmps.map((emp, empIdx) => (
-                           <BedSlot key={emp.id} slotIndex={i} employee={emp} durationStart={durationStart} durationEnd={durationEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} isSubstitute={empIdx > 0} onUpdated={onEmployeeUpdated} />
-                        ))
-                     )}
-                     {slotGaps.map((gap, gi) => (
-                        <BedSlot key={`gap-${i}-${gi}`} slotIndex={i} employee={null} durationStart={durationStart} durationEnd={durationEnd} gapStart={gap.gapStart} gapEnd={gap.gapEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} onUpdated={onEmployeeUpdated} />
-                     ))}
+                     
+                     <div className="space-y-2">
+                       {slotEmps.length === 0 ? (
+                          <BedSlot slotIndex={i} employee={null} durationStart={durationStart} durationEnd={durationEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} onUpdated={onEmployeeUpdated} />
+                       ) : (
+                          slotEmps.map((emp, empIdx) => (
+                             <BedSlot key={emp.id} slotIndex={i} employee={emp} durationStart={durationStart} durationEnd={durationEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} isSubstitute={empIdx > 0} onUpdated={onEmployeeUpdated} />
+                          ))
+                       )}
+                       {slotGaps.map((gap, gi) => (
+                          <BedSlot key={`gap-${i}-${gi}`} slotIndex={i} employee={null} durationStart={durationStart} durationEnd={durationEnd} gapStart={gap.gapStart} gapEnd={gap.gapEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} onUpdated={onEmployeeUpdated} />
+                       ))}
+                     </div>
                    </div>
                  )
               })}
@@ -513,11 +520,12 @@ export default function RoomCard({
       {/* Delete Confirmation Modal */}
       {confirmDelete && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
-          <div className={cn('w-full max-w-sm rounded-2xl border p-5 shadow-2xl', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
-            <h3 className="text-lg font-black mb-2">{lang === 'de' ? 'Zimmerkarte löschen?' : 'Delete room card?'}</h3>
-            <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setConfirm(false)} className={cn('px-4 py-2 rounded-lg border text-sm font-bold', dk ? 'border-white/10 text-slate-300' : 'border-slate-200 text-slate-700')}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
-              <button onClick={async () => { await enqueue({ type: 'deleteRoomCard', payload: { id: card.id } }); onDelete(card.id); }} className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-bold">Delete</button>
+          <div className={cn('w-full max-w-sm rounded-2xl border p-6 shadow-2xl', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
+            <h3 className="text-xl font-black mb-2">{lang === 'de' ? 'Zimmerkarte löschen?' : 'Delete room card?'}</h3>
+            <p className={cn('text-sm mb-6', dk ? 'text-slate-400' : 'text-slate-600')}>{lang === 'de' ? 'Diese Aktion kann nicht rückgängig gemacht werden.' : 'This cannot be undone.'}</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConfirm(false)} className={cn('px-5 py-2.5 rounded-lg border text-sm font-bold', dk ? 'border-white/10 text-slate-300 hover:bg-white/5' : 'border-slate-200 text-slate-700 hover:bg-slate-50')}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
+              <button onClick={async () => { await enqueue({ type: 'deleteRoomCard', payload: { id: card.id } }); onDelete(card.id); }} className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold">Delete</button>
             </div>
           </div>
         </div>
