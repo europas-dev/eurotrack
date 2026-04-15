@@ -54,10 +54,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [addingHotel, setAddingHotel] = useState(false);
   const [newHotelName, setNewHotelName] = useState('');
   const [newHotelCity, setNewHotelCity] = useState('');
-  
-  // RESTORED: Back to a single string to fix the layout explosion
   const [newHotelCompany, setNewHotelCompany] = useState('');
-  
   const [newHotelCountry, setNewHotelCountry] = useState('Germany');
   const [newHotelSaving, setNewHotelSaving] = useState(false);
   const newHotelNameRef = useRef<HTMLInputElement>(null);
@@ -158,9 +155,11 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
               bedEnergyNetto: rc.bed_energy_netto, bedEnergyMwst: rc.bed_energy_mwst, bedEnergyBrutto: rc.bed_energy_brutto,
               totalEnergyNetto: rc.total_energy_netto, totalEnergyMwst: rc.total_energy_mwst, totalEnergyBrutto: rc.total_energy_brutto,
               hasDiscount: rc.has_discount, discountType: rc.discount_type, discountValue: rc.discount_value,
+              pricingTab: rc.pricing_tab ?? 'per_room',
+              durationId: rc.duration_id,
               employees: (rc.employees || []).map((e: any) => ({
                 ...e,
-                slotIndex: e.slot_index,
+                slotIndex: e.slot_index ?? e.slotindex ?? 0,
                 checkIn: e.checkin,
                 checkOut: e.checkout
               }))
@@ -252,7 +251,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       const hotel = await createHotel({ 
         name: newHotelName.trim(), 
         city: newHotelCity.trim() || null, 
-        // Passes the single string inside an array to match the DB signature
         companyTag: newHotelCompany ? [newHotelCompany.trim()] : [],
         country: newHotelCountry,
         year: selectedYear 
@@ -274,6 +272,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     setHotels(next); pushToHistory(next);
   }
 
+  // RESTORED: Standard styling variables for the toolbar
   const btnCls = cn('px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all shadow-sm', dk ? 'bg-[#0F172A] border-white/10 text-slate-300 hover:bg-white/5' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50');
   const Pill = ({ active, onClick, children }: { active: boolean, onClick: () => void, children: React.ReactNode }) => (
     <button onClick={onClick} className={cn('px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap', 
@@ -324,30 +323,49 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         <main className="flex-1 overflow-y-auto p-6 relative">
           <div className="flex items-center justify-between mb-6 gap-3 flex-wrap relative z-50">
             <h2 className={cn('text-2xl font-black tracking-tight', dk ? 'text-white' : 'text-slate-900')}>{selectedMonth !== null ? `${monthNames[selectedMonth]} ${selectedYear}` : `Dashboard ${selectedYear}`}</h2>
+            
+            {/* RESTORED: The original flawless toolbar with proper translations, bookmarks, and layout */}
             <div className="flex items-center gap-2 relative">
               {!isStrictViewer && (
                 <div className={cn("flex items-center mr-2 rounded-full p-1 border shadow-sm", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
-                   <button onClick={handleUndo} disabled={historyIndex <= 0} className={cn("p-1.5 rounded-full transition-all disabled:opacity-30", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")}><Undo2 size={16} /></button>
+                   <button onClick={handleUndo} disabled={historyIndex <= 0} className={cn("p-1.5 rounded-full transition-all disabled:opacity-30", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")} title={lang === 'de' ? "Rückgängig (Ctrl+Z)" : "Undo (Ctrl+Z)"}><Undo2 size={16} /></button>
                    <div className={cn("w-px h-4 mx-0.5", dk ? "bg-white/10" : "bg-slate-200")} />
-                   <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className={cn("p-1.5 rounded-full transition-all disabled:opacity-30", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")}><Redo2 size={16} /></button>
+                   <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className={cn("p-1.5 rounded-full transition-all disabled:opacity-30", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")} title={lang === 'de' ? "Wiederholen (Ctrl+Y)" : "Redo (Ctrl+Y)"}><Redo2 size={16} /></button>
                 </div>
               )}
-              <button onClick={() => toggleMenu('timeline')} className="px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all shadow-sm"><Calendar size={16} /> Zeitraum</button>
-              <button onClick={() => toggleMenu('filter')} className="px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all shadow-sm"><Filter size={16} /> Filter</button>
-              <button onClick={() => toggleMenu('sort')} className="px-3 py-2 rounded-lg border text-sm font-bold flex items-center gap-2 transition-all shadow-sm"><ArrowUpDown size={16} /> Sortieren</button>
-              {!isStrictViewer && (<button onClick={() => setAddingHotel(true)} className="ml-4 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl flex items-center gap-2 text-sm shadow-lg transition-all"><Plus size={18} /> {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}</button>)}
+
+              <button onClick={() => toggleMenu('timeline')} className={cn(btnCls, tlType !== 'all' ? 'border-blue-500 text-blue-500 bg-blue-500/10' : '')}>
+                <Calendar size={16} /> {lang === 'de' ? 'Zeitraum' : 'Timeline'}
+              </button>
+              
+              <button onClick={() => toggleMenu('filter')} className={cn(btnCls, (fbType !== 'all' || filterPaid !== 'all' || filterDeposit !== 'all' || groupBy !== 'none') ? 'border-blue-500 text-blue-500 bg-blue-500/10' : '')}>
+                <Filter size={16} /> {lang === 'de' ? 'Filter & Gruppen' : 'Filters'}
+              </button>
+
+              <button onClick={() => toggleMenu('sort')} className={btnCls}>
+                <ArrowUpDown size={16} /> {lang === 'de' ? 'Sortieren' : 'Sort'}
+              </button>
+
+              <button onClick={() => setShowBookmarks(!showBookmarks)} className={cn(btnCls, 'ml-2', showBookmarks && 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500')}>
+                <Star size={16} className={showBookmarks ? 'fill-yellow-500 text-yellow-500' : ''} /> {lang === 'de' ? 'Lesezeichen' : 'Bookmarks'}
+              </button>
+
+              {!isStrictViewer && (
+                <button onClick={() => setAddingHotel(true)} className="ml-4 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl flex items-center gap-2 text-sm shadow-lg transition-all">
+                  <Plus size={18} /> {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
+                </button>
+              )}
             </div>
           </div>
           {loading ? (<div className="text-center py-20"><Loader2 size={40} className="animate-spin text-blue-600 mx-auto" /></div>) : (
             <div className="space-y-3 pb-24 relative z-0">
               
-              {/* RESTORED: Exactly matches the user's original Add Hotel UI */}
               {addingHotel && !isStrictViewer && (
                 <div className={cn('rounded-2xl border p-4 shadow-md mb-4 relative z-50', dk ? 'bg-[#0B1224] border-blue-500/40' : 'bg-white border-blue-400')}>
                   <datalist id="city-list">
                     {uniqueCities.map(c => <option key={c} value={c} />)}
                   </datalist>
-                  <div className="flex flex-wrap lg:flex-nowrap gap-3 items-end">
+                  <div className="flex flex-wrap lg:flex-nowrap gap-3 items-start">
                     <div className="flex-[2.5_2.5_0%] min-w-[200px]">
                        <label className={labelCls}>{lang === 'de' ? 'Hotelname *' : 'Hotel Name *'}</label>
                        <input autoComplete="off" spellCheck="false" ref={newHotelNameRef} autoFocus onKeyDown={handleEnterBlur} className={cn('w-full px-3 py-2 rounded-lg border outline-none text-xs font-bold transition-all focus:border-blue-500 h-[38px]', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder={lang === 'de' ? "Name eingeben..." : "Enter name..."} />
@@ -375,7 +393,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                           isDarkMode={dk} lang={lang} 
                        />
                     </div>
-                    <div className="flex shrink-0 gap-2 w-[100px]">
+                    <div className="flex shrink-0 gap-2 w-[100px] mt-[26px]">
                        <button onClick={handleSaveNewHotel} disabled={newHotelSaving || !newHotelName.trim()} className="flex-1 h-[38px] bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md disabled:opacity-50 transition-all flex items-center justify-center">
                           {newHotelSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                        </button>
@@ -386,7 +404,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                   </div>
                 </div>
               )}
-
               {finalFiltered.map((hotel, index) => (
                 <HotelRow key={hotel.id} entry={hotel} index={index} isDarkMode={dk} lang={lang} searchQuery={searchQuery} companyOptions={uniqueCompanies} cityOptions={uniqueCities} onDelete={handleRowDelete} onUpdate={handleRowUpdate} />
               ))}
