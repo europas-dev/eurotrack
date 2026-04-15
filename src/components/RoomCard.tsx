@@ -12,13 +12,7 @@ import {
   bedsForType, calcRoomCardTotal, extractPricingFields,
 } from '../lib/roomCardUtils'
 
-// IMPORT FROM OFFLINE QUEUE INSTEAD OF DIRECT SUPABASE
 import { enqueue } from '../lib/offlineSync'
-
-// Kept employee functions pointing to your original file to prevent breaking them
-import {
-  createRoomCardEmployee, updateRoomCardEmployee, deleteRoomCardEmployee,
-} from '../lib/supabaseRoomCards'
 
 import type { Employee, PricingTab, RoomCard as RoomCardType } from '../lib/types'
 import { getEmployeeStatus } from '../lib/utils'
@@ -81,30 +75,33 @@ function BedSlot({
        : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500'
   )
 
+  // FIXED: Explicitly routing employee saves through the offline queue bridge with the correct IDs
   async function save() {
     if (!name.trim()) return
     setSaving(true)
     try {
       if (employee?.id) {
-        await updateRoomCardEmployee(employee.id, { name: name.trim(), checkIn, checkOut })
-        onUpdated(slotIndex, { ...employee, name: name.trim(), checkIn, checkOut })
+        const payload = { id: employee.id, name: name.trim(), checkIn, checkOut };
+        await enqueue({ type: 'updateEmployee', payload });
+        onUpdated(slotIndex, { ...employee, ...payload });
       } else {
         const isGapFill = !!(gapStart || gapEnd)
-        const created = await createRoomCardEmployee(roomCardId, durationId, slotIndex, {
-          name: name.trim(), checkIn, checkOut,
-        })
-        onUpdated(slotIndex, created, isGapFill)
+        const newId = crypto.randomUUID();
+        const payload = { id: newId, durationId, roomCardId, slotIndex, name: name.trim(), checkIn, checkOut };
+        await enqueue({ type: 'createEmployee', payload });
+        onUpdated(slotIndex, payload as any, isGapFill);
       }
       setEditing(false)
     } catch (e) { console.error(e) }
     finally { setSaving(false) }
   }
 
+  // FIXED: Deletion explicitly via queue
   async function remove() {
     if (!employee?.id) { onUpdated(slotIndex, null); return }
     setSaving(true)
     try {
-      await deleteRoomCardEmployee(employee.id)
+      await enqueue({ type: 'deleteEmployee', payload: { id: employee.id } });
       onUpdated(slotIndex, null, false, employee.id)
       setName(''); setEditing(false)
     } catch (e) { console.error(e) }
@@ -484,7 +481,6 @@ export default function RoomCard({
       : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
   )
 
-  // FIXED: The queueSave function now strictly routes through offlineSync
   function queueSave(patch: Partial<RoomCardType>) {
     clearTimeout(saveTimer.current)
     onUpdate(card.id, patch)
@@ -516,7 +512,6 @@ export default function RoomCard({
   }
 
   const roomTotal = bruttoNettoActive ? '—' : formatCurrency(total)
-
   const currentMultiplier = activeTab === 'per_bed' ? (beds * nights) : activeTab === 'per_room' ? nights : 1;
 
   return (
@@ -534,7 +529,7 @@ export default function RoomCard({
       )}>
         <div className="flex flex-col gap-1">
           <label className={labelCls}>No.</label>
-          <input type="text" value={card.roomNo}
+          <input type="text" value={card.roomNo || ''}
             onChange={e => queueSave({ roomNo: e.target.value })}
             placeholder="101"
             className={cn(inputCls, 'w-24 text-center font-bold')}
@@ -542,7 +537,7 @@ export default function RoomCard({
         </div>
         <div className="flex flex-col gap-1">
           <label className={labelCls}>{lang === 'de' ? 'Etg.' : 'Fl.'}</label>
-          <input type="text" value={card.floor}
+          <input type="text" value={card.floor || ''}
             onChange={e => queueSave({ floor: e.target.value })}
             placeholder="1"
             className={cn(inputCls, 'w-20 text-center')}
@@ -831,7 +826,6 @@ export default function RoomCard({
               </button>
               <button
                 onClick={async () => { 
-                  // FIXED: Delete via offline queue
                   await enqueue({ type: 'deleteRoomCard', payload: { id: card.id } });
                   onDelete(card.id) 
                 }}
