@@ -117,7 +117,6 @@ export async function getCollaborators() {
   return (data ?? []).map(p => ({ ...p, userId: p.id, fullName: p.full_name }))
 }
 
-// ─── RESTORED COLLABORATOR EXPORTS FOR HEADER.TSX ──────────────────────────
 export async function inviteCollaborator(userId: string, role: 'viewer' | 'editor' | 'admin'): Promise<any> {
   await grantUserAccess(userId, role)
 }
@@ -128,7 +127,6 @@ export async function removeCollaborator(userId: string): Promise<void> {
   await setUserRole(userId, 'pending')
 }
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
 function serialiseCompanyTag(tags: string[]): string {
   return JSON.stringify(tags || [])
 }
@@ -229,6 +227,7 @@ export async function deleteDuration(id: string) {
 // ─── Room Cards ────────────────────────────────────────────────────────────
 export async function createRoomCard(data: any) {
   const { data: result, error } = await supabase.from('room_cards').insert({
+    id: data.id, 
     duration_id: data.durationId,
     room_type: data.roomType || 'EZ',
     bed_count: data.bedCount || 1,
@@ -239,26 +238,42 @@ export async function createRoomCard(data: any) {
 }
 
 export async function updateRoomCard(id: string, data: any) {
-  const { error } = await supabase.from('room_cards').update({
-    room_no: data.roomNo,
-    floor: data.floor,
-    room_type: data.roomType,
-    bed_count: data.bedCount,
-    pricing_tab: data.pricingTab,
-    room_netto: data.roomNetto,
-    room_mwst: data.roomMwst,
-    room_brutto: data.roomBrutto,
-    bed_netto: data.bedNetto,
-    bed_mwst: data.bedMwst,
-    bed_brutto: data.bedBrutto,
-    total_netto: data.totalNetto,
-    total_mwst: data.totalMwst,
-    total_brutto: data.totalBrutto,
-    has_discount: data.hasDiscount,
-    discount_type: data.discountType,
-    discount_value: data.discountValue
-  }).eq('id', id)
-  if (error) throw error
+  // FIXED: Explicitly construct the payload to prevent "undefined" values from crashing the update
+  const payload: any = {}
+  if (data.roomNo !== undefined) payload.room_no = data.roomNo;
+  if (data.floor !== undefined) payload.floor = data.floor;
+  if (data.roomType !== undefined) payload.room_type = data.roomType;
+  if (data.bedCount !== undefined) payload.bed_count = data.bedCount;
+  if (data.pricingTab !== undefined) payload.pricing_tab = data.pricingTab;
+  
+  if (data.roomNetto !== undefined) payload.room_netto = data.roomNetto;
+  if (data.roomMwst !== undefined) payload.room_mwst = data.roomMwst;
+  if (data.roomBrutto !== undefined) payload.room_brutto = data.roomBrutto;
+  if (data.bedNetto !== undefined) payload.bed_netto = data.bedNetto;
+  if (data.bedMwst !== undefined) payload.bed_mwst = data.bedMwst;
+  if (data.bedBrutto !== undefined) payload.bed_brutto = data.bedBrutto;
+  if (data.totalNetto !== undefined) payload.total_netto = data.totalNetto;
+  if (data.totalMwst !== undefined) payload.total_mwst = data.totalMwst;
+  if (data.totalBrutto !== undefined) payload.total_brutto = data.totalBrutto;
+  
+  if (data.roomEnergyNetto !== undefined) payload.room_energy_netto = data.roomEnergyNetto;
+  if (data.roomEnergyMwst !== undefined) payload.room_energy_mwst = data.roomEnergyMwst;
+  if (data.roomEnergyBrutto !== undefined) payload.room_energy_brutto = data.roomEnergyBrutto;
+  if (data.bedEnergyNetto !== undefined) payload.bed_energy_netto = data.bedEnergyNetto;
+  if (data.bedEnergyMwst !== undefined) payload.bed_energy_mwst = data.bedEnergyMwst;
+  if (data.bedEnergyBrutto !== undefined) payload.bed_energy_brutto = data.bedEnergyBrutto;
+  if (data.totalEnergyNetto !== undefined) payload.total_energy_netto = data.totalEnergyNetto;
+  if (data.totalEnergyMwst !== undefined) payload.total_energy_mwst = data.totalEnergyMwst;
+  if (data.totalEnergyBrutto !== undefined) payload.total_energy_brutto = data.totalEnergyBrutto;
+
+  if (data.hasDiscount !== undefined) payload.has_discount = data.hasDiscount;
+  if (data.discountType !== undefined) payload.discount_type = data.discountType;
+  if (data.discountValue !== undefined) payload.discount_value = data.discountValue;
+
+  if (Object.keys(payload).length > 0) {
+    const { error } = await supabase.from('room_cards').update(payload).eq('id', id)
+    if (error) throw error
+  }
 }
 
 export async function deleteRoomCard(id: string) {
@@ -268,7 +283,9 @@ export async function deleteRoomCard(id: string) {
 // ─── Employees ─────────────────────────────────────────────────────────────
 export async function createEmployee(durationId: string, slotIndex: number, data: any) {
   const { data: result, error } = await supabase.from('employees').insert({
+    id: data.id, // FIXED: Link the UI UUID so the offline queue matches the DB
     duration_id: durationId,
+    room_card_id: data.roomCardId, // FIXED: Actually attach the employee to the room card!
     slot_index: slotIndex,
     name: data.name,
     checkin: data.checkIn,
@@ -277,13 +294,16 @@ export async function createEmployee(durationId: string, slotIndex: number, data
   if (error) throw error
   return result
 }
+
 export async function updateEmployee(id: string, data: any) {
-  await supabase.from('employees').update({
+  const { error } = await supabase.from('employees').update({
     name: data.name,
     checkin: data.checkIn,
     checkout: data.checkOut
   }).eq('id', id)
+  if (error) throw error
 }
+
 export async function deleteEmployee(id: string) {
   await supabase.from('employees').delete().eq('id', id)
 }
