@@ -131,7 +131,7 @@ export default function DurationCard({
     }, 400)
   }
 
-function patch(changes: Partial<Duration>) {
+  function patch(changes: Partial<Duration>) {
     let updatedRoomCards = roomCards;
     
     // Auto-Trim Logic: If the parent end date shrinks, automatically cut the employees to match
@@ -153,6 +153,7 @@ function patch(changes: Partial<Duration>) {
     setLocal(next); 
     queueSave(next);
   }
+
 
   function applyPreset(days: number, delta = 0) {
     if (!local.startDate) return
