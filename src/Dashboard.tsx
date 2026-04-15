@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase, deleteHotel, createHotel } from './lib/supabase';
 import { cn, formatCurrency, hotelMatchesSearch, exportToCSV, printDocument, calcHotelTotalCost, calcHotelFreeBedsToday } from './lib/utils';
 import type { AccessLevel } from './lib/supabase';
-import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Undo2, Redo2, Star, Calendar, RefreshCw, MapPin, Building, Building2 } from 'lucide-react';
+// FIXED: Added Cloud and CloudOff for the manual toggle
+import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Undo2, Redo2, Star, Calendar, RefreshCw, MapPin, Building, Building2, Cloud, CloudOff } from 'lucide-react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import { HotelRow, ModernDropdown, getCountryOptions, DEFAULT_COUNTRIES } from './components/HotelRow';
@@ -20,7 +21,7 @@ interface DashboardProps {
   onSignOut?: () => void;
 }
 
-export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly = false, accessLevel, onSignOut }: DashboardProps) {
+export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly = false, accessLevel, onSignOut, offlineMode, onToggleOfflineMode }: DashboardProps) {
   const dk = theme === 'dark';
 
   const isStrictViewer = viewOnly || accessLevel?.role === 'viewer' || accessLevel?.role === 'pending';
@@ -68,11 +69,14 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [newHotelCity, setNewHotelCity] = useState('');
   const [newHotelCompany, setNewHotelCompany] = useState('');
   
-  // State holds the universal English word so the database stays consistent
   const [newHotelCountry, setNewHotelCountry] = useState('Germany');
-  
   const [newHotelSaving, setNewHotelSaving] = useState(false);
   const newHotelNameRef = useRef<HTMLInputElement>(null);
+
+  // FIXED: State for Auto-Detect Offline
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  // FIXED: State for Live Collaboration Users
+  const [activeUsers, setActiveUsers] = useState<any[]>([]);
 
   const monthNames = lang === 'de'
     ? ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember']
@@ -84,6 +88,44 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     setShowSortMenu(menu === 'sort' ? !showSortMenu : false);
   };
 
+  // FIXED: Connection status listener
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); }
+  }, []);
+
+  // FIXED: Supabase Presence engine for Live Collaboration
+  useEffect(() => {
+    let isMounted = true;
+    const channel = supabase.channel('dashboard_presence', {
+      config: { presence: { key: 'user' } }
+    });
+
+    channel.on('presence', { event: 'sync' }, () => {
+      if (!isMounted) return;
+      const state = channel.presenceState();
+      const users = Object.values(state).flat().map((p: any) => p.user);
+      // Deduplicate users
+      const uniqueUsers = Array.from(new Map(users.map(u => [u.id, u])).values());
+      setActiveUsers(uniqueUsers);
+    });
+
+    channel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const name = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.username || user.email?.split('@')[0] || 'User';
+          await channel.track({ user: { id: user.id, name, email: user.email } });
+        }
+      }
+    });
+
+    return () => { isMounted = false; supabase.removeChannel(channel); };
+  }, []);
+
   useEffect(() => { 
     let isMounted = true;
     setLoading(true);
@@ -92,7 +134,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       try {
         setError('');
         
-        // 1. EXACT POSTGRES SYNTAX: Use room_cards (table) and ignore extraCosts (it's a column)
         const { data, error: supabaseError } = await supabase
           .from('hotels')
           .select('*, durations(*, room_cards(*, employees(*)), employees(*))')
@@ -101,7 +142,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
         if (supabaseError) throw supabaseError;
 
-        // 2. MAP TO UI SYNTAX: Translate the database snake_case back to UI camelCase
         const normalizedData = (data || []).map((h: any) => ({
           ...h,
           companyTag: h.companytag ?? h.companyTag,
@@ -117,7 +157,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             discountType: d.discounttype ?? d.discountType,
             discountValue: d.discountvalue ?? d.discountValue,
             brutto: d.brutto,
-            // Connect the database table to your UI math functions
             roomCards: d.room_cards ?? d.roomCards ?? [],
             extraCosts: d.extracosts ?? d.extraCosts ?? [] 
           }))
@@ -336,8 +375,16 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     <div className={cn('flex h-screen overflow-hidden', dk ? 'bg-[#020617]' : 'bg-slate-50')}>
       <Sidebar theme={theme} lang={lang} selectedYear={selectedYear} setSelectedYear={setSelectedYear} selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(v => !v)} hotels={visibleHotels} />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         <Header theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchScope={searchScope} setSearchScope={setSearchScope} onSignOut={onSignOut} onExportCsv={handleExportCsv} onPrint={handlePrint} viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} />
+
+        {/* FIXED: Auto-Detect Offline Banner */}
+        {(!isOnline || offlineMode) && (
+           <div className="bg-amber-500/10 border-b border-amber-500/20 text-amber-600 dark:text-amber-400 px-6 py-2 text-xs font-bold flex items-center justify-center gap-2 z-[60] relative">
+             <CloudOff size={14} />
+             {lang === 'de' ? 'Sie sind offline. Änderungen werden lokal gespeichert und später synchronisiert.' : 'You are offline. Changes are saved locally and will sync automatically.'}
+           </div>
+        )}
 
         <div className={cn('px-8 py-4 border-b shrink-0 z-10 relative', dk ? 'bg-[#0F172A] border-white/5' : 'bg-white border-slate-200')}>
           <div className="flex items-center gap-12 flex-wrap">
@@ -369,6 +416,12 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                    <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className={cn("p-1.5 rounded-full transition-all disabled:opacity-30", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")} title={lang === 'de' ? "Wiederholen (Ctrl+Y)" : "Redo (Ctrl+Y)"}><Redo2 size={16} /></button>
                 </div>
               )}
+
+              {/* FIXED: Added Manual Offline Cloud Toggle to Utility Bar */}
+              <button onClick={onToggleOfflineMode} className={cn(btnCls, offlineMode ? 'border-amber-500 text-amber-500 bg-amber-500/10' : '')} title={lang === 'de' ? 'Offline-Modus umschalten' : 'Toggle Offline Mode'}>
+                {offlineMode ? <CloudOff size={16} /> : <Cloud size={16} />}
+                {lang === 'de' ? (offlineMode ? 'Offline' : 'Online') : (offlineMode ? 'Offline' : 'Online')}
+              </button>
 
               <button onClick={() => toggleMenu('timeline')} className={cn(btnCls, tlType !== 'all' ? 'border-blue-500 text-blue-500 bg-blue-500/10' : '')}>
                 <Calendar size={16} /> {lang === 'de' ? 'Zeitraum' : 'Timeline'}
@@ -506,6 +559,29 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                </div>
             )}
           </div>
+
+          {/* FIXED: Live Collaboration Active Users Array */}
+          {activeUsers.length > 0 && (
+             <div className="flex justify-end mb-4 px-2">
+                <div className="flex items-center gap-2">
+                  <span className={cn("text-[10px] font-bold uppercase tracking-widest mr-2", dk ? "text-slate-500" : "text-slate-400")}>
+                    {lang === 'de' ? 'Live dabei:' : 'Live now:'}
+                  </span>
+                  <div className="flex -space-x-2">
+                    {activeUsers.map((u: any, i: number) => (
+                      <div key={i} className="relative group cursor-pointer">
+                        <div className="w-8 h-8 rounded-full bg-blue-600 border-2 border-white dark:border-[#020617] flex items-center justify-center text-white text-xs font-bold shadow-sm z-10 relative">
+                          {u.name.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none">
+                          {u.name} <br/> <span className="text-slate-400">{u.email}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+             </div>
+          )}
 
           {groupBy !== 'none' && groupedData.length > 0 && (
             <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-4 no-scrollbar border-b border-slate-200 dark:border-white/10">
