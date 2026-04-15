@@ -3,7 +3,14 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl     = import.meta.env.VITE_SUPABASE_URL as string
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// ─── CACHE BYPASS FIX ──────────────────────────────────────────────────────
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  global: {
+    fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' })
+  }
+})
+// ───────────────────────────────────────────────────────────────────────────
 
 // ─── Auth ──────────────────────────────────────────────────────────────────
 export async function signIn(email: string, password: string) {
@@ -350,7 +357,6 @@ export async function getHotels() {
   return (data ?? []).map(normalizeHotel).filter(Boolean)
 }
 
-// Appended year and country explicitly to insert
 export async function createHotel(data: {
   name: string; city?: string | null; companyTag?: string[] | string | null;
   address?: string | null; contactPerson?: string | null; phone?: string | null;
@@ -359,6 +365,10 @@ export async function createHotel(data: {
 }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
+  
+  // FIX: Grab the user's real full name or username instead of just their email
+  const authorName = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.username || user.email || 'Unknown User'
+
   const tags = Array.isArray(data.companyTag) ? data.companyTag : (data.companyTag ? [data.companyTag] : [])
   const { data: result, error } = await supabase
     .from('hotels')
@@ -375,7 +385,7 @@ export async function createHotel(data: {
       country:       data.country       ?? 'Germany',
       year:          data.year          ?? new Date().getFullYear(),
       lastupdatedat: new Date().toISOString(),
-      lastupdatedby: user.email ?? user.id,
+      lastupdatedby: authorName, // FIXED
     })
     .select().single()
   
@@ -384,10 +394,13 @@ export async function createHotel(data: {
   return normalizeHotel({ ...result, durations: [] })
 }
 
-// Appended year and country explicitly to update
 export async function updateHotel(id: string, data: any) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
+
+  // FIX: Grab the user's real full name or username
+  const authorName = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.username || user.email || 'Unknown User'
+
   const rawTag = data.companyTag ?? data.companytag ?? null
   const tags = Array.isArray(rawTag) ? rawTag : (rawTag ? [rawTag] : [])
   
@@ -402,7 +415,7 @@ export async function updateHotel(id: string, data: any) {
     weblink:       data.webLink       ?? data.weblink ?? null,
     notes:         data.notes         ?? null,
     lastupdatedat: new Date().toISOString(),
-    lastupdatedby: user.email ?? user.id,
+    lastupdatedby: authorName, // FIXED
   };
 
   if (data.country) payload.country = data.country;
@@ -488,5 +501,52 @@ export async function updateEmployee(id: string, data: any) {
 }
 export async function deleteEmployee(id: string) {
   const { error } = await supabase.from('employees').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ─── Room Cards (The Missing Bridge) ───────────────────────────────────────
+// FIXED: This adds the capability to save your dynamically configured room types to the database
+export async function createRoomCard(data: any) {
+  const { data: result, error } = await supabase.from('room_cards').insert({
+    duration_id: data.durationId,
+    room_type: data.roomType ?? 'EZ',
+    bed_count: data.bedCount ?? 1,
+    room_brutto: data.roomBrutto ?? 0,
+    total_brutto: data.totalBrutto ?? 0,
+    use_manual_price: data.useManualPrice ?? false,
+    manual_price: data.manualPrice ?? 0
+  }).select().single()
+  
+  if (error) throw error
+  
+  // Return UI-friendly camelCase mapped keys
+  return {
+    ...result,
+    durationId: result.duration_id,
+    roomType: result.room_type,
+    bedCount: result.bed_count,
+    roomBrutto: result.room_brutto,
+    totalBrutto: result.total_brutto,
+    useManualPrice: result.use_manual_price,
+    manualPrice: result.manual_price,
+    employees: []
+  }
+}
+
+export async function updateRoomCard(id: string, data: any) {
+  const { error } = await supabase.from('room_cards').update({
+    room_type: data.roomType ?? data.room_type,
+    bed_count: data.bedCount ?? data.bed_count,
+    room_brutto: data.roomBrutto ?? data.room_brutto,
+    total_brutto: data.totalBrutto ?? data.total_brutto,
+    use_manual_price: data.useManualPrice ?? data.use_manual_price,
+    manual_price: data.manualPrice ?? data.manual_price
+  }).eq('id', id)
+  
+  if (error) throw error
+}
+
+export async function deleteRoomCard(id: string) {
+  const { error } = await supabase.from('room_cards').delete().eq('id', id)
   if (error) throw error
 }
