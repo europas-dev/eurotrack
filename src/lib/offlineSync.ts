@@ -1,125 +1,498 @@
-// src/lib/offlineQueue.ts
-import {
-  updateHotel, createHotel, deleteHotel,
-  updateDuration, createDuration, deleteDuration,
-  createEmployee, updateEmployee, deleteEmployee,
-} from './supabase';
+// src/lib/supabase.ts
+import { createClient } from '@supabase/supabase-js'
 
-export type QueuedOp = {
-  id: string;
-  type:
-    | 'createHotel' | 'updateHotel' | 'deleteHotel'
-    | 'createDuration' | 'updateDuration' | 'deleteDuration'
-    | 'createEmployee' | 'updateEmployee' | 'deleteEmployee';
-  payload: any;
-  timestamp: number;
-};
+const supabaseUrl     = import.meta.env.VITE_SUPABASE_URL as string
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 
-export type SyncStatus = 'saved' | 'saving' | 'pending' | 'failed' | 'offline';
-type SyncListener = (s: SyncStatus) => void;
+// ─── CACHE BYPASS FIX ──────────────────────────────────────────────────────
+// This prevents Service Workers or browser caching from feeding you frozen data
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  global: {
+    fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' })
+  }
+})
+// ───────────────────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = 'eurotrack_offline_queue';
-
-// ─── Internal queue helpers ───────────────────────────────────────────────────
-function loadQueue(): QueuedOp[] {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
-  catch { return []; }
+// ─── Auth ──────────────────────────────────────────────────────────────────
+export async function signIn(email: string, password: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) throw error
+  return data
 }
-function saveQueue(q: QueuedOp[]) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(q)); } catch {}
+export async function signOut() {
+  const { error } = await supabase.auth.signOut()
+  if (error) throw error
+}
+export async function getSession() {
+  const { data } = await supabase.auth.getSession()
+  return data.session
 }
 
-// ─── Sync manager (singleton) ─────────────────────────────────────────────────
-class OfflineSyncManager {
-  private isOnline  = navigator.onLine;
-  private isFlushing = false;
-  private listeners: SyncListener[] = [];
+// ─── Roles ─────────────────────────────────────────────────────────────────
+export type UserRole = 'superadmin' | 'admin' | 'editor' | 'viewer' | 'pending'
 
-  constructor() {
-    window.addEventListener('online',  () => { this.isOnline = true;  this.notify('saving'); this.flush(); });
-    window.addEventListener('offline', () => { this.isOnline = false; this.notify('offline'); });
-    // Flush any leftover ops from previous session on startup
-    if (this.isOnline && loadQueue().length > 0) this.flush();
-  }
+export type AccessLevel =
+  | { role: 'superadmin' }
+  | { role: 'admin' }
+  | { role: 'editor' }
+  | { role: 'viewer' }
+  | { role: 'pending' }
 
-  subscribe(fn: SyncListener) {
-    this.listeners.push(fn);
-    return () => { this.listeners = this.listeners.filter(l => l !== fn); };
-  }
+export async function getMyAccessLevel(): Promise<AccessLevel> {
+  try {
+    const { data: { user }, error: authErr } = await supabase.auth.getUser()
+    if (authErr || !user) return { role: 'pending' }
 
-  private notify(s: SyncStatus) {
-    this.listeners.forEach(l => l(s));
-  }
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle()
 
-  getStatus(): SyncStatus {
-    if (!this.isOnline) return 'offline';
-    if (loadQueue().length > 0) return 'pending';
-    return 'saved';
-  }
-
-  // Call this instead of the old enqueue() everywhere
-  async enqueue(op: Omit<QueuedOp, 'id' | 'timestamp'>) {
-    if (this.isOnline) {
-      try {
-        this.notify('saving');
-        await this.execute(op as QueuedOp);
-        this.notify('saved');
-        return;
-      } catch (e) {
-        console.warn('Save failed, queuing offline:', e);
-      }
+    if (error) {
+      console.error('[getMyAccessLevel] DB error:', error.message)
+      return { role: 'pending' }
     }
-    // Offline or save failed → push to queue
-    const item: QueuedOp = {
-      ...op,
-      id: crypto.randomUUID(),
-      timestamp: Date.now(),
-    };
-    const q = loadQueue();
-    q.push(item);
-    saveQueue(q);
-    this.notify(this.isOnline ? 'failed' : 'offline');
-  }
 
-  async flush() {
-    if (this.isFlushing) return;
-    const q = loadQueue();
-    if (!q.length) { this.notify('saved'); return; }
-    this.isFlushing = true;
-    this.notify('saving');
-    const failed: QueuedOp[] = [];
-    for (const op of q) {
-      try { await this.execute(op); }
-      catch { failed.push(op); }
+    const role = (data as any)?.role as UserRole | null
+    if (role === 'superadmin') return { role: 'superadmin' }
+    if (role === 'admin')      return { role: 'admin' }
+    if (role === 'editor')     return { role: 'editor' }
+    if (role === 'viewer')     return { role: 'viewer' }
+    return { role: 'pending' }
+  } catch (e) {
+    console.error('[getMyAccessLevel] unexpected error:', e)
+    return { role: 'pending' }
+  }
+}
+
+// ─── User management (superadmin only) ────────────────────────────────────
+export async function getAllUsers(): Promise<any[]> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, email, full_name, username, role, created_at')
+    .order('created_at', { ascending: false })
+
+  if (error) throw new Error(error.message)
+  return (data ?? []).map((p: any) => ({ ...p, fullName: p.full_name ?? '' }))
+}
+
+export async function setUserRole(userId: string, role: UserRole): Promise<void> {
+  const { error: rpcErr } = await supabase.rpc('set_user_role', {
+    target_id: userId,
+    new_role:  role,
+  })
+
+  if (rpcErr) {
+    if (!rpcErr.code?.startsWith('PGRST202') && rpcErr.code !== '42883') {
+      throw new Error(`Role change failed (RPC): ${rpcErr.message}`)
     }
-    saveQueue(failed);
-    this.isFlushing = false;
-    this.notify(failed.length ? 'failed' : 'saved');
-  }
+    const { error: updateErr } = await supabase
+      .from('profiles')
+      .update({ role })
+      .eq('id', userId)
 
-  private async execute(op: QueuedOp | Omit<QueuedOp, 'id' | 'timestamp'>) {
-    const p = op.payload;
-    switch (op.type) {
-      case 'createHotel':    await createHotel(p);                               break;
-      case 'updateHotel':    await updateHotel(p.id, p);                         break;
-      case 'deleteHotel':    await deleteHotel(p.id);                            break;
-      case 'createDuration': await createDuration(p);                            break;
-      case 'updateDuration': await updateDuration(p.id, p);                      break;
-      case 'deleteDuration': await deleteDuration(p.id);                         break;
-      case 'createEmployee': await createEmployee(p.durationId, p.slotIndex, p); break;
-      case 'updateEmployee': await updateEmployee(p.id, p);                      break;
-      case 'deleteEmployee': await deleteEmployee(p.id);                         break;
+    if (updateErr) {
+      throw new Error(`Role change failed. Details: ${updateErr.message}`)
     }
   }
+
+  const { data: check } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (check && (check as any).role !== role) {
+    throw new Error(`Database did not accept the role change (RLS policy likely blocking it).`)
+  }
 }
 
-export const offlineSync = new OfflineSyncManager();
+// ─── Profiles ──────────────────────────────────────────────────────────────
+export async function getMyProfile() {
+  try {
+    const { data: { user }, error: authErr } = await supabase.auth.getUser()
+    if (authErr || !user) return null
 
-// ─── Keep old function names working (backwards compatible) ───────────────────
-export function enqueue(op: Omit<QueuedOp, 'id' | 'timestamp'>) {
-  return offlineSync.enqueue(op);
+    const { data: row } = await supabase
+      .from('profiles')
+      .select('id, email, full_name, username, role, font_family, font_size, avatar')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    const fullName   = row?.full_name   ?? user.user_metadata?.full_name  ?? user.user_metadata?.name ?? ''
+    const username   = row?.username    ?? user.user_metadata?.username   ?? ''
+    const fontFamily = row?.font_family ?? user.user_metadata?.fontFamily ?? 'inter'
+    const fontSize   = row?.font_size   ?? user.user_metadata?.fontSize   ?? 16
+    const avatar     = row?.avatar      ?? user.user_metadata?.avatar     ?? null
+
+    return {
+      id:         user.id,
+      email:      row?.email ?? user.email ?? '',
+      full_name:  fullName,
+      fullName,
+      username,
+      avatar_url: user.user_metadata?.avatar_url ?? null,
+      avatar,
+      fontFamily,
+      fontSize,
+      role: (row?.role as UserRole) ?? 'pending',
+    }
+  } catch { return null }
 }
-export function getQueue(): QueuedOp[]       { return loadQueue(); }
-export function removeFromQueue(id: string)  { saveQueue(loadQueue().filter(o => o.id !== id)); }
-export function clearQueue()                 { saveQueue([]); }
-export function hasQueuedOps(): boolean      { return loadQueue().length > 0; }
+
+export async function updateMyProfile(updates: {
+  full_name?:  string
+  fullName?:   string
+  username?:   string
+  avatar_url?: string
+  avatar?:     string | null
+  fontFamily?: string
+  fontSize?:   number
+}) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const fullName = updates.full_name ?? updates.fullName
+
+  const rowPatch: Record<string, any> = {}
+  if (fullName           !== undefined) rowPatch.full_name   = fullName
+  if (updates.username   !== undefined) rowPatch.username    = updates.username
+  if (updates.avatar     !== undefined) rowPatch.avatar      = updates.avatar
+  if (updates.fontFamily !== undefined) rowPatch.font_family = updates.fontFamily
+  if (updates.fontSize   !== undefined) rowPatch.font_size   = updates.fontSize
+
+  if (Object.keys(rowPatch).length > 0) {
+    const { error: rowErr } = await supabase.from('profiles').update(rowPatch).eq('id', user.id)
+    if (rowErr) console.warn('[updateMyProfile] profiles update warn:', rowErr.message)
+  }
+
+  const metaPatch: Record<string, any> = {}
+  if (fullName           !== undefined) metaPatch.full_name  = fullName
+  if (updates.username   !== undefined) metaPatch.username   = updates.username
+  if (updates.avatar     !== undefined) metaPatch.avatar     = updates.avatar
+  if (updates.fontFamily !== undefined) metaPatch.fontFamily = updates.fontFamily
+  if (updates.fontSize   !== undefined) metaPatch.fontSize   = updates.fontSize
+
+  if (Object.keys(metaPatch).length > 0) {
+    const { error: authErr } = await supabase.auth.updateUser({ data: metaPatch })
+    if (authErr) console.warn('[updateMyProfile] auth metadata warn:', authErr.message)
+  }
+
+  return getMyProfile()
+}
+
+export async function updateMyUsername(newUsername: string): Promise<void> {
+  const trimmed = newUsername.trim()
+  if (!trimmed) throw new Error('Username cannot be empty')
+  if (trimmed.length < 3) throw new Error('Username must be at least 3 characters')
+  if (!/^[a-zA-Z0-9_.-]+$/.test(trimmed)) throw new Error('Username: only letters, numbers, _ . -')
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { data: existing } = await supabase.from('profiles').select('id').eq('username', trimmed).neq('id', user.id).maybeSingle()
+  if (existing) throw new Error('This username is already taken')
+
+  const { error: dbErr } = await supabase.from('profiles').update({ username: trimmed }).eq('id', user.id)
+  if (dbErr) throw dbErr
+
+  await supabase.auth.updateUser({ data: { username: trimmed } })
+}
+
+export async function updateMyEmail(newEmail: string): Promise<void> {
+  const trimmed = newEmail.trim()
+  if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) throw new Error('Please enter a valid email address')
+
+  const { error } = await supabase.auth.updateUser({ email: trimmed })
+  if (error) throw error
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) await supabase.from('profiles').update({ email: trimmed }).eq('id', user.id)
+}
+
+export async function updateMyPassword(currentPassword: string, newPassword: string): Promise<void> {
+  if (newPassword.length < 6) throw new Error('New password must be at least 6 characters')
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user?.email) throw new Error('Could not determine current email')
+
+  const { error: reAuthErr } = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword })
+  if (reAuthErr) throw new Error('Current password is incorrect')
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) throw error
+}
+
+export async function sendPasswordReset(email: string): Promise<void> {
+  const { error } = await supabase.auth.resetPasswordForEmail(email)
+  if (error) throw error
+}
+
+export async function grantUserAccess(userId: string, role: 'viewer' | 'editor' | 'admin'): Promise<void> {
+  await setUserRole(userId, role)
+}
+
+export async function searchProfiles(query: string): Promise<any[]> {
+  if (!query || query.trim().length < 2) return []
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, email, full_name, username, role')
+      .or(`email.ilike.%${query.trim()}%,full_name.ilike.%${query.trim()}%,username.ilike.%${query.trim()}%`)
+      .neq('id', user?.id ?? '')
+      .limit(10)
+    if (error) return []
+    return (data ?? []).map((p: any) => ({ ...p, fullName: p.full_name ?? '', avatar_url: null }))
+  } catch { return [] }
+}
+
+export async function inviteCollaborator(userId: string, role: 'viewer' | 'editor' | 'admin'): Promise<any> {
+  await grantUserAccess(userId, role)
+}
+export async function updateCollaboratorPermission(userId: string, role: 'viewer' | 'editor' | 'admin'): Promise<any> {
+  await grantUserAccess(userId, role)
+}
+export async function removeCollaborator(userId: string): Promise<void> {
+  await setUserRole(userId, 'pending')
+}
+export async function getCollaborators(): Promise<any[]> {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, email, full_name, username, role, created_at')
+      .in('role', ['admin', 'editor', 'viewer'])
+      .order('created_at', { ascending: true })
+    if (error) return []
+    return (data ?? []).map((p: any) => ({
+      id: p.id, userId: p.id, role: p.role,
+      email: p.email ?? '', fullName: p.full_name ?? '',
+      username: p.username ?? '', full_name: p.full_name ?? '',
+      avatar_url: null,
+    }))
+  } catch { return [] }
+}
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+function normaliseCompanyTag(raw: any): string[] {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw.filter(Boolean)
+  if (typeof raw === 'string') {
+    try { const p = JSON.parse(raw); if (Array.isArray(p)) return p.filter(Boolean) } catch {}
+    return raw ? [raw] : []
+  }
+  return []
+}
+function serialiseCompanyTag(tags: string[]): string | null {
+  if (!tags || tags.length === 0) return null
+  return JSON.stringify(tags)
+}
+function normalizeEmployee(e: any): any {
+  if (!e || typeof e !== 'object') return null
+  return { ...e,
+    durationId: e.durationid ?? e.durationId,
+    slotIndex:  e.slotindex  ?? e.slotIndex,
+    checkIn:    e.checkin    ?? e.checkIn,
+    checkOut:   e.checkout   ?? e.checkOut,
+  }
+}
+function normalizeDuration(d: any): any {
+  if (!d || typeof d !== 'object') return null
+  return { ...d,
+    hotelId:              d.hotelid              ?? d.hotelId,
+    startDate:            d.startdate            ?? d.startDate,
+    endDate:              d.enddate              ?? d.endDate,
+    roomType:             d.roomtype             ?? d.roomType,
+    numberOfRooms:        d.numberofrooms        ?? d.numberOfRooms,
+    pricePerNightPerRoom: d.pricepernightperroom ?? d.pricePerNightPerRoom,
+    useManualPrices:      d.usemanualprices      ?? d.useManualPrices      ?? false,
+    nightlyPrices:        d.nightlyprices        ?? d.nightlyPrices        ?? {},
+    autoDistribute:       d.autodistribute       ?? d.autoDistribute       ?? false,
+    useBruttoNetto:       d.usebruttonetto       ?? d.useBruttoNetto       ?? false,
+    brutto:               d.brutto               ?? null,
+    netto:                d.netto                ?? null,
+    mwst:                 d.mwst                 ?? null,
+    hasDiscount:          d.hasdiscount          ?? d.hasDiscount          ?? false,
+    discountType:         d.discounttype         ?? d.discountType         ?? 'percentage',
+    discountValue:        d.discountvalue        ?? d.discountValue        ?? 0,
+    isPaid:               d.ispaid               ?? d.isPaid               ?? false,
+    rechnungNr:           d.rechnungnr           ?? d.rechnungNr,
+    bookingId:            d.bookingid            ?? d.bookingId,
+    depositEnabled:       d.depositenabled       ?? d.depositEnabled       ?? false,
+    depositAmount:        d.depositamount        ?? d.depositAmount,
+    extensionNote:        d.extensionnote        ?? d.extensionNote,
+    employees: (d.employees ?? []).map(normalizeEmployee).filter(Boolean),
+  }
+}
+
+// Ensure country and year are normalized for the frontend
+function normalizeHotel(h: any): any {
+  if (!h || typeof h !== 'object') return null
+  const rawTag = h.companytag ?? h.companyTag ?? null
+  return { ...h,
+    companyTag:    normaliseCompanyTag(rawTag),
+    contactPerson: h.contactperson ?? h.contactPerson ?? '',
+    webLink:       h.weblink       ?? h.webLink       ?? '',
+    phone:         h.phone         ?? '',
+    notes:         h.notes         ?? '',
+    country:       h.country       ?? 'Germany',
+    year:          h.year          ?? new Date().getFullYear(),
+    lastUpdatedBy: h.lastupdatedby ?? h.lastUpdatedBy ?? '',
+    lastUpdatedAt: h.lastupdatedat ?? h.lastUpdatedAt ?? '',
+    durations: (h.durations ?? []).map(normalizeDuration).filter(Boolean),
+  }
+}
+
+// ─── Hotels ────────────────────────────────────────────────────────────────
+export async function getHotels() {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+  const { data, error } = await supabase
+    .from('hotels')
+    .select('*, durations(*, employees(*))')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map(normalizeHotel).filter(Boolean)
+}
+
+export async function createHotel(data: {
+  name: string; city?: string | null; companyTag?: string[] | string | null;
+  address?: string | null; contactPerson?: string | null; phone?: string | null;
+  email?: string | null; webLink?: string | null; notes?: string | null;
+  country?: string | null; year?: number | null;
+}) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+  const tags = Array.isArray(data.companyTag) ? data.companyTag : (data.companyTag ? [data.companyTag] : [])
+  const { data: result, error } = await supabase
+    .from('hotels')
+    .insert({
+      name: data.name, 
+      city: data.city ?? null,
+      companytag:    serialiseCompanyTag(tags),
+      address:       data.address       ?? null,
+      contactperson: data.contactPerson ?? null,
+      phone:         data.phone         ?? null,
+      email:         data.email         ?? null,
+      weblink:       data.webLink       ?? null,
+      notes:         data.notes         ?? null,
+      country:       data.country       ?? 'Germany',
+      year:          data.year          ?? new Date().getFullYear(),
+      lastupdatedat: new Date().toISOString(),
+      lastupdatedby: user.email ?? user.id,
+    })
+    .select().single()
+  
+  if (error) throw new Error(`Supabase Error: ${error.message}`)
+  if (!result) throw new Error('Hotel created but no data returned')
+  return normalizeHotel({ ...result, durations: [] })
+}
+
+export async function updateHotel(id: string, data: any) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+  const rawTag = data.companyTag ?? data.companytag ?? null
+  const tags = Array.isArray(rawTag) ? rawTag : (rawTag ? [rawTag] : [])
+  
+  const payload: any = {
+    name: data.name, 
+    city: data.city ?? null,
+    companytag:    serialiseCompanyTag(tags),
+    address:       data.address       ?? null,
+    contactperson: data.contactPerson ?? data.contactperson ?? null,
+    phone:         data.phone         ?? null,
+    email:         data.email         ?? null,
+    weblink:       data.webLink       ?? data.weblink ?? null,
+    notes:         data.notes         ?? null,
+    lastupdatedat: new Date().toISOString(),
+    lastupdatedby: user.email ?? user.id,
+  };
+
+  if (data.country) payload.country = data.country;
+  if (data.year) payload.year = data.year;
+
+  const { error } = await supabase.from('hotels').update(payload).eq('id', id)
+  if (error) throw new Error(`Supabase Update Error: ${error.message}`)
+}
+
+export async function deleteHotel(id: string) {
+  const { error } = await supabase.from('hotels').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function createDuration(data: any) {
+  const { data: result, error } = await supabase.from('durations').insert({
+      hotelid:              data.hotelId,
+      startdate:            data.startDate            ?? '',
+      enddate:              data.endDate              ?? '',
+      roomtype:             data.roomType             ?? 'DZ',
+      numberofrooms:        data.numberOfRooms        ?? 1,
+      pricepernightperroom: data.pricePerNightPerRoom ?? 0,
+      usemanualprices:      data.useManualPrices      ?? false,
+      nightlyprices:        data.nightlyPrices        ?? {},
+      autodistribute:       data.autoDistribute       ?? false,
+      usebruttonetto:       data.useBruttoNetto       ?? false,
+      brutto:               data.brutto               ?? null,
+      netto:                data.netto                ?? null,
+      mwst:                 data.mwst                 ?? null,
+      hasdiscount:          data.hasDiscount          ?? false,
+      discounttype:         data.discountType         ?? 'percentage',
+      discountvalue:        data.discountValue        ?? 0,
+      ispaid:               data.isPaid               ?? false,
+      rechnungnr:           data.rechnungNr           ?? null,
+      bookingid:            data.bookingId            ?? null,
+      depositenabled:       data.depositEnabled       ?? false,
+      depositamount:        data.depositAmount        ?? null,
+      extensionnote:        data.extensionNote        ?? null,
+    }).select().single()
+  if (error) throw error
+  if (!result) throw new Error('Duration created but no data returned')
+  return normalizeDuration({ ...result, employees: [] })
+}
+
+export async function updateDuration(id: string, data: any) {
+  const { error } = await supabase.from('durations').update({
+    startdate:            data.startDate            ?? data.startdate,
+    enddate:              data.endDate              ?? data.enddate,
+    roomtype:             data.roomType             ?? data.roomtype,
+    numberofrooms:        data.numberOfRooms        ?? data.numberofrooms,
+    pricepernightperroom: data.pricePerNightPerRoom ?? data.pricepernightperroom,
+    usemanualprices:      data.useManualPrices      ?? data.usemanualprices      ?? false,
+    nightlyprices:        data.nightlyPrices        ?? data.nightlyprices        ?? {},
+    autodistribute:       data.autoDistribute       ?? data.autodistribute       ?? false,
+    usebruttonetto:       data.useBruttoNetto       ?? data.usebruttonetto       ?? false,
+    brutto:               data.brutto               ?? null, netto: data.netto ?? null, mwst: data.mwst ?? null,
+    hasdiscount:          data.hasDiscount          ?? data.hasdiscount          ?? false,
+    discounttype:         data.discountType         ?? data.discounttype         ?? 'percentage',
+    discountvalue:        data.discountValue        ?? data.discountvalue        ?? 0,
+    ispaid:               data.isPaid               ?? data.ispaid               ?? false,
+    rechnungnr:           data.rechnungNr           ?? data.rechnungnr           ?? null,
+    bookingid:            data.bookingId            ?? data.bookingid            ?? null,
+    depositenabled:       data.depositEnabled       ?? data.depositenabled       ?? false,
+    depositamount:        data.depositAmount        ?? data.depositamount        ?? null,
+    extensionnote:        data.extensionNote        ?? data.extensionnote        ?? null,
+  }).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteDuration(id: string) {
+  const { error } = await supabase.from('durations').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function createEmployee(durationId: string, slotIndex: number, data: any) {
+  const { data: result, error } = await supabase.from('employees').insert({ durationid: durationId, slotindex: slotIndex, name: data.name, checkin: data.checkIn ?? null, checkout: data.checkOut ?? null }).select().single()
+  if (error) throw error
+  return normalizeEmployee(result)
+}
+export async function updateEmployee(id: string, data: any) {
+  const { error } = await supabase.from('employees').update({ name: data.name, checkin: data.checkIn ?? data.checkin ?? null, checkout: data.checkOut ?? data.checkout ?? null }).eq('id', id)
+  if (error) throw error
+}
+export async function deleteEmployee(id: string) {
+  const { error } = await supabase.from('employees').delete().eq('id', id)
+  if (error) throw error
+}
