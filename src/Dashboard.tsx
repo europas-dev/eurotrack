@@ -3,8 +3,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase, deleteHotel, createHotel } from './lib/supabase';
 import { cn, formatCurrency, hotelMatchesSearch, exportToCSV, printDocument, calcHotelTotalCost, calcHotelFreeBedsToday } from './lib/utils';
 import type { AccessLevel } from './lib/supabase';
-// FIXED: Added Cloud and CloudOff for the manual toggle
-import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Undo2, Redo2, Star, Calendar, RefreshCw, MapPin, Building, Building2, Cloud, CloudOff } from 'lucide-react';
+import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Undo2, Redo2, Star, Calendar, RefreshCw, MapPin, Building, Building2, CloudOff } from 'lucide-react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import { HotelRow, ModernDropdown, getCountryOptions, DEFAULT_COUNTRIES } from './components/HotelRow';
@@ -67,15 +66,14 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [addingHotel, setAddingHotel] = useState(false);
   const [newHotelName, setNewHotelName] = useState('');
   const [newHotelCity, setNewHotelCity] = useState('');
-  const [newHotelCompany, setNewHotelCompany] = useState('');
+  // FIXED: Changed to array to support multiple companies in Add Hotel form
+  const [newHotelCompany, setNewHotelCompany] = useState<string[]>([]);
   
   const [newHotelCountry, setNewHotelCountry] = useState('Germany');
   const [newHotelSaving, setNewHotelSaving] = useState(false);
   const newHotelNameRef = useRef<HTMLInputElement>(null);
 
-  // FIXED: State for Auto-Detect Offline
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  // FIXED: State for Live Collaboration Users
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
 
   const monthNames = lang === 'de'
@@ -88,7 +86,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     setShowSortMenu(menu === 'sort' ? !showSortMenu : false);
   };
 
-  // FIXED: Connection status listener
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -97,7 +94,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); }
   }, []);
 
-  // FIXED: Supabase Presence engine for Live Collaboration
   useEffect(() => {
     let isMounted = true;
     const channel = supabase.channel('dashboard_presence', {
@@ -108,7 +104,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       if (!isMounted) return;
       const state = channel.presenceState();
       const users = Object.values(state).flat().map((p: any) => p.user);
-      // Deduplicate users
       const uniqueUsers = Array.from(new Map(users.map(u => [u.id, u])).values());
       setActiveUsers(uniqueUsers);
     });
@@ -142,6 +137,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
         if (supabaseError) throw supabaseError;
 
+        // FIXED: The Translation Bug. We now accurately map room_type -> roomType so the UI doesn't panic and default to EZ.
         const normalizedData = (data || []).map((h: any) => ({
           ...h,
           companyTag: h.companytag ?? h.companyTag,
@@ -157,8 +153,17 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             discountType: d.discounttype ?? d.discountType,
             discountValue: d.discountvalue ?? d.discountValue,
             brutto: d.brutto,
-            roomCards: d.room_cards ?? d.roomCards ?? [],
-            extraCosts: d.extracosts ?? d.extraCosts ?? [] 
+            extraCosts: d.extracosts ?? d.extraCosts ?? [],
+            roomCards: (d.room_cards ?? d.roomCards ?? []).map((rc: any) => ({
+              ...rc,
+              roomType: rc.room_type ?? rc.roomType ?? 'EZ',
+              bedCount: rc.bed_count ?? rc.bedCount ?? 1,
+              roomBrutto: rc.room_brutto ?? rc.roomBrutto,
+              totalBrutto: rc.total_brutto ?? rc.totalBrutto,
+              useManualPrice: rc.use_manual_price ?? rc.useManualPrice,
+              manualPrice: rc.manual_price ?? rc.manualPrice,
+              durationId: rc.duration_id ?? rc.durationId
+            }))
           }))
         }));
 
@@ -220,10 +225,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const filteredPreGroup = useMemo(() => {
     return visibleHotels.filter(h => {
       if (showBookmarks && !bookmarks.includes(h.id)) return false;
-
-      if (searchQuery) {
-        if (!hotelMatchesSearch(h, searchQuery)) return false;
-      }
+      if (searchQuery && !hotelMatchesSearch(h, searchQuery)) return false;
       
       if (selectedMonth !== null) {
         const hasMonthOverlap = (h.durations || []).some((d: any) => {
@@ -259,7 +261,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         else if (fbType === '7days') targetDate.setDate(targetDate.getDate() + 7);
         else if (fbType === 'range') targetDate = new Date(fbStartDate); 
         
-        const targetIso = targetDate.toISOString().split('T')[0];
         const hasFree = (h.durations || []).some((d: any) => calcHotelFreeBedsToday(h) > 0);
         if (!hasFree) return false;
       }
@@ -333,7 +334,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       const hotel = await createHotel({ 
         name: newHotelName.trim(), 
         city: newHotelCity.trim() || null, 
-        companyTag: newHotelCompany ? [newHotelCompany.trim()] : null,
+        companyTag: newHotelCompany.length > 0 ? newHotelCompany : null,
         country: newHotelCountry,
         year: selectedYear 
       });
@@ -341,7 +342,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       setHotels(next); 
       pushToHistory(next);
       setAddingHotel(false); 
-      setNewHotelName(''); setNewHotelCity(''); setNewHotelCompany(''); setNewHotelCountry('Germany');
+      setNewHotelName(''); setNewHotelCity(''); setNewHotelCompany([]); setNewHotelCountry('Germany');
     } catch (e: any) { 
       console.error("Database Create Failed:", e); 
       alert(lang === 'de' ? `Fehler beim Speichern: ${e.message}` : `Error saving: ${e.message}`); 
@@ -376,9 +377,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       <Sidebar theme={theme} lang={lang} selectedYear={selectedYear} setSelectedYear={setSelectedYear} selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(v => !v)} hotels={visibleHotels} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        <Header theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchScope={searchScope} setSearchScope={setSearchScope} onSignOut={onSignOut} onExportCsv={handleExportCsv} onPrint={handlePrint} viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} />
+        {/* FIXED: Passed offline modes and isOnline status up to Header so toggle sits next to DE/EN */}
+        <Header theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchScope={searchScope} setSearchScope={setSearchScope} onSignOut={onSignOut} onExportCsv={handleExportCsv} onPrint={handlePrint} viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} />
 
-        {/* FIXED: Auto-Detect Offline Banner */}
         {(!isOnline || offlineMode) && (
            <div className="bg-amber-500/10 border-b border-amber-500/20 text-amber-600 dark:text-amber-400 px-6 py-2 text-xs font-bold flex items-center justify-center gap-2 z-[60] relative">
              <CloudOff size={14} />
@@ -386,18 +387,41 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
            </div>
         )}
 
+        {/* FIXED: Placed Live Collaboration Avatars on the far right of the black stats banner */}
         <div className={cn('px-8 py-4 border-b shrink-0 z-10 relative', dk ? 'bg-[#0F172A] border-white/5' : 'bg-white border-slate-200')}>
-          <div className="flex items-center gap-12 flex-wrap">
-            {[
-              { label: lang === 'de' ? 'Freie Betten Heute' : 'Free Beds Today', value: String(freeBedsTotal), cls: freeBedsTotal > 0 ? 'text-red-500' : 'text-emerald-500' },
-              { label: lang === 'de' ? 'Gesamtkosten' : 'Total Spent', value: formatCurrency(totalSpend), cls: 'text-blue-400' },
-              { label: 'Hotels', value: String(finalFiltered.length), cls: dk ? 'text-white' : 'text-slate-900' },
-            ].map(({ label, value, cls }) => (
-              <div key={label}>
-                <p className={cn('text-[10px] font-bold uppercase tracking-widest mb-1', dk ? 'text-slate-500' : 'text-slate-400')}>{label}</p>
-                <p className={cn('text-2xl font-black', cls)}>{value}</p>
+          <div className="flex items-center justify-between flex-wrap gap-4 w-full">
+            <div className="flex items-center gap-12 flex-wrap">
+              {[
+                { label: lang === 'de' ? 'Freie Betten Heute' : 'Free Beds Today', value: String(freeBedsTotal), cls: freeBedsTotal > 0 ? 'text-red-500' : 'text-emerald-500' },
+                { label: lang === 'de' ? 'Gesamtkosten' : 'Total Spent', value: formatCurrency(totalSpend), cls: 'text-blue-400' },
+                { label: 'Hotels', value: String(finalFiltered.length), cls: dk ? 'text-white' : 'text-slate-900' },
+              ].map(({ label, value, cls }) => (
+                <div key={label}>
+                  <p className={cn('text-[10px] font-bold uppercase tracking-widest mb-1', dk ? 'text-slate-500' : 'text-slate-400')}>{label}</p>
+                  <p className={cn('text-2xl font-black', cls)}>{value}</p>
+                </div>
+              ))}
+            </div>
+
+            {activeUsers.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className={cn("text-[10px] font-bold uppercase tracking-widest mr-2", dk ? "text-slate-500" : "text-slate-400")}>
+                  {lang === 'de' ? 'Live dabei:' : 'Live now:'}
+                </span>
+                <div className="flex -space-x-2">
+                  {activeUsers.map((u: any, i: number) => (
+                    <div key={i} className="relative group cursor-pointer">
+                      <div className="w-8 h-8 rounded-full bg-blue-600 border-2 border-white dark:border-[#020617] flex items-center justify-center text-white text-xs font-bold shadow-sm z-10 relative">
+                        {u.name.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none">
+                        {u.name} <br/> <span className="text-slate-400">{u.email}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
@@ -416,12 +440,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                    <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className={cn("p-1.5 rounded-full transition-all disabled:opacity-30", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")} title={lang === 'de' ? "Wiederholen (Ctrl+Y)" : "Redo (Ctrl+Y)"}><Redo2 size={16} /></button>
                 </div>
               )}
-
-              {/* FIXED: Added Manual Offline Cloud Toggle to Utility Bar */}
-              <button onClick={onToggleOfflineMode} className={cn(btnCls, offlineMode ? 'border-amber-500 text-amber-500 bg-amber-500/10' : '')} title={lang === 'de' ? 'Offline-Modus umschalten' : 'Toggle Offline Mode'}>
-                {offlineMode ? <CloudOff size={16} /> : <Cloud size={16} />}
-                {lang === 'de' ? (offlineMode ? 'Offline' : 'Online') : (offlineMode ? 'Offline' : 'Online')}
-              </button>
 
               <button onClick={() => toggleMenu('timeline')} className={cn(btnCls, tlType !== 'all' ? 'border-blue-500 text-blue-500 bg-blue-500/10' : '')}>
                 <Calendar size={16} /> {lang === 'de' ? 'Zeitraum' : 'Timeline'}
@@ -560,29 +578,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             )}
           </div>
 
-          {/* FIXED: Live Collaboration Active Users Array */}
-          {activeUsers.length > 0 && (
-             <div className="flex justify-end mb-4 px-2">
-                <div className="flex items-center gap-2">
-                  <span className={cn("text-[10px] font-bold uppercase tracking-widest mr-2", dk ? "text-slate-500" : "text-slate-400")}>
-                    {lang === 'de' ? 'Live dabei:' : 'Live now:'}
-                  </span>
-                  <div className="flex -space-x-2">
-                    {activeUsers.map((u: any, i: number) => (
-                      <div key={i} className="relative group cursor-pointer">
-                        <div className="w-8 h-8 rounded-full bg-blue-600 border-2 border-white dark:border-[#020617] flex items-center justify-center text-white text-xs font-bold shadow-sm z-10 relative">
-                          {u.name.substring(0, 2).toUpperCase()}
-                        </div>
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none">
-                          {u.name} <br/> <span className="text-slate-400">{u.email}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-             </div>
-          )}
-
           {groupBy !== 'none' && groupedData.length > 0 && (
             <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-4 no-scrollbar border-b border-slate-200 dark:border-white/10">
                <button onClick={() => setActiveGroup(null)} className={cn("px-4 py-2 rounded-xl text-sm font-bold border transition-all whitespace-nowrap", !activeGroup ? "bg-blue-600 text-white shadow-md border-blue-600" : dk ? "border-white/10 text-slate-400 hover:bg-white/10" : "border-slate-200 text-slate-600 hover:bg-slate-100")}>
@@ -607,26 +602,38 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                     {uniqueCities.map(c => <option key={c} value={c} />)}
                   </datalist>
                   
-                  <div className="flex flex-wrap lg:flex-nowrap gap-3 items-end">
+                  <div className="flex flex-wrap lg:flex-nowrap gap-3 items-start">
                     <div className="flex-[2.5_2.5_0%] min-w-[200px]">
                        <label className={labelCls}>{lang === 'de' ? 'Hotelname *' : 'Hotel Name *'}</label>
-                       <input autoComplete="off" spellCheck="false" ref={newHotelNameRef} autoFocus onKeyDown={handleEnterBlur} className={cn('w-full px-3 py-2 rounded-lg border outline-none text-xs font-bold transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder={lang === 'de' ? "Name eingeben..." : "Enter name..."} />
+                       <input autoComplete="off" spellCheck="false" ref={newHotelNameRef} autoFocus onKeyDown={handleEnterBlur} className={cn('w-full px-3 py-2 rounded-lg border outline-none text-xs font-bold transition-all focus:border-blue-500 h-[38px]', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder={lang === 'de' ? "Name eingeben..." : "Enter name..."} />
                     </div>
                     
                     <div className="flex-[1.5_1.5_0%] min-w-[150px]">
                        <label className={labelCls}><MapPin size={10}/> {lang === 'de' ? 'Stadt' : 'City'}</label>
-                       <input autoComplete="off" spellCheck="false" list="city-list" onKeyDown={handleEnterBlur} className={cn('w-full px-3 py-2 rounded-lg border outline-none text-xs font-bold transition-all focus:border-blue-500', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder={lang === 'de' ? "Stadt eingeben..." : "Enter city..."} />
+                       <input autoComplete="off" spellCheck="false" list="city-list" onKeyDown={handleEnterBlur} className={cn('w-full px-3 py-2 rounded-lg border outline-none text-xs font-bold transition-all focus:border-blue-500 h-[38px]', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder={lang === 'de' ? "Stadt eingeben..." : "Enter city..."} />
                     </div>
                     
                     <div className="flex-[1.5_1.5_0%] min-w-[150px]">
                        <label className={labelCls}><Building2 size={10}/> {lang === 'de' ? 'Firma' : 'Company'}</label>
-                       <ModernDropdown 
-                          value={newHotelCompany} 
-                          options={uniqueCompanies} 
-                          onChange={(v:any) => setNewHotelCompany(v)} 
-                          isDarkMode={dk} lang={lang} 
-                          placeholder={lang === 'de' ? 'Firma...' : 'Company...'} 
-                       />
+                       {/* FIXED: Replaced standard dropdown with an interactive multi-select array in Add Hotel form */}
+                       <div className="flex flex-col gap-1">
+                         {newHotelCompany.length > 0 && (
+                           <div className="flex flex-wrap gap-1">
+                             {newHotelCompany.map(c => (
+                               <span key={c} onClick={() => setNewHotelCompany(prev => prev.filter(x => x !== c))} className={cn('px-2 py-1 rounded text-[10px] font-bold border flex items-center gap-1 cursor-pointer transition-all hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30', dk ? 'bg-white/5 border-white/10 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700')}>
+                                 {c} <X size={10} />
+                               </span>
+                             ))}
+                           </div>
+                         )}
+                         <ModernDropdown 
+                            value={''} 
+                            options={uniqueCompanies.filter(c => !newHotelCompany.includes(c))} 
+                            onChange={(v:any) => { if(v) setNewHotelCompany(prev => [...prev, v]) }} 
+                            isDarkMode={dk} lang={lang} 
+                            placeholder={lang === 'de' ? '+ Firma auswählen...' : '+ Add company...'} 
+                         />
+                       </div>
                     </div>
                     
                     <div className="flex-[1_1_0%] min-w-[150px]">
@@ -639,11 +646,11 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                        />
                     </div>
                     
-                    <div className="flex shrink-0 gap-2 w-[100px]">
-                       <button onClick={handleSaveNewHotel} disabled={newHotelSaving || !newHotelName.trim()} className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md disabled:opacity-50 transition-all flex items-center justify-center">
+                    <div className="flex shrink-0 gap-2 w-[100px] mt-[26px]">
+                       <button onClick={handleSaveNewHotel} disabled={newHotelSaving || !newHotelName.trim()} className="flex-1 h-[38px] bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md disabled:opacity-50 transition-all flex items-center justify-center">
                           {newHotelSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                        </button>
-                       <button onClick={() => setAddingHotel(false)} className={cn("flex-1 py-2 rounded-lg flex items-center justify-center transition-all border", dk ? "border-white/10 hover:bg-white/10 text-slate-300" : "border-slate-200 hover:bg-slate-100 text-slate-600")}>
+                       <button onClick={() => setAddingHotel(false)} className={cn("flex-1 h-[38px] rounded-lg flex items-center justify-center transition-all border", dk ? "border-white/10 hover:bg-white/10 text-slate-300" : "border-slate-200 hover:bg-slate-100 text-slate-600")}>
                           <X size={14} />
                        </button>
                     </div>
