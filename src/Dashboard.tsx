@@ -10,16 +10,19 @@ import { HotelRow, ModernDropdown, CompanyMultiSelect, getCountryOptions } from 
 
 // --- SYSTEM COMPANIES API ---
 async function getSystemCompanies(): Promise<string[]> {
-  const { data, error } = await supabase.from('companies').select('name').order('name');
-  if (error) return [];
+  const { data, error } = await supabase.from('global_companies').select('name').order('name');
+  if (error) { console.error("Global Companies Fetch Error:", error); return []; }
   return (data || []).map(c => c.name);
 }
-// NEW: Saves to DB instantly
+
+// NEW: Points to global_companies and logs errors
 async function addSystemCompany(name: string): Promise<void> {
-  await supabase.from('companies').insert({ name });
+  const { error } = await supabase.from('global_companies').insert({ name });
+  if (error) console.error("Global Companies Insert Error:", error);
 }
+
 async function deleteSystemCompany(name: string): Promise<void> {
-  await supabase.from('companies').delete().eq('name', name);
+  await supabase.from('global_companies').delete().eq('name', name);
 }
 
 interface DashboardProps {
