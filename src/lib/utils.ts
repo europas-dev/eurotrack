@@ -186,8 +186,35 @@ export function hotelMatchesSearch(hotel: any, query: string, scope: string = 'a
   if (!query) return true;
   const q = query.toLowerCase();
   
-  // IF SCOPE IS EMPLOYEES: Only check employee names. Ignore hotel names/cities.
-  if (scope === 'employees' || scope === 'employee') {
+  // Normalize scope to avoid exact-match errors
+  const s = scope.toLowerCase();
+
+  // 1. EXACT MATCH: HOTEL NAME
+  if (s === 'hotel' || s === 'name') {
+    return (hotel.name?.toLowerCase() || '').includes(q);
+  }
+
+  // 2. EXACT MATCH: CITY
+  if (s === 'city') {
+    return (hotel.city?.toLowerCase() || '').includes(q);
+  }
+
+  // 3. EXACT MATCH: COMPANY
+  if (s === 'company') {
+    const tags = Array.isArray(hotel.companyTag) ? hotel.companyTag.join(' ').toLowerCase() : (hotel.companyTag?.toLowerCase() || '');
+    return tags.includes(q);
+  }
+
+  // 4. EXACT MATCH: INVOICE NO
+  if (s === 'invoice') {
+    for (const d of (hotel.durations || [])) {
+      if (d.rechnungNr?.toLowerCase().includes(q)) return true;
+    }
+    return false;
+  }
+
+  // 5. EXACT MATCH: EMPLOYEES
+  if (s === 'employees' || s === 'employee') {
     for (const d of (hotel.durations || [])) {
       for (const rc of (d.roomCards || [])) {
         for (const emp of (rc.employees || [])) {
@@ -195,8 +222,27 @@ export function hotelMatchesSearch(hotel: any, query: string, scope: string = 'a
         }
       }
     }
-    return false; // If it didn't find an employee, reject this hotel.
+    return false;
   }
+
+  // DEFAULT: 'ALL' SCOPE (If no specific scope is selected, check everything)
+  const hName = hotel.name?.toLowerCase() || '';
+  const hCity = hotel.city?.toLowerCase() || '';
+  const tags = Array.isArray(hotel.companyTag) ? hotel.companyTag.join(' ').toLowerCase() : (hotel.companyTag?.toLowerCase() || '');
+  
+  if (hName.includes(q) || hCity.includes(q) || tags.includes(q)) return true;
+
+  for (const d of (hotel.durations || [])) {
+    if (d.rechnungNr?.toLowerCase().includes(q)) return true;
+    if (d.bookingId?.toLowerCase().includes(q)) return true;
+    for (const rc of (d.roomCards || [])) {
+      for (const emp of (rc.employees || [])) {
+        if (emp.name?.toLowerCase().includes(q)) return true;
+      }
+    }
+  }
+  return false;
+}
 
   // IF SCOPE IS ALL: Search everything (Original Logic)
   const hName = hotel.name?.toLowerCase() || '';
