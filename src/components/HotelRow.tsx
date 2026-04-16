@@ -51,9 +51,7 @@ function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, clas
   const [showOptions, setShowOptions] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setDraft(value || '');
-  }, [value]);
+  useEffect(() => { setDraft(value || ''); }, [value]);
 
   useEffect(() => {
     function handle(e: MouseEvent) { 
@@ -79,7 +77,7 @@ function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, clas
         className={cn("w-full bg-transparent border-none outline-none focus:ring-0 p-0 m-0 truncate placeholder:opacity-40 transition-colors focus:text-teal-500", textClass)} 
       />
       {showOptions && filtered.length > 0 && (
-        <div className={cn("absolute top-full left-0 mt-1 w-max min-w-[200px] z-[200] rounded-lg border shadow-xl py-1 overflow-hidden", isDarkMode ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+        <div className={cn("absolute top-full left-0 mt-1 w-max min-w-[200px] z-[200] rounded-xl border shadow-xl py-1 overflow-hidden", isDarkMode ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
           {filtered.map((opt: string) => (
             <button key={opt} onClick={() => { setDraft(opt); onChange(opt); setShowOptions(false); }} className={cn("w-full text-left px-3 py-2 text-xs font-bold transition-all", isDarkMode ? "text-slate-300 hover:bg-white/10" : "text-slate-700 hover:bg-slate-100")}>
               {opt}
@@ -92,7 +90,7 @@ function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, clas
 }
 
 // --- HOTEL ROW MAIN EXPORT ---
-export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], onDelete, onUpdate }: any) {
+export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], onDelete, onUpdate, onDeleteCompanyOption }: any) {
   const [open, setOpen] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   
@@ -189,12 +187,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         {/* MAIN ROW */}
         <div className={cn('flex flex-wrap md:flex-nowrap items-center gap-0 cursor-pointer p-2', dk ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/70', open && 'border-b', open && (dk ? 'border-white/5 bg-black/20' : 'border-slate-100 bg-slate-50/50'))} onClick={() => setOpen(!open)}>
           
-          {/* FAR LEFT: CHEVRON ONLY */}
           <div className="flex items-center justify-center w-10 shrink-0">
             {open ? <ChevronDown size={18} className="text-teal-500" /> : <ChevronRight size={18} className="text-slate-500" />}
           </div>
 
-          {/* IDENTITY: SEAMLESS HOTEL & CITY */}
+          {/* IDENTITY */}
           <div className="flex-[2] py-2 min-w-[200px] pr-2">
             <SeamlessInput 
                value={localHotel.name} options={hotelOptions} isDarkMode={dk} 
@@ -213,12 +210,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             )}
           </div>
 
-          {/* COMPANY MULTI-SELECT */}
-          <div className="flex-[1.5] px-2 min-w-[140px]" onClick={e => e.stopPropagation()}>
-            <CompanyMultiSelect selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} />
+          {/* COMPANY (Shrunk to flex-[0.8] to prevent gap and save space) */}
+          <div className="flex-[0.8] px-2 min-w-[120px]" onClick={e => e.stopPropagation()}>
+            <CompanyMultiSelect selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} />
           </div>
 
-          {/* DURATIONS WITH TOOLTIPS */}
+          {/* DURATIONS */}
           <div className="flex-[1.5] px-2 min-w-[120px]">
             <div className="flex flex-wrap gap-1.5">
               {localHotel.durations.map((d: any) => {
@@ -242,14 +239,14 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             </div>
           </div>
 
-          {/* EMPLOYEES WITH TOOLTIPS & EXACT BED SLOT LOGIC */}
-          <div className="flex-[2] px-2">
+          {/* EMPLOYEES (Expanded to flex-[2.5] to easily fit 3 chips) */}
+          <div className="flex-[2.5] px-2">
             <div className="flex flex-wrap gap-1.5">
               {visibleEmps.map((emp: any, i: number) => {
                 const status = getEmployeeStatus(emp.checkIn, emp.checkOut);
                 const nights = calculateNights(emp.checkIn, emp.checkOut);
                 
-                // EXACT BED SLOT LOGIC APPLIED HERE
+                // EXACT BED SLOT LOGIC: Only border colors change.
                 const isUpcoming = status === 'upcoming';
                 const borderCls = status === 'active' 
                   ? "border-emerald-500 border-solid" 
@@ -257,11 +254,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                   ? "border-blue-500 border-dashed" 
                   : status === 'ending-soon' 
                   ? "border-red-500 border-dashed" 
-                  : "border-slate-300 dark:border-slate-600 border-solid";
+                  : "border-slate-300 border-solid dark:border-slate-600";
                 
                 return (
                   <div key={i} className="relative group flex items-center">
-                    <div className={cn("px-2.5 py-0.5 rounded-md border text-xs font-bold truncate text-center min-w-[70px] cursor-help flex items-center justify-center gap-1 shadow-sm", borderCls, dk ? "bg-black/20 text-white" : "bg-white text-slate-900")}>
+                    <div className={cn("px-2 py-0.5 rounded-md border text-xs font-bold truncate text-center min-w-[70px] cursor-help flex items-center justify-center gap-1 shadow-sm", borderCls, dk ? "bg-black/20 text-white" : "bg-white text-slate-900")}>
                       {isUpcoming && <CornerDownRight size={10} className="shrink-0 opacity-70 text-blue-500" />}
                       <HighlightText text={emp.name || '_ _ _'} query={searchQuery} />
                     </div>
@@ -276,7 +273,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             </div>
           </div>
 
-          {/* RIGID METRICS SECTION (Anti-Squish, No Dividers, Wide Cost) */}
+          {/* RIGID METRICS */}
           <div className="ml-auto flex items-center gap-6 pr-3 shrink-0 min-w-[280px] justify-end">
             <div className="text-center w-10">
               <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">{lang === 'de' ? 'Frei' : 'Free'}</p>
@@ -291,7 +288,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               <p className={cn('text-lg font-black', dk ? 'text-white' : 'text-slate-900')}>{formatCurrency(totalCost)}</p>
             </div>
             
-            {/* ACTIONS */}
             <div className="flex items-center gap-1 pl-2">
                <button onClick={handleBookmarkToggle} className={cn("p-1.5 rounded-lg transition-all", isBookmarked ? "text-yellow-500 hover:text-yellow-400 bg-yellow-500/10" : "text-slate-400 hover:text-yellow-500 hover:bg-white/5")}>
                  <Star size={16} className={isBookmarked ? "fill-yellow-500" : ""} />
@@ -312,7 +308,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           <div className={cn('p-6 space-y-6 rounded-b-2xl border-t', dk ? 'bg-[#0B1224] border-white/5' : 'bg-slate-50 border-slate-200')} onClick={e => e.stopPropagation()}>
             
             <div className="flex flex-wrap xl:flex-nowrap gap-4 items-end">
-              {/* NOTE ICON & ADDRESS LAYOUT FIX */}
+              {/* NOTE & ADDRESS ALIGNMENT FIX */}
               <div className="flex-[2.5] min-w-[220px] flex items-end gap-2">
                  <div className="shrink-0">
                     <label className={labelCls}><StickyNote size={12}/> {lang === 'de' ? 'Notiz' : 'Note'}</label>
@@ -420,7 +416,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         )}
       </div>
 
-      {/* PORTAL FIX: Renders the modal strictly at the top level of the DOM to avoid CSS trapping */}
       {confirmDelete && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className={cn('w-full max-w-md rounded-3xl border p-8 shadow-2xl animate-in zoom-in-95', dk ? 'bg-[#1E293B] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200')}>
@@ -488,7 +483,7 @@ export function ModernDropdown({ value, options, onChange, isDarkMode, lang, pla
 }
 
 // --- NOTION STYLE MULTI-SELECT ---
-export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange }: any) {
+export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange, onDeleteOption }: any) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const ref = useRef<HTMLDivElement>(null);
@@ -506,7 +501,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
 
   const safeOptions = Array.isArray(options) ? options : [];
   
-  // CRITICAL FIX: Force `selected` to be an array, even if the parent form passed a string
+  // Safe Array mapping
   const safeSelected = Array.isArray(selected) ? selected : (typeof selected === 'string' && selected ? [selected] : []);
   
   const filteredOptions = safeOptions.filter((o: string) => o.toLowerCase().includes(query.toLowerCase()));
@@ -548,9 +543,17 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
               </button>
             )}
             {filteredOptions.map((opt: string) => (
-              <button key={opt} onClick={() => handleToggle(opt)} className={cn('w-full text-left px-4 py-2 text-sm font-bold transition-all flex items-center justify-between', safeSelected.includes(opt) ? (isDarkMode ? 'text-teal-400 bg-teal-500/10' : 'text-teal-700 bg-teal-50') : (isDarkMode ? 'text-slate-300 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'))}>
-                {opt} {safeSelected.includes(opt) && <Check size={14} strokeWidth={3} />}
-              </button>
+              <div key={opt} className={cn('w-full flex items-center justify-between group transition-all', safeSelected.includes(opt) ? (isDarkMode ? 'text-teal-400 bg-teal-500/10' : 'text-teal-700 bg-teal-50') : (isDarkMode ? 'text-slate-300 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'))}>
+                <button onClick={() => handleToggle(opt)} className="flex-1 text-left px-4 py-2 text-sm font-bold flex items-center justify-between">
+                  {opt} {safeSelected.includes(opt) && <Check size={14} strokeWidth={3} />}
+                </button>
+                {/* THE TRASH ICON TO DELETE COMPANY GLOBALLY */}
+                {onDeleteOption && (
+                   <button onClick={(e) => { e.stopPropagation(); onDeleteOption(opt); }} className="px-3 py-2 text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete from system">
+                     <Trash2 size={13} />
+                   </button>
+                )}
+              </div>
             ))}
             {filteredOptions.length === 0 && !query.trim() && (
                <div className="px-4 py-3 text-xs font-bold text-slate-500 text-center">
