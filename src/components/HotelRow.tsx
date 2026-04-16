@@ -1,7 +1,7 @@
 // src/components/HotelRow.tsx
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, ChevronRight, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, RefreshCw } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight } from 'lucide-react';
 import {
   cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatDateChip, formatLastUpdated, calcHotelTotalCost, calculateNights
 } from '../lib/utils';
@@ -242,17 +242,27 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             </div>
           </div>
 
-          {/* EMPLOYEES WITH TOOLTIPS & THIN BORDERS */}
+          {/* EMPLOYEES WITH TOOLTIPS & EXACT BED SLOT LOGIC */}
           <div className="flex-[2] px-2">
             <div className="flex flex-wrap gap-1.5">
               {visibleEmps.map((emp: any, i: number) => {
                 const status = getEmployeeStatus(emp.checkIn, emp.checkOut);
-                const borderCls = status === 'active' ? "border-emerald-500" : status === 'upcoming' ? "border-blue-500" : status === 'ending-soon' ? "border-orange-500" : "border-slate-300 dark:border-slate-600";
                 const nights = calculateNights(emp.checkIn, emp.checkOut);
+                
+                // EXACT BED SLOT LOGIC APPLIED HERE
+                const isUpcoming = status === 'upcoming';
+                const borderCls = status === 'active' 
+                  ? "border-emerald-500 border-solid text-emerald-600 dark:text-emerald-400" 
+                  : status === 'upcoming' 
+                  ? "border-blue-500 border-dashed text-blue-600 dark:text-blue-400" 
+                  : status === 'ending-soon' 
+                  ? "border-red-500 border-dashed text-red-600 dark:text-red-400" 
+                  : "border-slate-300 border-solid text-slate-600 dark:text-slate-300";
                 
                 return (
                   <div key={i} className="relative group flex items-center">
-                    <div className={cn("px-2 py-0.5 rounded-md border text-[11px] font-bold truncate text-center min-w-[70px] cursor-help shadow-sm", borderCls, dk ? "bg-black/20 text-white" : "bg-white text-slate-900")}>
+                    <div className={cn("px-2 py-0.5 rounded-md border text-[11px] font-bold truncate text-center min-w-[70px] cursor-help flex items-center justify-center gap-1 shadow-sm", borderCls, dk ? "bg-black/20" : "bg-white")}>
+                      {isUpcoming && <CornerDownRight size={10} className="shrink-0 opacity-70" />}
                       <HighlightText text={emp.name || '_ _ _'} query={searchQuery} />
                     </div>
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[10px] font-bold rounded-lg opacity-0 group-hover:opacity-100 z-[100] pointer-events-none shadow-xl border border-white/10 transition-opacity text-center">
@@ -302,12 +312,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           <div className={cn('p-6 space-y-6 rounded-b-2xl border-t', dk ? 'bg-[#0B1224] border-white/5' : 'bg-slate-50 border-slate-200')} onClick={e => e.stopPropagation()}>
             
             <div className="flex flex-wrap xl:flex-nowrap gap-4 items-end">
-              <div className="flex-[2.5] min-w-[180px]">
-                 <label className={labelCls}><MapPin size={12}/> {lang === 'de' ? 'Adresse' : 'Address'}</label>
-                 <div className="flex items-center gap-2">
+              {/* NOTE ICON & ADDRESS LAYOUT FIX */}
+              <div className="flex-[2.5] min-w-[180px] flex items-end gap-2">
+                 <div className="shrink-0">
+                    <label className={labelCls}><StickyNote size={12}/> {lang === 'de' ? 'Notiz' : 'Note'}</label>
                     <button 
                       onClick={() => setShowNotes(!showNotes)} 
-                      className={cn("w-[38px] h-[38px] shrink-0 rounded-lg border flex items-center justify-center transition-all", 
+                      className={cn("w-[38px] h-[38px] rounded-lg border flex items-center justify-center transition-all", 
                         localHotel.notes ? "bg-teal-500/10 border-teal-500/30 text-teal-500" : 
                         dk ? "bg-[#1E293B] border-white/10 text-slate-400 hover:text-white hover:bg-white/5" : 
                         "bg-white border-slate-200 text-slate-400 hover:text-slate-800 hover:bg-slate-50"
@@ -316,6 +327,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                     >
                       <StickyNote size={16} />
                     </button>
+                 </div>
+                 <div className="flex-1">
+                    <label className={labelCls}><MapPin size={12}/> {lang === 'de' ? 'Adresse' : 'Address'}</label>
                     <input autoComplete="off" value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} placeholder="..." />
                  </div>
               </div>
@@ -474,7 +488,7 @@ export function ModernDropdown({ value, options, onChange, isDarkMode, lang, pla
 }
 
 // --- NOTION STYLE MULTI-SELECT ---
-function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange }: any) {
+export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange }: any) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const ref = useRef<HTMLDivElement>(null);
@@ -491,7 +505,9 @@ function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange }: a
   }, []);
 
   const safeOptions = Array.isArray(options) ? options : [];
-  const safeSelected = Array.isArray(selected) ? selected : [];
+  
+  // CRITICAL FIX: Force `selected` to be an array, even if the parent form passed a string
+  const safeSelected = Array.isArray(selected) ? selected : (typeof selected === 'string' && selected ? [selected] : []);
   
   const filteredOptions = safeOptions.filter((o: string) => o.toLowerCase().includes(query.toLowerCase()));
   const exactMatchExists = safeOptions.some((o: string) => o.toLowerCase() === query.trim().toLowerCase());
@@ -511,11 +527,11 @@ function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange }: a
   };
   
   return (
-    <div ref={ref} className="relative cursor-pointer min-h-[30px] flex items-center" onClick={(e) => { e.stopPropagation(); setOpen(true); }}>
-      <div className="flex flex-wrap gap-1.5">
+    <div ref={ref} className="relative cursor-pointer min-h-[30px] flex items-center w-full" onClick={(e) => { e.stopPropagation(); setOpen(true); }}>
+      <div className="flex flex-wrap gap-1.5 w-full">
         {safeSelected.length > 0 ? safeSelected.map((tag: string) => (
           <span key={tag} onClick={(e) => { e.stopPropagation(); onChange(safeSelected.filter((t: any) => t !== tag)); }} className={cn('px-2.5 py-1 rounded-md text-xs font-bold border hover:opacity-70 flex items-center gap-1.5 transition-all shadow-sm', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800')}>{tag} <X size={12} className="opacity-50" /></span>
-        )) : <span className={cn("text-xs font-bold border border-dashed px-3 py-1 rounded-md transition-colors", isDarkMode ? "text-slate-500 border-white/20 hover:text-teal-400 hover:border-teal-400" : "text-slate-400 border-slate-300 hover:text-teal-600 hover:border-teal-500")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
+        )) : <span className={cn("text-xs font-bold border border-dashed px-3 py-1 rounded-md transition-colors w-full flex items-center", isDarkMode ? "text-slate-500 border-white/20 hover:text-teal-400 hover:border-teal-400" : "text-slate-400 border-slate-300 hover:text-teal-600 hover:border-teal-500")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
       </div>
       
       {open && (
