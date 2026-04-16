@@ -189,32 +189,32 @@ export function hotelMatchesSearch(hotel: any, query: string, scope: string = 'a
   // Normalize scope to avoid exact-match errors
   const s = scope.toLowerCase();
 
-  // 1. EXACT MATCH: HOTEL NAME
-  if (s === 'hotel' || s === 'name') {
+  // 1. MATCH: HOTEL NAME
+  if (s.includes('hotel') || s.includes('name')) {
     return (hotel.name?.toLowerCase() || '').includes(q);
   }
 
-  // 2. EXACT MATCH: CITY
-  if (s === 'city') {
+  // 2. MATCH: CITY
+  if (s.includes('city') || s.includes('stadt')) {
     return (hotel.city?.toLowerCase() || '').includes(q);
   }
 
-  // 3. EXACT MATCH: COMPANY
-  if (s === 'company') {
+  // 3. MATCH: COMPANY
+  if (s.includes('company') || s.includes('firma')) {
     const tags = Array.isArray(hotel.companyTag) ? hotel.companyTag.join(' ').toLowerCase() : (hotel.companyTag?.toLowerCase() || '');
     return tags.includes(q);
   }
 
-  // 4. EXACT MATCH: INVOICE NO
-  if (s === 'invoice') {
+  // 4. MATCH: INVOICE NO
+  if (s.includes('invoice') || s.includes('rechnung')) {
     for (const d of (hotel.durations || [])) {
       if (d.rechnungNr?.toLowerCase().includes(q)) return true;
     }
     return false;
   }
 
-  // 5. EXACT MATCH: EMPLOYEES
-  if (s === 'employees' || s === 'employee') {
+  // 5. MATCH: EMPLOYEES
+  if (s.includes('employee') || s.includes('mitarbeiter')) {
     for (const d of (hotel.durations || [])) {
       for (const rc of (d.roomCards || [])) {
         for (const emp of (rc.employees || [])) {
@@ -225,7 +225,7 @@ export function hotelMatchesSearch(hotel: any, query: string, scope: string = 'a
     return false;
   }
 
-  // DEFAULT: 'ALL' SCOPE (If no specific scope is selected, check everything)
+  // DEFAULT: 'ALL' SCOPE (If no specific scope matched, check everything)
   const hName = hotel.name?.toLowerCase() || '';
   const hCity = hotel.city?.toLowerCase() || '';
   const tags = Array.isArray(hotel.companyTag) ? hotel.companyTag.join(' ').toLowerCase() : (hotel.companyTag?.toLowerCase() || '');
