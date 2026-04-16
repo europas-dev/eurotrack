@@ -8,11 +8,15 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import { HotelRow, ModernDropdown, CompanyMultiSelect, getCountryOptions } from './components/HotelRow';
 
-// API functions for the System Companies table
+// --- SYSTEM COMPANIES API ---
 async function getSystemCompanies(): Promise<string[]> {
   const { data, error } = await supabase.from('companies').select('name').order('name');
   if (error) return [];
   return (data || []).map(c => c.name);
+}
+// NEW: Saves to DB instantly
+async function addSystemCompany(name: string): Promise<void> {
+  await supabase.from('companies').insert({ name });
 }
 async function deleteSystemCompany(name: string): Promise<void> {
   await supabase.from('companies').delete().eq('name', name);
@@ -54,7 +58,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [filterDeposit, setFilterDeposit] = useState<'all' | 'yes' | 'no'>('all');
   const [groupBy, setGroupBy] = useState<'none' | 'hotel' | 'company' | 'city' | 'country'>('none');
   
-  // FIXED: Default Sorting is now 'created_at' and 'desc' (Newest First)
   const [sortBy, setSortBy] = useState<'name' | 'cost' | 'bed_price' | 'free_beds' | 'created_at' | 'updated_at'>('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
@@ -67,7 +70,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [addingHotel, setAddingHotel] = useState(false);
   
-  // State types for the Add Hotel Form
   const [newHotelName, setNewHotelName] = useState('');
   const [newHotelCity, setNewHotelCity] = useState('');
   const [newHotelCompanyTags, setNewHotelCompanyTags] = useState<string[]>([]);
@@ -77,19 +79,21 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
 
-  // Online/Offline Listener
+  // Dynamic Title Logic
+  const monthNamesEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const monthNamesDe = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+  const displayTitle = selectedMonth !== null 
+    ? `${lang === 'de' ? monthNamesDe[selectedMonth] : monthNamesEn[selectedMonth]} ${selectedYear}`
+    : `${lang === 'de' ? 'Dashboard' : 'Dashboard'} ${selectedYear}`;
+
   useEffect(() => {
     const hO = () => setIsOnline(true);
     const hOff = () => setIsOnline(false);
     window.addEventListener('online', hO);
     window.addEventListener('offline', hOff);
-    return () => {
-      window.removeEventListener('online', hO);
-      window.removeEventListener('offline', hOff);
-    };
+    return () => { window.removeEventListener('online', hO); window.removeEventListener('offline', hOff); };
   }, []);
 
-  // Sync Bookmarks from Local Storage dynamically
   useEffect(() => {
     const handleStorage = () => {
       try { setBookmarks(JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]')); } catch {}
@@ -99,7 +103,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     return () => { window.removeEventListener('storage', handleStorage); clearInterval(interval); };
   }, []);
 
-  // Channel Tracking for Live Collaborators
   useEffect(() => {
     let isMounted = true;
     const channel = supabase.channel('dashboard_presence', { config: { presence: { key: 'user' } } });
@@ -122,14 +125,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       }
     });
 
-    return () => {
-      isMounted = false;
-      channel.unsubscribe();
-      supabase.removeChannel(channel);
-    };
+    return () => { isMounted = false; channel.unsubscribe(); supabase.removeChannel(channel); };
   }, []);
 
-  // Fetch Hotels & System Companies
   useEffect(() => { 
     let isMounted = true;
     setLoading(true);
@@ -154,9 +152,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         ]) as any;
         
         if (response.error) throw response.error;
-        const data = response.data;
 
-        const normalized = (data || []).map((h: any) => ({
+        const normalized = (response.data || []).map((h: any) => ({
           ...h, companyTag: h.company_tag ?? [],
           durations: (h.durations || []).map((d: any) => ({
             ...d, hotelId: d.hotel_id, startDate: d.start_date, endDate: d.end_date, roomType: d.room_type, numberOfRooms: d.number_of_rooms,
@@ -182,11 +179,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         }
       } catch (err: any) { 
         if (isMounted) { 
-          if (err.message === 'CONNECTION_TIMEOUT') {
-             console.warn("Supabase hung on wake-up. Forcing UI to release.");
-          } else {
-             setError(err.message); 
-          }
+          if (err.message !== 'CONNECTION_TIMEOUT') setError(err.message); 
           setLoading(false); 
         } 
       }
@@ -196,7 +189,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     return () => { isMounted = false; };
   }, [selectedYear]);
 
-  // Merge systemic companies with any local stragglers from hotels
   const allCompanyOptions = useMemo(() => {
     const localTags = hotels.flatMap(h => h.companyTag || []).filter(Boolean);
     return Array.from(new Set([...systemCompanies, ...localTags]));
@@ -204,21 +196,25 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
   const uniqueCities = useMemo(() => Array.from(new Set(hotels.map(h => h.city).filter(Boolean))), [hotels]);
 
-  // DELETE COMPANY GLOBALLY
+  // DB HANDLERS
+  const handleAddGlobalCompany = async (name: string) => {
+    try {
+      await addSystemCompany(name);
+      setSystemCompanies(prev => Array.from(new Set([...prev, name])));
+    } catch (err) { console.error("Failed to add company globally", err); }
+  };
+
   const handleDeleteGlobalCompany = async (name: string) => {
     try {
       await deleteSystemCompany(name);
       setSystemCompanies(prev => prev.filter(c => c !== name));
-    } catch (err) {
-      console.error("Failed to delete company from system", err);
-    }
+    } catch (err) { console.error("Failed to delete company from system", err); }
   };
 
   function pushToHistory(next: any[]) { const nH = history.slice(0, historyIndex + 1); nH.push(next); setHistory(nH); setHistoryIndex(nH.length - 1); }
   const handleUndo = () => { if (historyIndex > 0) { setHistoryIndex(historyIndex - 1); setHotels(history[historyIndex - 1]); } };
   const handleRedo = () => { if (historyIndex < history.length - 1) { setHistoryIndex(historyIndex + 1); setHotels(history[historyIndex + 1]); } };
 
-  // ADD HOTEL FUNCTION
   async function handleSaveNewHotel() {
     if (!newHotelName.trim()) return; 
     setNewHotelSaving(true);
@@ -226,30 +222,20 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       const h = await createHotel({ 
         name: newHotelName.trim(), 
         city: newHotelCity.trim() || null, 
-        companyTag: newHotelCompanyTags, 
+        company_tag: newHotelCompanyTags, // FIXED: Sent correct column spelling to DB!
         country: newHotelCountry, 
         year: selectedYear 
       });
       
-      // Because we sort by Newest First by default, this naturally places it at the top
-      const next = [{ ...h, durations: [] }, ...hotels]; 
+      // Keep React state in sync with camelCase
+      const next = [{ ...h, companyTag: newHotelCompanyTags, durations: [] }, ...hotels]; 
       setHotels(next); 
       pushToHistory(next); 
       
-      // Reset Form
-      setAddingHotel(false); 
-      setNewHotelName(''); 
-      setNewHotelCity(''); 
-      setNewHotelCompanyTags([]);
-      setNewHotelCountry('Germany');
-    } catch (e: any) { 
-      alert(e.message); 
-    } finally { 
-      setNewHotelSaving(false); 
-    }
+      setAddingHotel(false); setNewHotelName(''); setNewHotelCity(''); setNewHotelCompanyTags([]); setNewHotelCountry('Germany');
+    } catch (e: any) { alert(e.message); } finally { setNewHotelSaving(false); }
   }
 
-  // FIXED: Predictive Free Beds Calculator matches row logic
   const getBedsCount = (daysOffset: number) => {
      const d = new Date(); d.setDate(d.getDate() + daysOffset);
      const dStr = d.toISOString().split('T')[0];
@@ -274,9 +260,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
   const finalFiltered = useMemo(() => {
     return hotels.filter(h => {
-      // Bookmarks Filter Fixed
       if (showBookmarks && !bookmarks.includes(h.id)) return false;
-      
       if (searchQuery && !hotelMatchesSearch(h, searchQuery, searchScope)) return false;
       
       if (selectedMonth !== null) {
@@ -355,7 +339,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     if (filterPaid !== 'all') badges.push({ id: 'paid', label: lang === 'de' ? 'Zahlung' : 'Payment', val: filterPaid, clear: () => setFilterPaid('all') });
     if (filterDeposit !== 'all') badges.push({ id: 'dep', label: lang === 'de' ? 'Kaution' : 'Deposit', val: filterDeposit, clear: () => setFilterDeposit('all') });
     if (groupBy !== 'none') badges.push({ id: 'grp', label: lang === 'de' ? 'Gruppe' : 'Group', val: groupBy, clear: () => setGroupBy('none') });
-    // Adjusted logic so it doesn't show a badge for the default sort
     if (sortBy !== 'created_at' || sortDir !== 'desc') badges.push({ id: 'srt', label: lang === 'de' ? 'Sortierung' : 'Sort', val: `${sortBy.replace('_', ' ')} (${sortDir})`, clear: () => { setSortBy('created_at'); setSortDir('desc'); } });
     return badges;
   }, [tlType, tlStart, tlEnd, fbType, filterPaid, filterDeposit, groupBy, sortBy, sortDir, lang]);
@@ -410,7 +393,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
         <main className="flex-1 overflow-y-auto p-8 relative no-scrollbar pb-64">
           <div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative z-[100]">
-            <h2 className="text-2xl font-bold tracking-tight">{lang === 'de' ? 'Dashboard' : 'Dashboard'} {selectedYear}</h2>
+            <h2 className="text-2xl font-bold tracking-tight">{displayTitle}</h2>
             
             <div className="flex items-center gap-2">
               <div className={cn("flex items-center mr-2 rounded-xl p-1 border", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200 shadow-sm")}>
@@ -502,7 +485,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                       <button onClick={() => setSortDir('desc')} className={cn("py-3 rounded-lg border text-left px-4 transition-all", sortDir === 'desc' ? btnActive : btnInactive)}><span className="block text-sm font-medium">{lang === 'de' ? 'Absteigend' : 'Descending'}</span><span className={cn("block text-[10px] mt-1 font-normal", sortDir === 'desc' ? 'opacity-90' : 'opacity-50')}>{lang === 'de' ? 'Absteigend, Z-A, Neueste' : 'High to Low, Z-A, Newest'}</span></button>
                     </div>
                     <div className="flex items-center justify-between border-t border-slate-200 dark:border-white/10 pt-4">
-                      {/* Fixed: Reset sorting now goes back to Newest First default */}
                       <button onClick={() => { setSortBy('created_at'); setSortDir('desc'); }} className={actionSecondary}>{lang === 'de' ? 'Sortierung zurücksetzen' : 'Reset Sorting'}</button>
                       <button onClick={closeMenu} className={actionPrimary}>{lang === 'de' ? 'Sortierung anwenden' : 'Apply Sorting'}</button>
                     </div>
@@ -553,7 +535,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                     <div className="flex-1 min-w-[160px]">
                       <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block"><Building2 size={10} className="inline mr-1"/> {lang === 'de' ? 'Firma' : 'Company'}</label>
                       <div className={cn('w-full min-h-[38px] rounded-lg border px-2 flex items-center transition-all', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')}>
-                        <CompanyMultiSelect selected={newHotelCompanyTags} options={allCompanyOptions} onChange={(v: string[]) => setNewHotelCompanyTags(v)} isDarkMode={dk} lang={lang} onDeleteOption={handleDeleteGlobalCompany} />
+                        <CompanyMultiSelect selected={newHotelCompanyTags} options={allCompanyOptions} onChange={(v: string[]) => setNewHotelCompanyTags(v)} isDarkMode={dk} lang={lang} onDeleteOption={handleDeleteGlobalCompany} onAddOption={handleAddGlobalCompany} />
                       </div>
                     </div>
 
@@ -578,12 +560,12 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                         <div className="flex items-center gap-4"><span className="text-xs font-bold uppercase tracking-wider text-slate-500">{lang === 'de' ? 'Gruppe' : 'Group'}: {groupBy}</span><h3 className="text-xl font-bold">{gName}</h3><span className="px-3 py-1 rounded-full bg-teal-500/10 text-teal-600 text-xs font-bold">{hList.length} Hotels</span></div>
                         <div className="text-right"><p className="text-[10px] font-bold text-slate-500 uppercase">{lang === 'de' ? 'Gesamtwert' : 'Total Value'}</p><p className="text-lg font-bold text-teal-600 dark:text-teal-400">{formatCurrency(hList.reduce((s,h)=>s+calcHotelTotalCost(h),0))}</p></div>
                      </div>
-                     <div className="flex flex-col gap-4 pl-4 border-l-2 border-teal-500/30">{hList.map((h, i) => <HotelRow key={h.id} entry={h} index={i} isDarkMode={dk} lang={lang} searchQuery={searchQuery} companyOptions={allCompanyOptions} cityOptions={uniqueCities} onDelete={hId => setHotels(hotels.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(hotels.map(ho=>ho.id===hId?{...ho,...up}:ho))} onDeleteCompanyOption={handleDeleteGlobalCompany} />)}</div>
+                     <div className="flex flex-col gap-4 pl-4 border-l-2 border-teal-500/30">{hList.map((h, i) => <HotelRow key={h.id} entry={h} index={i} isDarkMode={dk} lang={lang} searchQuery={searchQuery} companyOptions={allCompanyOptions} cityOptions={uniqueCities} onDelete={hId => setHotels(hotels.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(hotels.map(ho=>ho.id===hId?{...ho,...up}:ho))} onDeleteCompanyOption={handleDeleteGlobalCompany} onAddOption={handleAddGlobalCompany} />)}</div>
                   </div>
                 ))
               ) : (
                 finalFiltered.map((hotel, index) => (
-                  <HotelRow key={hotel.id} entry={hotel} index={index} isDarkMode={dk} lang={lang} searchQuery={searchQuery} companyOptions={allCompanyOptions} cityOptions={uniqueCities} onDelete={hId => setHotels(hotels.filter(h=>h.id!==hId))} onUpdate={(hId, up) => setHotels(hotels.map(h=>h.id===hId?{...h,...up}:h))} onDeleteCompanyOption={handleDeleteGlobalCompany} />
+                  <HotelRow key={hotel.id} entry={hotel} index={index} isDarkMode={dk} lang={lang} searchQuery={searchQuery} companyOptions={allCompanyOptions} cityOptions={uniqueCities} onDelete={hId => setHotels(hotels.filter(h=>h.id!==hId))} onUpdate={(hId, up) => setHotels(hotels.map(h=>h.id===hId?{...h,...up}:h))} onDeleteCompanyOption={handleDeleteGlobalCompany} onAddOption={handleAddGlobalCompany} />
                 ))
               )}
               
