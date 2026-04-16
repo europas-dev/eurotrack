@@ -158,7 +158,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const finalFiltered = useMemo(() => {
     return hotels.filter(h => {
       if (showBookmarks && !bookmarks.includes(h.id)) return false;
-      if (searchQuery && !hotelMatchesSearch(h, searchQuery)) return false;
+      if (searchQuery && !hotelMatchesSearch(h, searchQuery, searchScope)) return false;
       
       if (selectedMonth !== null) {
         const overlap = (h.durations || []).some((d: any) => {
