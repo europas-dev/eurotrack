@@ -227,16 +227,17 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             )}
           </div>
 
-         {/* COMPANY */}
+       {/* COMPANY */}
           <div className="flex-[0.8] px-2 min-w-[120px]" onClick={e => e.stopPropagation()}>
             <CompanyMultiSelect 
               selected={localHotel.companyTag} 
               options={companyOptions} 
               isDarkMode={dk} 
               lang={lang} 
-              onChange={(tags:any) => patchHotel({ companyTag: tags })} 
+              // FIXED: Sends both camelCase (React) and snake_case (Supabase) to ensure saving
+              onChange={(tags:any) => patchHotel({ companyTag: tags, company_tag: tags })} 
               onDeleteOption={onDeleteCompanyOption} 
-              onAddOption={onAddOption} // <--- ADD THIS EXACT WIRE
+              onAddOption={onAddOption}
             />
           </div>
 
