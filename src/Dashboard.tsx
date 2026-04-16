@@ -60,16 +60,25 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
 
+  // 1. Online/Offline Listener
   useEffect(() => {
-    const hO = () => setIsOnline(true); const hOff = () => setIsOnline(false);
-    window.addEventListener('online', hO); window.addEventListener('offline', hOff);
-    return () => { window.removeEventListener('online', hO); window.removeEventListener('offline', hOff); }
+    const hO = () => setIsOnline(true);
+    const hOff = () => setIsOnline(false);
+    window.addEventListener('online', hO);
+    window.addEventListener('offline', hOff);
+    return () => {
+      window.removeEventListener('online', hO);
+      window.removeEventListener('offline', hOff);
+    };
   }, []);
 
-  // Channel Tracking for Live Collaborators
+  // 2. Channel Tracking for Live Collaborators (Memory-Leak Free)
   useEffect(() => {
     let isMounted = true;
+    
+    // Create channel
     const channel = supabase.channel('dashboard_presence', { config: { presence: { key: 'user' } } });
+    
     channel.on('presence', { event: 'sync' }, () => {
       if (!isMounted) return;
       const state = channel.presenceState();
@@ -77,24 +86,43 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       const uniqueUsers = Array.from(new Map(users.map(u => [u.id, u])).values());
       setActiveUsers(uniqueUsers);
     });
+
     channel.subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
+      if (status === 'SUBSCRIBED' && isMounted) {
         const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
+        if (user && isMounted) {
           const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
           await channel.track({ user: { id: user.id, name, email: user.email } });
         }
       }
     });
-    return () => { isMounted = false; supabase.removeChannel(channel); };
+
+    // Strict Cleanup when component unmounts or tab sleeps
+    return () => {
+      isMounted = false;
+      channel.unsubscribe();
+      supabase.removeChannel(channel);
+    };
   }, []);
 
+  // 3. Fetch Hotels (With Anti-Hang Timeout)
   useEffect(() => { 
-    let isM = true; setLoading(true);
+    let isMounted = true;
+    const abortController = new AbortController(); // Prevents infinite hanging
+    
+    setLoading(true);
+    
     async function fetchHotels() {
       try {
-        const { data, error: sErr } = await supabase.from('hotels').select('*, durations(*, room_cards(*, employees(*)), employees(*))').eq('year', selectedYear).order('created_at', { ascending: false });
+        const { data, error: sErr } = await supabase
+          .from('hotels')
+          .select('*, durations(*, room_cards(*, employees(*)), employees(*))')
+          .eq('year', selectedYear)
+          .order('created_at', { ascending: false })
+          .abortSignal(abortController.signal); // Attach the abort signal
+
         if (sErr) throw sErr;
+
         const normalized = (data || []).map((h: any) => ({
           ...h, companyTag: h.company_tag ?? [],
           durations: (h.durations || []).map((d: any) => ({
@@ -111,10 +139,32 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             }))
           }))
         }));
-        if (isM) { setHotels(normalized); setHistory([normalized]); setHistoryIndex(0); setLoading(false); }
-      } catch (err: any) { if (isM) { setError(err.message); setLoading(false); } }
+
+        if (isMounted) { 
+          setHotels(normalized); 
+          setHistory([normalized]); 
+          setHistoryIndex(0); 
+          setLoading(false); 
+        }
+      } catch (err: any) { 
+        if (isMounted) { 
+          // If the fetch was aborted intentionally, don't throw a scary error
+          if (err.name === 'AbortError') {
+             console.warn('Supabase fetch aborted due to cleanup.');
+          } else {
+             setError(err.message); 
+          }
+          setLoading(false); 
+        } 
+      }
     }
-    fetchHotels(); return () => { isM = false; };
+    
+    fetchHotels(); 
+    
+    return () => { 
+      isMounted = false; 
+      abortController.abort(); // Cancel the fetch if the user rapidly switches tabs/months
+    };
   }, [selectedYear]);
 
   const uniqueCompanies = useMemo(() => Array.from(new Set(hotels.flatMap(h => h.companyTag || []).filter(Boolean))), [hotels]);
