@@ -247,14 +247,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             <div className="flex flex-wrap gap-1.5">
               {visibleEmps.map((emp: any, i: number) => {
                 const status = getEmployeeStatus(emp.checkIn, emp.checkOut);
-                const borderCls = status === 'active' ? "border-emerald-500 text-emerald-600 dark:text-emerald-400" : status === 'upcoming' ? "border-blue-500 text-blue-600 dark:text-blue-400" : status === 'ending-soon' ? "border-orange-500 text-orange-600 dark:text-orange-400" : "border-slate-300 text-slate-600 dark:border-slate-600 dark:text-slate-300";
+                const borderCls = status === 'active' ? "border-emerald-500" : status === 'upcoming' ? "border-blue-500" : status === 'ending-soon' ? "border-orange-500" : "border-slate-300 dark:border-slate-600";
                 const nights = calculateNights(emp.checkIn, emp.checkOut);
                 
                 return (
                   <div key={i} className="relative group flex items-center">
-                    <div className={cn("px-2 py-0.5 rounded-md border text-[11px] font-bold truncate text-center min-w-[70px] cursor-help flex items-center justify-between gap-2 shadow-sm", borderCls, dk ? "bg-black/20" : "bg-white")}>
+                    <div className={cn("px-2 py-0.5 rounded-md border text-[11px] font-bold truncate text-center min-w-[70px] cursor-help shadow-sm", borderCls, dk ? "bg-black/20 text-white" : "bg-white text-slate-900")}>
                       <HighlightText text={emp.name || '_ _ _'} query={searchQuery} />
-                      <RefreshCw size={10} className="opacity-40 shrink-0" />
                     </div>
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[10px] font-bold rounded-lg opacity-0 group-hover:opacity-100 z-[100] pointer-events-none shadow-xl border border-white/10 transition-opacity text-center">
                       {formatShortDate(emp.checkIn, lang)} ➔ {formatShortDate(emp.checkOut, lang)}<br/>
@@ -304,13 +303,21 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             
             <div className="flex flex-wrap xl:flex-nowrap gap-4 items-end">
               <div className="flex-[2.5] min-w-[180px]">
-                 <div className="flex items-center gap-2 mb-1.5">
-                    <label className={cn('flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest mb-0', dk ? 'text-slate-400' : 'text-slate-500')}><MapPin size={12}/> {lang === 'de' ? 'Adresse' : 'Address'}</label>
-                    <button onClick={() => setShowNotes(!showNotes)} className={cn("p-1 rounded transition-colors", localHotel.notes ? "text-teal-500 bg-teal-500/10" : dk ? "text-slate-500 hover:text-white hover:bg-white/10" : "text-slate-400 hover:text-slate-800 hover:bg-slate-200")} title={lang === 'de' ? 'Notizen' : 'Notes'}>
-                      <StickyNote size={14} />
+                 <label className={labelCls}><MapPin size={12}/> {lang === 'de' ? 'Adresse' : 'Address'}</label>
+                 <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setShowNotes(!showNotes)} 
+                      className={cn("w-[38px] h-[38px] shrink-0 rounded-lg border flex items-center justify-center transition-all", 
+                        localHotel.notes ? "bg-teal-500/10 border-teal-500/30 text-teal-500" : 
+                        dk ? "bg-[#1E293B] border-white/10 text-slate-400 hover:text-white hover:bg-white/5" : 
+                        "bg-white border-slate-200 text-slate-400 hover:text-slate-800 hover:bg-slate-50"
+                      )} 
+                      title={lang === 'de' ? 'Notizen' : 'Notes'}
+                    >
+                      <StickyNote size={16} />
                     </button>
+                    <input autoComplete="off" value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} placeholder="..." />
                  </div>
-                 <input autoComplete="off" value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} placeholder="..." />
               </div>
               
               <div className="flex-[1.5] min-w-[140px]">
@@ -484,16 +491,21 @@ function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange }: a
   }, []);
 
   const safeOptions = Array.isArray(options) ? options : [];
+  const safeSelected = Array.isArray(selected) ? selected : [];
+  
   const filteredOptions = safeOptions.filter((o: string) => o.toLowerCase().includes(query.toLowerCase()));
-  const exactMatch = safeOptions.some((o: string) => o.toLowerCase() === query.trim().toLowerCase());
+  const exactMatchExists = safeOptions.some((o: string) => o.toLowerCase() === query.trim().toLowerCase());
+  const isAlreadySelected = safeSelected.some((o: string) => o.toLowerCase() === query.trim().toLowerCase());
   
   const handleToggle = (opt: string) => {
-    onChange(selected.includes(opt) ? selected.filter((t: any) => t !== opt) : [...selected, opt]);
+    onChange(safeSelected.includes(opt) ? safeSelected.filter((t: any) => t !== opt) : [...safeSelected, opt]);
+    setQuery('');
   };
 
   const handleAddNew = () => {
-    if (query.trim() && !exactMatch) {
-      onChange([...selected, query.trim()]);
+    const val = query.trim();
+    if (val && !isAlreadySelected) {
+      onChange([...safeSelected, val]);
       setQuery('');
     }
   };
@@ -501,27 +513,34 @@ function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange }: a
   return (
     <div ref={ref} className="relative cursor-pointer min-h-[30px] flex items-center" onClick={(e) => { e.stopPropagation(); setOpen(true); }}>
       <div className="flex flex-wrap gap-1.5">
-        {selected.length > 0 ? selected.map((tag: string) => (
-          <span key={tag} onClick={(e) => { e.stopPropagation(); onChange(selected.filter((t: any) => t !== tag)); }} className={cn('px-2.5 py-1 rounded-md text-xs font-bold border hover:opacity-70 flex items-center gap-1.5 transition-all shadow-sm', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800')}>{tag} <X size={12} className="opacity-50" /></span>
+        {safeSelected.length > 0 ? safeSelected.map((tag: string) => (
+          <span key={tag} onClick={(e) => { e.stopPropagation(); onChange(safeSelected.filter((t: any) => t !== tag)); }} className={cn('px-2.5 py-1 rounded-md text-xs font-bold border hover:opacity-70 flex items-center gap-1.5 transition-all shadow-sm', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800')}>{tag} <X size={12} className="opacity-50" /></span>
         )) : <span className={cn("text-xs font-bold border border-dashed px-3 py-1 rounded-md transition-colors", isDarkMode ? "text-slate-500 border-white/20 hover:text-teal-400 hover:border-teal-400" : "text-slate-400 border-slate-300 hover:text-teal-600 hover:border-teal-500")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
       </div>
+      
       {open && (
         <div className={cn('absolute top-full mt-2 left-0 z-[200] rounded-xl border shadow-2xl min-w-[240px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')} onClick={e => e.stopPropagation()}>
-          <div className={cn("flex items-center px-4 py-3 border-b", isDarkMode ? "border-white/10 bg-[#1E293B]" : "border-slate-100 bg-slate-50")}>
-            <Search size={16} className={isDarkMode ? "text-slate-400" : "text-slate-500"} />
-            <input autoFocus value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAddNew(); }} placeholder={lang === 'de' ? "Suchen oder erstellen..." : "Search or create..."} className={cn("ml-3 bg-transparent text-sm font-bold outline-none w-full", isDarkMode ? "text-white placeholder:text-slate-500" : "text-slate-900 placeholder:text-slate-400")} />
+          <div className={cn("flex items-center px-3 py-2 border-b", isDarkMode ? "border-white/10 bg-[#1E293B]" : "border-slate-100 bg-slate-50")}>
+            <Search size={14} className={isDarkMode ? "text-slate-400" : "text-slate-500"} />
+            <input autoFocus value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAddNew(); }} placeholder={lang === 'de' ? "Suchen..." : "Search..."} className={cn("ml-2 bg-transparent text-sm font-bold outline-none w-full", isDarkMode ? "text-white placeholder:text-slate-500" : "text-slate-900 placeholder:text-slate-400")} />
           </div>
-          <div className="max-h-48 overflow-y-auto no-scrollbar py-2">
-            {query.trim() && !exactMatch && (
-              <button onClick={handleAddNew} className={cn('w-full text-left px-4 py-2.5 text-sm font-bold flex items-center gap-2 transition-all', isDarkMode ? 'text-teal-400 hover:bg-white/10' : 'text-teal-600 hover:bg-teal-50')}>
-                <Plus size={14} strokeWidth={3} /> "{query.trim()}" {lang === 'de' ? 'erstellen' : 'create'}
+          
+          <div className="max-h-48 overflow-y-auto no-scrollbar py-1">
+            {query.trim() && !exactMatchExists && !isAlreadySelected && (
+              <button onClick={handleAddNew} className={cn('w-full text-left px-4 py-2 text-sm font-bold flex items-center gap-2 transition-all', isDarkMode ? 'text-teal-400 hover:bg-white/10' : 'text-teal-600 hover:bg-teal-50')}>
+                <span className="opacity-70 text-xs">Create</span> "{query.trim()}"
               </button>
             )}
             {filteredOptions.map((opt: string) => (
-              <button key={opt} onClick={() => handleToggle(opt)} className={cn('w-full text-left px-4 py-2.5 text-sm font-bold transition-all flex items-center justify-between', selected.includes(opt) ? (isDarkMode ? 'text-teal-400 bg-teal-500/10' : 'text-teal-700 bg-teal-50') : (isDarkMode ? 'text-slate-300 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'))}>
-                {opt} {selected.includes(opt) && <Check size={16} strokeWidth={3} />}
+              <button key={opt} onClick={() => handleToggle(opt)} className={cn('w-full text-left px-4 py-2 text-sm font-bold transition-all flex items-center justify-between', safeSelected.includes(opt) ? (isDarkMode ? 'text-teal-400 bg-teal-500/10' : 'text-teal-700 bg-teal-50') : (isDarkMode ? 'text-slate-300 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'))}>
+                {opt} {safeSelected.includes(opt) && <Check size={14} strokeWidth={3} />}
               </button>
             ))}
+            {filteredOptions.length === 0 && !query.trim() && (
+               <div className="px-4 py-3 text-xs font-bold text-slate-500 text-center">
+                 {lang === 'de' ? 'Keine Firmen gefunden' : 'No companies found'}
+               </div>
+            )}
           </div>
         </div>
       )}
