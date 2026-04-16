@@ -46,18 +46,20 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
 }
 
 export default function App() {
-  const [view,           setView]          = useState<View>('landing');
-  const [loading,        setLoading]       = useState(true);
-  const [accessLevel,    setAccessLevel]   = useState<AccessLevel | null>(null);
-  const [theme,          setTheme]         = useState<Theme>('dark');
-  const [lang,           setLang]          = useState<Language>('en');
+  const [view,            setView]          = useState<View>('landing');
+  const [loading,         setLoading]       = useState(true);
+  const [accessLevel,     setAccessLevel]   = useState<AccessLevel | null>(null);
+  const [theme,           setTheme]         = useState<Theme>('dark');
+  const [lang,            setLang]          = useState<Language>('en');
   
-  // FIXED: offlineMode state now controls the global connection status
-  const [offlineMode,    setOfflineMode]   = useState(!navigator.onLine);
+  const [offlineMode,     setOfflineMode]   = useState(!navigator.onLine);
   
   const pollRef    = useRef<ReturnType<typeof setInterval> | null>(null);
   const initDone   = useRef(false);
   const signingOut = useRef(false);
+  
+  // NEW: The Loop Killer memory. Remembers who is logged in so it doesn't panic refresh.
+  const currentUser = useRef<string | null>(null); 
 
   const dk = theme === 'dark';
 
@@ -103,7 +105,7 @@ export default function App() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }, []);
 
-useEffect(() => {
+  useEffect(() => {
     let cancelled = false;
 
     supabase.auth.getSession().then(async ({ data: { session }, error }) => {
@@ -115,6 +117,10 @@ useEffect(() => {
         initDone.current = true;
         return;
       }
+      
+      // Save the user ID so we don't trigger unnecessary reloads later
+      currentUser.current = session.user.id; 
+      
       const persisted = getPersistedView();
       try {
         await resolveAccess(persisted);
@@ -133,6 +139,11 @@ useEffect(() => {
       if (cancelled || !initDone.current) return;
       
       if (event === 'SIGNED_IN' && session?.user) {
+        // KILL SWITCH: If the Dashboard triggers a session refresh, but we are already logged in... IGNORE IT.
+        if (currentUser.current === session.user.id) return; 
+        
+        currentUser.current = session.user.id;
+
         setLoading(true);
         try {
           await resolveAccess(null);
@@ -144,6 +155,10 @@ useEffect(() => {
       } else if (event === 'SIGNED_OUT') {
         if (!signingOut.current) return;
         signingOut.current = false;
+        
+        // Reset memory on sign out
+        currentUser.current = null; 
+        
         stopPoll();
         clearPersistedView();
         setAccessLevel(null);
@@ -152,7 +167,6 @@ useEffect(() => {
       }
     });
 
-    // Handle real browser connection changes
     const handleOnline  = () => setOfflineMode(false);
     const handleOffline = () => setOfflineMode(true);
     window.addEventListener('online',  handleOnline);
@@ -165,7 +179,8 @@ useEffect(() => {
       window.removeEventListener('online',  handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [resolveAccess]); // CRITICAL FIX: Removed 'view' so the listener never drops!
+  }, [resolveAccess]); 
+
   useEffect(() => {
     if (view === 'pending') startPendingPoll();
     else stopPoll();
@@ -182,7 +197,6 @@ useEffect(() => {
     signingOut.current = false;
   }
 
-  // FIXED: Function to toggle offline mode from the header
   const handleToggleOffline = () => {
     setOfflineMode(prev => !prev);
   };
@@ -286,7 +300,6 @@ useEffect(() => {
             theme={theme} lang={lang}
             toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
             setLang={setLang}
-            // FIXED: Passing actual state and handler to Dashboard
             offlineMode={offlineMode}
             onToggleOfflineMode={handleToggleOffline}
             viewOnly={isViewOnly}
