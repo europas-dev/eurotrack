@@ -47,8 +47,18 @@ export async function getAllUsers(): Promise<any[]> {
 }
 
 export async function setUserRole(userId: string, role: UserRole): Promise<void> {
-  const { error } = await supabase.from('profiles').update({ role }).eq('id', userId)
-  if (error) throw error
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ role })
+    .eq('id', userId)
+    .select(); // CRITICAL: This forces Supabase to send back the row if it actually worked
+
+  if (error) throw error;
+  
+  // If data is empty, the database rejected the update silently (usually due to RLS)
+  if (!data || data.length === 0) {
+    throw new Error("Permission Denied: The database blocked this update. Check your RLS policies.");
+  }
 }
 
 // ─── Profiles ──────────────────────────────────────────────────────────────
