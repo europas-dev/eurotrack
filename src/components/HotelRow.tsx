@@ -210,7 +210,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             )}
           </div>
 
-          {/* COMPANY (Shrunk to flex-[0.8] to prevent gap and save space) */}
+          {/* COMPANY */}
           <div className="flex-[0.8] px-2 min-w-[120px]" onClick={e => e.stopPropagation()}>
             <CompanyMultiSelect selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} />
           </div>
@@ -239,14 +239,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             </div>
           </div>
 
-          {/* EMPLOYEES (Expanded to flex-[2.5] to easily fit 3 chips) */}
+          {/* EMPLOYEES */}
           <div className="flex-[2.5] px-2">
             <div className="flex flex-wrap gap-1.5">
               {visibleEmps.map((emp: any, i: number) => {
                 const status = getEmployeeStatus(emp.checkIn, emp.checkOut);
                 const nights = calculateNights(emp.checkIn, emp.checkOut);
                 
-                // EXACT BED SLOT LOGIC: Only border colors change.
                 const isUpcoming = status === 'upcoming';
                 const borderCls = status === 'active' 
                   ? "border-emerald-500 border-solid" 
@@ -308,7 +307,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           <div className={cn('p-6 space-y-6 rounded-b-2xl border-t', dk ? 'bg-[#0B1224] border-white/5' : 'bg-slate-50 border-slate-200')} onClick={e => e.stopPropagation()}>
             
             <div className="flex flex-wrap xl:flex-nowrap gap-4 items-end">
-              {/* NOTE & ADDRESS ALIGNMENT FIX */}
               <div className="flex-[2.5] min-w-[220px] flex items-end gap-2">
                  <div className="shrink-0">
                     <label className={labelCls}><StickyNote size={12}/> {lang === 'de' ? 'Notiz' : 'Note'}</label>
@@ -486,6 +484,7 @@ export function ModernDropdown({ value, options, onChange, isDarkMode, lang, pla
 export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange, onDeleteOption }: any) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [localMemory, setLocalMemory] = useState<string[]>([]); // FIX: Keeps created tags alive in the dropdown
   const ref = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
@@ -499,13 +498,13 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
     return () => document.removeEventListener('mousedown', handle);
   }, []);
 
-  const safeOptions = Array.isArray(options) ? options : [];
-  
-  // Safe Array mapping
   const safeSelected = Array.isArray(selected) ? selected : (typeof selected === 'string' && selected ? [selected] : []);
   
-  const filteredOptions = safeOptions.filter((o: string) => o.toLowerCase().includes(query.toLowerCase()));
-  const exactMatchExists = safeOptions.some((o: string) => o.toLowerCase() === query.trim().toLowerCase());
+  // Merge parent options with any new ones created in this session
+  const combinedOptions = Array.from(new Set([...(Array.isArray(options) ? options : []), ...localMemory]));
+  
+  const filteredOptions = combinedOptions.filter((o: string) => o.toLowerCase().includes(query.toLowerCase()));
+  const exactMatchExists = combinedOptions.some((o: string) => o.toLowerCase() === query.trim().toLowerCase());
   const isAlreadySelected = safeSelected.some((o: string) => o.toLowerCase() === query.trim().toLowerCase());
   
   const handleToggle = (opt: string) => {
@@ -516,6 +515,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
   const handleAddNew = () => {
     const val = query.trim();
     if (val && !isAlreadySelected) {
+      setLocalMemory(prev => Array.from(new Set([...prev, val]))); // Save to memory so it doesn't vanish
       onChange([...safeSelected, val]);
       setQuery('');
     }
@@ -542,19 +542,26 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
                 <span className="opacity-70 text-xs">Create</span> "{query.trim()}"
               </button>
             )}
-            {filteredOptions.map((opt: string) => (
-              <div key={opt} className={cn('w-full flex items-center justify-between group transition-all', safeSelected.includes(opt) ? (isDarkMode ? 'text-teal-400 bg-teal-500/10' : 'text-teal-700 bg-teal-50') : (isDarkMode ? 'text-slate-300 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'))}>
-                <button onClick={() => handleToggle(opt)} className="flex-1 text-left px-4 py-2 text-sm font-bold flex items-center justify-between">
-                  {opt} {safeSelected.includes(opt) && <Check size={14} strokeWidth={3} />}
-                </button>
-                {/* THE TRASH ICON TO DELETE COMPANY GLOBALLY */}
-                {onDeleteOption && (
-                   <button onClick={(e) => { e.stopPropagation(); onDeleteOption(opt); }} className="px-3 py-2 text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete from system">
-                     <Trash2 size={13} />
-                   </button>
-                )}
-              </div>
-            ))}
+            {filteredOptions.map((opt: string) => {
+              const isSelected = safeSelected.includes(opt);
+              return (
+                <div key={opt} className={cn('w-full flex items-center justify-between group transition-all', isSelected ? (isDarkMode ? 'bg-teal-500/10' : 'bg-teal-50') : (isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'))}>
+                  <button onClick={() => handleToggle(opt)} className="flex-1 text-left px-4 py-2 text-sm font-bold flex items-center gap-2">
+                    {/* CHECKBOX UI */}
+                    <div className={cn("w-3.5 h-3.5 rounded flex items-center justify-center shrink-0 border", isSelected ? "bg-teal-500 border-teal-500" : isDarkMode ? "border-slate-500" : "border-slate-400")}>
+                      {isSelected && <Check size={10} className="text-white" strokeWidth={4} />}
+                    </div>
+                    <span className={cn(isSelected ? (isDarkMode ? 'text-teal-400' : 'text-teal-700') : (isDarkMode ? 'text-slate-300' : 'text-slate-700'))}>{opt}</span>
+                  </button>
+                  {/* THE TRASH ICON TO DELETE COMPANY GLOBALLY */}
+                  {onDeleteOption && (
+                     <button onClick={(e) => { e.stopPropagation(); onDeleteOption(opt); setLocalMemory(prev => prev.filter(m => m !== opt)); }} className="px-3 py-2 text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete from system">
+                       <Trash2 size={13} />
+                     </button>
+                  )}
+                </div>
+              )
+            })}
             {filteredOptions.length === 0 && !query.trim() && (
                <div className="px-4 py-3 text-xs font-bold text-slate-500 text-center">
                  {lang === 'de' ? 'Keine Firmen gefunden' : 'No companies found'}
