@@ -244,26 +244,6 @@ export function hotelMatchesSearch(hotel: any, query: string, scope: string = 'a
   return false;
 }
 
-  // IF SCOPE IS ALL: Search everything (Original Logic)
-  const hName = hotel.name?.toLowerCase() || '';
-  const hCity = hotel.city?.toLowerCase() || '';
-  const tags = Array.isArray(hotel.companyTag) ? hotel.companyTag.join(' ').toLowerCase() : (hotel.companyTag?.toLowerCase() || '');
-  
-  let match = hName.includes(q) || hCity.includes(q) || tags.includes(q);
-  if (match) return true;
-
-  for (const d of (hotel.durations || [])) {
-    if (d.rechnungNr?.toLowerCase().includes(q)) return true;
-    if (d.bookingId?.toLowerCase().includes(q)) return true;
-    for (const rc of (d.roomCards || [])) {
-      for (const emp of (rc.employees || [])) {
-        if (emp.name?.toLowerCase().includes(q)) return true;
-      }
-    }
-  }
-  return false;
-}
-
 export function getDurationCostForMonth(d: any, targetYear: number, targetMonthIndex: number): number {
   if (!d.startDate || !d.endDate) return 0;
   
