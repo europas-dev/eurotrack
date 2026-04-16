@@ -45,8 +45,9 @@ const HighlightText = ({ text, query }: { text: string; query?: string }) => {
   );
 };
 
-// --- SEAMLESS AUTOCOMPLETE INPUT ---
-function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, className, textClass }: any) {
+// --- SEAMLESS AUTOCOMPLETE INPUT (FIXED WITH IDLE MODE FOR HIGHLIGHTS) ---
+function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, className, textClass, searchQuery }: any) {
+  const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value || '');
   const [showOptions, setShowOptions] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -56,6 +57,7 @@ function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, clas
   useEffect(() => {
     function handle(e: MouseEvent) { 
       if (ref.current && !ref.current.contains(e.target as Node)) { 
+        setEditing(false);
         setShowOptions(false); 
         if (draft !== value) onChange(draft);
       } 
@@ -66,20 +68,33 @@ function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, clas
 
   const filtered = (options || []).filter((o: string) => o.toLowerCase().includes(draft.toLowerCase()) && o.toLowerCase() !== draft.toLowerCase()).slice(0, 5);
 
+  // IDLE MODE: Renders normal text so the Highlight <mark> tags can physically appear
+  if (!editing) {
+    return (
+      <div 
+        className={cn("cursor-text hover:opacity-70 truncate transition-opacity w-full min-h-[20px]", textClass)} 
+        onClick={(e) => { e.stopPropagation(); setEditing(true); setDraft(value || ''); setShowOptions(true); }}
+      >
+        {value ? <HighlightText text={value} query={searchQuery} /> : <span className="opacity-40">{placeholder}</span>}
+      </div>
+    );
+  }
+
+  // EDITING MODE: Swaps to an actual input field when clicked
   return (
     <div ref={ref} className={cn("relative w-full", className)} onClick={e => e.stopPropagation()}>
       <input 
+        autoFocus
         value={draft} 
         onChange={e => { setDraft(e.target.value); setShowOptions(true); }}
-        onBlur={() => { setTimeout(() => { if (draft !== value) onChange(draft); }, 150); }}
-        onKeyDown={e => { if (e.key === 'Enter') { onChange(draft); setShowOptions(false); e.currentTarget.blur(); } }}
+        onKeyDown={e => { if (e.key === 'Enter') { onChange(draft); setEditing(false); setShowOptions(false); } }}
         placeholder={placeholder}
         className={cn("w-full bg-transparent border-none outline-none focus:ring-0 p-0 m-0 truncate placeholder:opacity-40 transition-colors focus:text-teal-500", textClass)} 
       />
       {showOptions && filtered.length > 0 && (
         <div className={cn("absolute top-full left-0 mt-1 w-max min-w-[200px] z-[200] rounded-xl border shadow-xl py-1 overflow-hidden", isDarkMode ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
           {filtered.map((opt: string) => (
-            <button key={opt} onClick={() => { setDraft(opt); onChange(opt); setShowOptions(false); }} className={cn("w-full text-left px-3 py-2 text-xs font-bold transition-all", isDarkMode ? "text-slate-300 hover:bg-white/10" : "text-slate-700 hover:bg-slate-100")}>
+            <button key={opt} onClick={() => { setDraft(opt); onChange(opt); setEditing(false); setShowOptions(false); }} className={cn("w-full text-left px-3 py-2 text-xs font-bold transition-all", isDarkMode ? "text-slate-300 hover:bg-white/10" : "text-slate-700 hover:bg-slate-100")}>
               {opt}
             </button>
           ))}
@@ -191,17 +206,19 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             {open ? <ChevronDown size={18} className="text-teal-500" /> : <ChevronRight size={18} className="text-slate-500" />}
           </div>
 
-          {/* IDENTITY */}
+          {/* IDENTITY WITH SEARCH QUERY PASSED IN */}
           <div className="flex-[2] py-2 min-w-[200px] pr-2">
             <SeamlessInput 
                value={localHotel.name} options={hotelOptions} isDarkMode={dk} 
                onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} 
                textClass={cn('text-[15px] font-black leading-tight', dk ? 'text-white' : 'text-slate-900')} 
+               searchQuery={searchQuery}
             />
             <SeamlessInput 
                value={localHotel.city} options={cityOptions} isDarkMode={dk} 
                onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} 
                className="mt-0.5" textClass={cn("text-[10px] font-bold uppercase tracking-widest", dk ? "text-slate-500" : "text-slate-400")} 
+               searchQuery={searchQuery}
             />
             {hiddenMatchText && !open && (
               <span className="inline-block mt-1 px-1.5 py-0.5 bg-teal-500/10 border border-teal-500/30 text-teal-600 dark:text-teal-400 text-[9px] font-bold rounded-full truncate">
@@ -484,7 +501,7 @@ export function ModernDropdown({ value, options, onChange, isDarkMode, lang, pla
 export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange, onDeleteOption }: any) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [localMemory, setLocalMemory] = useState<string[]>([]); // FIX: Keeps created tags alive in the dropdown
+  const [localMemory, setLocalMemory] = useState<string[]>([]);
   const ref = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
@@ -498,10 +515,10 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
     return () => document.removeEventListener('mousedown', handle);
   }, []);
 
+  const safeOptions = Array.isArray(options) ? options : [];
   const safeSelected = Array.isArray(selected) ? selected : (typeof selected === 'string' && selected ? [selected] : []);
   
-  // Merge parent options with any new ones created in this session
-  const combinedOptions = Array.from(new Set([...(Array.isArray(options) ? options : []), ...localMemory]));
+  const combinedOptions = Array.from(new Set([...safeOptions, ...localMemory]));
   
   const filteredOptions = combinedOptions.filter((o: string) => o.toLowerCase().includes(query.toLowerCase()));
   const exactMatchExists = combinedOptions.some((o: string) => o.toLowerCase() === query.trim().toLowerCase());
@@ -515,7 +532,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
   const handleAddNew = () => {
     const val = query.trim();
     if (val && !isAlreadySelected) {
-      setLocalMemory(prev => Array.from(new Set([...prev, val]))); // Save to memory so it doesn't vanish
+      setLocalMemory(prev => Array.from(new Set([...prev, val]))); 
       onChange([...safeSelected, val]);
       setQuery('');
     }
@@ -547,13 +564,11 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
               return (
                 <div key={opt} className={cn('w-full flex items-center justify-between group transition-all', isSelected ? (isDarkMode ? 'bg-teal-500/10' : 'bg-teal-50') : (isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'))}>
                   <button onClick={() => handleToggle(opt)} className="flex-1 text-left px-4 py-2 text-sm font-bold flex items-center gap-2">
-                    {/* CHECKBOX UI */}
                     <div className={cn("w-3.5 h-3.5 rounded flex items-center justify-center shrink-0 border", isSelected ? "bg-teal-500 border-teal-500" : isDarkMode ? "border-slate-500" : "border-slate-400")}>
                       {isSelected && <Check size={10} className="text-white" strokeWidth={4} />}
                     </div>
                     <span className={cn(isSelected ? (isDarkMode ? 'text-teal-400' : 'text-teal-700') : (isDarkMode ? 'text-slate-300' : 'text-slate-700'))}>{opt}</span>
                   </button>
-                  {/* THE TRASH ICON TO DELETE COMPANY GLOBALLY */}
                   {onDeleteOption && (
                      <button onClick={(e) => { e.stopPropagation(); onDeleteOption(opt); setLocalMemory(prev => prev.filter(m => m !== opt)); }} className="px-3 py-2 text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete from system">
                        <Trash2 size={13} />
