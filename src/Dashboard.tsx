@@ -15,7 +15,6 @@ async function getSystemCompanies(): Promise<string[]> {
   return (data || []).map(c => c.name);
 }
 
-// NEW: Points to global_companies and logs errors
 async function addSystemCompany(name: string): Promise<void> {
   const { error } = await supabase.from('global_companies').insert({ name });
   if (error) console.error("Global Companies Insert Error:", error);
@@ -131,23 +130,19 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     return () => { isMounted = false; channel.unsubscribe(); supabase.removeChannel(channel); };
   }, []);
 
-  // --- FIXED DATA FETCHING LOGIC ---
+  // --- FIXED DATA FETCHING LOGIC WITH NEW MASTER FIELDS ---
   useEffect(() => { 
     let isMounted = true;
     setLoading(true);
     setError(''); 
     
-    // SAFETY SWITCH: If fetching takes longer than 5 seconds, force the loader off.
     const safetyTimer = setTimeout(() => {
       if (isMounted) setLoading(false);
     }, 5000);
 
     async function fetchAllData() {
       try {
-        // Fetch System Companies Safely
         const companies = await getSystemCompanies();
-
-        // Fetch Main Hotel Data
         const { data, error } = await supabase
           .from('hotels')
           .select('*, durations(*, room_cards(*, employees(*)), employees(*))')
@@ -157,7 +152,20 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         if (error) throw error; 
 
         const normalized = (data || []).map((h: any) => ({
-          ...h, companyTag: h.company_tag ?? [],
+          ...h, 
+          companyTag: h.company_tag ?? [],
+          
+          // MAP MASTER INVOICE FIELDS TO REACT
+          isPaid: h.is_paid ?? false,
+          rechnungNr: h.rechnung_nr ?? '',
+          bookingId: h.booking_id ?? '',
+          depositEnabled: h.deposit_enabled ?? false,
+          depositAmount: h.deposit_amount ?? 0,
+          useBruttoNetto: h.use_brutto_netto ?? true,
+          hasDiscount: h.has_discount ?? false,
+          discountType: h.discount_type ?? 'percentage',
+          discountValue: h.discount_value ?? 0,
+
           durations: (h.durations || []).map((d: any) => ({
             ...d, hotelId: d.hotel_id, startDate: d.start_date, endDate: d.end_date, roomType: d.room_type, numberOfRooms: d.number_of_rooms,
             pricePerNightPerRoom: d.price_per_night_per_room, useManualPrices: d.use_manual_prices, nightlyPrices: d.nightly_prices, useBruttoNetto: d.use_brutto_netto,
@@ -183,7 +191,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         console.error("Dashboard Load Error:", err);
         if (isMounted) setError(err.message || "Failed to load dashboard data."); 
       } finally {
-        clearTimeout(safetyTimer); // Clear timer to prevent overlap
+        clearTimeout(safetyTimer);
         if (isMounted) setLoading(false);
       }
     }
@@ -228,13 +236,27 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       const h = await createHotel({ 
         name: newHotelName.trim(), 
         city: newHotelCity.trim() || null, 
-        company_tag: newHotelCompanyTags, // FIXED: Sent correct column spelling to DB!
+        company_tag: newHotelCompanyTags, 
         country: newHotelCountry, 
         year: selectedYear 
       });
       
-      // Keep React state in sync with camelCase
-      const next = [{ ...h, companyTag: newHotelCompanyTags, durations: [] }, ...hotels]; 
+      const next = [{ 
+        ...h, 
+        companyTag: newHotelCompanyTags, 
+        durations: [],
+        // ADDED DEFAULT MASTER FIELDS FOR NEW HOTELS
+        isPaid: false,
+        rechnungNr: '',
+        bookingId: '',
+        depositEnabled: false,
+        depositAmount: 0,
+        useBruttoNetto: true,
+        hasDiscount: false,
+        discountType: 'percentage',
+        discountValue: 0
+      }, ...hotels]; 
+      
       setHotels(next); 
       pushToHistory(next); 
       
@@ -285,14 +307,12 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
          if (!hasOverlap) return false;
       }
 
-      if (filterPaid === 'paid') {
-         const isPaid = (h.durations || []).every((d: any) => d.isPaid);
-         if (!isPaid || h.durations?.length === 0) return false;
-      }
-      if (filterPaid === 'unpaid') {
-         const hasUnpaid = (h.durations || []).some((d: any) => !d.isPaid);
-         if (!hasUnpaid) return false;
-      }
+      // NEW FILTER LOGIC: Now checks the Master Hotel status instead of durations
+      if (filterPaid === 'paid' && !h.isPaid) return false;
+      if (filterPaid === 'unpaid' && h.isPaid) return false;
+      
+      if (filterDeposit === 'yes' && !h.depositEnabled) return false;
+      if (filterDeposit === 'no' && h.depositEnabled) return false;
       
       if (fbType !== 'all') {
          let targetDate = new Date().toISOString().split('T')[0];
