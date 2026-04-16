@@ -1,7 +1,7 @@
 // src/components/HotelRow.tsx
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, ChevronRight, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, FileText, Tag, Wallet } from 'lucide-react';
 import {
   cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatDateChip, formatLastUpdated, calcHotelTotalCost, calculateNights
 } from '../lib/utils';
@@ -129,7 +129,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     if (!searchQuery) return null;
     const q = searchQuery.toLowerCase();
     for (const d of (localHotel.durations || [])) {
-      if (d.rechnungNr?.toLowerCase().includes(q)) return lang === 'de' ? `Treffer: Rechnung` : `Invoice Match`;
+      // It will still search through old duration rechnungNrs, but also check the new master hotel one
+      if (localHotel.rechnungNr?.toLowerCase().includes(q) || d.rechnungNr?.toLowerCase().includes(q)) return lang === 'de' ? `Treffer: Rechnung` : `Invoice Match`;
       for (const rc of (d.roomCards || [])) {
         for (const emp of (rc.employees || [])) {
           if (emp.name?.toLowerCase().includes(q)) return lang === 'de' ? `Treffer: Mitarbeiter` : `Employee Match`;
@@ -206,7 +207,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             {open ? <ChevronDown size={18} className="text-teal-500" /> : <ChevronRight size={18} className="text-slate-500" />}
           </div>
 
-          {/* IDENTITY WITH SEARCH QUERY PASSED IN */}
           <div className="flex-[2] py-2 min-w-[200px] pr-2">
             <SeamlessInput 
                value={localHotel.name} options={hotelOptions} isDarkMode={dk} 
@@ -227,21 +227,18 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             )}
           </div>
 
-       {/* COMPANY */}
           <div className="flex-[0.8] px-2 min-w-[120px]" onClick={e => e.stopPropagation()}>
             <CompanyMultiSelect 
               selected={localHotel.companyTag} 
               options={companyOptions} 
               isDarkMode={dk} 
               lang={lang} 
-              // FIXED: Sends both camelCase (React) and snake_case (Supabase) to ensure saving
               onChange={(tags:any) => patchHotel({ companyTag: tags, company_tag: tags })} 
               onDeleteOption={onDeleteCompanyOption} 
               onAddOption={onAddOption}
             />
           </div>
 
-          {/* DURATIONS */}
           <div className="flex-[1.5] px-2 min-w-[120px]">
             <div className="flex flex-wrap gap-1.5">
               {localHotel.durations.map((d: any) => {
@@ -265,7 +262,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             </div>
           </div>
 
-          {/* EMPLOYEES */}
           <div className="flex-[2.5] px-2">
             <div className="flex flex-wrap gap-1.5">
               {visibleEmps.map((emp: any, i: number) => {
@@ -298,7 +294,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             </div>
           </div>
 
-          {/* RIGID METRICS */}
           <div className="ml-auto flex items-center gap-6 pr-3 shrink-0 min-w-[280px] justify-end">
             <div className="text-center w-10">
               <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">{lang === 'de' ? 'Frei' : 'Free'}</p>
@@ -404,6 +399,59 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 <textarea autoComplete="off" autoFocus value={localHotel.notes || ''} onChange={e => patchHotel({ notes: e.target.value })} className={cn(inputCls, 'min-h-[60px] h-auto resize-y p-3')} placeholder={lang === 'de' ? "Private Notizen hier eintragen..." : "Write private notes here..."} />
               </div>
             )}
+
+            {/* --- NEW MASTER INVOICE CARD --- */}
+            <div className={cn("p-5 rounded-2xl border flex flex-col gap-4", dk ? "bg-black/30 border-teal-500/20" : "bg-white border-teal-200 shadow-sm")}>
+                <div className="flex flex-wrap lg:flex-nowrap gap-6 items-start justify-between">
+                    <div className="flex gap-4 flex-1">
+                       <div className="flex-1 max-w-[220px]">
+                          <label className={labelCls}><Receipt size={12}/> {lang === 'de' ? 'Rechnungsnr.' : 'Invoice No.'}</label>
+                          <input autoComplete="off" value={localHotel.rechnungNr || ''} onChange={e => patchHotel({ rechnungNr: e.target.value, rechnung_nr: e.target.value })} className={inputCls} placeholder="RE-2026-..." />
+                       </div>
+                       <div className="flex-1 max-w-[220px]">
+                          <label className={labelCls}><FileText size={12}/> {lang === 'de' ? 'Buchungsreferenz' : 'Booking Ref'}</label>
+                          <input autoComplete="off" value={localHotel.bookingId || ''} onChange={e => patchHotel({ bookingId: e.target.value, booking_id: e.target.value })} className={inputCls} placeholder="..." />
+                       </div>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-3 shrink-0">
+                       <div className="flex items-center gap-2">
+                          <button onClick={() => patchHotel({useBruttoNetto: !localHotel.useBruttoNetto, use_brutto_netto: !localHotel.useBruttoNetto})} className={cn("px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5", localHotel.useBruttoNetto ? (dk ? "bg-teal-600 text-white border-teal-500" : "bg-teal-600 text-white border-teal-700") : (dk ? "bg-[#1E293B] text-slate-400 border-white/10" : "bg-slate-100 text-slate-500 border-slate-200"))}>Brutto / Netto</button>
+                          <button onClick={() => patchHotel({hasDiscount: !localHotel.hasDiscount, has_discount: !localHotel.hasDiscount})} className={cn("px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5", localHotel.hasDiscount ? (dk ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" : "bg-indigo-50 text-indigo-600 border-indigo-200") : (dk ? "bg-[#1E293B] text-slate-400 border-white/10" : "bg-slate-100 text-slate-500 border-slate-200"))}><Tag size={12} /> Disc.</button>
+                          <button onClick={() => patchHotel({depositEnabled: !localHotel.depositEnabled, deposit_enabled: !localHotel.depositEnabled})} className={cn("px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5", localHotel.depositEnabled ? (dk ? "bg-amber-500/20 text-amber-400 border-amber-500/30" : "bg-amber-50 text-amber-600 border-amber-200") : (dk ? "bg-[#1E293B] text-slate-400 border-white/10" : "bg-slate-100 text-slate-500 border-slate-200"))}><Wallet size={12} /> Deposit</button>
+                       </div>
+                       <div className="flex items-center gap-4">
+                          <button onClick={() => patchHotel({isPaid: !localHotel.isPaid, is_paid: !localHotel.isPaid})} className={cn("px-6 py-2 rounded-xl text-sm font-black transition-all border", localHotel.isPaid ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20" : "bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20")}>
+                             {localHotel.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid')}
+                          </button>
+                          <div className="text-right min-w-[120px]">
+                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-0.5">Total Cost</p>
+                             <p className="text-3xl font-black text-teal-500">{formatCurrency(totalCost)}</p>
+                          </div>
+                       </div>
+                    </div>
+                </div>
+
+                {(localHotel.hasDiscount || localHotel.depositEnabled) && (
+                  <div className={cn("flex justify-end gap-4 w-full pt-3 border-t", dk ? "border-white/5" : "border-slate-100")}>
+                    {localHotel.hasDiscount && (
+                      <div className="flex items-center gap-2">
+                        <select value={localHotel.discountType || 'percentage'} onChange={e => patchHotel({discountType: e.target.value, discount_type: e.target.value})} className={cn("text-xs font-bold p-1.5 rounded-lg border outline-none", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-slate-50 border-slate-200 text-slate-700")}>
+                          <option value="percentage">%</option>
+                          <option value="fixed">€</option>
+                        </select>
+                        <input type="number" value={localHotel.discountValue || ''} onChange={e => patchHotel({discountValue: parseFloat(e.target.value) || 0, discount_value: parseFloat(e.target.value) || 0})} className={cn("w-20 px-2 py-1.5 text-xs font-bold rounded-lg border outline-none", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-slate-50 border-slate-200 text-slate-900")} placeholder="0" />
+                      </div>
+                    )}
+                    {localHotel.depositEnabled && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Deposit:</span>
+                        <input type="number" value={localHotel.depositAmount || ''} onChange={e => patchHotel({depositAmount: parseFloat(e.target.value) || 0, deposit_amount: parseFloat(e.target.value) || 0})} className={cn("w-24 px-2 py-1.5 text-xs font-bold rounded-lg border outline-none", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-slate-50 border-slate-200 text-slate-900")} placeholder="0.00" />
+                      </div>
+                    )}
+                  </div>
+                )}
+            </div>
             
             <div className="pt-2">
               <div className={cn("inline-flex items-center gap-1 p-1.5 rounded-xl shadow-inner border flex-wrap", dk ? "bg-black/40 border-white/5" : "bg-slate-100 border-slate-200")}>
@@ -538,7 +586,6 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
     setQuery('');
   };
 
-  // FIXED: Now properly triggers the database save
   const handleAddNew = async () => {
     const val = query.trim();
     if (val && !isAlreadySelected) {
