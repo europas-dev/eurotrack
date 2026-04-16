@@ -252,17 +252,17 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 // EXACT BED SLOT LOGIC APPLIED HERE
                 const isUpcoming = status === 'upcoming';
                 const borderCls = status === 'active' 
-                  ? "border-emerald-500 border-solid text-emerald-600 dark:text-emerald-400" 
+                  ? "border-emerald-500 border-solid" 
                   : status === 'upcoming' 
-                  ? "border-blue-500 border-dashed text-blue-600 dark:text-blue-400" 
+                  ? "border-blue-500 border-dashed" 
                   : status === 'ending-soon' 
-                  ? "border-red-500 border-dashed text-red-600 dark:text-red-400" 
-                  : "border-slate-300 border-solid text-slate-600 dark:text-slate-300";
+                  ? "border-red-500 border-dashed" 
+                  : "border-slate-300 dark:border-slate-600 border-solid";
                 
                 return (
                   <div key={i} className="relative group flex items-center">
-                    <div className={cn("px-2 py-0.5 rounded-md border text-[11px] font-bold truncate text-center min-w-[70px] cursor-help flex items-center justify-center gap-1 shadow-sm", borderCls, dk ? "bg-black/20" : "bg-white")}>
-                      {isUpcoming && <CornerDownRight size={10} className="shrink-0 opacity-70" />}
+                    <div className={cn("px-2.5 py-0.5 rounded-md border text-xs font-bold truncate text-center min-w-[70px] cursor-help flex items-center justify-center gap-1 shadow-sm", borderCls, dk ? "bg-black/20 text-white" : "bg-white text-slate-900")}>
+                      {isUpcoming && <CornerDownRight size={10} className="shrink-0 opacity-70 text-blue-500" />}
                       <HighlightText text={emp.name || '_ _ _'} query={searchQuery} />
                     </div>
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[10px] font-bold rounded-lg opacity-0 group-hover:opacity-100 z-[100] pointer-events-none shadow-xl border border-white/10 transition-opacity text-center">
@@ -313,7 +313,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             
             <div className="flex flex-wrap xl:flex-nowrap gap-4 items-end">
               {/* NOTE ICON & ADDRESS LAYOUT FIX */}
-              <div className="flex-[2.5] min-w-[180px] flex items-end gap-2">
+              <div className="flex-[2.5] min-w-[220px] flex items-end gap-2">
                  <div className="shrink-0">
                     <label className={labelCls}><StickyNote size={12}/> {lang === 'de' ? 'Notiz' : 'Note'}</label>
                     <button 
@@ -530,7 +530,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
     <div ref={ref} className="relative cursor-pointer min-h-[30px] flex items-center w-full" onClick={(e) => { e.stopPropagation(); setOpen(true); }}>
       <div className="flex flex-wrap gap-1.5 w-full">
         {safeSelected.length > 0 ? safeSelected.map((tag: string) => (
-          <span key={tag} onClick={(e) => { e.stopPropagation(); onChange(safeSelected.filter((t: any) => t !== tag)); }} className={cn('px-2.5 py-1 rounded-md text-xs font-bold border hover:opacity-70 flex items-center gap-1.5 transition-all shadow-sm', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800')}>{tag} <X size={12} className="opacity-50" /></span>
+          <span key={tag} className={cn('px-2.5 py-1 rounded-md text-xs font-bold border flex items-center gap-1.5 shadow-sm', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800')}>{tag}</span>
         )) : <span className={cn("text-xs font-bold border border-dashed px-3 py-1 rounded-md transition-colors w-full flex items-center", isDarkMode ? "text-slate-500 border-white/20 hover:text-teal-400 hover:border-teal-400" : "text-slate-400 border-slate-300 hover:text-teal-600 hover:border-teal-500")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
       </div>
       
