@@ -89,74 +89,26 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     ? `${lang === 'de' ? monthNamesDe[selectedMonth] : monthNamesEn[selectedMonth]} ${selectedYear}`
     : `${lang === 'de' ? 'Dashboard' : 'Dashboard'} ${selectedYear}`;
 
-  useEffect(() => {
-    const hO = () => setIsOnline(true);
-    const hOff = () => setIsOnline(false);
-    window.addEventListener('online', hO);
-    window.addEventListener('offline', hOff);
-    return () => { window.removeEventListener('online', hO); window.removeEventListener('offline', hOff); };
-  }, []);
-
-  useEffect(() => {
-    const handleStorage = () => {
-      try { setBookmarks(JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]')); } catch {}
-    };
-    window.addEventListener('storage', handleStorage);
-    const interval = setInterval(handleStorage, 1000); 
-    return () => { window.removeEventListener('storage', handleStorage); clearInterval(interval); };
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-    const channel = supabase.channel('dashboard_presence', { config: { presence: { key: 'user' } } });
-    
-    channel.on('presence', { event: 'sync' }, () => {
-      if (!isMounted) return;
-      const state = channel.presenceState();
-      const users = Object.values(state).flat().map((p: any) => p.user);
-      const uniqueUsers = Array.from(new Map(users.map(u => [u.id, u])).values());
-      setActiveUsers(uniqueUsers);
-    });
-
-    channel.subscribe(async (status) => {
-      if (status === 'SUBSCRIBED' && isMounted) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user && isMounted) {
-          const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
-          await channel.track({ user: { id: user.id, name, email: user.email } });
-        }
-      }
-    });
-
-    return () => { isMounted = false; channel.unsubscribe(); supabase.removeChannel(channel); };
-  }, []);
-
   useEffect(() => { 
     let isMounted = true;
     setLoading(true);
+    setError(''); // Clear past errors
     
     async function fetchAllData() {
       try {
-        const queryPromise = supabase
+        // 1. Fetch system companies safely
+        const companies = await getSystemCompanies();
+
+        // 2. Fetch main hotel data
+        const { data, error } = await supabase
           .from('hotels')
           .select('*, durations(*, room_cards(*, employees(*)), employees(*))')
           .eq('year', selectedYear)
           .order('created_at', { ascending: false });
 
-        const companiesPromise = getSystemCompanies();
+        if (error) throw error; 
 
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('CONNECTION_TIMEOUT')), 8000)
-        );
-
-        const [response, companies] = await Promise.race([
-          Promise.all([queryPromise, companiesPromise]), 
-          timeoutPromise
-        ]) as any;
-        
-        if (response.error) throw response.error;
-
-        const normalized = (response.data || []).map((h: any) => ({
+        const normalized = (data || []).map((h: any) => ({
           ...h, companyTag: h.company_tag ?? [],
           durations: (h.durations || []).map((d: any) => ({
             ...d, hotelId: d.hotel_id, startDate: d.start_date, endDate: d.end_date, roomType: d.room_type, numberOfRooms: d.number_of_rooms,
@@ -178,13 +130,13 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           setHotels(normalized); 
           setHistory([normalized]); 
           setHistoryIndex(0); 
-          setLoading(false); 
         }
       } catch (err: any) { 
-        if (isMounted) { 
-          if (err.message !== 'CONNECTION_TIMEOUT') setError(err.message); 
-          setLoading(false); 
-        } 
+        console.error("Dashboard Load Error:", err);
+        if (isMounted) setError(err.message || "Failed to load dashboard data."); 
+      } finally {
+        // THE MAGIC BULLET: Always stops the spinner
+        if (isMounted) setLoading(false);
       }
     }
     
@@ -394,7 +346,23 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           </div>
         </div>
 
-        <main className="flex-1 overflow-y-auto p-8 relative no-scrollbar pb-64">
+        {/* Error Banner */}
+        {error && (
+           <div className="bg-red-500 text-white px-6 py-2 text-sm font-bold flex items-center justify-center gap-2 z-[60] relative">
+             Error: {error}
+             <button onClick={() => setError('')} className="ml-4 underline hover:text-red-200">Dismiss</button>
+           </div>
+        )}
+
+        {loading ? (
+          <div className="flex-1 flex items-center justify-center">
+             <Loader2 size={48} className="animate-spin text-teal-500 opacity-50" />
+          </div>
+        ) : (
+          <main className="flex-1 overflow-y-auto p-8 relative no-scrollbar pb-64">
+            {/* ... Keep the exact contents of your current <main> tag here ... */}
+          </main>
+        )}
           <div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative z-[100]">
             <h2 className="text-2xl font-bold tracking-tight">{displayTitle}</h2>
             
