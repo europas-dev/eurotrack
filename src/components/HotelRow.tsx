@@ -498,7 +498,7 @@ export function ModernDropdown({ value, options, onChange, isDarkMode, lang, pla
 }
 
 // --- NOTION STYLE MULTI-SELECT ---
-export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange, onDeleteOption }: any) {
+export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange, onDeleteOption, onAddOption }: any) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [localMemory, setLocalMemory] = useState<string[]>([]);
@@ -529,12 +529,16 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
     setQuery('');
   };
 
-  const handleAddNew = () => {
+  // FIXED: Now properly triggers the database save
+  const handleAddNew = async () => {
     const val = query.trim();
     if (val && !isAlreadySelected) {
       setLocalMemory(prev => Array.from(new Set([...prev, val]))); 
       onChange([...safeSelected, val]);
       setQuery('');
+      if (onAddOption) {
+        await onAddOption(val); // Tells Dashboard to save to Supabase
+      }
     }
   };
   
