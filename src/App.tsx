@@ -103,7 +103,7 @@ export default function App() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }, []);
 
-  useEffect(() => {
+useEffect(() => {
     let cancelled = false;
 
     supabase.auth.getSession().then(async ({ data: { session }, error }) => {
@@ -118,7 +118,8 @@ export default function App() {
       const persisted = getPersistedView();
       try {
         await resolveAccess(persisted);
-      } catch {
+      } catch (err) {
+        console.error("Session resolve error:", err);
         setView('landing');
       } finally {
         if (!cancelled) {
@@ -130,10 +131,24 @@ export default function App() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (cancelled || !initDone.current) return;
+      
       if (event === 'SIGNED_IN' && session?.user) {
-        setLoading(true);
-        await resolveAccess(null);
-        setLoading(false);
+        // If the user is already on the dashboard, do a QUIET background refresh.
+        // Only show the loading spinner if they are coming from the landing page.
+        setLoading(prev => {
+          if (view === 'landing' || view === 'login') return true;
+          return prev; 
+        });
+        
+        try {
+          // Pass the persisted view so it doesn't force you back to a default screen
+          await resolveAccess(getPersistedView());
+        } catch (err) {
+          console.error("Auth state change error:", err);
+        } finally {
+          // GUARANTEED to turn off the loading spinner, even if the network fails
+          setLoading(false);
+        }
       } else if (event === 'SIGNED_OUT') {
         if (!signingOut.current) return;
         signingOut.current = false;
@@ -159,7 +174,7 @@ export default function App() {
       window.removeEventListener('online',  handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, [view, resolveAccess]); // Added dependencies to ensure it has latest state
 
   useEffect(() => {
     if (view === 'pending') startPendingPoll();
