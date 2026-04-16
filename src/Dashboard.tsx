@@ -79,7 +79,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
 
-  // Fixed Dynamic Title Logic
+  // Month Title Logic
   const monthNamesEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const monthNamesDe = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
   const displayTitle = selectedMonth !== null 
@@ -99,8 +99,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       try { setBookmarks(JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]')); } catch {}
     };
     window.addEventListener('storage', handleStorage);
-    const interval = setInterval(handleStorage, 1000); 
-    return () => { window.removeEventListener('storage', handleStorage); clearInterval(interval); };
+    return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
   useEffect(() => {
@@ -125,7 +124,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     return () => { isMounted = false; channel.unsubscribe(); supabase.removeChannel(channel); };
   }, []);
 
-  // FIXED: Fetch Logic with finally block to stop spinner
+  // Fetch Logic
   useEffect(() => { 
     let isMounted = true;
     setLoading(true);
@@ -207,7 +206,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       const h = await createHotel({ 
         name: newHotelName.trim(), 
         city: newHotelCity.trim() || null, 
-        company_tag: newHotelCompanyTags, 
+        company_tag: newHotelCompanyTags, // Fixed Spelling
         country: newHotelCountry, 
         year: selectedYear 
       });
@@ -218,6 +217,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     } catch (e: any) { alert(e.message); } finally { setNewHotelSaving(false); }
   }
 
+  // Free Beds Helper (Dashboard)
   const getBedsCount = (daysOffset: number) => {
      const d = new Date(); d.setDate(d.getDate() + daysOffset);
      const dStr = d.toISOString().split('T')[0];
@@ -337,10 +337,11 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         <Header theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchScope={searchScope} setSearchScope={setSearchScope} onSignOut={onSignOut} onExportCsv={() => exportToCSV(finalFiltered, calcHotelTotalCost, totalSpend, "Report", lang)} onPrint={() => printDocument(finalFiltered, calcHotelTotalCost, totalSpend, "Report", lang)} viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} />
         
-        {(!isOnline || offlineMode) && (
-          <div className="bg-amber-500 border-b border-amber-600 text-white px-6 py-2.5 text-sm font-bold flex items-center justify-center gap-2 z-[60] relative">
-            <CloudOff size={16} strokeWidth={2.5} /> {lang === 'de' ? 'Offline Modus Aktiv' : 'Offline Mode Active'}
-          </div>
+        {error && (
+           <div className="bg-red-500 text-white px-6 py-2 text-sm font-bold flex items-center justify-center gap-2 z-[60] relative">
+             Error: {error}
+             <button onClick={() => setError('')} className="ml-4 underline">Dismiss</button>
+           </div>
         )}
 
         <div className={cn('px-8 py-5 border-b shrink-0 z-40 relative', dk ? 'bg-[#0F172A] border-white/5' : 'bg-white border-slate-200')}>
@@ -352,12 +353,11 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             </div>
             {activeUsers.length > 0 && (
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">{lang === 'de' ? 'Live dabei:' : 'Live now:'}</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">Live:</span>
                 <div className="flex -space-x-3">
                   {activeUsers.map((u: any, i: number) => (
                     <div key={i} className="relative group cursor-pointer">
-                      <div className={cn("w-10 h-10 rounded-full border-2 flex items-center justify-center text-white text-sm font-bold shadow-md z-10 relative", dk ? "bg-teal-600 border-[#0F172A]" : "bg-teal-600 border-white")}>{u.name.substring(0, 2).toUpperCase()}</div>
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max px-3 py-2 bg-slate-800 text-white text-xs rounded-xl opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none shadow-xl">{u.name} <br/> <span className="text-slate-400 text-[10px]">{u.email}</span></div>
+                      <div className="w-10 h-10 rounded-full border-2 flex items-center justify-center text-white text-sm font-bold bg-teal-600 border-[#0F172A]">{u.name.substring(0, 2).toUpperCase()}</div>
                     </div>
                   ))}
                 </div>
@@ -366,137 +366,74 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           </div>
         </div>
 
-        {error && (
-           <div className="bg-red-500 text-white px-6 py-2 text-sm font-bold flex items-center justify-center gap-2 z-[60] relative">
-             Error: {error}
-             <button onClick={() => setError('')} className="ml-4 underline hover:text-red-200">Dismiss</button>
-           </div>
-        )}
-
         {loading ? (
-          <div className="flex-1 flex items-center justify-center">
-             <Loader2 size={48} className="animate-spin text-teal-500 opacity-50" />
-          </div>
+          <div className="flex-1 flex items-center justify-center"><Loader2 size={48} className="animate-spin text-teal-500 opacity-50" /></div>
         ) : (
           <main className="flex-1 overflow-y-auto p-8 relative no-scrollbar pb-64">
             <div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative z-[100]">
               <h2 className="text-2xl font-bold tracking-tight">{displayTitle}</h2>
               <div className="flex items-center gap-2">
                 <div className={cn("flex items-center mr-2 rounded-xl p-1 border", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200 shadow-sm")}>
-                  <button onClick={handleUndo} disabled={historyIndex <= 0} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 disabled:opacity-30 transition-all"><Undo2 size={18}/></button>
-                  <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 disabled:opacity-30 transition-all"><Redo2 size={18}/></button>
+                  <button onClick={handleUndo} disabled={historyIndex <= 0} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 disabled:opacity-30"><Undo2 size={18}/></button>
+                  <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 disabled:opacity-30"><Redo2 size={18}/></button>
                 </div>
-                <div className="relative">
-                  <button onClick={() => { closeMenu(); setShowTimelineMenu(!showTimelineMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", tlType !== 'all' ? btnActive : btnInactive)}><Calendar size={16} /> {lang === 'de' ? 'Zeitraum' : 'Timeline'}</button>
-                  {showTimelineMenu && (
-                    <div className={cn(popupCls, 'right-0 w-[400px]')}>
-                      <div className={popupHeader}><h3 className={popupTitle}>{lang === 'de' ? 'Zeitraum' : 'Timeline'}</h3><button onClick={closeMenu} className="text-slate-400 hover:text-white"><X size={20}/></button></div>
-                      <div className="grid grid-cols-4 gap-2 mb-4">
-                        {[ { id: 'today', lEn: 'Today', lDe: 'Heute', off: 0 }, { id: 'tomorrow', lEn: 'Tomorrow', lDe: 'Morgen', off: 1 }, { id: '3days', lEn: '3 Days', lDe: '3 Tage', off: 3 }, { id: '7days', lEn: '7 Days', lDe: '7 Tage', off: 7 } ].map(t => (
-                          <button key={t.id} onClick={() => {
-                            const s = new Date(); if (t.off > 0 && t.id !== '3days' && t.id !== '7days') s.setDate(s.getDate() + t.off);
-                            const e = new Date(); e.setDate(e.getDate() + t.off);
-                            setTlStart(s.toISOString().split('T')[0]); setTlEnd(e.toISOString().split('T')[0]); setTlType(t.id as any);
-                          }} className={cn("py-2 rounded-lg text-xs font-medium border transition-all", tlType === t.id ? btnActive : btnInactive)}>{lang === 'de' ? t.lDe : t.lEn}</button>
-                        ))}
-                      </div>
-                      <div className={cn("p-4 rounded-xl border mb-4", dk ? "bg-black/20 border-white/5" : "bg-slate-50 border-slate-200")}>
-                        <div className="flex items-center gap-3">
-                           <input type="date" value={tlStart} onChange={e => {setTlStart(e.target.value); setTlType('range');}} className={cn("flex-1 p-2 rounded-lg outline-none text-sm font-medium", dk ? "bg-transparent border border-white/10" : "bg-white border border-slate-200")} />
-                           <span className="text-slate-400">➔</span>
-                           <input type="date" value={tlEnd} onChange={e => {setTlEnd(e.target.value); setTlType('range');}} className={cn("flex-1 p-2 rounded-lg outline-none text-sm font-medium", dk ? "bg-transparent border border-white/10" : "bg-white border border-slate-200")} />
-                        </div>
-                      </div>
-                      <div className="flex justify-center border-t border-slate-200 dark:border-white/10 pt-4">
-                        <button onClick={() => {setTlType('all'); setTlStart(''); setTlEnd(''); closeMenu();}} className={cn("w-full py-2.5 rounded-lg border flex items-center justify-center gap-2 text-sm font-medium", dk ? "border-teal-600 text-teal-500 hover:bg-teal-600/10" : "border-teal-600 text-teal-700 hover:bg-teal-50")}><Trash2 size={16}/> {lang === 'de' ? 'Zeitraum zurücksetzen' : 'Clear Timeline'}</button>
-                      </div>
+                <button onClick={() => setShowTimelineMenu(!showTimelineMenu)} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", tlType !== 'all' ? btnActive : btnInactive)}><Calendar size={16} /> {lang === 'de' ? 'Zeitraum' : 'Timeline'}</button>
+                {showTimelineMenu && (
+                  <div className={popupCls}>
+                    <div className={popupHeader}><h3 className={popupTitle}>Timeline</h3><button onClick={closeMenu}><X size={20}/></button></div>
+                    <div className="grid grid-cols-2 gap-2 mb-4">
+                       {[{id:'today',l:'Today'},{id:'tomorrow',l:'Tomorrow'},{id:'3days',l:'3 Days'},{id:'7days',l:'7 Days'}].map(t=>(
+                         <button key={t.id} onClick={()=>{
+                           const s = new Date(); if(t.id==='tomorrow') s.setDate(s.getDate()+1);
+                           const e = new Date(); if(t.id==='3days') e.setDate(e.getDate()+3); else if(t.id==='7days') e.setDate(e.getDate()+7); else e.setDate(s.getDate());
+                           setTlStart(s.toISOString().split('T')[0]); setTlEnd(e.toISOString().split('T')[0]); setTlType(t.id as any);
+                         }} className={cn("py-2 rounded-lg text-xs border", tlType===t.id ? btnActive : btnInactive)}>{t.l}</button>
+                       ))}
                     </div>
-                  )}
-                </div>
-                <div className="relative">
-                  <button onClick={() => { setShowTimelineMenu(false); setShowSortMenu(false); setShowFilterMenu(!showFilterMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", (fbType !== 'all' || filterPaid !== 'all' || filterDeposit !== 'all' || groupBy !== 'none') ? btnActive : btnInactive)}><Filter size={16} /> Filter</button>
-                  {showFilterMenu && (
-                    <div className={popupCls}>
-                      <div className={popupHeader}><h3 className={popupTitle}>Filter</h3><button onClick={closeMenu} className="text-slate-400"><X size={20}/></button></div>
-                      <div className="space-y-5">
-                         <div>
-                           <p className={sectionTitle}>{lang === 'de' ? 'Freie Betten' : 'Free Beds'}</p>
-                           <div className="grid grid-cols-2 gap-2 mb-2">
-                             {[ { id: 'today', lEn: `Today (${fbCountToday})`, lDe: `Heute (${fbCountToday})` }, { id: 'tomorrow', lEn: `Tomorrow (${fbCountTomorrow})`, lDe: `Morgen (${fbCountTomorrow})` }, { id: '3days', lEn: `in 3 days (${fbCount3})`, lDe: `in 3 Tagen (${fbCount3})` }, { id: '7days', lEn: `in 7 days (${fbCount7})`, lDe: `in 7 Tagen (${fbCount7})` } ].map(f => <button key={f.id} onClick={() => setFbType(f.id as any)} className={cn("py-2 rounded-lg text-sm font-medium transition-all border", fbType === f.id ? btnActive : btnInactive)}>{lang === 'de' ? f.lDe : f.lEn}</button>)}
-                           </div>
+                  </div>
+                )}
+                <button onClick={() => setShowFilterMenu(!showFilterMenu)} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", fbType !== 'all' || groupBy !== 'none' ? btnActive : btnInactive)}><Filter size={16} /> Filter</button>
+                {showFilterMenu && (
+                   <div className={popupCls}>
+                      <div className={popupHeader}><h3 className={popupTitle}>Filter</h3><button onClick={closeMenu}><X size={20}/></button></div>
+                      <div className="space-y-4">
+                         <p className={sectionTitle}>Beds Count</p>
+                         <div className="grid grid-cols-2 gap-2">
+                           {[{id:'today',n:fbCountToday},{id:'tomorrow',n:fbCountTomorrow}].map(f=>(
+                             <button key={f.id} onClick={()=>setFbType(f.id as any)} className={cn("py-2 rounded-lg text-xs border", fbType===f.id ? btnActive : btnInactive)}>{f.id} ({f.n})</button>
+                           ))}
                          </div>
-                         <div><p className={sectionTitle}>{lang === 'de' ? 'Zahlung' : 'Payment'}</p>
-                           <div className={segmentContainer}>{[{id:'all', lEn:'All', lDe:'Alle'}, {id:'paid', lEn:'Paid', lDe:'Bezahlt'}, {id:'unpaid', lEn:'Unpaid', lDe:'Unbezahlt'}].map(p => <button key={p.id} onClick={() => setFilterPaid(p.id as any)} className={segmentBtn(filterPaid === p.id)}>{lang === 'de' ? p.lDe : p.lEn}</button>)}</div>
-                         </div>
-                         <div><p className={sectionTitle}>{lang === 'de' ? 'Gruppieren' : 'Group'}</p>
-                           <div className={segmentContainer}>{[{id:'none', lEn:'None', lDe:'Keine'}, {id:'hotel', lEn:'Hotel', lDe:'Hotel'}, {id:'company', lEn:'Company', lDe:'Firma'}, {id:'city', lEn:'City', lDe:'Stadt'}].map(g => <button key={g.id} onClick={() => setGroupBy(g.id as any)} className={segmentBtn(groupBy === g.id)}>{lang === 'de' ? g.lDe : g.lEn}</button>)}</div>
-                         </div>
+                         <p className={sectionTitle}>Group By</p>
+                         <div className={segmentContainer}>{['none','company','city'].map(g=><button key={g} onClick={()=>setGroupBy(g as any)} className={segmentBtn(groupBy===g)}>{g}</button>)}</div>
                       </div>
-                      <div className="flex items-center justify-between border-t border-slate-200 dark:border-white/10 mt-6 pt-4">
-                        <button onClick={() => { setFilterPaid('all'); setFilterDeposit('all'); setGroupBy('none'); setFbType('all'); }} className={actionSecondary}>{lang === 'de' ? 'Alle löschen' : 'Clear All'}</button>
-                        <button onClick={closeMenu} className={actionPrimary}>{lang === 'de' ? 'Anwenden' : 'Apply'}</button>
+                   </div>
+                )}
+                <button onClick={() => setShowSortMenu(!showSortMenu)} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", sortBy !== 'created_at' ? btnActive : btnInactive)}><ArrowUpDown size={16} /> Sort</button>
+                {showSortMenu && (
+                   <div className={popupCls}>
+                      <div className={popupHeader}><h3 className={popupTitle}>Sort</h3><button onClick={closeMenu}><X size={20}/></button></div>
+                      <div className="grid grid-cols-2 gap-2">
+                         {['name','cost','free_beds','created_at'].map(s=><button key={s} onClick={()=>setSortBy(s as any)} className={cn("py-2 rounded-lg text-xs border", sortBy===s ? btnActive : btnInactive)}>{s}</button>)}
                       </div>
-                    </div>
-                  )}
-                </div>
-                <div className="relative">
-                  <button onClick={() => { setShowTimelineMenu(false); setShowFilterMenu(false); setShowSortMenu(!showSortMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", (sortBy !== 'created_at' || sortDir !== 'desc') ? btnActive : btnInactive)}><ArrowUpDown size={16} /> Sort</button>
-                  {showSortMenu && (
-                    <div className={cn(popupCls, 'w-[420px]')}>
-                      <div className={popupHeader}><h3 className={popupTitle}>Sort</h3><button onClick={closeMenu} className="text-slate-400"><X size={20}/></button></div>
-                      <div className="grid grid-cols-2 gap-3 mb-6">
-                        {[ { id: 'name', lEn: 'Name' }, { id: 'cost', lEn: 'Cost' }, { id: 'free_beds', lEn: 'Free' }, { id: 'created_at', lEn: 'Newest' } ].map(s => <button key={s.id} onClick={() => setSortBy(s.id as any)} className={cn("py-3 rounded-lg text-sm font-medium border transition-all", sortBy === s.id ? btnActive : btnInactive)}>{s.lEn}</button>)}
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <button onClick={() => setSortDir('asc')} className={cn("py-3 rounded-lg border text-sm font-medium", sortDir === 'asc' ? btnActive : btnInactive)}>Asc</button>
-                        <button onClick={() => setSortDir('desc')} className={cn("py-3 rounded-lg border text-sm font-medium", sortDir === 'desc' ? btnActive : btnInactive)}>Desc</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                   </div>
+                )}
                 <button onClick={() => setShowBookmarks(!showBookmarks)} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", showBookmarks ? btnActive : btnInactive)}><Star size={16} className={showBookmarks ? 'fill-white' : ''} /> Bookmarks</button>
                 {!isStrictViewer && (
-                  <button onClick={() => setAddingHotel(true)} className="ml-4 px-6 py-2.5 bg-[#0D9488] hover:bg-[#0f766e] text-white font-bold rounded-xl flex items-center gap-2 text-sm transition-all shadow-md active:scale-95"><Plus size={18} strokeWidth={2.5} /> Add Hotel</button>
+                  <button onClick={() => setAddingHotel(true)} className="ml-4 px-6 py-2.5 bg-[#0D9488] text-white font-bold rounded-xl flex items-center gap-2 text-sm"><Plus size={18} /> Add Hotel</button>
                 )}
               </div>
             </div>
 
-            {activeFilters.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 mb-6 animate-in fade-in duration-200">
-                <span className="text-xs font-bold text-slate-500 mr-2">Filters:</span>
-                {activeFilters.map(af => (
-                  <span key={af.id} className={cn("px-3 py-1.5 rounded-lg flex items-center gap-2 text-[11px] font-bold border", dk ? "bg-teal-500/20 text-teal-400 border-teal-500/30" : "bg-teal-50 border-teal-200 text-teal-700")}>{af.label}: <span className="opacity-70 uppercase">{af.val}</span><button onClick={af.clear} className="hover:text-red-500 ml-1 transition-colors"><X size={12} strokeWidth={3} /></button></span>
-                ))}
-                <button onClick={() => { setTlType('all'); setFbType('all'); setFilterPaid('all'); setFilterDeposit('all'); setGroupBy('none'); setSortBy('created_at'); setSortDir('desc'); setShowBookmarks(false); }} className="text-xs font-bold text-slate-400 hover:text-slate-600 ml-2 hover:underline">Clear All</button>
-              </div>
-            )}
-
             <div className="flex flex-col gap-6">
-                {addingHotel && !isStrictViewer && (
-                  <div className={cn('rounded-2xl border p-5 shadow-xl mb-4 animate-in slide-in-from-top duration-300', dk ? 'bg-[#1E293B] border-teal-500/30' : 'bg-white border-teal-500/30')}>
-                    <div className="flex flex-wrap lg:flex-nowrap items-end gap-4 w-full">
-                      <div className="flex-1 min-w-[200px]">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">Hotel Name</label>
-                        <input autoFocus className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold transition-all focus:border-teal-500', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder="Hotel..." />
-                      </div>
-                      <div className="flex-[0.8] min-w-[140px]">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">City</label>
-                        <input className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold transition-all focus:border-teal-500', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder="City..." />
-                      </div>
-                      <div className="flex-1 min-w-[160px]">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">Company</label>
-                        <div className={cn('w-full min-h-[38px] rounded-lg border px-2 flex items-center transition-all', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')}>
-                          <CompanyMultiSelect selected={newHotelCompanyTags} options={allCompanyOptions} onChange={(v: string[]) => setNewHotelCompanyTags(v)} isDarkMode={dk} lang={lang} onDeleteOption={handleDeleteGlobalCompany} onAddOption={handleAddGlobalCompany} />
-                        </div>
-                      </div>
-                      <div className="flex-[0.8] min-w-[120px]">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">Country</label>
-                        <ModernDropdown value={newHotelCountry} options={getCountryOptions()} onChange={(v: string) => setNewHotelCountry(v)} isDarkMode={dk} lang={lang} />
-                      </div>
-                      <div className="flex gap-2 shrink-0">
-                        <button onClick={handleSaveNewHotel} disabled={newHotelSaving || !newHotelName.trim()} className="px-5 h-[38px] bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-sm disabled:opacity-50 font-bold">{newHotelSaving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}</button>
-                        <button onClick={() => setAddingHotel(false)} className={cn("px-4 h-[38px] rounded-lg flex items-center justify-center transition-all border", dk ? "border-white/10 hover:bg-white/10 text-slate-300" : "border-slate-200 hover:bg-slate-100 text-slate-600")}><X size={18} /></button>
-                      </div>
+                {addingHotel && (
+                  <div className={cn('rounded-2xl border p-5 shadow-xl mb-4', dk ? 'bg-[#1E293B] border-teal-500/30' : 'bg-white border-teal-500/30')}>
+                    <div className="flex flex-wrap lg:flex-nowrap items-end gap-4">
+                      <div className="flex-1 min-w-[200px]"><label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">Hotel Name</label><input autoFocus className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} /></div>
+                      <div className="flex-[0.8] min-w-[140px]"><label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">City</label><input className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} /></div>
+                      <div className="flex-1 min-w-[160px]"><label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">Company</label><div className={cn('w-full min-h-[38px] rounded-lg border px-2 flex items-center', dk ? 'bg-[#0F172A] border-white/10' : 'bg-slate-50 border-slate-200')}><CompanyMultiSelect selected={newHotelCompanyTags} options={allCompanyOptions} onChange={setNewHotelCompanyTags} isDarkMode={dk} lang={lang} onDeleteOption={handleDeleteGlobalCompany} onAddOption={handleAddGlobalCompany} /></div></div>
+                      <div className="flex-[0.8] min-w-[120px]"><label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">Country</label><ModernDropdown value={newHotelCountry} options={getCountryOptions()} onChange={setNewHotelCountry} isDarkMode={dk} lang={lang} /></div>
+                      <button onClick={handleSaveNewHotel} disabled={newHotelSaving} className="px-5 h-[38px] bg-teal-600 text-white rounded-lg font-bold">{newHotelSaving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}</button>
+                      <button onClick={() => setAddingHotel(false)} className="px-4 h-[38px] rounded-lg border">X</button>
                     </div>
                   </div>
                 )}
@@ -504,9 +441,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                 {groupBy !== 'none' && groupData ? (
                   Object.entries(groupData).map(([gName, hList]) => (
                     <div key={gName} className="space-y-4">
-                       <div className={cn("px-6 py-4 rounded-xl border flex items-center justify-between", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200 shadow-sm")}>
-                          <div className="flex items-center gap-4"><span className="text-xs font-bold uppercase tracking-wider text-slate-500">Group: {groupBy}</span><h3 className="text-xl font-bold">{gName}</h3></div>
-                          <div className="text-right"><p className="text-[10px] font-bold text-slate-500 uppercase">Value</p><p className="text-lg font-bold text-teal-600">{formatCurrency(hList.reduce((s,h)=>s+calcHotelTotalCost(h),0))}</p></div>
+                       <div className={cn("px-6 py-4 rounded-xl border flex items-center justify-between", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}>
+                          <h3 className="text-xl font-bold">{gName}</h3>
+                          <p className="text-lg font-bold text-teal-600">{formatCurrency(hList.reduce((s,h)=>s+calcHotelTotalCost(h),0))}</p>
                        </div>
                        <div className="flex flex-col gap-4 pl-4 border-l-2 border-teal-500/30">{hList.map((h, i) => <HotelRow key={h.id} entry={h} index={i} isDarkMode={dk} lang={lang} searchQuery={searchQuery} companyOptions={allCompanyOptions} cityOptions={uniqueCities} onDelete={hId => setHotels(hotels.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(hotels.map(ho=>ho.id===hId?{...ho,...up}:ho))} onDeleteCompanyOption={handleDeleteGlobalCompany} onAddOption={handleAddGlobalCompany} />)}</div>
                     </div>
@@ -515,12 +452,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                   finalFiltered.map((hotel, index) => (
                     <HotelRow key={hotel.id} entry={hotel} index={index} isDarkMode={dk} lang={lang} searchQuery={searchQuery} companyOptions={allCompanyOptions} cityOptions={uniqueCities} onDelete={hId => setHotels(hotels.filter(h=>h.id!==hId))} onUpdate={(hId, up) => setHotels(hotels.map(h=>h.id===hId?{...h,...up}:h))} onDeleteCompanyOption={handleDeleteGlobalCompany} onAddOption={handleAddGlobalCompany} />
                   ))
-                )}
-                {!loading && finalFiltered.length === 0 && (
-                  <div className="text-center py-20 opacity-50 flex flex-col items-center">
-                     <Building size={48} className="mb-4 text-slate-400" />
-                     <p className="text-lg font-bold">No hotels found</p>
-                  </div>
                 )}
             </div>
           </main>
