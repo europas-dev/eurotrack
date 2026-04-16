@@ -105,23 +105,31 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     };
   }, []);
 
-  // 3. Fetch Hotels (With Anti-Hang Timeout)
+  // 3. Fetch Hotels (With Ironclad Anti-Hang Timeout)
   useEffect(() => { 
     let isMounted = true;
-    const abortController = new AbortController(); // Prevents infinite hanging
-    
     setLoading(true);
     
     async function fetchHotels() {
       try {
-        const { data, error: sErr } = await supabase
+        // 1. The Database Query
+        const queryPromise = supabase
           .from('hotels')
           .select('*, durations(*, room_cards(*, employees(*)), employees(*))')
           .eq('year', selectedYear)
-          .order('created_at', { ascending: false })
-          .abortSignal(abortController.signal); // Attach the abort signal
+          .order('created_at', { ascending: false });
 
-        if (sErr) throw sErr;
+        // 2. The Hard Timeout (8 Seconds)
+        // If the browser tab sleeps and Supabase gets stuck waking up, this forces it to stop.
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('CONNECTION_TIMEOUT')), 8000)
+        );
+
+        // 3. RACE! Whichever finishes first wins.
+        const response: any = await Promise.race([queryPromise, timeoutPromise]);
+        
+        if (response.error) throw response.error;
+        const data = response.data;
 
         const normalized = (data || []).map((h: any) => ({
           ...h, companyTag: h.company_tag ?? [],
@@ -148,23 +156,19 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         }
       } catch (err: any) { 
         if (isMounted) { 
-          // If the fetch was aborted intentionally, don't throw a scary error
-          if (err.name === 'AbortError') {
-             console.warn('Supabase fetch aborted due to cleanup.');
+          if (err.message === 'CONNECTION_TIMEOUT') {
+             console.warn("Supabase hung on wake-up. Forcing UI to release.");
+             // Optional: You could trigger a silent retry here if you wanted to
           } else {
              setError(err.message); 
           }
-          setLoading(false); 
+          setLoading(false); // GUARANTEED to stop the loading spinner
         } 
       }
     }
     
     fetchHotels(); 
-    
-    return () => { 
-      isMounted = false; 
-      abortController.abort(); // Cancel the fetch if the user rapidly switches tabs/months
-    };
+    return () => { isMounted = false; };
   }, [selectedYear]);
 
   const uniqueCompanies = useMemo(() => Array.from(new Set(hotels.flatMap(h => h.companyTag || []).filter(Boolean))), [hotels]);
