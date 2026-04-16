@@ -133,20 +133,12 @@ useEffect(() => {
       if (cancelled || !initDone.current) return;
       
       if (event === 'SIGNED_IN' && session?.user) {
-        // If the user is already on the dashboard, do a QUIET background refresh.
-        // Only show the loading spinner if they are coming from the landing page.
-        setLoading(prev => {
-          if (view === 'landing' || view === 'login') return true;
-          return prev; 
-        });
-        
+        setLoading(true);
         try {
-          // Pass the persisted view so it doesn't force you back to a default screen
-          await resolveAccess(getPersistedView());
+          await resolveAccess(null);
         } catch (err) {
           console.error("Auth state change error:", err);
         } finally {
-          // GUARANTEED to turn off the loading spinner, even if the network fails
           setLoading(false);
         }
       } else if (event === 'SIGNED_OUT') {
@@ -157,7 +149,6 @@ useEffect(() => {
         setAccessLevel(null);
         setView('landing');
         setLoading(false);
-        signingOut.current = false;
       }
     });
 
@@ -174,8 +165,7 @@ useEffect(() => {
       window.removeEventListener('online',  handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [view, resolveAccess]); // Added dependencies to ensure it has latest state
-
+  }, [resolveAccess]); // CRITICAL FIX: Removed 'view' so the listener never drops!
   useEffect(() => {
     if (view === 'pending') startPendingPoll();
     else stopPoll();
