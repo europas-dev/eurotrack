@@ -105,7 +105,7 @@ function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, clas
 }
 
 // --- HOTEL ROW MAIN EXPORT ---
-export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], onDelete, onUpdate, onDeleteCompanyOption }: any) {
+export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onAddOption }: any) {
   const [open, setOpen] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   
@@ -227,9 +227,17 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             )}
           </div>
 
-          {/* COMPANY */}
+         {/* COMPANY */}
           <div className="flex-[0.8] px-2 min-w-[120px]" onClick={e => e.stopPropagation()}>
-            <CompanyMultiSelect selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} />
+            <CompanyMultiSelect 
+              selected={localHotel.companyTag} 
+              options={companyOptions} 
+              isDarkMode={dk} 
+              lang={lang} 
+              onChange={(tags:any) => patchHotel({ companyTag: tags })} 
+              onDeleteOption={onDeleteCompanyOption} 
+              onAddOption={onAddOption} // <--- ADD THIS EXACT WIRE
+            />
           </div>
 
           {/* DURATIONS */}
