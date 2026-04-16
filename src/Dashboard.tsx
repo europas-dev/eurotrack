@@ -6,9 +6,9 @@ import type { AccessLevel } from './lib/supabase';
 import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Undo2, Redo2, Star, Calendar, MapPin, Building, Building2, CloudOff, Globe, Trash2 } from 'lucide-react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
-import { HotelRow, ModernDropdown, CompanyMultiSelect, getCountryOptions } from './components/HotelRow'; // IMPORT FIX: Added CompanyMultiSelect
+import { HotelRow, ModernDropdown, CompanyMultiSelect, getCountryOptions } from './components/HotelRow';
 
-// ADDED: API functions for the new Companies table
+// API functions for the System Companies table
 async function getSystemCompanies(): Promise<string[]> {
   const { data, error } = await supabase.from('companies').select('name').order('name');
   if (error) return [];
@@ -30,7 +30,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const isStrictViewer = viewOnly || accessLevel?.role === 'viewer' || accessLevel?.role === 'pending';
 
   const [hotels, setHotels] = useState<any[]>([]);
-  const [systemCompanies, setSystemCompanies] = useState<string[]>([]); // ADDED: State for global companies
+  const [systemCompanies, setSystemCompanies] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -54,8 +54,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [filterDeposit, setFilterDeposit] = useState<'all' | 'yes' | 'no'>('all');
   const [groupBy, setGroupBy] = useState<'none' | 'hotel' | 'company' | 'city' | 'country'>('none');
   
-  const [sortBy, setSortBy] = useState<'name' | 'cost' | 'bed_price' | 'free_beds' | 'created_at' | 'updated_at'>('name');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  // FIXED: Default Sorting is now 'created_at' and 'desc' (Newest First)
+  const [sortBy, setSortBy] = useState<'name' | 'cost' | 'bed_price' | 'free_beds' | 'created_at' | 'updated_at'>('created_at');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [bookmarks, setBookmarks] = useState<string[]>(() => {
@@ -66,17 +67,17 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [addingHotel, setAddingHotel] = useState(false);
   
-  // FIXED: State types for the Add Hotel Form
+  // State types for the Add Hotel Form
   const [newHotelName, setNewHotelName] = useState('');
   const [newHotelCity, setNewHotelCity] = useState('');
-  const [newHotelCompanyTags, setNewHotelCompanyTags] = useState<string[]>([]); // Multi-select array
-  const [newHotelCountry, setNewHotelCountry] = useState('Germany'); // Restored country
+  const [newHotelCompanyTags, setNewHotelCompanyTags] = useState<string[]>([]);
+  const [newHotelCountry, setNewHotelCountry] = useState('Germany'); 
   const [newHotelSaving, setNewHotelSaving] = useState(false);
   
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
 
-  // 1. Online/Offline Listener
+  // Online/Offline Listener
   useEffect(() => {
     const hO = () => setIsOnline(true);
     const hOff = () => setIsOnline(false);
@@ -94,12 +95,11 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       try { setBookmarks(JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]')); } catch {}
     };
     window.addEventListener('storage', handleStorage);
-    // Custom event to catch changes from within the same tab
     const interval = setInterval(handleStorage, 1000); 
     return () => { window.removeEventListener('storage', handleStorage); clearInterval(interval); };
   }, []);
 
-  // 2. Channel Tracking for Live Collaborators
+  // Channel Tracking for Live Collaborators
   useEffect(() => {
     let isMounted = true;
     const channel = supabase.channel('dashboard_presence', { config: { presence: { key: 'user' } } });
@@ -129,7 +129,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     };
   }, []);
 
-  // 3. Fetch Hotels & System Companies
+  // Fetch Hotels & System Companies
   useEffect(() => { 
     let isMounted = true;
     setLoading(true);
@@ -218,7 +218,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const handleUndo = () => { if (historyIndex > 0) { setHistoryIndex(historyIndex - 1); setHotels(history[historyIndex - 1]); } };
   const handleRedo = () => { if (historyIndex < history.length - 1) { setHistoryIndex(historyIndex + 1); setHotels(history[historyIndex + 1]); } };
 
-  // FIXED: ADD HOTEL FUNCTION
+  // ADD HOTEL FUNCTION
   async function handleSaveNewHotel() {
     if (!newHotelName.trim()) return; 
     setNewHotelSaving(true);
@@ -227,11 +227,11 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         name: newHotelName.trim(), 
         city: newHotelCity.trim() || null, 
         companyTag: newHotelCompanyTags, 
-        country: newHotelCountry, // Included Restored Country
+        country: newHotelCountry, 
         year: selectedYear 
       });
       
-      // FIXED: Push to TOP of the array, not the bottom
+      // Because we sort by Newest First by default, this naturally places it at the top
       const next = [{ ...h, durations: [] }, ...hotels]; 
       setHotels(next); 
       pushToHistory(next); 
@@ -249,7 +249,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     }
   }
 
-  // FIXED: Predictive Free Beds Calculator
+  // FIXED: Predictive Free Beds Calculator matches row logic
   const getBedsCount = (daysOffset: number) => {
      const d = new Date(); d.setDate(d.getDate() + daysOffset);
      const dStr = d.toISOString().split('T')[0];
@@ -258,7 +258,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         (h.durations || []).forEach((dur: any) => {
            if (dur.startDate <= dStr && dur.endDate >= dStr) {
               (dur.roomCards || []).forEach((rc: any) => {
-                 // Accurately checks employee dates against the target date
                  const emps = (rc.employees || []).filter((e: any) => e.checkIn <= dStr && e.checkOut > dStr);
                  total += Math.max(0, (rc.bedCount || 0) - emps.length);
               });
@@ -275,7 +274,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
   const finalFiltered = useMemo(() => {
     return hotels.filter(h => {
-      // Bookmarks Filter
+      // Bookmarks Filter Fixed
       if (showBookmarks && !bookmarks.includes(h.id)) return false;
       
       if (searchQuery && !hotelMatchesSearch(h, searchQuery, searchScope)) return false;
@@ -356,7 +355,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     if (filterPaid !== 'all') badges.push({ id: 'paid', label: lang === 'de' ? 'Zahlung' : 'Payment', val: filterPaid, clear: () => setFilterPaid('all') });
     if (filterDeposit !== 'all') badges.push({ id: 'dep', label: lang === 'de' ? 'Kaution' : 'Deposit', val: filterDeposit, clear: () => setFilterDeposit('all') });
     if (groupBy !== 'none') badges.push({ id: 'grp', label: lang === 'de' ? 'Gruppe' : 'Group', val: groupBy, clear: () => setGroupBy('none') });
-    if (sortBy !== 'name' || sortDir !== 'asc') badges.push({ id: 'srt', label: lang === 'de' ? 'Sortierung' : 'Sort', val: `${sortBy.replace('_', ' ')} (${sortDir})`, clear: () => { setSortBy('name'); setSortDir('asc'); } });
+    // Adjusted logic so it doesn't show a badge for the default sort
+    if (sortBy !== 'created_at' || sortDir !== 'desc') badges.push({ id: 'srt', label: lang === 'de' ? 'Sortierung' : 'Sort', val: `${sortBy.replace('_', ' ')} (${sortDir})`, clear: () => { setSortBy('created_at'); setSortDir('desc'); } });
     return badges;
   }, [tlType, tlStart, tlEnd, fbType, filterPaid, filterDeposit, groupBy, sortBy, sortDir, lang]);
 
@@ -487,7 +487,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
               {/* SORT MENU */}
               <div className="relative">
-                <button onClick={() => { setShowTimelineMenu(false); setShowFilterMenu(false); setShowSortMenu(!showSortMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", (sortBy !== 'name' || sortDir !== 'asc') ? btnActive : btnInactive)}><ArrowUpDown size={16} /> {lang === 'de' ? 'Sortieren' : 'Sort'}</button>
+                <button onClick={() => { setShowTimelineMenu(false); setShowFilterMenu(false); setShowSortMenu(!showSortMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", (sortBy !== 'created_at' || sortDir !== 'desc') ? btnActive : btnInactive)}><ArrowUpDown size={16} /> {lang === 'de' ? 'Sortieren' : 'Sort'}</button>
                 {showSortMenu && (
                   <div className={cn(popupCls, 'w-[420px]')}>
                     <div className={popupHeader}><h3 className={popupTitle}>{lang === 'de' ? 'Sortieren' : 'Sort'}</h3><button onClick={closeMenu} className="text-slate-400"><X size={20}/></button></div>
@@ -502,7 +502,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                       <button onClick={() => setSortDir('desc')} className={cn("py-3 rounded-lg border text-left px-4 transition-all", sortDir === 'desc' ? btnActive : btnInactive)}><span className="block text-sm font-medium">{lang === 'de' ? 'Absteigend' : 'Descending'}</span><span className={cn("block text-[10px] mt-1 font-normal", sortDir === 'desc' ? 'opacity-90' : 'opacity-50')}>{lang === 'de' ? 'Absteigend, Z-A, Neueste' : 'High to Low, Z-A, Newest'}</span></button>
                     </div>
                     <div className="flex items-center justify-between border-t border-slate-200 dark:border-white/10 pt-4">
-                      <button onClick={() => { setSortBy('name'); setSortDir('asc'); }} className={actionSecondary}>{lang === 'de' ? 'Sortierung zurücksetzen' : 'Reset Sorting'}</button>
+                      {/* Fixed: Reset sorting now goes back to Newest First default */}
+                      <button onClick={() => { setSortBy('created_at'); setSortDir('desc'); }} className={actionSecondary}>{lang === 'de' ? 'Sortierung zurücksetzen' : 'Reset Sorting'}</button>
                       <button onClick={closeMenu} className={actionPrimary}>{lang === 'de' ? 'Sortierung anwenden' : 'Apply Sorting'}</button>
                     </div>
                   </div>
@@ -529,12 +530,12 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                   <button onClick={af.clear} className="hover:text-red-500 ml-1 transition-colors"><X size={12} strokeWidth={3} /></button>
                 </span>
               ))}
-              <button onClick={() => { setTlType('all'); setFbType('all'); setFilterPaid('all'); setFilterDeposit('all'); setGroupBy('none'); setSortBy('name'); setSortDir('asc'); setShowBookmarks(false); }} className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-white ml-2 transition-all hover:underline">{lang === 'de' ? 'Alle löschen' : 'Clear All'}</button>
+              <button onClick={() => { setTlType('all'); setFbType('all'); setFilterPaid('all'); setFilterDeposit('all'); setGroupBy('none'); setSortBy('created_at'); setSortDir('desc'); setShowBookmarks(false); }} className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-white ml-2 transition-all hover:underline">{lang === 'de' ? 'Alle löschen' : 'Clear All'}</button>
             </div>
           )}
 
           <div className="flex flex-col gap-6">
-              {/* FIXED ADD HOTEL FORM (Notion Style Components Restored) */}
+              {/* ADD HOTEL FORM */}
               {addingHotel && !isStrictViewer && (
                 <div className={cn('rounded-2xl border p-5 shadow-xl mb-4 animate-in slide-in-from-top duration-300', dk ? 'bg-[#1E293B] border-teal-500/30' : 'bg-white border-teal-500/30')}>
                   <div className="flex flex-wrap lg:flex-nowrap items-end gap-4 w-full">
@@ -556,7 +557,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                       </div>
                     </div>
 
-                    {/* RESTORED COUNTRY DROPDOWN */}
                     <div className="flex-[0.8] min-w-[120px]">
                       <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block"><Globe size={10} className="inline mr-1"/> {lang === 'de' ? 'Land' : 'Country'}</label>
                       <ModernDropdown value={newHotelCountry} options={getCountryOptions()} onChange={(v: string) => setNewHotelCountry(v)} isDarkMode={dk} lang={lang} />
