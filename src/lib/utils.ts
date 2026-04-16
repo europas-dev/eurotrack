@@ -182,10 +182,23 @@ export function calcHotelFreeBedsToday(hotel: any): number {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function hotelMatchesSearch(hotel: any, query: string): boolean {
+export function hotelMatchesSearch(hotel: any, query: string, scope: string = 'all'): boolean {
   if (!query) return true;
   const q = query.toLowerCase();
   
+  // IF SCOPE IS EMPLOYEES: Only check employee names. Ignore hotel names/cities.
+  if (scope === 'employees' || scope === 'employee') {
+    for (const d of (hotel.durations || [])) {
+      for (const rc of (d.roomCards || [])) {
+        for (const emp of (rc.employees || [])) {
+          if (emp.name?.toLowerCase().includes(q)) return true;
+        }
+      }
+    }
+    return false; // If it didn't find an employee, reject this hotel.
+  }
+
+  // IF SCOPE IS ALL: Search everything (Original Logic)
   const hName = hotel.name?.toLowerCase() || '';
   const hCity = hotel.city?.toLowerCase() || '';
   const tags = Array.isArray(hotel.companyTag) ? hotel.companyTag.join(' ').toLowerCase() : (hotel.companyTag?.toLowerCase() || '');
