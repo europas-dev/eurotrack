@@ -88,8 +88,8 @@ function MwstInput({ value, onChange, isDarkMode }: { value: string | null, onCh
   }, []);
 
   return (
-    <div ref={ref} className="relative flex items-center h-[38px]">
-      <input type="number" value={value ?? ''} onChange={e => onChange(e.target.value === '' ? null : normalizeNumberInput(e.target.value))} className={cn('w-12 px-2 py-1.5 rounded-l-lg text-sm font-bold outline-none border transition-all h-full text-center', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} placeholder="7" />
+    <div ref={ref} className="relative flex items-center h-[34px]">
+      <input type="number" value={value ?? ''} onChange={e => onChange(e.target.value === '' ? null : normalizeNumberInput(e.target.value))} className={cn('w-12 px-2 py-1.5 rounded-l-lg text-sm font-bold outline-none border transition-all h-full text-center', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} placeholder="--" />
       <button onClick={() => setOpen(!open)} className={cn('px-1 h-full rounded-r-lg border border-l-0 transition-all flex items-center justify-center', isDarkMode ? 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100')}><ChevronDown size={12} /></button>
       {open && (
         <div className={cn("absolute top-full right-0 mt-1 w-16 z-50 rounded-lg shadow-xl overflow-hidden border", isDarkMode ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
@@ -109,7 +109,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [showMasterBase, setShowMasterBase] = useState(entry.base_netto != null || entry.base_brutto != null);
   const [showExtras, setShowExtras] = useState(entry.extra_costs?.length > 0);
   
-  // Edit states for 1-Cent Overrides
   const [editingOBrutto, setEditingOBrutto] = useState(false);
   const [editBruttoValue, setEditBruttoValue] = useState('');
   
@@ -125,7 +124,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     companyTag: Array.isArray(entry?.companyTag) ? entry.companyTag : (entry?.companyTag ? [entry.companyTag] : []),
     durations: entry?.durations ?? [],
     extraCosts: entry?.extra_costs ?? [],
-    baseMwst: entry?.base_mwst ?? 7,
+    baseMwst: entry?.base_mwst ?? null, // STRICTLY NULL TO START
   });
   
   const [saving, setSaving] = useState(false);
@@ -181,12 +180,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     const isMasterActive = localHotel.base_netto != null || localHotel.base_brutto != null;
 
     let bNetto = 0; let bBrutto = 0; 
-    let bMwSt = parseFloat(localHotel.baseMwst);
-    let isMwstValid = !isNaN(bMwSt);
+    let bMwSt = localHotel.baseMwst != null ? parseFloat(localHotel.baseMwst) : null;
+    let isMwstValid = bMwSt !== null && !isNaN(bMwSt);
 
-    // Two-Way Display Logic for the Base Cost Inputs
     let bNettoDisplay = ''; let bBruttoDisplay = '';
 
+    // TRUE VICE VERSA LOGIC
     if (localHotel.base_netto != null) {
       bNetto = parseFloat(localHotel.base_netto);
       bNettoDisplay = localHotel.base_netto.toString();
@@ -226,28 +225,28 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           const dVal = parseFloat(localHotel.discountValue);
           taxableBase = localHotel.discountType === 'fixed' ? Math.max(0, bNetto - dVal) : Math.max(0, bNetto * (1 - dVal/100));
        }
-       buckets[bMwSt] = taxableBase * (bMwSt / 100);
+       buckets[bMwSt!] = taxableBase * (bMwSt! / 100);
     }
 
     let extraNettoTotal = 0; let extraBruttoTotal = 0;
     const extrasWithDisplay = (localHotel.extraCosts || []).map((ec: any) => {
        let eNetto = 0; let eBrutto = 0;
-       let eMwst = parseFloat(ec.mwst ?? 19);
-       let eMwstValid = !isNaN(eMwst);
+       let eMwst = ec.mwst != null ? parseFloat(ec.mwst) : null;
+       let eMwstValid = eMwst !== null && !isNaN(eMwst);
        let eNettoDisplay = ''; let eBruttoDisplay = '';
 
        if (ec.netto != null) {
          eNetto = parseFloat(ec.netto);
          eNettoDisplay = ec.netto.toString();
-         if (eMwstValid) { eBrutto = eNetto * (1 + eMwst/100); eBruttoDisplay = eBrutto.toFixed(2); }
+         if (eMwstValid) { eBrutto = eNetto * (1 + eMwst!/100); eBruttoDisplay = eBrutto.toFixed(2); }
        } else if (ec.brutto != null) {
          eBrutto = parseFloat(ec.brutto);
          eBruttoDisplay = ec.brutto.toString();
-         if (eMwstValid) { eNetto = eBrutto / (1 + eMwst/100); eNettoDisplay = eNetto.toFixed(2); }
+         if (eMwstValid) { eNetto = eBrutto / (1 + eMwst!/100); eNettoDisplay = eNetto.toFixed(2); }
        }
        extraNettoTotal += eNetto;
        extraBruttoTotal += eBrutto;
-       if (eMwstValid && eNetto > 0) buckets[eMwst] = (buckets[eMwst] || 0) + (eNetto * (eMwst / 100));
+       if (eMwstValid && eNetto > 0) buckets[eMwst!] = (buckets[eMwst!] || 0) + (eNetto * (eMwst! / 100));
        return { ...ec, eNettoDisplay, eBruttoDisplay };
     });
 
@@ -311,9 +310,20 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     }, 400);
   }
 
+  // --- EXTRA COSTS TOGGLE & ADD LOGIC ---
+  const toggleExtras = () => {
+     if (showExtras) {
+        setShowExtras(false);
+     } else {
+        setShowExtras(true);
+        if (localHotel.extraCosts.length === 0) {
+           patchHotel({ extraCosts: [{ id: Math.random().toString(), note: '', netto: null, mwst: null, brutto: null }], extra_costs: [{ id: Math.random().toString(), note: '', netto: null, mwst: null, brutto: null }] });
+        }
+     }
+  };
+
   const addExtra = () => {
-    setShowExtras(true);
-    patchHotel({ extraCosts: [...localHotel.extraCosts, { id: Math.random().toString(), note: '', netto: null, mwst: 19, brutto: null }], extra_costs: [...localHotel.extraCosts, { id: Math.random().toString(), note: '', netto: null, mwst: 19, brutto: null }] });
+    patchHotel({ extraCosts: [...localHotel.extraCosts, { id: Math.random().toString(), note: '', netto: null, mwst: null, brutto: null }], extra_costs: [...localHotel.extraCosts, { id: Math.random().toString(), note: '', netto: null, mwst: null, brutto: null }] });
   };
   const updateExtra = (id: string, updates: any) => {
     const next = localHotel.extraCosts.map((e:any) => e.id === id ? { ...e, ...updates } : e);
@@ -343,8 +353,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   };
 
   const handleEnterBlur = (e: React.KeyboardEvent) => { if (e.key === 'Enter') (e.target as HTMLElement).blur(); };
-  const labelCls = cn('flex items-center text-[10px] font-bold uppercase tracking-widest', dk ? 'text-slate-400' : 'text-slate-500');
-  const inputCls = cn('w-full px-3 py-2 rounded-lg text-sm font-bold outline-none border transition-all focus:border-teal-500 h-[38px]', dk ? 'bg-[#1E293B] border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400');
+  const labelCls = cn('flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-500', dk && 'text-slate-400');
+  const inputCls = cn('w-full px-2 py-1.5 rounded-lg text-sm font-bold outline-none border transition-all h-[34px]', dk ? 'bg-[#1E293B] border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400');
 
   return (
     <div className="space-y-1 relative" style={{ zIndex: 40 - (index % 30) }}>
@@ -359,7 +369,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           <div className="flex-[2] py-2 min-w-[200px] pr-2">
             <SeamlessInput value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-[15px] font-black leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchQuery} />
             <SeamlessInput value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} className="mt-0.5" textClass={cn("text-[10px] font-bold uppercase tracking-widest", dk ? "text-slate-500" : "text-slate-400")} searchQuery={searchQuery} />
-            {hiddenMatchText && !open && (<span className="inline-block mt-1 px-1.5 py-0.5 bg-teal-500/10 border border-teal-500/30 text-teal-600 dark:text-teal-400 text-[9px] font-bold rounded-full truncate">🔍 {hiddenMatchText}</span>)}
           </div>
 
           <div className="flex-[0.8] px-2 min-w-[120px]" onClick={e => e.stopPropagation()}>
@@ -406,7 +415,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               <p className={cn('text-lg font-black', dk ? 'text-white' : 'text-slate-900')}>{formatCurrency(masterMath.displayBrutto)}</p>
             </div>
 
-            {/* RESTORED ACTION BUTTONS */}
             <div className="flex items-center gap-1 pl-2">
                <button onClick={handleBookmarkToggle} className={cn("p-1.5 rounded-lg transition-all", isBookmarked ? "text-yellow-500 hover:text-yellow-400 bg-yellow-500/10" : "text-slate-400 hover:text-yellow-500 hover:bg-white/5")}>
                  <Star size={16} className={isBookmarked ? "fill-yellow-500" : ""} />
@@ -426,16 +434,17 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         {open && (
           <div className={cn('p-6 space-y-6 rounded-b-2xl border-t', dk ? 'bg-[#0B1224] border-white/5' : 'bg-slate-50 border-slate-200')} onClick={e => e.stopPropagation()}>
             
-            {/* RESTORED CONTACT ROW */}
+            {/* RESTORED & CONDENSED CONTACT ROW */}
             <div className="flex flex-wrap xl:flex-nowrap gap-4 items-end">
-              <div className="flex-[2.5] min-w-[220px] flex items-end gap-2">
-                 <div className="shrink-0"><label className={cn(labelCls, 'mb-1.5')}><StickyNote size={12}/> {lang === 'de' ? 'Notiz' : 'Note'}</label><button onClick={() => setShowNotes(!showNotes)} className={cn("w-[38px] h-[38px] rounded-lg border flex items-center justify-center transition-all", localHotel.notes ? "bg-teal-500/10 border-teal-500/30 text-teal-500" : dk ? "bg-[#1E293B] border-white/10 text-slate-400 hover:text-white hover:bg-white/5" : "bg-white border-slate-200 text-slate-400 hover:text-slate-800 hover:bg-slate-50")}><StickyNote size={16} /></button></div>
+              <div className="flex-[2] min-w-[180px] flex items-end gap-2">
+                 <div className="shrink-0"><label className={cn(labelCls, 'mb-1.5')}><StickyNote size={12}/> {lang === 'de' ? 'Notiz' : 'Note'}</label><button onClick={() => setShowNotes(!showNotes)} className={cn("w-[34px] h-[34px] rounded-lg border flex items-center justify-center transition-all", localHotel.notes ? "bg-teal-500/10 border-teal-500/30 text-teal-500" : dk ? "bg-[#1E293B] border-white/10 text-slate-400 hover:text-white hover:bg-white/5" : "bg-white border-slate-200 text-slate-400 hover:text-slate-800 hover:bg-slate-50")}><StickyNote size={16} /></button></div>
                  <div className="flex-1"><label className={cn(labelCls, 'mb-1.5')}><MapPin size={12}/> {lang === 'de' ? 'Adresse' : 'Address'}</label><input autoComplete="off" value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} placeholder="..." /></div>
               </div>
-              <div className="flex-[1.5] min-w-[140px]"><label className={cn(labelCls, 'mb-1.5')}><User size={12}/> {lang === 'de' ? 'Ansprechpartner' : 'Contact'}</label><input autoComplete="off" value={localHotel.contactPerson || ''} onChange={e => patchHotel({ contactPerson: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} placeholder="..." /></div>
-              <div className="flex-[1.5] min-w-[140px]"><label className={cn(labelCls, 'mb-1.5')}><Phone size={12}/> {lang === 'de' ? 'Telefon' : 'Phone'}</label><div className={cn('flex items-center rounded-lg border overflow-hidden h-[38px]', dk ? 'bg-[#1E293B] border-white/10' : 'bg-white border-slate-200')}><span className={cn("px-2.5 text-xs font-bold border-r h-full flex items-center shrink-0", dk ? "bg-black/40 border-white/10 text-slate-400" : "bg-slate-50 border-slate-200 text-slate-500")}>{getCountryCode(localHotel.country || 'Germany')}</span><input autoComplete="off" value={localHotel.phone || ''} onChange={e => patchHotel({ phone: e.target.value })} onKeyDown={handleEnterBlur} className={cn('w-full px-2 py-2 text-sm font-bold outline-none bg-transparent h-full', dk ? 'text-white' : 'text-slate-900')} placeholder="..." /></div></div>
-              <div className="flex-[1.5] min-w-[160px]"><label className={cn(labelCls, 'mb-1.5')}><Mail size={12}/> Email</label><div className="relative flex items-center h-[38px]"><input autoComplete="off" value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })} onKeyDown={handleEnterBlur} className={cn(inputCls, 'pr-10')} placeholder="..." />{localHotel.email && <a href={`mailto:${localHotel.email}`} className="absolute right-1.5 p-1.5 bg-teal-600 text-white rounded-md hover:bg-teal-500"><Mail size={14} /></a>}</div></div>
-              <div className="flex-[1] min-w-[120px]"><label className={cn(labelCls, 'mb-1.5')}><Building size={12}/> {lang === 'de' ? 'Land' : 'Country'}</label><ModernDropdown value={localHotel.country || 'Germany'} options={getCountryOptions()} onChange={(v:string) => patchHotel({ country: v })} isDarkMode={dk} lang={lang} /></div>
+              <div className="flex-[1.5] min-w-[120px]"><label className={cn(labelCls, 'mb-1.5')}><User size={12}/> {lang === 'de' ? 'Ansprechpartner' : 'Contact'}</label><input autoComplete="off" value={localHotel.contactPerson || ''} onChange={e => patchHotel({ contactPerson: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} placeholder="..." /></div>
+              <div className="flex-[1.5] min-w-[120px]"><label className={cn(labelCls, 'mb-1.5')}><Phone size={12}/> {lang === 'de' ? 'Telefon' : 'Phone'}</label><div className={cn('flex items-center rounded-lg border overflow-hidden h-[34px]', dk ? 'bg-[#1E293B] border-white/10' : 'bg-white border-slate-200')}><span className={cn("px-2.5 text-xs font-bold border-r h-full flex items-center shrink-0", dk ? "bg-black/40 border-white/10 text-slate-400" : "bg-slate-50 border-slate-200 text-slate-500")}>{getCountryCode(localHotel.country || 'Germany')}</span><input autoComplete="off" value={localHotel.phone || ''} onChange={e => patchHotel({ phone: e.target.value })} onKeyDown={handleEnterBlur} className={cn('w-full px-2 py-1.5 text-sm font-bold outline-none bg-transparent h-full', dk ? 'text-white' : 'text-slate-900')} placeholder="..." /></div></div>
+              <div className="flex-[1.5] min-w-[140px]"><label className={cn(labelCls, 'mb-1.5')}><Mail size={12}/> Email</label><div className="relative flex items-center h-[34px]"><input autoComplete="off" value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })} onKeyDown={handleEnterBlur} className={cn(inputCls, 'pr-8')} placeholder="..." />{localHotel.email && <a href={`mailto:${localHotel.email}`} className="absolute right-1 p-1 bg-teal-600 text-white rounded hover:bg-teal-500"><Mail size={12} /></a>}</div></div>
+              <div className="flex-[1.5] min-w-[140px]"><label className={cn(labelCls, 'mb-1.5')}><Globe size={12}/> {lang === 'de' ? 'Webseite' : 'Website'}</label><div className="relative flex items-center h-[34px]"><input autoComplete="off" value={localHotel.website || ''} onChange={e => patchHotel({ website: e.target.value })} onKeyDown={handleEnterBlur} className={cn(inputCls, 'pr-8')} placeholder="..." />{localHotel.website && <a href={localHotel.website.startsWith('http') ? localHotel.website : `https://${localHotel.website}`} target="_blank" rel="noreferrer" className="absolute right-1 p-1 bg-teal-600 text-white rounded hover:bg-teal-500"><ExternalLink size={12} /></a>}</div></div>
+              <div className="flex-[1] min-w-[100px]"><label className={cn(labelCls, 'mb-1.5')}><Building size={12}/> {lang === 'de' ? 'Land' : 'Country'}</label><ModernDropdown value={localHotel.country || 'Germany'} options={getCountryOptions()} onChange={(v:string) => patchHotel({ country: v })} isDarkMode={dk} lang={lang} /></div>
             </div>
 
             {/* RESTORED NOTES TEXTAREA */}
@@ -445,11 +454,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               </div>
             )}
 
-            {/* --- NEW INLINE MASTER INVOICE CARD --- */}
+            {/* --- NEW INVISIBLE 2-COLUMN MASTER INVOICE CARD --- */}
             <div className={cn("rounded-2xl border flex flex-col xl:flex-row overflow-hidden shadow-md", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}>
                 
-                {/* COL 1: Identity */}
-                <div className={cn("w-full xl:w-[200px] shrink-0 p-5 flex flex-col gap-4 border-b xl:border-b-0 xl:border-r", dk ? "border-white/10 bg-[#0F172A]/50" : "border-slate-200 bg-slate-50/50")}>
+                {/* COL 1: Identity (Wider) */}
+                <div className={cn("w-full xl:w-[240px] shrink-0 p-5 flex flex-col gap-4 border-b xl:border-b-0 xl:border-r", dk ? "border-white/10 bg-[#0F172A]/50" : "border-slate-200 bg-slate-50/50")}>
                     <div>
                        <label className={cn(labelCls, 'mb-1.5')}><Receipt size={12}/> {lang === 'de' ? 'Rechnungsnr.' : 'Invoice No.'}</label>
                        <input value={localHotel.rechnungNr || ''} onChange={e => patchHotel({ rechnungNr: e.target.value, rechnung_nr: e.target.value })} className={inputCls} placeholder="RE-2026-..." />
@@ -460,66 +469,78 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                     </div>
                 </div>
 
-                {/* COL 2: Action Center (Inline Labels) */}
+                {/* COL 2: Action Center (Inline & Pushed Right) */}
                 <div className="flex-1 p-5 flex flex-col gap-5 min-w-[320px]">
                    <div className="flex items-center gap-2 flex-wrap">
                       <button onClick={() => setShowMasterBase(!showMasterBase)} className={cn("px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5", showMasterBase ? (dk ? "bg-teal-600 text-white border-teal-500" : "bg-teal-600 text-white border-teal-700") : (dk ? "bg-[#1E293B] text-slate-400 border-white/10 hover:text-white" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"))}><Calculator size={12}/> Brutto / Netto</button>
                       <button onClick={() => patchHotel({has_global_discount: !localHotel.has_global_discount})} className={cn("px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5", localHotel.has_global_discount ? (dk ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" : "bg-indigo-50 text-indigo-600 border-indigo-200") : (dk ? "bg-[#1E293B] text-slate-400 border-white/10 hover:text-white" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"))}><Tag size={12} /> {lang === 'de' ? 'Gesamtrabatt' : 'Global Disc'}</button>
-                      <button onClick={() => {if(!showExtras) addExtra();}} className={cn("px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5", showExtras ? (dk ? "bg-amber-500/20 text-amber-400 border-amber-500/30" : "bg-amber-50 text-amber-600 border-amber-200") : (dk ? "bg-[#1E293B] text-slate-400 border-white/10 hover:text-white" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"))}><PlusCircle size={12} /> {lang === 'de' ? 'Extrakosten' : 'Extras'}</button>
+                      <button onClick={toggleExtras} className={cn("px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5", showExtras ? (dk ? "bg-amber-500/20 text-amber-400 border-amber-500/30" : "bg-amber-50 text-amber-600 border-amber-200") : (dk ? "bg-[#1E293B] text-slate-400 border-white/10 hover:text-white" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"))}><PlusCircle size={12} /> {lang === 'de' ? 'Extrakosten' : 'Extras'}</button>
                    </div>
 
                    <div className="flex flex-col gap-3">
-                      {/* BASE COST ROW (INLINE) */}
+                      {/* BASE COST ROW (INLINE & PUSHED RIGHT) */}
                       {showMasterBase && (
-                        <div className={cn("flex flex-col gap-2 p-3 rounded-xl border animate-in fade-in slide-in-from-top-2", dk ? "bg-white/5 border-white/5" : "bg-slate-50 border-slate-200")}>
-                           <span className="text-xs font-black uppercase tracking-widest text-teal-500">{lang === 'de' ? 'Grundkosten (Base Cost)' : 'Base Cost'}</span>
-                           <div className="flex items-center gap-3 flex-wrap">
-                              <div className="flex items-center gap-1.5"><span className={labelCls}>Netto €</span><input type="number" value={masterMath.bNettoDisplay} onChange={e => patchHotel({base_netto: e.target.value === '' ? null : normalizeNumberInput(e.target.value), base_brutto: null})} disabled={localHotel.base_brutto != null} className={cn(inputCls, 'w-[110px] disabled:opacity-50 disabled:cursor-not-allowed')} placeholder="Auto" /></div>
+                        <div className={cn("flex flex-col md:flex-row md:items-center justify-between gap-4 p-3 rounded-xl border animate-in fade-in slide-in-from-top-2", dk ? "bg-white/5 border-white/5" : "bg-slate-50 border-slate-200")}>
+                           <span className="text-sm font-bold text-teal-600 dark:text-teal-400 shrink-0">{lang === 'de' ? 'Grundkosten' : 'Base Cost'}</span>
+                           
+                           <div className="flex items-center gap-3 flex-wrap justify-end">
+                              <div className="flex items-center gap-1.5">
+                                 <span className={labelCls}>Netto</span>
+                                 {/* VICE VERSA: If you type here, brutto is cleared */}
+                                 <input type="number" value={masterMath.bNettoDisplay} onChange={e => patchHotel({base_netto: e.target.value === '' ? null : normalizeNumberInput(e.target.value), base_brutto: null})} className={cn(inputCls, 'w-[100px]', localHotel.base_brutto != null && "bg-slate-100 dark:bg-black/20 text-slate-400")} placeholder="Auto" />
+                              </div>
                               
                               {localHotel.hasDiscount && (
-                                <div className="flex items-center gap-1.5"><span className={labelCls}>{lang === 'de' ? 'Rabatt' : 'Discount'}</span>
-                                  <div className="relative flex items-center h-[38px] w-[100px]">
-                                    <input type="number" value={localHotel.discountValue || ''} onChange={e => patchHotel({discountValue: parseFloat(e.target.value)||0})} className={cn(inputCls, 'w-full pr-8 h-full')} placeholder="0" />
-                                    <button onClick={() => patchHotel({discountType: localHotel.discountType === 'fixed' ? 'percentage' : 'fixed'})} className={cn("absolute right-1 w-6 h-6 rounded flex items-center justify-center text-xs font-bold transition-all", dk ? "bg-white/10 hover:bg-white/20 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-700")}>{localHotel.discountType === 'fixed' ? '€' : '%'}</button>
+                                <div className="flex items-center gap-1.5">
+                                  <span className={labelCls}>{lang === 'de' ? 'Rabatt' : 'Discount'}</span>
+                                  <div className="relative flex items-center h-[34px] w-[90px]">
+                                    <input type="number" value={localHotel.discountValue || ''} onChange={e => patchHotel({discountValue: parseFloat(e.target.value)||0})} className={cn(inputCls, 'w-full pr-7 h-full')} placeholder="0" />
+                                    <button onClick={() => patchHotel({discountType: localHotel.discountType === 'fixed' ? 'percentage' : 'fixed'})} className={cn("absolute right-1 w-5 h-5 rounded flex items-center justify-center text-xs font-bold transition-all", dk ? "bg-white/10 hover:bg-white/20 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-700")}>{localHotel.discountType === 'fixed' ? '€' : '%'}</button>
                                   </div>
                                 </div>
                               )}
                               
                               <div className="flex items-center gap-1.5"><span className={labelCls}>MwSt</span><MwstInput value={localHotel.baseMwst} onChange={(v) => patchHotel({baseMwst: v, base_mwst: v})} isDarkMode={dk} /></div>
-                              <div className="flex items-center gap-1.5"><span className={labelCls}>Brutto €</span><input type="number" value={masterMath.bBruttoDisplay} onChange={e => patchHotel({base_brutto: e.target.value === '' ? null : normalizeNumberInput(e.target.value), base_netto: null})} disabled={localHotel.base_netto != null} className={cn(inputCls, 'w-[110px] disabled:opacity-50 disabled:cursor-not-allowed')} placeholder="Auto" /></div>
+                              
+                              <div className="flex items-center gap-1.5">
+                                 <span className={labelCls}>Brutto</span>
+                                 {/* VICE VERSA: If you type here, netto is cleared */}
+                                 <input type="number" value={masterMath.bBruttoDisplay} onChange={e => patchHotel({base_brutto: e.target.value === '' ? null : normalizeNumberInput(e.target.value), base_netto: null})} className={cn(inputCls, 'w-[100px]', localHotel.base_netto != null && "bg-slate-100 dark:bg-black/20 text-slate-400")} placeholder="Auto" />
+                              </div>
                            </div>
                         </div>
                       )}
 
-                      {/* GLOBAL DISCOUNT ROW (INLINE) */}
+                      {/* GLOBAL DISCOUNT ROW */}
                       {localHotel.has_global_discount && (
-                        <div className={cn("flex flex-col gap-2 p-3 rounded-xl border animate-in fade-in slide-in-from-top-2", dk ? "bg-indigo-500/5 border-indigo-500/20" : "bg-indigo-50/50 border-indigo-200")}>
-                           <span className="text-xs font-black uppercase tracking-widest text-indigo-500">{lang === 'de' ? 'Gesamtrabatt (Global Disc)' : 'Global Discount'}</span>
-                           <div className="flex items-center gap-3 flex-wrap">
+                        <div className={cn("flex flex-col md:flex-row md:items-center justify-between gap-4 p-3 rounded-xl border animate-in fade-in slide-in-from-top-2", dk ? "bg-indigo-500/5 border-indigo-500/20" : "bg-indigo-50/50 border-indigo-200")}>
+                           <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 shrink-0">{lang === 'de' ? 'Gesamtrabatt' : 'Global Discount'}</span>
+                           <div className="flex items-center gap-3 flex-wrap justify-end">
                               <div className="flex items-center gap-1.5"><span className={labelCls}>{lang === 'de' ? 'Wert' : 'Value'}</span>
-                                <div className="relative flex items-center h-[38px] w-[110px]">
-                                  <input type="number" value={localHotel.global_discount_value || ''} onChange={e => patchHotel({global_discount_value: normalizeNumberInput(e.target.value)})} className={cn(inputCls, 'w-full pr-8 h-full')} placeholder="0" />
-                                  <button onClick={() => patchHotel({global_discount_type: localHotel.global_discount_type === 'fixed' ? 'percentage' : 'fixed'})} className={cn("absolute right-1 w-6 h-6 rounded flex items-center justify-center text-xs font-bold transition-all", dk ? "bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-400" : "bg-indigo-100 hover:bg-indigo-200 text-indigo-700")}>{localHotel.global_discount_type === 'fixed' ? '€' : '%'}</button>
+                                <div className="relative flex items-center h-[34px] w-[100px]">
+                                  <input type="number" value={localHotel.global_discount_value || ''} onChange={e => patchHotel({global_discount_value: normalizeNumberInput(e.target.value)})} className={cn(inputCls, 'w-full pr-7 h-full')} placeholder="0" />
+                                  <button onClick={() => patchHotel({global_discount_type: localHotel.global_discount_type === 'fixed' ? 'percentage' : 'fixed'})} className={cn("absolute right-1 w-5 h-5 rounded flex items-center justify-center text-xs font-bold transition-all", dk ? "bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-400" : "bg-indigo-100 hover:bg-indigo-200 text-indigo-700")}>{localHotel.global_discount_type === 'fixed' ? '€' : '%'}</button>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-1.5"><span className={labelCls}>{lang === 'de' ? 'Ziel' : 'Target'}</span><select value={localHotel.global_discount_target || 'netto'} onChange={e => patchHotel({global_discount_target: e.target.value})} className={cn(inputCls, 'w-[140px] font-bold')}><option value="netto">{lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</option><option value="brutto">{lang === 'de' ? 'Gesamt Brutto' : 'Total Brutto'}</option></select></div>
+                              <div className="flex items-center gap-1.5"><span className={labelCls}>{lang === 'de' ? 'Ziel' : 'Target'}</span><select value={localHotel.global_discount_target || 'netto'} onChange={e => patchHotel({global_discount_target: e.target.value})} className={cn(inputCls, 'w-[140px] font-bold h-[34px]')}><option value="netto">{lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</option><option value="brutto">{lang === 'de' ? 'Gesamt Brutto' : 'Total Brutto'}</option></select></div>
                            </div>
                         </div>
                       )}
 
-                      {/* EXTRA COSTS (INLINE) */}
+                      {/* EXTRA COSTS ( [+] MOVED TO LEFT, SHORTER NOTE) */}
                       {showExtras && (
                         <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2">
-                           <span className="text-xs font-black uppercase tracking-widest text-amber-500 ml-1">{lang === 'de' ? 'Extrakosten (Extra)' : 'Extra Costs'}</span>
+                           <span className="text-sm font-bold text-amber-500 ml-1 mb-1">{lang === 'de' ? 'Extrakosten' : 'Extra Costs'}</span>
                            {masterMath.extrasWithDisplay.map((ec:any) => (
                               <div key={ec.id} className={cn("flex flex-wrap xl:flex-nowrap items-center gap-2 p-2 rounded-xl border", dk ? "bg-white/5 border-white/5" : "bg-slate-50 border-slate-200")}>
-                                 <input value={ec.note} onChange={e => updateExtra(ec.id, {note: e.target.value})} className={cn(inputCls, 'flex-[2] min-w-[140px]')} placeholder={lang === 'de' ? "Notiz (z.B. Parken)" : "Note (e.g. Parking)"} />
-                                 <div className="flex items-center gap-1.5"><span className={labelCls}>Netto</span><input type="number" value={ec.eNettoDisplay} onChange={e => updateExtra(ec.id, {netto: e.target.value === '' ? null : normalizeNumberInput(e.target.value), brutto: null})} disabled={ec.brutto != null} className={cn(inputCls, 'w-[90px] disabled:opacity-50')} placeholder="Auto" /></div>
-                                 <div className="flex items-center gap-1.5"><span className={labelCls}>MwSt</span><MwstInput value={ec.mwst} onChange={(v) => updateExtra(ec.id, {mwst: v})} isDarkMode={dk} /></div>
-                                 <div className="flex items-center gap-1.5"><span className={labelCls}>Brutto</span><input type="number" value={ec.eBruttoDisplay} onChange={e => updateExtra(ec.id, {brutto: e.target.value === '' ? null : normalizeNumberInput(e.target.value), netto: null})} disabled={ec.netto != null} className={cn(inputCls, 'w-[90px] disabled:opacity-50')} placeholder="Auto" /></div>
-                                 <div className="flex items-center gap-1 ml-auto">
-                                    <button onClick={addExtra} className={cn("p-2 h-[38px] rounded-lg transition-all flex items-center justify-center border", dk ? "bg-[#1E293B] border-white/10 text-teal-400 hover:bg-white/10" : "bg-white border-slate-200 text-teal-600 hover:bg-slate-100")}><Plus size={16}/></button>
-                                    <button onClick={() => removeExtra(ec.id)} className={cn("p-2 h-[38px] rounded-lg transition-all flex items-center justify-center border", dk ? "bg-[#1E293B] border-white/10 text-red-400 hover:bg-white/10" : "bg-white border-slate-200 text-red-500 hover:bg-slate-100")}><X size={16}/></button>
+                                 <button onClick={addExtra} className={cn("p-1.5 h-[34px] rounded-lg transition-all flex items-center justify-center shrink-0 border", dk ? "bg-[#1E293B] border-white/10 text-teal-400 hover:bg-white/10" : "bg-white border-slate-200 text-teal-600 hover:bg-slate-100")}><Plus size={16}/></button>
+                                 <input value={ec.note} onChange={e => updateExtra(ec.id, {note: e.target.value})} className={cn(inputCls, 'w-full xl:w-[130px]')} placeholder={lang === 'de' ? "Notiz..." : "Note..."} />
+                                 
+                                 <div className="flex items-center gap-2 flex-wrap xl:ml-auto">
+                                   <div className="flex items-center gap-1.5"><span className={labelCls}>Netto</span><input type="number" value={ec.eNettoDisplay} onChange={e => updateExtra(ec.id, {netto: e.target.value === '' ? null : normalizeNumberInput(e.target.value), brutto: null})} className={cn(inputCls, 'w-[80px]', ec.brutto != null && "bg-slate-100 dark:bg-black/20 text-slate-400")} placeholder="Auto" /></div>
+                                   <div className="flex items-center gap-1.5"><span className={labelCls}>MwSt</span><MwstInput value={ec.mwst} onChange={(v) => updateExtra(ec.id, {mwst: v})} isDarkMode={dk} /></div>
+                                   <div className="flex items-center gap-1.5"><span className={labelCls}>Brutto</span><input type="number" value={ec.eBruttoDisplay} onChange={e => updateExtra(ec.id, {brutto: e.target.value === '' ? null : normalizeNumberInput(e.target.value), netto: null})} className={cn(inputCls, 'w-[80px]', ec.netto != null && "bg-slate-100 dark:bg-black/20 text-slate-400")} placeholder="Auto" /></div>
+                                   <button onClick={() => removeExtra(ec.id)} className={cn("p-1.5 h-[34px] rounded-lg transition-all flex items-center justify-center shrink-0 border", dk ? "bg-[#1E293B] border-white/10 text-red-400 hover:bg-white/10" : "bg-white border-slate-200 text-red-500 hover:bg-slate-100")}><X size={16}/></button>
                                  </div>
                               </div>
                            ))}
@@ -528,10 +549,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    </div>
                 </div>
 
-                {/* COL 3: Master Summary (Wider) */}
-                <div className={cn("w-full xl:w-[340px] p-6 flex flex-col justify-between shrink-0 border-t xl:border-t-0 xl:border-l", dk ? "bg-[#0F172A]/80 border-white/10" : "bg-slate-50 border-slate-200")}>
+                {/* COL 3: Master Summary */}
+                <div className={cn("w-full xl:w-[320px] p-6 flex flex-col justify-between shrink-0 border-t xl:border-t-0 xl:border-l", dk ? "bg-[#0F172A]/80 border-white/10" : "bg-slate-50 border-slate-200")}>
                    <div className="flex items-center justify-between gap-2 mb-8">
-                      <div className="flex items-center gap-1.5 flex-1 max-w-[150px]">
+                      {/* WIDER DEPOSIT FIELD */}
+                      <div className="flex items-center gap-1.5 flex-1 max-w-[160px]">
                          <button onClick={() => patchHotel({depositEnabled: !localHotel.depositEnabled, deposit_enabled: !localHotel.depositEnabled})} className={cn("px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg border transition-all h-[34px]", localHotel.depositEnabled ? "bg-amber-500/20 text-amber-500 border-amber-500/30" : dk ? "border-white/10 text-slate-500 hover:text-white" : "border-slate-200 text-slate-400")}>{lang === 'de' ? 'Kaution' : 'Deposit'}</button>
                          {localHotel.depositEnabled && <input type="number" value={localHotel.depositAmount || ''} onChange={e => patchHotel({depositAmount: e.target.value === '' ? null : normalizeNumberInput(e.target.value), deposit_amount: e.target.value === '' ? null : normalizeNumberInput(e.target.value)})} className={cn(inputCls, 'w-full h-[34px] px-2 text-xs text-amber-500 border-amber-500/30')} placeholder="0.00" />}
                       </div>
@@ -561,10 +583,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    <div className={cn("pt-5 border-t", dk ? "border-white/10" : "border-slate-200")}>
                       <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">{lang === 'de' ? 'Gesamt Brutto' : 'Total Brutto'}</p>
                       <div className="flex justify-between items-end group">
+                         {/* FONT SIZE SCALED DOWN TO 2XL */}
                          {editingOBrutto ? (
-                           <input autoFocus type="number" value={editBruttoValue} onChange={e => setEditBruttoValue(e.target.value)} onBlur={() => {patchHotel({override_total_brutto: editBruttoValue === '' ? null : editBruttoValue}); setEditingOBrutto(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-full max-w-[180px] text-right px-2 py-1 rounded bg-yellow-500/20 text-yellow-600 font-black text-3xl outline-none")} />
+                           <input autoFocus type="number" value={editBruttoValue} onChange={e => setEditBruttoValue(e.target.value)} onBlur={() => {patchHotel({override_total_brutto: editBruttoValue === '' ? null : editBruttoValue}); setEditingOBrutto(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-full max-w-[180px] text-right px-2 py-1 rounded bg-yellow-500/20 text-yellow-600 font-black text-2xl outline-none")} />
                          ) : (
-                           <span onClick={() => {setEditBruttoValue(masterMath.displayBrutto.toFixed(2)); setEditingOBrutto(true);}} className={cn("text-3xl font-black cursor-pointer rounded px-1 -ml-1 transition-colors flex items-center gap-2", masterMath.isOverriddenBrutto ? "text-yellow-500 bg-yellow-500/10" : dk ? "text-white group-hover:bg-white/10" : "text-slate-900 group-hover:bg-slate-200")}>{formatCurrency(masterMath.displayBrutto)} <Edit3 size={14} className="opacity-0 group-hover:opacity-100"/></span>
+                           <span onClick={() => {setEditBruttoValue(masterMath.displayBrutto.toFixed(2)); setEditingOBrutto(true);}} className={cn("text-2xl font-black cursor-pointer rounded px-1 -ml-1 transition-colors flex items-center gap-2", masterMath.isOverriddenBrutto ? "text-yellow-500 bg-yellow-500/10" : dk ? "text-white group-hover:bg-white/10" : "text-slate-900 group-hover:bg-slate-200")}>{formatCurrency(masterMath.displayBrutto)} <Edit3 size={14} className="opacity-0 group-hover:opacity-100"/></span>
                          )}
                       </div>
                       
@@ -634,6 +657,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   );
 }
 
+// ... [ModernDropdown and CompanyMultiSelect remain exactly the same below]
 // --- MODERN DROPDOWN ---
 export function ModernDropdown({ value, options, onChange, isDarkMode, lang, placeholder = 'Select' }: any) {
   const [open, setOpen] = useState(false);
@@ -654,7 +678,7 @@ export function ModernDropdown({ value, options, onChange, isDarkMode, lang, pla
   };
 
   return (
-    <div ref={ref} className="relative w-full h-[38px]">
+    <div ref={ref} className="relative w-full h-[34px]">
       <button onClick={() => setOpen(!open)} className={cn('w-full h-full px-3 flex items-center justify-between rounded-lg border text-sm font-bold outline-none transition-all', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white hover:border-teal-500' : 'bg-white border-slate-200 text-slate-900 hover:border-teal-500')}>
         <span className="truncate">{displayValue(value) || placeholder}</span>
         <ChevronDown size={16} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
