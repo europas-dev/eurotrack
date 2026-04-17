@@ -106,12 +106,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [open, setOpen] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   
-  // STRICT DEFAULT TO 'fixed' for the first row to prevent '%' bug
- // Base setup: Forces 'fixed' (€) if the discount is 0 or empty, ignoring old bad database saves
+  // STRICT DEFAULT TO 'fixed' (€) to crush the ghost % bug
   const initialBaseCosts = entry?.base_costs?.length > 0 
     ? entry.base_costs.map((bc: any) => ({
         ...bc,
-        discountType: (!bc.discountValue || parseFloat(bc.discountValue) === 0) ? 'fixed' : (bc.discountType === 'percentage' ? 'percentage' : 'fixed')
+        discountType: (bc.discountValue && parseFloat(bc.discountValue) > 0 && bc.discountType === 'percentage') ? 'percentage' : 'fixed'
       }))
     : [{ 
         id: 'default', 
@@ -119,7 +118,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         mwst: (entry?.base_netto == null && entry?.base_brutto == null) ? null : (entry?.base_mwst ?? null), 
         brutto: entry?.base_brutto ?? null, 
         discountValue: entry?.discount_value ?? null, 
-        discountType: (!entry?.discount_value || parseFloat(entry?.discount_value) === 0) ? 'fixed' : (entry?.discount_type === 'percentage' ? 'percentage' : 'fixed'),
+        discountType: (entry?.discount_value && parseFloat(entry?.discount_value) > 0 && entry?.discount_type === 'percentage') ? 'percentage' : 'fixed',
         showDiscount: !!entry?.discount_value 
       }];
 
@@ -320,7 +319,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     saveTimer.current = setTimeout(async () => {
       try {
         setSaving(true);
-        // Map frontend camelCase to strict database snake_case
         const dbPayload: any = {};
         if ('name' in next) dbPayload.name = next.name;
         if ('city' in next) dbPayload.city = next.city;
@@ -420,7 +418,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const labelCls = cn('flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500', dk && 'text-slate-400');
   const inputCls = cn('w-full px-2 py-1.5 rounded-lg text-sm font-bold outline-none border transition-all h-[34px]', dk ? 'bg-[#1E293B] border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400');
 
-  // Option generator for modern dropdown
   const targetOptions = lang === 'de' ? ['Gesamt Netto', 'Gesamt Brutto'] : ['Total Netto', 'Total Brutto'];
   const currentTarget = localHotel.global_discount_target === 'brutto' ? targetOptions[1] : targetOptions[0];
 
@@ -502,7 +499,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         {open && (
           <div className={cn('p-6 space-y-6 rounded-b-2xl border-t', dk ? 'bg-[#0B1224] border-white/5' : 'bg-slate-50 border-slate-200')} onClick={e => e.stopPropagation()}>
             
-            {/* RESTORED & CONDENSED CONTACT ROW */}
+            {/* CONTACT ROW */}
             <div className="flex flex-wrap xl:flex-nowrap gap-4 items-end">
               <div className="flex-[2] min-w-[180px] flex items-end gap-2">
                  <div className="shrink-0"><label className={cn(labelCls, 'mb-1.5')}><StickyNote size={12}/> {lang === 'de' ? 'Notiz' : 'Note'}</label><button onClick={() => setShowNotes(!showNotes)} className={cn("w-[34px] h-[34px] rounded-lg border flex items-center justify-center transition-all", localHotel.notes ? "bg-teal-500/10 border-teal-500/30 text-teal-500" : dk ? "bg-[#1E293B] border-white/10 text-slate-400 hover:text-white hover:bg-white/5" : "bg-white border-slate-200 text-slate-400 hover:text-slate-800 hover:bg-slate-50")}><StickyNote size={16} /></button></div>
@@ -515,17 +512,16 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               <div className="flex-[1] min-w-[100px]"><label className={cn(labelCls, 'mb-1.5')}><Building size={12}/> {lang === 'de' ? 'Land' : 'Country'}</label><ModernDropdown value={localHotel.country || 'Germany'} options={getCountryOptions()} onChange={(v:string) => patchHotel({ country: v })} isDarkMode={dk} lang={lang} /></div>
             </div>
 
-            {/* RESTORED NOTES TEXTAREA */}
             {showNotes && (
               <div className="animate-in fade-in slide-in-from-top-2 duration-200">
                 <textarea autoComplete="off" autoFocus value={localHotel.notes || ''} onChange={e => patchHotel({ notes: e.target.value })} className={cn(inputCls, 'min-h-[60px] h-auto resize-y p-3')} placeholder={lang === 'de' ? "Private Notizen hier eintragen..." : "Write private notes here..."} />
               </div>
             )}
 
-            {/* --- NEW MASTER INVOICE CARD (No Overflow Hidden so Dropdowns bleed out) --- */}
+            {/* --- NEW MASTER INVOICE CARD --- */}
             <div className={cn("rounded-2xl border flex flex-col xl:flex-row shadow-md", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}>
                 
-                {/* COL 1: Identity (Wider) */}
+                {/* COL 1: Identity */}
                 <div className={cn("w-full xl:w-[240px] shrink-0 p-5 flex flex-col gap-4 border-b xl:border-b-0 xl:border-r rounded-tl-2xl", dk ? "border-white/10 bg-[#0F172A]/50" : "border-slate-200 bg-slate-50/50")}>
                     <div>
                        <label className={cn(labelCls, 'mb-1.5')}><Receipt size={12}/> {lang === 'de' ? 'Rechnungsnr.' : 'Invoice No.'}</label>
@@ -537,7 +533,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                     </div>
                 </div>
 
-                {/* COL 2: Action Center (Inline & Pushed Right) */}
+                {/* COL 2: Action Center */}
                 <div className="flex-1 p-5 flex flex-col gap-5 min-w-[320px]">
                    <div className="flex items-center gap-2 flex-wrap">
                       <button onClick={() => setShowMasterBase(!showMasterBase)} className={cn("px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5", showMasterBase ? (dk ? "bg-teal-600 text-white border-teal-500" : "bg-teal-600 text-white border-teal-700") : (dk ? "bg-[#1E293B] text-slate-400 border-white/10 hover:text-white" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"))}><Calculator size={12}/> Brutto / Netto</button>
@@ -546,7 +542,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    </div>
 
                    <div className="flex flex-col gap-3">
-                      {/* MULTIPLE BASE COSTS ROW (FLEX-NOWRAP, WIDER INPUTS, DISCOUNT TEXT FIXED) */}
                       {showMasterBase && (
                         <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2">
                            {masterMath.baseCostsWithDisplay.map((bc: any, index: number) => (
@@ -556,14 +551,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                     <span className="text-sm font-bold text-teal-600 dark:text-teal-400">{lang === 'de' ? 'Grundkosten' : 'Base Cost'} {index > 0 ? `#${index + 1}` : ''}</span>
                                  </div>
                                  
-                                 {/* Strict flex-nowrap to prevent wrapping. No overflow-x-auto to prevent scrollbars */}
                                  <div className="flex-1 flex flex-wrap xl:flex-nowrap items-start gap-2 justify-end w-full pt-1">
                                     <div className="flex flex-col gap-1">
                                        <div className="flex items-center gap-1.5">
                                           <span className={labelCls}>Netto</span>
                                           <input type="number" value={bc.netto != null ? bc.netto : bc.bNettoDisplay} onChange={e => updateBaseCost(bc.id, {netto: e.target.value === '' ? null : e.target.value, brutto: null})} className={cn(inputCls, 'w-full max-w-[120px] min-w-[80px]', bc.brutto != null && "bg-slate-100 dark:bg-black/20 text-slate-400")} placeholder="Auto" />
                                           
-                                          {/* TICKET DISCOUNT TOGGLE BUTTON - Null check fix */}
                                           {!(bc.showDiscount || Boolean(bc.discountValue)) ? (
                                              <button onClick={() => updateBaseCost(bc.id, {showDiscount: true})} title="Rabatt hinzufügen" className={cn("p-1.5 rounded-lg border transition-all flex items-center justify-center shrink-0", dk ? "bg-[#1E293B] border-white/10 text-slate-400 hover:text-teal-400" : "bg-white border-slate-200 text-slate-400 hover:text-teal-500 hover:bg-slate-50")}>
                                                <Ticket size={14} />
@@ -571,13 +564,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                           ) : null}
                                        </div>
                                        
-                                       {/* SUBTLE DISCOUNT TEXT - Positioned naturally below the input */}
                                        {(bc.showDiscount || Boolean(bc.discountValue)) && parseFloat(bc.discountValue) > 0 ? (
                                           <div className="text-[12px] font-black text-teal-600 dark:text-teal-400 text-right">↳ {formatCurrency(bc.discountedNetto)}</div>
                                        ) : null}
                                     </div>
                                     
-                                    {/* HIDDEN DISCOUNT FIELDS REVEALED BY TICKET - Null check fix */}
                                     {(bc.showDiscount || Boolean(bc.discountValue)) ? (
                                       <div className="flex items-center gap-1.5 shrink-0 animate-in fade-in zoom-in-95 duration-200">
                                         <span className={labelCls}>{lang === 'de' ? 'Rabatt' : 'Discount'}</span>
@@ -605,7 +596,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                         </div>
                       )}
 
-                      {/* GLOBAL DISCOUNT ROW - Fixed Modern Dropdown */}
                       {localHotel.has_global_discount ? (
                         <div className={cn("flex flex-col md:flex-row md:items-center justify-between gap-4 p-3 rounded-xl border animate-in fade-in slide-in-from-top-2", dk ? "bg-indigo-500/5 border-indigo-500/20" : "bg-indigo-50/50 border-indigo-200")}>
                            <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 shrink-0">{lang === 'de' ? 'Gesamtrabatt' : 'Global Discount'}</span>
@@ -625,7 +615,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                         </div>
                       ) : null}
 
-                      {/* EXTRA COSTS (Z-INDEX BUG & SCROLLBAR FIXED) */}
                       {showExtras ? (
                         <div className={cn("flex flex-col md:flex-row md:items-start justify-between gap-4 p-3 rounded-xl border animate-in fade-in slide-in-from-top-2", dk ? "bg-white/5 border-white/5" : "bg-slate-50 border-slate-200")}>
                            <span className="text-sm font-bold text-amber-500 shrink-0 mt-2">{lang === 'de' ? 'Extra' : 'Extra'}</span>
@@ -647,7 +636,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    </div>
                 </div>
 
-         {/* COL 3: Master Summary (COMPRESSED VERTICALLY) */}
+                {/* COL 3: Master Summary (COMPRESSED VERTICALLY) */}
                 <div className={cn("w-full xl:w-[380px] p-5 flex flex-col shrink-0 border-t xl:border-t-0 xl:border-l rounded-tr-2xl rounded-br-2xl rounded-bl-2xl xl:rounded-bl-none", dk ? "bg-[#0F172A]/80 border-white/10" : "bg-slate-50 border-slate-200")}>
                    <div className="flex items-center justify-between gap-2 mb-4">
                       <div className="flex items-center gap-1.5 flex-1 max-w-[160px]">
@@ -700,9 +689,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       </div>
                    </div>
                 </div>
+            </div> {/* <-- THIS DIV CLOSES THE MASTER INVOICE CARD */}
             
             {/* DURATION TABS */}
-            <div className="pt-2">
+            <div className="pt-4">
               <div className={cn("inline-flex items-center gap-1 p-1.5 rounded-xl shadow-inner border flex-wrap", dk ? "bg-black/40 border-white/5" : "bg-slate-100 border-slate-200")}>
                 {(localHotel.durations || []).map((d: any, i: number) => (
                   <button key={d.id || i} onClick={() => setActiveDurationTab(i)} className={cn('px-5 py-2 rounded-lg text-sm font-bold transition-all shadow-sm', activeDurationTab === i ? (dk ? 'bg-teal-600 text-white border-transparent' : 'bg-white text-teal-700 border-teal-600 border') : (dk ? 'text-slate-400 hover:text-white border border-transparent' : 'text-slate-500 hover:text-slate-800 border border-transparent'))}>
@@ -720,7 +710,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 </button>
               </div>
             </div>
-          </div>
             
             {localHotel.durations[activeDurationTab] ? (
               <DurationCard duration={localHotel.durations[activeDurationTab]} isDarkMode={dk} lang={lang} 
@@ -756,7 +745,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   );
 }
 
-// Added an "allowAdd" prop so we can turn off the "Add New" button for strict menus like Global Discount
 export function ModernDropdown({ value, options, onChange, isDarkMode, lang, placeholder = 'Select', allowAdd = true }: any) {
   const [open, setOpen] = useState(false);
   const [addingNew, setAddingNew] = useState(false);
