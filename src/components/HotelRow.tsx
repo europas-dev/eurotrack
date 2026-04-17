@@ -1,9 +1,9 @@
 // src/components/HotelRow.tsx
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, ChevronRight, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, FileText, Tag, Calculator, Edit3, PlusCircle } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, FileText, Tag, Calculator, Edit3, PlusCircle, Ticket } from 'lucide-react';
 import {
-  cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatDateChip, formatLastUpdated, calculateNights
+  cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatDateChip, formatLastUpdated, calculateNights, normalizeNumberInput
 } from '../lib/utils';
 import { createDuration, updateHotel, deleteHotel } from '../lib/supabase';
 import DurationCard from './DurationCard';
@@ -90,9 +90,9 @@ function MwstInput({ value, onChange, isDarkMode }: { value: string | null, onCh
   return (
     <div ref={ref} className="relative flex items-center h-[34px]">
       <input type="number" value={value ?? ''} onChange={e => onChange(e.target.value === '' ? null : e.target.value)} className={cn('w-16 px-2 py-1.5 rounded-l-lg text-sm font-bold outline-none border transition-all h-full text-center', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} placeholder="--" />
-      <button onClick={() => setOpen(!open)} className={cn('px-1 h-full rounded-r-lg border border-l-0 transition-all flex items-center justify-center', isDarkMode ? 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100')}><ChevronDown size={12} /></button>
+      <button onClick={() => setOpen(!open)} className={cn('px-1.5 h-full rounded-r-lg border border-l-0 transition-all flex items-center justify-center', isDarkMode ? 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100')}><ChevronDown size={14} /></button>
       {open && (
-        <div className={cn("absolute top-full right-0 mt-1 w-16 z-50 rounded-lg shadow-xl overflow-hidden border", isDarkMode ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+        <div className={cn("absolute top-full right-0 mt-1 w-20 z-[999] rounded-lg shadow-xl overflow-hidden border", isDarkMode ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
           {[7, 19, 0].map(v => (
             <button key={v} onClick={() => { onChange(v.toString()); setOpen(false); }} className={cn("w-full text-center py-2 text-sm font-bold transition-all", isDarkMode ? "text-white hover:bg-white/10" : "text-slate-900 hover:bg-slate-100")}>{v}%</button>
           ))}
@@ -113,7 +113,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     mwst: (entry?.base_netto == null && entry?.base_brutto == null) ? null : (entry?.base_mwst ?? null), 
     brutto: entry?.base_brutto ?? null, 
     discountValue: entry?.discount_value ?? null, 
-    discountType: entry?.discount_type ?? 'percentage' 
+    discountType: entry?.discount_type ?? 'fixed',
+    showDiscount: !!entry?.discount_value 
   }];
 
   const [showMasterBase, setShowMasterBase] = useState(initialBaseCosts.some((bc:any) => bc.netto != null || bc.brutto != null));
@@ -169,8 +170,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       let dNetto = 0; let dBrutto = 0;
 
       if (d.useBruttoNetto && (d.netto || d.brutto)) {
-         if (d.netto) { dNetto = d.netto; dBrutto = d.netto * (1 + (d.mwst || 19)/100); }
-         else if (d.brutto) { dBrutto = d.brutto; dNetto = d.brutto / (1 + (d.mwst || 19)/100); }
+         if (d.netto) { dNetto = parseFloat(d.netto); dBrutto = dNetto * (1 + (parseFloat(d.mwst) || 19)/100); }
+         else if (d.brutto) { dBrutto = parseFloat(d.brutto); dNetto = dBrutto / (1 + (parseFloat(d.mwst) || 19)/100); }
       } else {
          (d.roomCards || []).forEach((c: any) => {
             const b = c.roomType === 'EZ' ? 1 : c.roomType === 'DZ' ? 2 : c.roomType === 'TZ' ? 3 : (c.bedCount || 2);
@@ -308,6 +309,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const visibleEmps = masterMath.employees.slice(0, 6);
   const hiddenEmpsCount = masterMath.employees.length > 6 ? masterMath.employees.length - 6 : 0;
 
+  // --- THE STRICT DATABASE SAVER ---
   function patchHotel(changes: any) {
     const next = { ...localHotel, ...changes };
     setLocalHotel(next);
@@ -315,26 +317,57 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     saveTimer.current = setTimeout(async () => {
       try {
         setSaving(true);
-        await updateHotel(localHotel.id, next);
+        // Map frontend camelCase to strict database snake_case so nothing is lost!
+        const dbPayload: any = {};
+        if ('name' in next) dbPayload.name = next.name;
+        if ('city' in next) dbPayload.city = next.city;
+        if ('companyTag' in next) dbPayload.company_tag = next.companyTag;
+        if ('address' in next) dbPayload.address = next.address;
+        if ('contactPerson' in next) dbPayload.contactperson = next.contactPerson;
+        if ('phone' in next) dbPayload.phone = next.phone;
+        if ('email' in next) dbPayload.email = next.email;
+        if ('website' in next) dbPayload.weblink = next.website;
+        if ('country' in next) dbPayload.country = next.country;
+        if ('notes' in next) dbPayload.notes = next.notes;
+        
+        if ('rechnungNr' in next) dbPayload.rechnung_nr = next.rechnungNr;
+        if ('bookingId' in next) dbPayload.booking_id = next.bookingId;
+        if ('isPaid' in next) dbPayload.is_paid = next.isPaid;
+        
+        if ('depositEnabled' in next) dbPayload.deposit_enabled = next.depositEnabled;
+        if ('depositAmount' in next) dbPayload.deposit_amount = next.depositAmount;
+        
+        if ('has_global_discount' in next) dbPayload.has_global_discount = next.has_global_discount;
+        if ('global_discount_value' in next) dbPayload.global_discount_value = next.global_discount_value;
+        if ('global_discount_type' in next) dbPayload.global_discount_type = next.global_discount_type;
+        if ('global_discount_target' in next) dbPayload.global_discount_target = next.global_discount_target;
+        
+        if ('baseCosts' in next) dbPayload.base_costs = next.baseCosts;
+        if ('extraCosts' in next) dbPayload.extra_costs = next.extraCosts;
+        
+        if ('override_total_brutto' in next) dbPayload.override_total_brutto = next.override_total_brutto;
+        if ('override_price_per_bed' in next) dbPayload.override_price_per_bed = next.override_price_per_bed;
+
+        await updateHotel(localHotel.id, dbPayload);
         onUpdate(localHotel.id, next);
-      } catch (e: any) { alert(`Error: ${e.message}`); }
+      } catch (e: any) { alert(`Error saving: ${e.message}`); }
       finally { setSaving(false); }
     }, 400);
   }
 
   // --- MULTIPLE BASE COSTS LOGIC ---
   const addBaseCost = () => {
-    const next = [...localHotel.baseCosts, { id: Math.random().toString(), netto: null, mwst: null, brutto: null, discountValue: null, discountType: 'percentage' }];
-    patchHotel({ baseCosts: next, base_costs: next });
+    const next = [...localHotel.baseCosts, { id: Math.random().toString(), netto: null, mwst: null, brutto: null, discountValue: null, discountType: 'fixed', showDiscount: false }];
+    patchHotel({ baseCosts: next });
   };
   const updateBaseCost = (id: string, updates: any) => {
     const next = localHotel.baseCosts.map((bc: any) => bc.id === id ? { ...bc, ...updates } : bc);
-    patchHotel({ baseCosts: next, base_costs: next });
+    patchHotel({ baseCosts: next });
   };
   const removeBaseCost = (id: string) => {
     let next = localHotel.baseCosts.filter((bc: any) => bc.id !== id);
-    if (next.length === 0) next = [{ id: Math.random().toString(), netto: null, mwst: null, brutto: null, discountValue: null, discountType: 'percentage' }];
-    patchHotel({ baseCosts: next, base_costs: next });
+    if (next.length === 0) next = [{ id: Math.random().toString(), netto: null, mwst: null, brutto: null, discountValue: null, discountType: 'fixed', showDiscount: false }];
+    patchHotel({ baseCosts: next });
   };
 
   // --- EXTRA COSTS LOGIC ---
@@ -344,21 +377,21 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
      } else {
         setShowExtras(true);
         if (localHotel.extraCosts.length === 0) {
-           patchHotel({ extraCosts: [{ id: Math.random().toString(), note: '', netto: null, mwst: null, brutto: null }], extra_costs: [{ id: Math.random().toString(), note: '', netto: null, mwst: null, brutto: null }] });
+           patchHotel({ extraCosts: [{ id: Math.random().toString(), note: '', netto: null, mwst: null, brutto: null }] });
         }
      }
   };
 
   const addExtra = () => {
-    patchHotel({ extraCosts: [...localHotel.extraCosts, { id: Math.random().toString(), note: '', netto: null, mwst: null, brutto: null }], extra_costs: [...localHotel.extraCosts, { id: Math.random().toString(), note: '', netto: null, mwst: null, brutto: null }] });
+    patchHotel({ extraCosts: [...localHotel.extraCosts, { id: Math.random().toString(), note: '', netto: null, mwst: null, brutto: null }] });
   };
   const updateExtra = (id: string, updates: any) => {
     const next = localHotel.extraCosts.map((e:any) => e.id === id ? { ...e, ...updates } : e);
-    patchHotel({ extraCosts: next, extra_costs: next });
+    patchHotel({ extraCosts: next });
   };
   const removeExtra = (id: string) => {
     const next = localHotel.extraCosts.filter((e:any) => e.id !== id);
-    patchHotel({ extraCosts: next, extra_costs: next });
+    patchHotel({ extraCosts: next });
     if (next.length === 0) setShowExtras(false);
   };
 
@@ -380,7 +413,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   };
 
   const handleEnterBlur = (e: React.KeyboardEvent) => { if (e.key === 'Enter') (e.target as HTMLElement).blur(); };
-  const labelCls = cn('flex items-center text-[10px] font-bold uppercase tracking-widest text-slate-500', dk && 'text-slate-400');
+  
+  // FIXED GAP-1.5 RESTORED
+  const labelCls = cn('flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500', dk && 'text-slate-400');
   const inputCls = cn('w-full px-2 py-1.5 rounded-lg text-sm font-bold outline-none border transition-all h-[34px]', dk ? 'bg-[#1E293B] border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400');
 
   return (
@@ -395,11 +430,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
           <div className="flex-[2] py-2 min-w-[200px] pr-2">
             <SeamlessInput value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-[15px] font-black leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchQuery} />
-            <SeamlessInput value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} className="mt-0.5" textClass={cn("text-[10px] font-bold uppercase tracking-widest", dk ? "text-slate-500" : "text-slate-400")} searchQuery={searchQuery} />
+            <SeamlessInput value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} className="mt-0.5" textClass={cn("text-[10px] font-bold uppercase tracking-widest gap-1.5", dk ? "text-slate-500" : "text-slate-400")} searchQuery={searchQuery} />
           </div>
 
           <div className="flex-[0.8] px-2 min-w-[120px]" onClick={e => e.stopPropagation()}>
-            <CompanyMultiSelect selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags, company_tag: tags })} onDeleteOption={onDeleteCompanyOption} onAddOption={onAddOption} />
+            <CompanyMultiSelect selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onAddOption={onAddOption} />
           </div>
 
           <div className="flex-[1.5] px-2 min-w-[120px]">
@@ -488,11 +523,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 <div className={cn("w-full xl:w-[240px] shrink-0 p-5 flex flex-col gap-4 border-b xl:border-b-0 xl:border-r", dk ? "border-white/10 bg-[#0F172A]/50" : "border-slate-200 bg-slate-50/50")}>
                     <div>
                        <label className={cn(labelCls, 'mb-1.5')}><Receipt size={12}/> {lang === 'de' ? 'Rechnungsnr.' : 'Invoice No.'}</label>
-                       <input value={localHotel.rechnungNr || ''} onChange={e => patchHotel({ rechnungNr: e.target.value, rechnung_nr: e.target.value })} className={inputCls} placeholder="RE-2026-..." />
+                       <input value={localHotel.rechnungNr || ''} onChange={e => patchHotel({ rechnungNr: e.target.value })} className={inputCls} placeholder="RE-2026-..." />
                     </div>
                     <div>
                        <label className={cn(labelCls, 'mb-1.5')}><FileText size={12}/> {lang === 'de' ? 'Buchungsref.' : 'Booking Ref'}</label>
-                       <input value={localHotel.bookingId || ''} onChange={e => patchHotel({ bookingId: e.target.value, booking_id: e.target.value })} className={inputCls} placeholder="..." />
+                       <input value={localHotel.bookingId || ''} onChange={e => patchHotel({ bookingId: e.target.value })} className={inputCls} placeholder="..." />
                     </div>
                 </div>
 
@@ -505,11 +540,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    </div>
 
                    <div className="flex flex-col gap-3">
-                      {/* MULTIPLE BASE COSTS ROW */}
+                      {/* MULTIPLE BASE COSTS ROW (Z-INDEX ADDED & WIDER INPUTS) */}
                       {showMasterBase && (
                         <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-top-2">
                            {masterMath.baseCostsWithDisplay.map((bc: any, index: number) => (
-                              <div key={bc.id} className={cn("flex flex-col md:flex-row md:items-start justify-between gap-4 p-3 rounded-xl border", dk ? "bg-white/5 border-white/5" : "bg-slate-50 border-slate-200")}>
+                              <div key={bc.id} style={{ zIndex: 60 - index, position: 'relative' }} className={cn("flex flex-col md:flex-row md:items-start justify-between gap-4 p-3 rounded-xl border", dk ? "bg-white/5 border-white/5" : "bg-slate-50 border-slate-200")}>
                                  <div className="flex items-center gap-2 shrink-0 mt-1">
                                     <button onClick={addBaseCost} className={cn("p-1.5 h-[34px] rounded-lg transition-all flex items-center justify-center shrink-0 border", dk ? "bg-[#1E293B] border-white/10 text-teal-400 hover:bg-white/10" : "bg-white border-slate-200 text-teal-600 hover:bg-slate-100")}><Plus size={16}/></button>
                                     <span className="text-sm font-bold text-teal-600 dark:text-teal-400">{lang === 'de' ? 'Grundkosten' : 'Base Cost'} {index > 0 ? `#${index + 1}` : ''}</span>
@@ -518,23 +553,35 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                  <div className="flex-1 flex flex-wrap items-center gap-2 justify-end w-full">
                                     <div className="flex items-center gap-1.5">
                                        <span className={labelCls}>Netto</span>
-                                       {/* Vice-Versa Logic with raw typed string passing directly to state to preserve decimals */}
-                                       <input type="number" value={bc.netto != null ? bc.netto : bc.bNettoDisplay} onChange={e => updateBaseCost(bc.id, {netto: e.target.value === '' ? null : e.target.value, brutto: null})} className={cn(inputCls, 'w-[100px]', bc.brutto != null && "bg-slate-100 dark:bg-black/20 text-slate-400")} placeholder="Auto" />
+                                       {/* WIDTH EXPANDED TO 120px */}
+                                       <input type="number" value={bc.netto != null ? bc.netto : bc.bNettoDisplay} onChange={e => updateBaseCost(bc.id, {netto: e.target.value === '' ? null : e.target.value, brutto: null})} className={cn(inputCls, 'w-[120px]', bc.brutto != null && "bg-slate-100 dark:bg-black/20 text-slate-400")} placeholder="Auto" />
+                                       
+                                       {/* TICKET DISCOUNT TOGGLE BUTTON */}
+                                       {!bc.showDiscount && !bc.discountValue && (
+                                          <button onClick={() => updateBaseCost(bc.id, {showDiscount: true})} title="Rabatt hinzufügen" className={cn("p-1.5 rounded-lg border transition-all flex items-center justify-center", dk ? "bg-[#1E293B] border-white/10 text-slate-400 hover:text-teal-400" : "bg-white border-slate-200 text-slate-400 hover:text-teal-500 hover:bg-slate-50")}>
+                                            <Ticket size={14} />
+                                          </button>
+                                       )}
                                     </div>
                                     
-                                    <div className="flex items-center gap-1.5">
-                                      <span className={labelCls}>{lang === 'de' ? 'Rabatt' : 'Discount'}</span>
-                                      <div className="relative flex items-center h-[34px] w-[90px]">
-                                        <input type="number" value={bc.discountValue || ''} onChange={e => updateBaseCost(bc.id, {discountValue: e.target.value === '' ? null : e.target.value})} className={cn(inputCls, 'w-full pr-7 h-full')} placeholder="0" />
-                                        <button onClick={() => updateBaseCost(bc.id, {discountType: bc.discountType === 'fixed' ? 'percentage' : 'fixed'})} className={cn("absolute right-1 w-5 h-5 rounded flex items-center justify-center text-xs font-bold transition-all", dk ? "bg-white/10 hover:bg-white/20 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-700")}>{bc.discountType === 'fixed' ? '€' : '%'}</button>
+                                    {/* HIDDEN DISCOUNT FIELDS REVEALED BY TICKET */}
+                                    {(bc.showDiscount || bc.discountValue) && (
+                                      <div className="flex items-center gap-1.5 animate-in fade-in zoom-in-95 duration-200">
+                                        <span className={labelCls}>{lang === 'de' ? 'Rabatt' : 'Discount'}</span>
+                                        <div className="relative flex items-center h-[34px] w-[90px]">
+                                          <input type="number" value={bc.discountValue || ''} onChange={e => updateBaseCost(bc.id, {discountValue: e.target.value === '' ? null : e.target.value})} className={cn(inputCls, 'w-full pr-7 h-full')} placeholder="0" />
+                                          <button onClick={() => updateBaseCost(bc.id, {discountType: bc.discountType === 'percentage' ? 'fixed' : 'percentage'})} className={cn("absolute right-1 w-5 h-5 rounded flex items-center justify-center text-xs font-bold transition-all", dk ? "bg-white/10 hover:bg-white/20 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-700")}>{bc.discountType === 'percentage' ? '%' : '€'}</button>
+                                        </div>
+                                        <button onClick={() => updateBaseCost(bc.id, {showDiscount: false, discountValue: null})} className="text-slate-400 hover:text-red-500 transition-colors"><X size={14} /></button>
                                       </div>
-                                    </div>
+                                    )}
                                     
                                     <div className="flex items-center gap-1.5"><span className={labelCls}>MwSt</span><MwstInput value={bc.mwst} onChange={(v) => updateBaseCost(bc.id, {mwst: v})} isDarkMode={dk} /></div>
                                     
                                     <div className="flex items-center gap-1.5">
                                        <span className={labelCls}>Brutto</span>
-                                       <input type="number" value={bc.brutto != null ? bc.brutto : bc.bBruttoDisplay} onChange={e => updateBaseCost(bc.id, {brutto: e.target.value === '' ? null : e.target.value, netto: null})} className={cn(inputCls, 'w-[100px]', bc.netto != null && "bg-slate-100 dark:bg-black/20 text-slate-400")} placeholder="Auto" />
+                                       {/* WIDTH EXPANDED TO 120px */}
+                                       <input type="number" value={bc.brutto != null ? bc.brutto : bc.bBruttoDisplay} onChange={e => updateBaseCost(bc.id, {brutto: e.target.value === '' ? null : e.target.value, netto: null})} className={cn(inputCls, 'w-[120px]', bc.netto != null && "bg-slate-100 dark:bg-black/20 text-slate-400")} placeholder="Auto" />
                                     </div>
 
                                     {localHotel.baseCosts.length > 1 && (
@@ -554,7 +601,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                               <div className="flex items-center gap-1.5"><span className={labelCls}>{lang === 'de' ? 'Wert' : 'Value'}</span>
                                 <div className="relative flex items-center h-[34px] w-[100px]">
                                   <input type="number" value={localHotel.global_discount_value || ''} onChange={e => patchHotel({global_discount_value: e.target.value === '' ? null : e.target.value})} className={cn(inputCls, 'w-full pr-7 h-full')} placeholder="0" />
-                                  <button onClick={() => patchHotel({global_discount_type: localHotel.global_discount_type === 'fixed' ? 'percentage' : 'fixed'})} className={cn("absolute right-1 w-5 h-5 rounded flex items-center justify-center text-xs font-bold transition-all", dk ? "bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-400" : "bg-indigo-100 hover:bg-indigo-200 text-indigo-700")}>{localHotel.global_discount_type === 'fixed' ? '€' : '%'}</button>
+                                  <button onClick={() => patchHotel({global_discount_type: localHotel.global_discount_type === 'percentage' ? 'fixed' : 'percentage'})} className={cn("absolute right-1 w-5 h-5 rounded flex items-center justify-center text-xs font-bold transition-all", dk ? "bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-400" : "bg-indigo-100 hover:bg-indigo-200 text-indigo-700")}>{localHotel.global_discount_type === 'percentage' ? '%' : '€'}</button>
                                 </div>
                               </div>
                               <div className="flex items-center gap-1.5"><span className={labelCls}>{lang === 'de' ? 'Ziel' : 'Target'}</span><select value={localHotel.global_discount_target || 'netto'} onChange={e => patchHotel({global_discount_target: e.target.value})} className={cn(inputCls, 'w-[140px] font-bold h-[34px]')}><option value="netto">{lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</option><option value="brutto">{lang === 'de' ? 'Gesamt Brutto' : 'Total Brutto'}</option></select></div>
@@ -562,13 +609,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                         </div>
                       )}
 
-                      {/* EXTRA COSTS */}
+                      {/* EXTRA COSTS (Z-INDEX BUG FIXED) */}
                       {showExtras && (
                         <div className={cn("flex flex-col md:flex-row md:items-start justify-between gap-4 p-3 rounded-xl border animate-in fade-in slide-in-from-top-2", dk ? "bg-white/5 border-white/5" : "bg-slate-50 border-slate-200")}>
                            <span className="text-sm font-bold text-amber-500 shrink-0 mt-2">{lang === 'de' ? 'Extra' : 'Extra'}</span>
                            <div className="flex-1 flex flex-col gap-2 items-end w-full">
-                               {masterMath.extrasWithDisplay.map((ec:any) => (
-                                  <div key={ec.id} className="flex flex-wrap xl:flex-nowrap items-center gap-2 w-full justify-end">
+                               {masterMath.extrasWithDisplay.map((ec:any, index: number) => (
+                                  <div key={ec.id} style={{ zIndex: 40 - index, position: 'relative' }} className="flex flex-wrap xl:flex-nowrap items-center gap-2 w-full justify-end">
                                      <button onClick={addExtra} className={cn("p-1.5 h-[34px] rounded-lg transition-all flex items-center justify-center shrink-0 border", dk ? "bg-[#1E293B] border-white/10 text-teal-400 hover:bg-white/10" : "bg-white border-slate-200 text-teal-600 hover:bg-slate-100")}><Plus size={16}/></button>
                                      <input value={ec.note} onChange={e => updateExtra(ec.id, {note: e.target.value})} className={cn(inputCls, 'flex-1 min-w-[200px]')} placeholder={lang === 'de' ? "Notiz..." : "Note..."} />
                                      
@@ -586,14 +633,14 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    </div>
                 </div>
 
-                {/* COL 3: Master Summary (EXPANDED WIDTH to 380px to stop overlapping) */}
+                {/* COL 3: Master Summary (WIDER to prevent overlap: 380px) */}
                 <div className={cn("w-full xl:w-[380px] p-6 flex flex-col justify-between shrink-0 border-t xl:border-t-0 xl:border-l", dk ? "bg-[#0F172A]/80 border-white/10" : "bg-slate-50 border-slate-200")}>
                    <div className="flex items-center justify-between gap-2 mb-8">
                       <div className="flex items-center gap-1.5 flex-1 max-w-[160px]">
-                         <button onClick={() => patchHotel({depositEnabled: !localHotel.depositEnabled, deposit_enabled: !localHotel.depositEnabled})} className={cn("px-3 py-1.5 text-[11px] font-black uppercase rounded-lg border transition-all h-[34px]", localHotel.depositEnabled ? "bg-amber-500/20 text-amber-500 border-amber-500/30" : dk ? "border-white/10 text-slate-500 hover:text-white" : "border-slate-200 text-slate-400")}>{lang === 'de' ? 'Kaution' : 'Deposit'}</button>
-                         {localHotel.depositEnabled && <input type="number" value={localHotel.depositAmount || ''} onChange={e => patchHotel({depositAmount: e.target.value === '' ? null : e.target.value, deposit_amount: e.target.value === '' ? null : e.target.value})} className={cn(inputCls, 'w-[100px] h-[34px] px-2 text-xs text-amber-500 border-amber-500/30')} placeholder="0.00" />}
+                         <button onClick={() => patchHotel({depositEnabled: !localHotel.depositEnabled})} className={cn("px-3 py-1.5 text-[11px] font-black uppercase rounded-lg border transition-all h-[34px]", localHotel.depositEnabled ? "bg-amber-500/20 text-amber-500 border-amber-500/30" : dk ? "border-white/10 text-slate-500 hover:text-white" : "border-slate-200 text-slate-400")}>{lang === 'de' ? 'Kaution' : 'Deposit'}</button>
+                         {localHotel.depositEnabled && <input type="number" value={localHotel.depositAmount || ''} onChange={e => patchHotel({depositAmount: e.target.value === '' ? null : e.target.value})} className={cn(inputCls, 'w-[100px] h-[34px] px-2 text-xs text-amber-500 border-amber-500/30')} placeholder="0.00" />}
                       </div>
-                      <button onClick={() => patchHotel({isPaid: !localHotel.isPaid, is_paid: !localHotel.isPaid})} className={cn("px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all border h-[34px]", localHotel.isPaid ? "bg-emerald-500/20 text-emerald-500 border-emerald-500/40" : "bg-red-500/10 text-red-500 border-red-500/30")}>
+                      <button onClick={() => patchHotel({isPaid: !localHotel.isPaid})} className={cn("px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all border h-[34px]", localHotel.isPaid ? "bg-emerald-500/20 text-emerald-500 border-emerald-500/40" : "bg-red-500/10 text-red-500 border-red-500/30")}>
                          {localHotel.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid')}
                       </button>
                    </div>
