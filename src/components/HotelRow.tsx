@@ -184,8 +184,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             tBeds += b;
             totalNightsAllRooms += (b * nights);
             allEmps.push(...(c.employees || []));
-            dNetto += (parseFloat(c.totalNetto) || 0);
-            dBrutto += (parseFloat(c.totalBrutto) || 0);
+            sumDurationNetto += (Number(c.totalNetto) || 0);
+            sumDurationBrutto += (Number(c.totalBrutto) || 0);
          });
       }
       sumDurationNetto += dNetto;
