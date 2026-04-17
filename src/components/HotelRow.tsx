@@ -179,17 +179,22 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
          if (d.netto) { dNetto = parseFloat(d.netto); dBrutto = dNetto * (1 + (parseFloat(d.mwst) || 19)/100); }
          else if (d.brutto) { dBrutto = parseFloat(d.brutto); dNetto = dBrutto / (1 + (parseFloat(d.mwst) || 19)/100); }
       } else {
-         (d.roomCards || []).forEach((c: any) => {
-            const b = c.roomType === 'EZ' ? 1 : c.roomType === 'DZ' ? 2 : c.roomType === 'TZ' ? 3 : (c.bedCount || 2);
-            tBeds += b;
-            totalNightsAllRooms += (b * nights);
-            allEmps.push(...(c.employees || []));
-            sumDurationNetto += (Number(c.totalNetto) || 0);
-            sumDurationBrutto += (Number(c.totalBrutto) || 0);
-         });
-      }
-      sumDurationNetto += dNetto;
-      sumDurationBrutto += dBrutto;
+(localHotel.durations || []).forEach((d: any) => {
+      const nights = calculateNights(d.startDate, d.endDate);
+      
+      // We sum up the rooms for this specific duration
+      (d.roomCards || []).forEach((c: any) => {
+         const b = c.roomType === 'EZ' ? 1 : c.roomType === 'DZ' ? 2 : c.roomType === 'TZ' ? 3 : (c.bedCount || 2);
+         tBeds += b;
+         totalNightsAllRooms += (b * nights);
+         allEmps.push(...(c.employees || []));
+
+         // FIX: Use Number() and ensure we add to the global total once
+         sumDurationNetto += (Number(c.totalNetto) || 0);
+         sumDurationBrutto += (Number(c.totalBrutto) || 0);
+      });
+
+      // Status tracking for the header
       tFree += calcDurationFreeBeds(d, today);
     });
 
