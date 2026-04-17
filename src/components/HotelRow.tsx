@@ -3,7 +3,7 @@ import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, ChevronRight, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, FileText, Tag, Calculator, Edit3, PlusCircle, Ticket } from 'lucide-react';
 import {
-  cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatDateChip, formatLastUpdated, calculateNights, normalizeNumberInput
+  cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatDateChip, formatLastUpdated, calculateNights
 } from '../lib/utils';
 import { createDuration, updateHotel, deleteHotel } from '../lib/supabase';
 import DurationCard from './DurationCard';
@@ -106,7 +106,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [open, setOpen] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   
-  // STRICT DEFAULT TO 'fixed' (€) to crush the ghost % bug
+  // FIX: STRICT default to 'fixed' (€) if the discount is 0 or empty
   const initialBaseCosts = entry?.base_costs?.length > 0 
     ? entry.base_costs.map((bc: any) => ({
         ...bc,
@@ -174,6 +174,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       const nights = calculateNights(d.startDate, d.endDate);
       let dNetto = 0; let dBrutto = 0;
 
+      // This part calculates the total from individual Duration and Room Cards
       if (d.useBruttoNetto && (d.netto || d.brutto)) {
          if (d.netto) { dNetto = parseFloat(d.netto); dBrutto = dNetto * (1 + (parseFloat(d.mwst) || 19)/100); }
          else if (d.brutto) { dBrutto = parseFloat(d.brutto); dNetto = dBrutto / (1 + (parseFloat(d.mwst) || 19)/100); }
@@ -183,8 +184,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             tBeds += b;
             totalNightsAllRooms += (b * nights);
             allEmps.push(...(c.employees || []));
-            dNetto += (c.totalNetto || 0);
-            dBrutto += (c.totalBrutto || 0);
+            dNetto += (parseFloat(c.totalNetto) || 0);
+            dBrutto += (parseFloat(c.totalBrutto) || 0);
          });
       }
       sumDurationNetto += dNetto;
@@ -196,6 +197,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     let isMasterActive = false;
     let buckets: Record<string, number> = {};
 
+    // Check if any "Grundkosten" inputs are filled
     const baseCostsWithDisplay = (localHotel.baseCosts || []).map((bc: any) => {
         let bNetto = 0; let bBrutto = 0;
         let bMwSt = bc.mwst != null ? parseFloat(bc.mwst) : null;
@@ -203,7 +205,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         let bNettoDisplay = ''; let bBruttoDisplay = '';
         let discountedNetto = 0;
 
-        if (bc.netto != null || bc.brutto != null) isMasterActive = true;
+        if (bc.netto != null || bc.brutto != null) {
+            isMasterActive = true;
+        }
 
         if (bc.netto != null) {
             bNetto = parseFloat(bc.netto);
@@ -265,12 +269,14 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
        return { ...ec, eNettoDisplay, eBruttoDisplay };
     });
 
+    // CRITICAL FIX: If no Master Base Cost is active, pull from roomCardsTotal
     let preGlobalNetto = (isMasterActive ? bNettoTotal : sumDurationNetto) + extraNettoTotal;
     let preGlobalBrutto = (isMasterActive ? bBruttoTotal : sumDurationBrutto) + extraBruttoTotal;
     
     let finalNetto = preGlobalNetto;
     let finalBrutto = preGlobalBrutto;
 
+    // Apply Global Discount
     if (localHotel.has_global_discount && localHotel.global_discount_value) {
        const gVal = parseFloat(localHotel.global_discount_value);
        const isFixed = localHotel.global_discount_type === 'fixed';
@@ -306,12 +312,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       isOverriddenBrutto: localHotel.override_total_brutto != null,
       isOverriddenBed: localHotel.override_price_per_bed != null
     };
-  }, [localHotel, selectedMonth, selectedYear]);
+  }, [localHotel]);
 
   const visibleEmps = masterMath.employees.slice(0, 6);
   const hiddenEmpsCount = masterMath.employees.length > 6 ? masterMath.employees.length - 6 : 0;
 
-  // --- THE STRICT DATABASE SAVER ---
   function patchHotel(changes: any) {
     const next = { ...localHotel, ...changes };
     setLocalHotel(next);
@@ -351,12 +356,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
         await updateHotel(localHotel.id, dbPayload);
         onUpdate(localHotel.id, next);
-      } catch (e: any) { alert(`Error saving: ${e.message}`); }
+      } catch (e: any) { console.error(`Error saving: ${e.message}`); }
       finally { setSaving(false); }
     }, 400);
   }
 
-  // --- MULTIPLE BASE COSTS LOGIC ---
   const addBaseCost = () => {
     const next = [...localHotel.baseCosts, { id: Math.random().toString(), netto: null, mwst: null, brutto: null, discountValue: null, discountType: 'fixed', showDiscount: false }];
     patchHotel({ baseCosts: next });
@@ -371,7 +375,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     patchHotel({ baseCosts: next });
   };
 
-  // --- EXTRA COSTS LOGIC ---
   const toggleExtras = () => {
      if (showExtras) {
         setShowExtras(false);
@@ -425,7 +428,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     <div className="space-y-1 relative" style={{ zIndex: 40 - (index % 30) }}>
       <div className={cn('rounded-2xl border transition-all duration-200 shadow-sm relative', dk ? 'bg-[#1E293B] border-white/5 hover:border-white/10' : 'bg-white border-slate-200 hover:border-slate-300')}>
         
-        {/* MAIN ROW (Collapsed View) */}
+        {/* MAIN ROW */}
         <div className={cn('flex flex-wrap md:flex-nowrap items-center gap-0 cursor-pointer p-2', dk ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/70', open && 'border-b', open && (dk ? 'border-white/5 bg-black/20' : 'border-slate-100 bg-slate-50/50'))} onClick={() => setOpen(!open)}>
           <div className="flex items-center justify-center w-10 shrink-0">
             {open ? <ChevronDown size={18} className="text-teal-500" /> : <ChevronRight size={18} className="text-slate-500" />}
@@ -518,7 +521,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               </div>
             )}
 
-            {/* --- NEW MASTER INVOICE CARD --- */}
+            {/* MASTER INVOICE CARD */}
             <div className={cn("rounded-2xl border flex flex-col xl:flex-row shadow-md", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}>
                 
                 {/* COL 1: Identity */}
@@ -603,7 +606,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                               <div className="flex items-center gap-1.5"><span className={labelCls}>{lang === 'de' ? 'Wert' : 'Value'}</span>
                                 <div className="relative flex items-center h-[34px] w-[100px]">
                                   <input type="number" value={localHotel.global_discount_value || ''} onChange={e => patchHotel({global_discount_value: e.target.value === '' ? null : e.target.value})} className={cn(inputCls, 'w-full pr-7 h-full')} placeholder="0" />
-                                  <button onClick={() => patchHotel({global_discount_type: localHotel.global_discount_type === 'percentage' ? 'fixed' : 'percentage'})} className={cn("absolute right-1 w-5 h-5 rounded flex items-center justify-center text-xs font-bold transition-all", dk ? "bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-400" : "bg-indigo-100 hover:bg-indigo-200 text-indigo-700")}>{localHotel.global_discount_type === 'percentage' ? '%' : '€'}</button>
+                                  <button onClick={() => patchHotel({global_discount_type: localHotel.global_discount_type === 'percentage' ? 'fixed' : 'percentage'})} className={cn("absolute right-1 w-5 h-5 rounded flex items-center justify-center text-xs font-bold transition-all", dk ? "bg-white/10 hover:bg-white/20 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-700")}>{localHotel.global_discount_type === 'percentage' ? '%' : '€'}</button>
                                 </div>
                               </div>
                               <div className="flex items-center gap-1.5"><span className={labelCls}>{lang === 'de' ? 'Ziel' : 'Target'}</span>
@@ -620,7 +623,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                            <span className="text-sm font-bold text-amber-500 shrink-0 mt-2">{lang === 'de' ? 'Extra' : 'Extra'}</span>
                            <div className="flex-1 flex flex-col gap-2 items-end w-full">
                                {masterMath.extrasWithDisplay.map((ec:any, index: number) => (
-                                  <div key={ec.id} style={{ zIndex: 40 - index, position: 'relative' }} className="flex flex-wrap xl:flex-nowrap items-center gap-2 w-full justify-end">
+                                  <div key={ec.id} style={{ zIndex: 40 - index, position: 'relative' }} className="flex flex-nowrap items-center gap-2 w-full justify-end">
                                      <button onClick={addExtra} className={cn("p-1.5 h-[34px] rounded-lg transition-all flex items-center justify-center shrink-0 border", dk ? "bg-[#1E293B] border-white/10 text-teal-400 hover:bg-white/10" : "bg-white border-slate-200 text-teal-600 hover:bg-slate-100")}><Plus size={16}/></button>
                                      <input value={ec.note} onChange={e => updateExtra(ec.id, {note: e.target.value})} className={cn(inputCls, 'flex-1 min-w-[140px]')} placeholder={lang === 'de' ? "Notiz..." : "Note..."} />
                                      
@@ -636,7 +639,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    </div>
                 </div>
 
-                {/* COL 3: Master Summary (COMPRESSED VERTICALLY) */}
+                {/* COL 3: Master Summary */}
                 <div className={cn("w-full xl:w-[380px] p-5 flex flex-col shrink-0 border-t xl:border-t-0 xl:border-l rounded-tr-2xl rounded-br-2xl rounded-bl-2xl xl:rounded-bl-none", dk ? "bg-[#0F172A]/80 border-white/10" : "bg-slate-50 border-slate-200")}>
                    <div className="flex items-center justify-between gap-2 mb-4">
                       <div className="flex items-center gap-1.5 flex-1 max-w-[160px]">
@@ -675,7 +678,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                          {editingOBrutto ? (
                            <input autoFocus type="number" value={editBruttoValue} onChange={e => setEditBruttoValue(e.target.value)} onBlur={() => {patchHotel({override_total_brutto: editBruttoValue === '' ? null : editBruttoValue}); setEditingOBrutto(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-32 text-right px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-600 font-black text-xl outline-none")} />
                          ) : (
-                           <span onClick={() => {setEditBruttoValue(masterMath.displayBrutto.toFixed(2)); setEditingOBrutto(true);}} className={cn("text-xl font-black cursor-pointer rounded px-1 -mr-1 transition-colors flex items-center gap-2", masterMath.isOverriddenBrutto ? "text-yellow-500 bg-yellow-500/10" : dk ? "text-white group-hover:bg-white/10" : "text-slate-900 group-hover:bg-slate-200")}>{formatCurrency(masterMath.displayBrutto)} <Edit3 size={12} className="opacity-0 group-hover:opacity-100"/></span>
+                           <span onClick={() => {setEditBruttoValue(masterMath.displayBrutto.toFixed(2)); setEditingOBrutto(true);}} className={cn("text-xl font-black cursor-pointer rounded px-1 -ml-1 transition-colors flex items-center gap-2", masterMath.isOverriddenBrutto ? "text-yellow-500 bg-yellow-500/10" : dk ? "text-white group-hover:bg-white/10" : "text-slate-900 group-hover:bg-slate-200")}>{formatCurrency(masterMath.displayBrutto)} <Edit3 size={12} className="opacity-0 group-hover:opacity-100"/></span>
                          )}
                       </div>
                       
@@ -689,7 +692,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       </div>
                    </div>
                 </div>
-            </div> {/* <-- THIS DIV CLOSES THE MASTER INVOICE CARD */}
+            </div>
             
             {/* DURATION TABS */}
             <div className="pt-4">
