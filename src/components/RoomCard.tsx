@@ -41,7 +41,7 @@ function BedSlot({
   const [checkIn, setCheckIn] = useState(employee?.checkIn ?? gapStart ?? durationStart)
   const [checkOut, setCheckOut] = useState(employee?.checkOut ?? gapEnd ?? durationEnd)
   const [saving, setSaving] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmDel, setConfirmDel] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const effectiveIn = gapStart ?? durationStart
@@ -65,10 +65,11 @@ function BedSlot({
         await enqueue({ type: 'updateEmployee', payload });
         onUpdated(slotIndex, { ...employee, ...payload });
       } else {
+        const isGapFill = !!(gapStart || gapEnd)
         const newId = crypto.randomUUID();
         const payload = { id: newId, durationId, roomCardId, slotIndex, name: name.trim(), checkIn, checkOut };
         await enqueue({ type: 'createEmployee', payload });
-        onUpdated(slotIndex, payload as any, !!(gapStart || gapEnd));
+        onUpdated(slotIndex, payload as any, isGapFill);
       }
       setEditing(false)
     } catch (e) { console.error(e) } finally { setSaving(false) }
@@ -220,6 +221,7 @@ export default function RoomCard({
   const [isOpen, setIsOpen] = useState(false)
   const [showPricing, setShowPricing] = useState(false)
   const [isApplyActive, setApplyActive] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false) // Verified: Variable name fixed
   const saveTimer = useRef<any>(null)
 
   const beds = bedsForType(card.roomType, card.bedCount)
@@ -276,7 +278,7 @@ export default function RoomCard({
              <div className="flex flex-col items-end shrink-0 ml-4">
                 {isMasterPricingActive ? <span className="text-[10px] opacity-40 font-black uppercase tracking-widest">Master Active</span> : <span className="text-xl font-black tabular-nums">{roomTotalDisplay}</span>}
              </div>
-             <button onClick={(e) => { e.stopPropagation(); setConfirm(true); }} className={cn('p-2 rounded transition-all shrink-0 ml-4', dk ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-red-500 hover:bg-red-50')}><Trash2 size={18} /></button>
+             <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className={cn('p-2 rounded transition-all shrink-0 ml-4', dk ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-red-500 hover:bg-red-50')}><Trash2 size={18} /></button>
            </>
         ) : (
            <div className="flex items-center gap-3 flex-1">
@@ -291,7 +293,7 @@ export default function RoomCard({
                  <div className="flex flex-col items-end min-w-[120px] ml-2"><span className="text-xl font-black">{roomTotalDisplay}</span></div>
                </>
              )}
-             <button onClick={(e) => { e.stopPropagation(); setConfirm(true); }} className="p-2 text-slate-400 hover:text-red-500"><Trash2 size={18} /></button>
+             <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-2 text-slate-400 hover:text-red-500"><Trash2 size={18} /></button>
            </div>
         )}
       </div>
@@ -337,8 +339,17 @@ export default function RoomCard({
                    <div key={i} className="space-y-3">
                      <span className={labelCls}>BED {i + 1}</span>
                      <div className="space-y-3">
-                       {slotE.length === 0 ? (<BedSlot slotIndex={i} employee={null} durationStart={durationStart} durationEnd={durationEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} onUpdated={onEmployeeUpdated} />) : (slotE.map((emp, empIdx) => (<BedSlot key={emp.id} slotIndex={i} employee={emp} durationStart={durationStart} durationEnd={durationEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} isSubstitute={empIdx > 0} onUpdated={onEmployeeUpdated} />)))}
-                       {getGapSlots(beds, employees, durationStart, durationEnd).filter(g => g.slotIndex === i).map((gap, gi) => (<BedSlot key={`gap-${i}-${gi}`} slotIndex={i} employee={null} durationStart={durationStart} durationEnd={durationEnd} gapStart={gap.gapStart} gapEnd={gap.gapEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} onUpdated={onEmployeeUpdated} />))}
+                       {slotE.length === 0 ? (<BedSlot slotIndex={i} employee={null} durationStart={durationStart} durationEnd={durationEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} onUpdated={(idx, emp) => {
+                         const next = emp === null ? employees.filter(e => e.slotIndex !== idx) : employees.some(e => e.id === emp.id) ? employees.map(e => e.id === emp.id ? emp : e) : [...employees, emp];
+                         onUpdate(card.id, { employees: next });
+                       }} />) : (slotE.map((emp, empIdx) => (<BedSlot key={emp.id} slotIndex={i} employee={emp} durationStart={durationStart} durationEnd={durationEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} isSubstitute={empIdx > 0} onUpdated={(idx, e) => {
+                         const next = e === null ? employees.filter(empItem => empItem.id !== emp.id) : employees.map(empItem => empItem.id === e.id ? e : empItem);
+                         onUpdate(card.id, { employees: next });
+                       }} />)))}
+                       {getGapSlots(beds, employees, durationStart, durationEnd).filter(g => g.slotIndex === i).map((gap, gi) => (<BedSlot key={`gap-${i}-${gi}`} slotIndex={i} employee={null} durationStart={durationStart} durationEnd={durationEnd} gapStart={gap.gapStart} gapEnd={gap.gapEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} onUpdated={(idx, emp) => {
+                         const next = emp === null ? employees : [...employees, emp];
+                         onUpdate(card.id, { employees: next });
+                       }} />))}
                      </div>
                    </div>
                  )
@@ -347,10 +358,10 @@ export default function RoomCard({
         </div>
       )}
       {confirmDelete && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className={cn('w-full max-w-sm rounded-3xl border p-6 shadow-2xl', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
             <h3 className="text-xl font-black mb-3">Delete Room?</h3><p className="text-sm mb-6 opacity-60">This cannot be undone.</p>
-            <div className="flex justify-end gap-3"><button onClick={() => setConfirm(false)} className={cn('px-5 py-2.5 rounded-lg border text-sm font-bold', dk ? 'border-white/10 text-slate-300' : 'border-slate-200 text-slate-700')}>Cancel</button><button onClick={async () => { await enqueue({ type: 'deleteRoomCard', payload: { id: card.id } }); onDelete(card.id); }} className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold">Delete</button></div>
+            <div className="flex justify-end gap-3"><button onClick={() => setConfirmDelete(false)} className={cn('px-5 py-2.5 rounded-lg border text-sm font-bold', dk ? 'border-white/10 text-slate-300' : 'border-slate-200 text-slate-700')}>Cancel</button><button onClick={async () => { await enqueue({ type: 'deleteRoomCard', payload: { id: card.id } }); onDelete(card.id); setConfirmDelete(false); }} className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold">Delete</button></div>
           </div>
         </div>
       )}
