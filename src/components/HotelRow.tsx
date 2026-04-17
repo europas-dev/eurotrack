@@ -720,6 +720,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 </button>
               </div>
             </div>
+          </div>
             
             {localHotel.durations[activeDurationTab] ? (
               <DurationCard duration={localHotel.durations[activeDurationTab]} isDarkMode={dk} lang={lang} 
