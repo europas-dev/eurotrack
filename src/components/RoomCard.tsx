@@ -41,7 +41,7 @@ function BedSlot({
   const [checkIn, setCheckIn] = useState(employee?.checkIn ?? gapStart ?? durationStart)
   const [checkOut, setCheckOut] = useState(employee?.checkOut ?? gapEnd ?? durationEnd)
   const [saving, setSaving] = useState(false)
-  const [confirmDel, setConfirmDel] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const effectiveIn = gapStart ?? durationStart
