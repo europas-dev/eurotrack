@@ -11,10 +11,10 @@ import type { Employee, PricingTab, RoomCard as RoomCardType } from '../lib/type
 
 const noSpinner: React.CSSProperties = { MozAppearance: 'textfield' as any, WebkitAppearance: 'none' as any }
 
-export function getEffectiveNetto(netto: number|null|undefined, mwst: number|null|undefined, brutto: number|null|undefined) {
-  if (netto != null && netto > 0) return netto;
-  if (brutto != null && brutto > 0) return brutto / (1 + (mwst || 7) / 100);
-  return 0;
+function fmtDate(iso: string) {
+  if (!iso) return '—'
+  const [y, m, d] = iso.split('-')
+  return `${d}/${m}/${y}`
 }
 
 function empBorderColor(emp: Employee | null, dk: boolean): string {
@@ -25,12 +25,6 @@ function empBorderColor(emp: Employee | null, dk: boolean): string {
   if (s === 'completed') return dk ? 'border-slate-500/40' : 'border-slate-400'
   if (s === 'upcoming') return dk ? 'border-blue-500/60' : 'border-blue-500'
   return dk ? 'border-white/10' : 'border-slate-200'
-}
-
-function fmtDate(iso: string) {
-  if (!iso) return '—'
-  const [y, m, d] = iso.split('-')
-  return `${d}/${m}/${y}`
 }
 
 function BedSlot({
@@ -71,11 +65,10 @@ function BedSlot({
         await enqueue({ type: 'updateEmployee', payload });
         onUpdated(slotIndex, { ...employee, ...payload });
       } else {
-        const isGapFill = !!(gapStart || gapEnd)
         const newId = crypto.randomUUID();
         const payload = { id: newId, durationId, roomCardId, slotIndex, name: name.trim(), checkIn, checkOut };
         await enqueue({ type: 'createEmployee', payload });
-        onUpdated(slotIndex, payload as any, isGapFill);
+        onUpdated(slotIndex, payload as any, !!(gapStart || gapEnd));
       }
       setEditing(false)
     } catch (e) { console.error(e) } finally { setSaving(false) }
@@ -140,41 +133,17 @@ function BedSlot({
   )
 }
 
-function getGapSlots(beds: number, employees: Employee[], durationStart: string, durationEnd: string): { slotIndex: number; gapStart: string; gapEnd: string }[] {
-  const gaps: { slotIndex: number; gapStart: string; gapEnd: string }[] = []
-  const occupied: Record<number, Employee[]> = {}
-  employees.forEach(e => {
-    const si = e.slotIndex ?? 0
-    occupied[si] = occupied[si] ?? []
-    occupied[si].push(e)
-  })
-  for (let i = 0; i < beds; i++) {
-    const occs = (occupied[i] ?? []).sort((a, b) => (a.checkIn ?? '').localeCompare(b.checkIn ?? ''))
-    if (occs.length === 0) continue
-    const first = occs[0]
-    if (first.checkIn && first.checkIn > durationStart) gaps.push({ slotIndex: i, gapStart: durationStart, gapEnd: first.checkIn })
-    for (let j = 0; j < occs.length - 1; j++) {
-      const curr = occs[j]; const next = occs[j + 1]
-      if (curr.checkOut && next.checkIn && curr.checkOut < next.checkIn) gaps.push({ slotIndex: i, gapStart: curr.checkOut, gapEnd: next.checkIn })
-    }
-    const last = occs[occs.length - 1]
-    if (last.checkOut && last.checkOut < durationEnd) gaps.push({ slotIndex: i, gapStart: last.checkOut, gapEnd: durationEnd })
-  }
-  return gaps
-}
-
 function InlineNMBRow({
   nettoKey, mwstKey, bruttoKey, energyNettoKey, energyMwstKey, energyBruttoKey,
-  card, dk, inputCls, onPatch, disabled, multiplier, activeTab
+  card, dk, inputCls, onPatch, disabled, multiplier
 }: {
   nettoKey: keyof RoomCardType; mwstKey: keyof RoomCardType; bruttoKey: keyof RoomCardType;
   energyNettoKey?: keyof RoomCardType; energyMwstKey?: keyof RoomCardType; energyBruttoKey?: keyof RoomCardType;
-  card: RoomCardType; dk: boolean; inputCls: string; onPatch: (p: Partial<RoomCardType>) => void; disabled?: boolean; multiplier: number; activeTab: PricingTab;
+  card: RoomCardType; dk: boolean; inputCls: string; onPatch: (p: Partial<RoomCardType>) => void; disabled?: boolean; multiplier: number;
 }) {
   const lbl = cn('text-[10px] font-black uppercase tracking-widest h-4 flex items-end mb-1', dk ? 'text-slate-500' : 'text-slate-400')
   const sumLbl = cn('text-[11px] font-black mt-1 pl-1 h-4', dk ? 'text-slate-500' : 'text-slate-400')
-  const disabledInputCls = cn(inputCls, 'opacity-40 cursor-not-allowed pointer-events-none')
-
+  
   const updateNetto = (v: string) => {
     const n = v === '' ? null : normalizeNumberInput(v);
     const m = card[mwstKey] as number ?? 0;
@@ -187,209 +156,130 @@ function InlineNMBRow({
     const n = b !== null ? Number((b / (1 + m / 100)).toFixed(2)) : null;
     onPatch({ [bruttoKey]: b, [nettoKey]: n } as any);
   }
-  const updateMwst = (v: string) => {
-    const m = v === '' ? null : normalizeNumberInput(v);
-    const n = card[nettoKey] as number ?? 0;
-    const b = n !== null && m !== null ? Number((n * (1 + m / 100)).toFixed(2)) : card[bruttoKey];
-    onPatch({ [mwstKey]: m, [bruttoKey]: b } as any);
-  }
-
-  // FIXED BIDIRECTIONAL MATH FOR ENERGY
-  const updateEnergyNetto = (v: string) => {
-    if (!energyNettoKey || !energyBruttoKey) return;
-    const n = v === '' ? null : normalizeNumberInput(v);
-    const m = card[energyMwstKey!] as number ?? 0;
-    const b = n !== null ? Number((n * (1 + m / 100)).toFixed(2)) : null;
-    onPatch({ [energyNettoKey]: n, [energyBruttoKey]: b } as any);
-  }
-  const updateEnergyBrutto = (v: string) => {
-    if (!energyNettoKey || !energyBruttoKey) return;
-    const b = v === '' ? null : normalizeNumberInput(v);
-    const m = card[energyMwstKey!] as number ?? 0;
-    const n = b !== null ? Number((b / (1 + m / 100)).toFixed(2)) : null;
-    onPatch({ [energyBruttoKey]: b, [energyNettoKey]: n } as any);
-  }
-
-  const tNetto = (card[nettoKey] as number ?? 0) * multiplier;
-  const tBrutto = (card[bruttoKey] as number ?? 0) * multiplier;
-  
-  // FIXED ENERGY SUM MATH (Corrected for Tab type)
-  const tENetto = (card[energyNettoKey!] as number ?? 0) * multiplier;
-  const tEBrutto = (card[energyBruttoKey!] as number ?? 0) * multiplier;
 
   return (
     <div className={cn("flex items-start gap-3 flex-nowrap w-max", disabled && "opacity-50 pointer-events-none")}>
-      <div className="flex flex-col"><p className={lbl}>Netto (€)</p><input type="number" min={0} step="0.01" value={card[nettoKey] ?? ''} placeholder="0.00" disabled={disabled} onChange={e => updateNetto(e.target.value)} style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-36')} /><div className={sumLbl}>{tNetto > 0 && `Σ ${formatCurrency(tNetto)}`}</div></div>
-      <div className="flex flex-col"><p className={lbl}>MwSt (%)</p><input type="number" min={0} max={99} step="0.5" value={card[mwstKey] ?? ''} placeholder="%" disabled={disabled} onChange={e => updateMwst(e.target.value)} style={{ ...noSpinner }} className={cn(disabled ? disabledInputCls : inputCls, 'w-16')} /><div className={sumLbl}/></div>
-      <div className="flex flex-col"><p className={lbl}>Brutto (€)</p><input type="number" min={0} step="0.01" value={card[bruttoKey] ?? ''} placeholder="0.00" disabled={disabled} onChange={e => updateBrutto(e.target.value)} style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-36')} /><div className={sumLbl}>{tBrutto > 0 && `Σ ${formatCurrency(tBrutto)}`}</div></div>
-
-      {energyNettoKey && (
-        <div className={cn("flex items-start gap-3 px-4 py-2 rounded-xl border border-dashed mx-2", dk ? "border-yellow-500/30 bg-yellow-500/5" : "border-yellow-400/60 bg-yellow-50/50")}>
-          <div className="flex flex-col"><p className={lbl}><Zap size={10} className="inline mr-1 text-yellow-500" />En. Netto</p><input type="number" min={0} step="0.01" value={card[energyNettoKey] ?? ''} placeholder="0.00" disabled={disabled} onChange={e => updateEnergyNetto(e.target.value)} style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-36')} /><div className={cn(sumLbl, "text-yellow-600/70")}>{tENetto > 0 && `Σ ${formatCurrency(tENetto)}`}</div></div>
-          <div className="flex flex-col"><p className={lbl}>MwSt</p><input type="number" min={0} max={99} step="0.5" value={card[energyMwstKey!] ?? ''} placeholder="%" disabled={disabled} onChange={e => onPatch({ [energyMwstKey!]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)} style={{ ...noSpinner }} className={cn(disabled ? disabledInputCls : inputCls, 'w-16')} /><div className={sumLbl}/></div>
-          <div className="flex flex-col"><p className={lbl}>En. Brutto</p><input type="number" min={0} step="0.01" value={card[energyBruttoKey!] ?? ''} placeholder="0.00" disabled={disabled} onChange={e => updateEnergyBrutto(e.target.value)} style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-36')} /><div className={cn(sumLbl, "text-yellow-600/70")}>{tEBrutto > 0 && `Σ ${formatCurrency(tEBrutto)}`}</div></div>
-        </div>
-      )}
+      <div className="flex flex-col"><p className={lbl}>Netto (€)</p><input type="number" value={card[nettoKey] ?? ''} placeholder="0.00" disabled={disabled} onChange={e => updateNetto(e.target.value)} style={noSpinner} className={cn(inputCls, 'w-32')} /><div className={sumLbl}>{(card[nettoKey] as number ?? 0) > 0 && `Σ ${formatCurrency((card[nettoKey] as number ?? 0) * multiplier)}`}</div></div>
+      <div className="flex flex-col"><p className={lbl}>MwSt (%)</p><input type="number" value={card[mwstKey] ?? ''} placeholder="%" disabled={disabled} onChange={e => onPatch({ [mwstKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value) } as any)} style={noSpinner} className={cn(inputCls, 'w-16')} /><div className={sumLbl}/></div>
+      <div className="flex flex-col"><p className={lbl}>Brutto (€)</p><input type="number" value={card[bruttoKey] ?? ''} placeholder="0.00" disabled={disabled} onChange={e => updateBrutto(e.target.value)} style={noSpinner} className={cn(inputCls, 'w-32')} /><div className={sumLbl}>{(card[bruttoKey] as number ?? 0) > 0 && `Σ ${formatCurrency((card[bruttoKey] as number ?? 0) * multiplier)}`}</div></div>
     </div>
   )
 }
 
 export default function RoomCard({
-  card, durationStart, durationEnd, dk, lang, allCardsOfSameType, bruttoNettoActive = false,
+  card, durationStart, durationEnd, dk, lang, allCardsOfSameType, isMasterPricingActive = false,
   onUpdate, onDelete, onApplyToSameType,
 }: {
   card: RoomCardType; durationStart: string; durationEnd: string; dk: boolean; lang: 'de'|'en';
-  allCardsOfSameType: RoomCardType[]; bruttoNettoActive?: boolean;
+  allCardsOfSameType: RoomCardType[]; isMasterPricingActive?: boolean;
   onUpdate: (id: string, patch: Partial<RoomCardType>) => void; onDelete: (id: string) => void; onApplyToSameType: (source: RoomCardType) => void;
 }) {
-  const [isOpen, setIsOpen]           = useState(false)
-  const [saving, setSaving]           = useState(false)
-  const [confirmDelete, setConfirm]   = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
   const [showPricing, setShowPricing] = useState(false)
-  const [showCalendar, setShowCalendar] = useState(false)
-  const [isApplyActive, setApplyActive] = useState(false) // TOGGLE STATE
-  const [originalPrices, setOriginalPrices] = useState<any>(null) // REVERT SNAPSHOT
   const saveTimer = useRef<any>(null)
 
-  const beds   = bedsForType(card.roomType, card.bedCount)
+  const beds = bedsForType(card.roomType, card.bedCount)
   const nights = calculateNights(durationStart, durationEnd)
-  const total  = bruttoNettoActive ? 0 : calcRoomCardTotal(card, durationStart, durationEnd)
+  const total = calcRoomCardTotal(card, durationStart, durationEnd)
   const activeTab: PricingTab = card.pricingTab ?? 'per_room'
   const employees = card.employees ?? []
 
-  let dNetPerBed = 0;
-  if (activeTab === 'per_bed') dNetPerBed = (card.bedNetto ?? 0);
-  else if (activeTab === 'per_room' && beds > 0) dNetPerBed = (card.roomNetto ?? 0) / beds;
-  else if (activeTab === 'total_room' && beds > 0 && nights > 0) dNetPerBed = (card.totalNetto ?? 0) / (beds * nights);
-
-  const inputCls = cn('px-3 py-2 rounded-lg text-sm font-bold outline-none border transition-all h-[42px]', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900')
-  const labelCls = cn('text-[10px] font-bold uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')
-  
-  // SOLID SKY BLUE BRANDING
-  const tabBtn = (active: boolean) => cn('px-5 py-2.5 rounded-lg text-sm font-black border transition-all shadow-sm', 
-    active ? 'bg-blue-500 text-white border-transparent' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
-  )
-
-  const handleApplyToggle = () => {
-    if (!isApplyActive) {
-      onApplyToSameType(card);
-      setApplyActive(true);
-    } else {
-      // Revert logic would be handled by the parent typically, 
-      // but for this UI state, we just toggle the blue highlight off
-      setApplyActive(false);
-    }
-  }
+  const inputCls = cn('px-2 py-1 rounded-lg text-sm font-bold outline-none border transition-all h-[34px]', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900')
+  const labelCls = cn('text-[10px] font-black uppercase tracking-widest text-slate-400')
+  const tabBtn = (active: boolean) => cn('px-4 py-1.5 rounded-lg text-xs font-black border transition-all', active ? 'bg-blue-600 text-white border-transparent' : 'bg-white text-slate-500 border-slate-200')
 
   function queueSave(patch: Partial<RoomCardType>) {
     clearTimeout(saveTimer.current)
     onUpdate(card.id, patch)
     saveTimer.current = setTimeout(async () => {
-      try { setSaving(true); await enqueue({ type: 'updateRoomCard', payload: { id: card.id, ...patch } }) }
-      catch (e) { console.error(e) } finally { setSaving(false) }
+      try { await enqueue({ type: 'updateRoomCard', payload: { id: card.id, ...patch } }) }
+      catch (e) { console.error(e) }
     }, 400)
   }
 
-  function onEmployeeUpdated(slotIndex: number, emp: Employee | null, isGapFill?: boolean, deletedId?: string) {
-    let next: Employee[]
-    if (deletedId) next = employees.filter(e => e.id !== deletedId)
-    else if (emp === null) next = employees.filter(e => (e.slotIndex ?? 0) !== slotIndex)
-    else {
-      const exists = employees.some(e => e.id === emp.id); next = exists ? employees.map(e => e.id === emp.id ? emp : e) : [...employees, emp]
-    }
-    onUpdate(card.id, { employees: next as Employee[] })
-  }
-
-  const roomTotal = bruttoNettoActive ? '—' : formatCurrency(total)
+  const roomTotalDisplay = formatCurrency(total)
   const multiplier = activeTab === 'per_bed' ? (beds * nights) : activeTab === 'per_room' ? nights : 1;
 
   return (
-    <div className={cn('rounded-xl border transition-all shadow-sm flex flex-col w-full overflow-hidden', bruttoNettoActive ? (dk ? 'bg-[#0d1629] border-white/5 opacity-75' : 'bg-white border-slate-100 opacity-75') : (dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200'))}>
-      <div className={cn("flex items-center gap-4 px-4 py-3 cursor-pointer w-full", isOpen && (dk ? "border-b border-white/10" : "border-b border-slate-100"))} onClick={(e) => { if (!['INPUT','BUTTON','SELECT'].includes((e.target as HTMLElement).tagName)) setIsOpen(!isOpen) }}>
-        <button onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className={cn("p-1.5 rounded-md transition-all shrink-0", dk ? "hover:bg-white/10 text-slate-400" : "hover:bg-slate-100 text-slate-500")}>{isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}</button>
+    <div className={cn('rounded-xl border transition-all shadow-sm flex flex-col w-full overflow-hidden', dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')}>
+      
+      {/* HEADER: COMPRESSED ONE-LINE LAYOUT */}
+      <div className="flex items-center gap-3 px-4 py-2 cursor-pointer w-full hover:bg-black/5" onClick={() => setIsOpen(!isOpen)}>
+        <button className="p-1 text-slate-400">{isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</button>
 
-        {!isOpen ? (
-           <>
-             <div className="flex items-center gap-4 shrink-0 w-[280px]">
-               <span className={cn("font-black w-8", dk ? "text-white" : "text-slate-900")}>{card.roomType}</span>
-               <span className={cn("text-base font-bold w-24 truncate", dk ? "text-slate-300" : "text-slate-700")}>{card.roomNo || '---'}</span>
-               <span className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-blue-500/10 text-blue-500 font-black text-xs shrink-0"><Moon size={14} /> {nights} <div className="w-px h-3 bg-blue-500/30 mx-0.5" /> <Bed size={14} /> {beds}</span>
-             </div>
-             <div className="flex-1 flex gap-2 overflow-x-auto no-scrollbar items-center pl-4">
-                {employees.map(emp => (
-                  <div key={emp.id} className={cn("flex items-center gap-2 px-3 py-1.5 rounded whitespace-nowrap border", (emp.checkIn > durationStart || emp.checkOut < durationEnd) ? "border-2 border-dashed" : "border-solid", dk ? "bg-[#1E293B] border-white/10 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-700")}>
-                    <span className={cn("w-2.5 h-2.5 rounded-full", getEmployeeStatus(emp.checkIn||'', emp.checkOut||'') === 'active' ? 'bg-emerald-500' : 'bg-blue-500')} /><span className="font-bold truncate max-w-[140px] text-sm">{emp.name}</span><span className="text-xs font-black opacity-80">{calculateNights(emp.checkIn||'', emp.checkOut||'')}N</span>
-                    <span className="text-[11px] font-black text-slate-400/80 ml-1">({fmtDate(emp.checkIn||'')} ➔ {fmtDate(emp.checkOut||'')})</span>
-                  </div>
-                ))}
-                {(beds - employees.length) > 0 && <div className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-black whitespace-nowrap border-2 border-dashed", dk ? "border-amber-500/40 text-amber-500 bg-amber-500/5" : "border-amber-400 text-amber-600 bg-amber-50")}><Plus size={14} /> {beds - employees.length} {lang === 'de' ? 'Frei' : 'Empty'}</div>}
-             </div>
-             <div className="flex flex-col items-end shrink-0 ml-4"><span className={cn('text-xl font-black tabular-nums leading-none', dk ? 'text-white' : 'text-slate-900')}>{roomTotal}</span></div>
-             <button onClick={(e) => { e.stopPropagation(); setConfirm(true); }} className={cn('p-2 rounded transition-all shrink-0 ml-4', dk ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-red-500 hover:bg-red-50')}><Trash2 size={18} /></button>
-           </>
-        ) : (
-           <div className="flex items-center gap-3 flex-1 flex-wrap w-full">
-             <select value={card.roomType} onChange={e => { const rt = e.target.value as any; queueSave({ roomType: rt, bedCount: rt === 'EZ' ? 1 : rt === 'DZ' ? 2 : rt === 'TZ' ? 3 : card.bedCount }) }} className={cn(inputCls, 'w-20 text-center pl-2 pr-0')}><option value="EZ">EZ</option><option value="DZ">DZ</option><option value="TZ">TZ</option><option value="WG">WG</option></select>
-             {card.roomType === 'WG' && (<div className={cn('flex items-center rounded-lg border overflow-hidden shrink-0 h-[42px]', dk ? 'border-white/10' : 'border-slate-200')}><button onClick={(e) => { e.stopPropagation(); queueSave({ bedCount: Math.max(1, card.bedCount - 1) }) }} className={cn('px-3 h-full transition-all', dk ? 'hover:bg-white/10' : 'hover:bg-slate-50')}><Minus size={16} /></button><span className={cn('px-2 text-base font-bold min-w-[36px] text-center flex items-center justify-center h-full', dk ? 'bg-white/5 text-white' : 'bg-slate-50 text-slate-900')}>{card.bedCount}</span><button onClick={(e) => { e.stopPropagation(); queueSave({ bedCount: card.bedCount + 1 }) }} className={cn('px-3 h-full transition-all', dk ? 'hover:bg-white/10' : 'hover:bg-slate-50')}><Plus size={16} /></button></div>)}
-             <div className="flex items-center gap-1.5 ml-2"><span className={labelCls}>No:</span><input type="text" value={card.roomNo || ''} onChange={e => queueSave({ roomNo: e.target.value })} placeholder="101" className={cn(inputCls, 'w-48')} /></div>
-             <div className="flex items-center gap-1.5 ml-2"><span className={labelCls}>Etg:</span><input type="text" value={card.floor || ''} onChange={e => queueSave({ floor: e.target.value })} placeholder="1" className={cn(inputCls, 'w-20')} /></div>
-             <span className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-500/10 text-blue-500 font-black text-sm shrink-0 ml-4"><Moon size={16} /> {nights} <div className="w-px h-4 bg-blue-500/30 mx-1" /> <Bed size={16} /> {beds}</span>
-             <div className="flex-1" />
-             <button onClick={(e) => { e.stopPropagation(); setShowCalendar(c => !c) }} className={cn('px-4 h-[42px] rounded-lg text-sm font-bold border transition-all flex items-center', showCalendar ? 'bg-blue-600 text-white border-blue-600' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}><Calendar size={16}/></button>
-             <button onClick={(e) => { e.stopPropagation(); setShowPricing(p => !p) }} className={cn('px-5 h-[42px] rounded-lg text-sm font-black border transition-all flex items-center gap-2 shadow-sm', showPricing ? 'bg-blue-500 text-white border-transparent' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5' : 'border-slate-200 text-slate-500 hover:bg-slate-50')}>Price {showPricing ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</button>
-             <div className="flex flex-col items-end min-w-[140px] ml-4"><span className={cn('text-2xl font-black tabular-nums leading-none', dk ? 'text-white' : 'text-slate-900')}>{roomTotal}</span>{!bruttoNettoActive && dNetPerBed > 0 && (<span className={cn('text-xs tabular-nums mt-1.5 font-bold', dk ? 'text-slate-500' : 'text-slate-400')}>{formatCurrency(dNetPerBed)} n/b/N</span>)}</div>
-             <button onClick={(e) => { e.stopPropagation(); setConfirm(true); }} className={cn('p-2.5 rounded-lg border transition-all ml-4', dk ? 'border-red-500/20 text-red-400 hover:bg-red-900/20' : 'border-red-200 text-red-500 hover:bg-red-50')}><Trash2 size={18} /></button>
-           </div>
-        )}
+        <div className="flex items-center gap-4 shrink-0 min-w-[340px]">
+          <span className="font-black text-sm w-6 uppercase">{card.roomType}</span>
+          
+          <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+            <span className={labelCls}>NO:</span>
+            <input value={card.roomNo || ''} onChange={e => queueSave({ roomNo: e.target.value })} placeholder="101" className={cn(inputCls, 'w-24')} />
+          </div>
+          
+          <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+            <span className={labelCls}>ETG:</span>
+            <input value={card.floor || ''} onChange={e => queueSave({ floor: e.target.value })} placeholder="1" className={cn(inputCls, 'w-10 text-center')} />
+          </div>
+
+          <span className="flex items-center gap-1.5 px-2 py-1 rounded bg-blue-500/10 text-blue-500 font-black text-[11px]"><Moon size={12} /> {nights} <Bed size={12} className="ml-1" /> {beds}</span>
+        </div>
+
+        <div className="flex-1 flex gap-2 overflow-hidden items-center px-2">
+          {employees.map(emp => (
+            <div key={emp.id} className={cn("px-2 py-1 rounded border text-[11px] font-bold whitespace-nowrap", dk ? "bg-white/5 border-white/10" : "bg-slate-50 border-slate-200")}>{emp.name}</div>
+          ))}
+          {beds - employees.length > 0 && <div className="text-[10px] font-black text-amber-500 uppercase">+{beds - employees.length} FREE</div>}
+        </div>
+
+        <div className="ml-auto flex items-center gap-4">
+          {!isMasterPricingActive ? (
+            <div className="flex items-center gap-3">
+              <button onClick={(e) => { e.stopPropagation(); setShowPricing(!showPricing) }} className={cn("px-3 py-1 rounded-lg text-[10px] font-black uppercase border transition-all", showPricing ? "bg-blue-600 text-white" : "bg-white text-slate-500")}>Price</button>
+              <div className="text-right">
+                <span className="text-sm font-black tabular-nums">{roomTotalDisplay}</span>
+                <p className="text-[9px] font-bold text-slate-400">{(total / (nights || 1)).toFixed(2)}€/N</p>
+              </div>
+            </div>
+          ) : (
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-white/5 px-2 py-1 rounded">Master Active</span>
+          )}
+          <button onClick={(e) => { e.stopPropagation(); onDelete(card.id); }} className="p-1.5 text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
+        </div>
       </div>
 
-      {isOpen && (
-        <div className={cn("p-6 border-t", dk ? "bg-black/20 border-white/5" : "bg-slate-50/50 border-slate-100")}>
-           {showPricing && (
-             <div className={cn("p-5 rounded-2xl border shadow-sm mb-6 flex flex-col gap-5 overflow-hidden", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
-                <div className="flex items-center gap-3">
-                  <button onClick={() => queueSave({ pricingTab: 'per_bed' })} disabled={bruttoNettoActive} className={tabBtn(activeTab === 'per_bed')}>Price/Bed</button>
-                  <button onClick={() => queueSave({ pricingTab: 'per_room' })} disabled={bruttoNettoActive} className={tabBtn(activeTab === 'per_room')}>Price/Room</button>
-                  <button onClick={() => queueSave({ pricingTab: 'total_room' })} disabled={bruttoNettoActive} className={tabBtn(activeTab === 'total_room')}>Total/Room</button>
-                </div>
-                <div className="flex items-start gap-4 overflow-x-auto no-scrollbar pb-2">
-                  <InlineNMBRow nettoKey={activeTab === 'per_bed' ? "bedNetto" : activeTab === 'per_room' ? "roomNetto" : "totalNetto"} mwstKey={activeTab === 'per_bed' ? "bedMwst" : activeTab === 'per_room' ? "roomMwst" : "totalMwst"} bruttoKey={activeTab === 'per_bed' ? "bedBrutto" : activeTab === 'per_room' ? "roomBrutto" : "totalBrutto"} energyNettoKey={activeTab === 'per_bed' ? "bedEnergyNetto" : activeTab === 'per_room' ? "roomEnergyNetto" : "totalEnergyNetto"} energyMwstKey={activeTab === 'per_bed' ? "bedEnergyMwst" : activeTab === 'per_room' ? "roomEnergyMwst" : "totalEnergyMwst"} energyBruttoKey={activeTab === 'per_bed' ? "bedEnergyBrutto" : activeTab === 'per_room' ? "roomEnergyBrutto" : "totalEnergyBrutto"} card={card} dk={dk} inputCls={inputCls} onPatch={queueSave} disabled={bruttoNettoActive} multiplier={multiplier} activeTab={activeTab} />
-                  
-                  {/* UNIFIED ACTION BUTTON GROUP */}
-                  <div className={cn("flex items-center gap-1.5 p-1 rounded-xl border shrink-0 h-[54px]", dk ? "bg-white/5 border-white/10" : "bg-slate-50 border-slate-200")}>
-                    <button disabled={bruttoNettoActive} onClick={() => queueSave({ hasDiscount: !card.hasDiscount })} className={cn('px-4 h-full rounded-lg text-sm font-bold flex items-center gap-2 transition-all', card.hasDiscount ? 'bg-blue-500 text-white shadow-md' : 'text-slate-500 hover:bg-black/5')}><Tag size={16} />Disc.</button>
-                    {card.hasDiscount && (<div className="flex items-center px-2 border-l border-white/10 gap-1.5 h-full"><button disabled={bruttoNettoActive} onClick={() => queueSave({ discountType: card.discountType === 'percentage' ? 'fixed' : 'percentage' })} className="w-8 h-full font-black text-slate-400 hover:text-white">{card.discountType === 'percentage' ? '%' : '€'}</button><input disabled={bruttoNettoActive} type="number" min={0} value={card.discountValue || ''} onChange={e => queueSave({ discountValue: normalizeNumberInput(e.target.value) })} style={{ ...noSpinner }} className={cn('px-1 w-14 h-[32px] rounded-md bg-transparent border-b border-white/20 text-sm font-bold text-center outline-none')} /></div>)}
-                  </div>
-
-                  {allCardsOfSameType.length > 1 && (
-                    <button onClick={handleApplyToggle} className={cn('px-5 h-[54px] rounded-xl text-sm font-black border flex items-center gap-2 transition-all shrink-0 ml-1', isApplyActive ? 'bg-blue-500 text-white border-transparent shadow-lg' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5 hover:text-blue-400' : 'border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600')}>
-                      {isApplyActive ? <Check size={16} /> : <Copy size={16} />} {isApplyActive ? 'Applied' : `All ${card.roomType}`}
-                    </button>
-                  )}
-                </div>
+      {/* PRICING SUB-SECTION */}
+      {isOpen && showPricing && !isMasterPricingActive && (
+        <div className="p-4 border-t bg-slate-50/50">
+          <div className="flex flex-col gap-4 animate-in slide-in-from-top-1 duration-200">
+             <div className="flex gap-2">
+                {(['per_bed', 'per_room', 'total_room'] as PricingTab[]).map(t => (
+                  <button key={t} onClick={() => queueSave({ pricingTab: t })} className={tabBtn(activeTab === t)}>{t.replace('_','/').toUpperCase()}</button>
+                ))}
              </div>
-           )}
-           <div className="grid gap-6 items-start" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(360px, 1fr))` }}>
-              {Array.from({ length: beds }).map((_, i) => {
-                 const slotE = employees.filter(e => (e.slotIndex ?? 0) === i).sort((a,b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
-                 return (
-                   <div key={i} className="space-y-3">
-                     <div className="flex items-center justify-between pb-1.5 px-1"><span className={cn('text-[11px] font-black tracking-widest flex items-center gap-1.5', dk ? 'text-slate-400' : 'text-slate-500')}><Bed size={14} /> BED {i + 1}</span></div>
-                     <div className="space-y-3">
-                       {slotE.length === 0 ? (<BedSlot slotIndex={i} employee={null} durationStart={durationStart} durationEnd={durationEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} onUpdated={onEmployeeUpdated} />) : (slotE.map((emp, empIdx) => (<BedSlot key={emp.id} slotIndex={i} employee={emp} durationStart={durationStart} durationEnd={durationEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} isSubstitute={empIdx > 0} onUpdated={onEmployeeUpdated} />)))}
-                       {getGapSlots(beds, employees, durationStart, durationEnd).filter(g => g.slotIndex === i).map((gap, gi) => (<BedSlot key={`gap-${i}-${gi}`} slotIndex={i} employee={null} durationStart={durationStart} durationEnd={durationEnd} gapStart={gap.gapStart} gapEnd={gap.gapEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} onUpdated={onEmployeeUpdated} />))}
-                     </div>
-                   </div>
-                 )
-              })}
-           </div>
+             <div className="flex items-start gap-4">
+                <InlineNMBRow 
+                  nettoKey={activeTab === 'per_bed' ? "bedNetto" : activeTab === 'per_room' ? "roomNetto" : "totalNetto"} 
+                  mwstKey={activeTab === 'per_bed' ? "bedMwst" : activeTab === 'per_room' ? "roomMwst" : "totalMwst"} 
+                  bruttoKey={activeTab === 'per_bed' ? "bedBrutto" : activeTab === 'per_room' ? "roomBrutto" : "totalBrutto"} 
+                  card={card} dk={dk} inputCls={inputCls} onPatch={queueSave} multiplier={multiplier} 
+                />
+             </div>
+          </div>
         </div>
       )}
-      {confirmDelete && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
-          <div className={cn('w-full max-w-sm rounded-3xl border p-6 shadow-2xl', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
-            <h3 className="text-xl font-black mb-3">Delete Room?</h3><p className="text-sm mb-6 opacity-60">This cannot be undone.</p>
-            <div className="flex justify-end gap-3"><button onClick={() => setConfirm(false)} className={cn('px-5 py-2.5 rounded-lg border text-sm font-bold', dk ? 'border-white/10 text-slate-300' : 'border-slate-200 text-slate-700')}>Cancel</button><button onClick={async () => { await enqueue({ type: 'deleteRoomCard', payload: { id: card.id } }); onDelete(card.id); }} className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold">Delete</button></div>
+
+      {/* CALENDAR/BEDS SECTION */}
+      {isOpen && (
+        <div className="p-4 border-t">
+          <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(320px, 1fr))` }}>
+            {Array.from({ length: beds }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <span className="text-[10px] font-black text-slate-400 uppercase">Bed {i + 1}</span>
+                <BedSlot slotIndex={i} employee={employees.find(e => e.slotIndex === i) || null} durationStart={durationStart} durationEnd={durationEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} onUpdated={(idx, emp) => {
+                  const next = emp === null ? employees.filter(e => e.slotIndex !== idx) : employees.some(e => e.id === emp.id) ? employees.map(e => e.id === emp.id ? emp : e) : [...employees, emp];
+                  onUpdate(card.id, { employees: next });
+                }} />
+              </div>
+            ))}
           </div>
         </div>
       )}
