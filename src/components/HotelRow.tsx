@@ -172,15 +172,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     
     (localHotel.durations || []).forEach((d: any) => {
       const nights = calculateNights(d.startDate, d.endDate);
-      let dNetto = 0; let dBrutto = 0;
-
-      // This part calculates the total from individual Duration and Room Cards
-      if (d.useBruttoNetto && (d.netto || d.brutto)) {
-         if (d.netto) { dNetto = parseFloat(d.netto); dBrutto = dNetto * (1 + (parseFloat(d.mwst) || 19)/100); }
-         else if (d.brutto) { dBrutto = parseFloat(d.brutto); dNetto = dBrutto / (1 + (parseFloat(d.mwst) || 19)/100); }
-      } else {
-(localHotel.durations || []).forEach((d: any) => {
-      const nights = calculateNights(d.startDate, d.endDate);
       
       // We sum up the rooms for this specific duration
       (d.roomCards || []).forEach((c: any) => {
@@ -311,11 +302,18 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     }
 
     return { 
-      freeBeds: tFree, totalBeds: tBeds, employees: allEmps, 
-      displayNetto: finalNetto, displayBrutto, buckets, pricePerBed,
-      baseCostsWithDisplay, extrasWithDisplay, isMasterActive,
-      isOverriddenBrutto: localHotel.override_total_brutto != null,
-      isOverriddenBed: localHotel.override_price_per_bed != null
+      freeBeds: tFree, 
+      totalBeds: tBeds, 
+      employees: allEmps, 
+      displayNetto: finalNetto, 
+      displayBrutto, 
+      buckets, 
+      pricePerBed, 
+      baseCostsWithDisplay, 
+      extrasWithDisplay, 
+      isMasterActive, 
+      isOverriddenBrutto: localHotel.override_total_brutto != null, 
+      isOverriddenBed: localHotel.override_price_per_bed != null 
     };
   }, [localHotel]);
 
@@ -510,7 +508,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             {/* CONTACT ROW */}
             <div className="flex flex-wrap xl:flex-nowrap gap-4 items-end">
               <div className="flex-[2] min-w-[180px] flex items-end gap-2">
-                 <div className="shrink-0"><label className={cn(labelCls, 'mb-1.5')}><StickyNote size={12}/> {lang === 'de' ? 'Notiz' : 'Note'}</label><button onClick={() => setShowNotes(!showNotes)} className={cn("w-[34px] h-[34px] rounded-lg border flex items-center justify-center transition-all", localHotel.notes ? "bg-teal-500/10 border-teal-500/30 text-teal-500" : dk ? "bg-[#1E293B] border-white/10 text-slate-400 hover:text-white hover:bg-white/5" : "bg-white border-slate-200 text-slate-400 hover:text-slate-800 hover:bg-slate-50")}><StickyNote size={16} /></button></div>
+                 <div className="shrink-0"><label className={cn(labelCls, 'mb-1.5')}><StickyNote size={12}/> {lang === 'de' ? 'Notiz' : 'Note'}</label><button onClick={() => setShowNotes(!showNotes)} className={cn("w-[34px] h-[34px] rounded-lg border flex items-center justify-center transition-all", localHotel.notes ? "bg-teal-500/10 border-teal-500/30 text-teal-500" : dk ? "bg-[#1E293B] text-slate-400 hover:text-white hover:bg-white/5" : "bg-white border-slate-200 text-slate-400 hover:text-slate-800 hover:bg-slate-50")}><StickyNote size={16} /></button></div>
                  <div className="flex-1"><label className={cn(labelCls, 'mb-1.5')}><MapPin size={12}/> {lang === 'de' ? 'Adresse' : 'Address'}</label><input autoComplete="off" value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} placeholder="..." /></div>
               </div>
               <div className="flex-[1.5] min-w-[120px]"><label className={cn(labelCls, 'mb-1.5')}><User size={12}/> {lang === 'de' ? 'Ansprechpartner' : 'Contact'}</label><input autoComplete="off" value={localHotel.contactPerson || ''} onChange={e => patchHotel({ contactPerson: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} placeholder="..." /></div>
@@ -611,7 +609,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                               <div className="flex items-center gap-1.5"><span className={labelCls}>{lang === 'de' ? 'Wert' : 'Value'}</span>
                                 <div className="relative flex items-center h-[34px] w-[100px]">
                                   <input type="number" value={localHotel.global_discount_value || ''} onChange={e => patchHotel({global_discount_value: e.target.value === '' ? null : e.target.value})} className={cn(inputCls, 'w-full pr-7 h-full')} placeholder="0" />
-                                  <button onClick={() => patchHotel({global_discount_type: localHotel.global_discount_type === 'percentage' ? 'fixed' : 'percentage'})} className={cn("absolute right-1 w-5 h-5 rounded flex items-center justify-center text-xs font-bold transition-all", dk ? "bg-white/10 hover:bg-white/20 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-700")}>{localHotel.global_discount_type === 'percentage' ? '%' : '€'}</button>
+                                  <button onClick={() => patchHotel({global_discount_type: localHotel.global_discount_type === 'percentage' ? 'fixed' : 'percentage'})} className={cn("absolute right-1 w-5 h-5 rounded flex items-center justify-center text-xs font-bold transition-all", dk ? "bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-400" : "bg-indigo-100 hover:bg-indigo-200 text-indigo-700")}>{localHotel.global_discount_type === 'percentage' ? '%' : '€'}</button>
                                 </div>
                               </div>
                               <div className="flex items-center gap-1.5"><span className={labelCls}>{lang === 'de' ? 'Ziel' : 'Target'}</span>
