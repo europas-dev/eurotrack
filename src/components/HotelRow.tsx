@@ -107,15 +107,22 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [showNotes, setShowNotes] = useState(false);
   
   // STRICT DEFAULT TO 'fixed' for the first row to prevent '%' bug
-  const initialBaseCosts = entry?.base_costs?.length > 0 ? entry.base_costs : [{ 
-    id: 'default', 
-    netto: entry?.base_netto ?? null, 
-    mwst: (entry?.base_netto == null && entry?.base_brutto == null) ? null : (entry?.base_mwst ?? null), 
-    brutto: entry?.base_brutto ?? null, 
-    discountValue: entry?.discount_value ?? null, 
-    discountType: entry?.discount_type ?? 'fixed',
-    showDiscount: !!entry?.discount_value 
-  }];
+  const initialBaseCosts = entry?.base_costs?.length > 0 
+    ? entry.base_costs.map((bc: any) => ({
+        ...bc,
+        // Forces existing array rows to 'fixed' (€) if they are empty or invalid
+        discountType: bc.discountType === 'percentage' ? 'percentage' : 'fixed' 
+      }))
+    : [{ 
+        id: 'default', 
+        netto: entry?.base_netto ?? null, 
+        mwst: (entry?.base_netto == null && entry?.base_brutto == null) ? null : (entry?.base_mwst ?? null), 
+        brutto: entry?.base_brutto ?? null, 
+        discountValue: entry?.discount_value ?? null, 
+        // Forces legacy single-row data to 'fixed' (€)
+        discountType: entry?.discount_type === 'percentage' ? 'percentage' : 'fixed',
+        showDiscount: !!entry?.discount_value 
+      }];
 
   const [showMasterBase, setShowMasterBase] = useState(initialBaseCosts.some((bc:any) => bc.netto != null || bc.brutto != null));
   const [showExtras, setShowExtras] = useState(entry.extra_costs?.length > 0);
