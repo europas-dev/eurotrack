@@ -107,11 +107,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [showNotes, setShowNotes] = useState(false);
   
   // STRICT DEFAULT TO 'fixed' for the first row to prevent '%' bug
+ // Base setup: Forces 'fixed' (€) if the discount is 0 or empty, ignoring old bad database saves
   const initialBaseCosts = entry?.base_costs?.length > 0 
     ? entry.base_costs.map((bc: any) => ({
         ...bc,
-        // Forces existing array rows to 'fixed' (€) if they are empty or invalid
-        discountType: bc.discountType === 'percentage' ? 'percentage' : 'fixed' 
+        discountType: (!bc.discountValue || parseFloat(bc.discountValue) === 0) ? 'fixed' : (bc.discountType === 'percentage' ? 'percentage' : 'fixed')
       }))
     : [{ 
         id: 'default', 
@@ -119,8 +119,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         mwst: (entry?.base_netto == null && entry?.base_brutto == null) ? null : (entry?.base_mwst ?? null), 
         brutto: entry?.base_brutto ?? null, 
         discountValue: entry?.discount_value ?? null, 
-        // Forces legacy single-row data to 'fixed' (€)
-        discountType: entry?.discount_type === 'percentage' ? 'percentage' : 'fixed',
+        discountType: (!entry?.discount_value || parseFloat(entry?.discount_value) === 0) ? 'fixed' : (entry?.discount_type === 'percentage' ? 'percentage' : 'fixed'),
         showDiscount: !!entry?.discount_value 
       }];
 
@@ -648,9 +647,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    </div>
                 </div>
 
-                {/* COL 3: Master Summary (WIDER to prevent overlap: 380px) */}
-                <div className={cn("w-full xl:w-[380px] p-6 flex flex-col justify-between shrink-0 border-t xl:border-t-0 xl:border-l rounded-tr-2xl rounded-br-2xl rounded-bl-2xl xl:rounded-bl-none", dk ? "bg-[#0F172A]/80 border-white/10" : "bg-slate-50 border-slate-200")}>
-                   <div className="flex items-center justify-between gap-2 mb-8">
+         {/* COL 3: Master Summary (COMPRESSED VERTICALLY) */}
+                <div className={cn("w-full xl:w-[380px] p-5 flex flex-col shrink-0 border-t xl:border-t-0 xl:border-l rounded-tr-2xl rounded-br-2xl rounded-bl-2xl xl:rounded-bl-none", dk ? "bg-[#0F172A]/80 border-white/10" : "bg-slate-50 border-slate-200")}>
+                   <div className="flex items-center justify-between gap-2 mb-4">
                       <div className="flex items-center gap-1.5 flex-1 max-w-[160px]">
                          <button onClick={() => patchHotel({depositEnabled: !localHotel.depositEnabled})} className={cn("px-3 py-1.5 text-[11px] font-black uppercase rounded-lg border transition-all h-[34px]", localHotel.depositEnabled ? "bg-amber-500/20 text-amber-500 border-amber-500/30" : dk ? "border-white/10 text-slate-500 hover:text-white" : "border-slate-200 text-slate-400")}>{lang === 'de' ? 'Kaution' : 'Deposit'}</button>
                          {localHotel.depositEnabled ? (
@@ -662,7 +661,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       </button>
                    </div>
 
-                   <div className="space-y-3 mb-8 font-medium text-[15px]">
+                   <div className="space-y-1.5 mb-4 font-medium text-[14px]">
                       <div className="flex justify-between items-center">
                          <span className={dk ? "text-slate-400" : "text-slate-500"}>{lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</span>
                          <span className={cn("font-bold", dk ? "text-white" : "text-slate-900")}>{formatCurrency(masterMath.displayNetto)}</span>
@@ -670,7 +669,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       
                       {Object.keys(masterMath.buckets).length > 0 ? (
                         Object.entries(masterMath.buckets).map(([percent, amount]: any) => (
-                          <div key={percent} className="flex justify-between items-center">
+                          <div key={percent} className="flex justify-between items-center text-[13px]">
                              <span className={dk ? "text-slate-500" : "text-slate-400"}>MwSt ({percent}%)</span>
                              <span className={dk ? "text-slate-400" : "text-slate-500"}>{formatCurrency(amount)}</span>
                           </div>
@@ -680,27 +679,27 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       )}
                    </div>
 
-                   <div className={cn("pt-5 border-t", dk ? "border-white/10" : "border-slate-200")}>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">{lang === 'de' ? 'Gesamt Brutto' : 'Total Brutto'}</p>
-                      <div className="flex justify-between items-end group">
+                   <div className={cn("pt-4 border-t flex flex-col gap-2 mt-auto", dk ? "border-white/10" : "border-slate-200")}>
+                      
+                      <div className="flex justify-between items-center group">
+                         <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">{lang === 'de' ? 'Gesamt Brutto' : 'Total Brutto'}</span>
                          {editingOBrutto ? (
-                           <input autoFocus type="number" value={editBruttoValue} onChange={e => setEditBruttoValue(e.target.value)} onBlur={() => {patchHotel({override_total_brutto: editBruttoValue === '' ? null : editBruttoValue}); setEditingOBrutto(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-full max-w-[180px] text-right px-2 py-1 rounded bg-yellow-500/20 text-yellow-600 font-black text-2xl outline-none")} />
+                           <input autoFocus type="number" value={editBruttoValue} onChange={e => setEditBruttoValue(e.target.value)} onBlur={() => {patchHotel({override_total_brutto: editBruttoValue === '' ? null : editBruttoValue}); setEditingOBrutto(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-32 text-right px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-600 font-black text-xl outline-none")} />
                          ) : (
-                           <span onClick={() => {setEditBruttoValue(masterMath.displayBrutto.toFixed(2)); setEditingOBrutto(true);}} className={cn("text-2xl font-black cursor-pointer rounded px-1 -ml-1 transition-colors flex items-center gap-2", masterMath.isOverriddenBrutto ? "text-yellow-500 bg-yellow-500/10" : dk ? "text-white group-hover:bg-white/10" : "text-slate-900 group-hover:bg-slate-200")}>{formatCurrency(masterMath.displayBrutto)} <Edit3 size={14} className="opacity-0 group-hover:opacity-100"/></span>
+                           <span onClick={() => {setEditBruttoValue(masterMath.displayBrutto.toFixed(2)); setEditingOBrutto(true);}} className={cn("text-xl font-black cursor-pointer rounded px-1 -mr-1 transition-colors flex items-center gap-2", masterMath.isOverriddenBrutto ? "text-yellow-500 bg-yellow-500/10" : dk ? "text-white group-hover:bg-white/10" : "text-slate-900 group-hover:bg-slate-200")}>{formatCurrency(masterMath.displayBrutto)} <Edit3 size={12} className="opacity-0 group-hover:opacity-100"/></span>
                          )}
                       </div>
                       
-                      <div className="mt-3 group flex items-center">
-                        <span className={cn("text-xs font-bold mr-1", dk ? "text-slate-500" : "text-slate-400")}>{lang === 'de' ? 'Preis / Bett:' : 'Price / Bed:'}</span>
+                      <div className="flex justify-between items-center group">
+                        <span className={cn("text-[10px] font-bold", dk ? "text-slate-500" : "text-slate-400")}>{lang === 'de' ? 'Preis / Bett' : 'Price / Bed'}</span>
                         {editingPriceBed ? (
-                           <input autoFocus type="number" value={editPriceBedValue} onChange={e => setEditPriceBedValue(e.target.value)} onBlur={() => {patchHotel({override_price_per_bed: editPriceBedValue === '' ? null : editPriceBedValue}); setEditingPriceBed(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-20 text-right px-1 py-0.5 rounded bg-yellow-500/20 text-yellow-600 font-bold text-xs outline-none")} />
+                           <input autoFocus type="number" value={editPriceBedValue} onChange={e => setEditPriceBedValue(e.target.value)} onBlur={() => {patchHotel({override_price_per_bed: editPriceBedValue === '' ? null : editPriceBedValue}); setEditingPriceBed(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-20 text-right px-1 rounded bg-yellow-500/20 text-yellow-600 font-bold text-[11px] outline-none")} />
                         ) : (
-                           <span onClick={() => {setEditPriceBedValue(masterMath.pricePerBed.toFixed(2)); setEditingPriceBed(true);}} className={cn("text-xs font-bold cursor-pointer rounded px-1 transition-colors flex items-center gap-1", masterMath.isOverriddenBed ? "text-yellow-600 bg-yellow-500/10" : dk ? "text-slate-400 group-hover:bg-white/10" : "text-slate-500 group-hover:bg-slate-200")}>{formatCurrency(masterMath.pricePerBed)} / N <Edit3 size={10} className="opacity-0 group-hover:opacity-100"/></span>
+                           <span onClick={() => {setEditPriceBedValue(masterMath.pricePerBed.toFixed(2)); setEditingPriceBed(true);}} className={cn("text-[11px] font-bold cursor-pointer rounded px-1 -mr-1 transition-colors flex items-center gap-1", masterMath.isOverriddenBed ? "text-yellow-600 bg-yellow-500/10" : dk ? "text-slate-400 group-hover:bg-white/10" : "text-slate-500 group-hover:bg-slate-200")}>{formatCurrency(masterMath.pricePerBed)} / N <Edit3 size={10} className="opacity-0 group-hover:opacity-100"/></span>
                         )}
                       </div>
                    </div>
                 </div>
-            </div>
             
             {/* DURATION TABS */}
             <div className="pt-2">
