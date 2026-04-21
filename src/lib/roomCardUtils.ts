@@ -30,22 +30,30 @@ export function calcRoomCardNettoSum(card: any, durationStart: string, durationE
   const multiplier = tab === 'per_bed' ? (beds * nights) : tab === 'per_room' ? nights : 1
 
   let baseNetto = 0; let cEnergyNetto = 0;
+  let activeDiscountType = 'percentage'; let activeDiscountValue = 0;
+
   if (tab === 'per_bed') {
      baseNetto = Number(card.bedNetto) || 0;
      cEnergyNetto = (Number(card.bedEnergyNetto) || 0) * multiplier;
+     activeDiscountType = card.bedDiscountType || 'percentage';
+     activeDiscountValue = Number(card.bedDiscountValue) || 0;
   } else if (tab === 'per_room') {
      baseNetto = Number(card.roomNetto) || 0;
      cEnergyNetto = (Number(card.roomEnergyNetto) || 0) * multiplier;
+     activeDiscountType = card.roomDiscountType || 'percentage';
+     activeDiscountValue = Number(card.roomDiscountValue) || 0;
   } else {
      baseNetto = Number(card.totalNetto) || 0;
      cEnergyNetto = Number(card.totalEnergyNetto) || 0;
+     activeDiscountType = card.totalDiscountType || 'percentage';
+     activeDiscountValue = Number(card.totalDiscountValue) || 0;
   }
 
   let discountedUnit = baseNetto;
-  if (card.hasDiscount && card.discountValue > 0) {
-      discountedUnit = card.discountType === 'percentage' 
-          ? baseNetto * (1 - card.discountValue / 100) 
-          : Math.max(0, baseNetto - card.discountValue);
+  if (activeDiscountValue > 0) {
+      discountedUnit = activeDiscountType === 'percentage' 
+          ? baseNetto * (1 - activeDiscountValue / 100) 
+          : Math.max(0, baseNetto - activeDiscountValue);
   }
 
   return (discountedUnit * multiplier) + cEnergyNetto;
@@ -59,22 +67,27 @@ export function calcRoomCardTotal(card: any, durationStart: string, durationEnd:
   const multiplier = tab === 'per_bed' ? (beds * nights) : tab === 'per_room' ? nights : 1
 
   let baseNetto = 0; let mwstRate = 0; let cEnergyNetto = 0; let eMwstRate = 0;
+  let activeDiscountType = 'percentage'; let activeDiscountValue = 0;
+
   if (tab === 'per_bed') {
      baseNetto = Number(card.bedNetto) || 0; mwstRate = Number(card.bedMwst) || 0;
      cEnergyNetto = (Number(card.bedEnergyNetto) || 0) * multiplier; eMwstRate = Number(card.bedEnergyMwst) || 0;
+     activeDiscountType = card.bedDiscountType || 'percentage'; activeDiscountValue = Number(card.bedDiscountValue) || 0;
   } else if (tab === 'per_room') {
      baseNetto = Number(card.roomNetto) || 0; mwstRate = Number(card.roomMwst) || 0;
      cEnergyNetto = (Number(card.roomEnergyNetto) || 0) * multiplier; eMwstRate = Number(card.roomEnergyMwst) || 0;
+     activeDiscountType = card.roomDiscountType || 'percentage'; activeDiscountValue = Number(card.roomDiscountValue) || 0;
   } else {
      baseNetto = Number(card.totalNetto) || 0; mwstRate = Number(card.totalMwst) || 0;
      cEnergyNetto = Number(card.totalEnergyNetto) || 0; eMwstRate = Number(card.totalEnergyMwst) || 0;
+     activeDiscountType = card.totalDiscountType || 'percentage'; activeDiscountValue = Number(card.totalDiscountValue) || 0;
   }
 
   let discountedUnit = baseNetto;
-  if (card.hasDiscount && card.discountValue > 0) {
-      discountedUnit = card.discountType === 'percentage' 
-          ? baseNetto * (1 - card.discountValue / 100) 
-          : Math.max(0, baseNetto - card.discountValue);
+  if (activeDiscountValue > 0) {
+      discountedUnit = activeDiscountType === 'percentage' 
+          ? baseNetto * (1 - activeDiscountValue / 100) 
+          : Math.max(0, baseNetto - activeDiscountValue);
   }
 
   const cRoomNetto = discountedUnit * multiplier;
@@ -88,11 +101,13 @@ export function extractPricingFields(card: any) {
   return {
     pricingTab: card.pricingTab,
     bedNetto: card.bedNetto, bedMwst: card.bedMwst, bedBrutto: card.bedBrutto,
+    bedDiscountType: card.bedDiscountType, bedDiscountValue: card.bedDiscountValue,
     bedEnergyNetto: card.bedEnergyNetto, bedEnergyMwst: card.bedEnergyMwst, bedEnergyBrutto: card.bedEnergyBrutto,
     roomNetto: card.roomNetto, roomMwst: card.roomMwst, roomBrutto: card.roomBrutto,
+    roomDiscountType: card.roomDiscountType, roomDiscountValue: card.roomDiscountValue,
     roomEnergyNetto: card.roomEnergyNetto, roomEnergyMwst: card.roomEnergyMwst, roomEnergyBrutto: card.roomEnergyBrutto,
     totalNetto: card.totalNetto, totalMwst: card.totalMwst, totalBrutto: card.totalBrutto,
+    totalDiscountType: card.totalDiscountType, totalDiscountValue: card.totalDiscountValue,
     totalEnergyNetto: card.totalEnergyNetto, totalEnergyMwst: card.totalEnergyMwst, totalEnergyBrutto: card.totalEnergyBrutto,
-    hasDiscount: card.hasDiscount, discountType: card.discountType, discountValue: card.discountValue,
   }
 }
