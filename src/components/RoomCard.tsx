@@ -411,18 +411,28 @@ function InlineNMBRow({
             </div>
           ) : (
             <div className="flex flex-col shrink-0">
-               <p className={lbl}>{lang === 'de' ? 'Rabatt' : 'Disc.'}</p>
-               <div className="flex items-start gap-1">
-                 <div className="relative flex items-center h-[38px] w-[80px]">
-                   <input type="number" value={card.discountValue || ''} onChange={e => onPatch({discountValue: e.target.value.replace(/^0+(?=\d)/, '') === '' ? null : normalizeNumberInput(e.target.value.replace(/^0+(?=\d)/, ''))} as any)} className={cn(inputClsBase, 'w-full pr-6 h-full text-xs')} placeholder="0" />
-                   <button onClick={() => onPatch({discountType: card.discountType === 'percentage' ? 'fixed' : 'percentage'} as any)} className={cn("absolute right-1 w-5 h-5 rounded flex items-center justify-center text-[10px] font-black", dk ? "bg-white/10 text-white hover:bg-white/20" : "bg-slate-100 text-slate-700 hover:bg-slate-200")}>{card.discountType === 'percentage' ? '%' : '€'}</button>
-                 </div>
-                 <button onClick={() => onPatch({hasDiscount: false, discountValue: null} as any)} className={cn("p-1 mt-1.5 transition-colors", dk ? "text-slate-500 hover:text-red-400" : "text-slate-400 hover:text-red-500")}><X size={12} /></button>
-               </div>
-            </div>
-          )}
-        </div>
-      </div>
+  <p className={lbl}>{lang === 'de' ? 'Rabatt' : 'Disc.'}</p>
+  <div className="flex items-center gap-1.5">
+    <div className="relative flex items-center h-[38px] w-[95px]">
+      <input 
+        type="number" 
+        value={card.discountValue || ''} 
+        onChange={e => onPatch({discountValue: normalizeNumberInput(e.target.value)})} 
+        className={cn(inputClsBase, 'w-full pr-8 h-full text-sm font-black')} 
+        placeholder="0" 
+      />
+      <button 
+        onClick={() => onPatch({discountType: card.discountType === 'percentage' ? 'fixed' : 'percentage'} as any)} 
+        className={cn("absolute right-1 w-7 h-7 rounded flex items-center justify-center text-[12px] font-black border", dk ? "bg-white/10 border-white/10 text-white" : "bg-slate-100 border-slate-300 text-slate-700")}
+      >
+        {card.discountType === 'percentage' ? '%' : '€'}
+      </button>
+    </div>
+    <button onClick={() => onPatch({hasDiscount: false, discountValue: null} as any)} className="p-1 hover:text-red-500 transition-colors">
+      <X size={16} />
+    </button>
+  </div>
+</div>
 
       <div className="flex flex-col shrink-0">
         <p className={lbl}>MwSt (%)</p>
@@ -649,9 +659,10 @@ export default function RoomCard({
                 {/* LEFT SIDE: PRICING INPUTS */}
                 <div className={cn("flex-1 p-5 border-b xl:border-b-0 xl:border-r flex flex-col gap-5 rounded-t-xl xl:rounded-l-xl xl:rounded-tr-none", dk ? "border-white/10" : "border-slate-200")}>
                   <div className="flex items-center gap-3">
-                    <button onClick={() => queueSave({ pricingTab: 'per_bed', hasDiscount: false, discountValue: null })} className={tabBtn(activeTab === 'per_bed')}>{lang === 'de' ? 'Preis/Bett' : 'Price/Bed'}</button>
-                    <button onClick={() => queueSave({ pricingTab: 'per_room', hasDiscount: false, discountValue: null })} className={tabBtn(activeTab === 'per_room')}>{lang === 'de' ? 'Preis/Zimmer' : 'Price/Room'}</button>
-                    <button onClick={() => queueSave({ pricingTab: 'total_room', hasDiscount: false, discountValue: null })} className={tabBtn(activeTab === 'total_room')}>{lang === 'de' ? 'Gesamt/Zimmer' : 'Total/Room'}</button>
+                   // Find these lines and simplify them to ONLY change the pricingTab:
+                      <button onClick={() => queueSave({ pricingTab: 'per_bed' })} ...>Price/Bed</button>
+                      <button onClick={() => queueSave({ pricingTab: 'per_room' })} ...>Price/Room</button>
+                      <button onClick={() => queueSave({ pricingTab: 'total_room' })} ...>Total/Room</button>
                   </div>
                   
                   <div className="flex items-start gap-4 flex-wrap pb-2">
