@@ -18,11 +18,11 @@ export interface Employee {
   name: string
   checkIn?: string
   checkOut?: string
-  phone?: string // Added phone since it's used in RoomCard
+  phone?: string 
 }
 
 export interface ExtraCost {
-  id: string        // local uuid
+  id: string        
   note: string
   amount: number
 }
@@ -33,10 +33,10 @@ export interface RoomCard {
   roomNo: string
   floor: string
   roomType: RoomType
-  bedCount: number          // 1=EZ 2=DZ 3=TZ N=WG
+  bedCount: number          
 
   // ── New 3-tab pricing model ──
-  pricingTab: PricingTab    // which tab is active
+  pricingTab: PricingTab    
   
   // per_bed tab
   bedNetto?: number | null
@@ -67,9 +67,6 @@ export interface RoomCard {
   totalEnergyBrutto?: number | null
   totalDiscountType?: 'percentage' | 'fixed'
   totalDiscountValue?: number | null
-
-  // NOTE: The global hasDiscount, discountType, and discountValue have been REMOVED
-  // in favor of the tab-specific fields above.
 
   // legacy fields (kept for backward compat)
   nightlyPrice?: number
@@ -132,7 +129,7 @@ export interface Duration {
   depositAmount?: number | null
   extensionNote?: string | null
   employees: Employee[]
-  // extra costs (informational items added to total)
+  // extra costs
   extraCosts?: ExtraCost[]
   // room cards
   roomCards: RoomCard[]
