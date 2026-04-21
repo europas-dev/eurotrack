@@ -416,7 +416,7 @@ function InlineNMBRow({
             </div>
           </div>
           
-          {!(currentDiscountValue && currentDiscountValue > 0) ? (
+         {currentDiscountValue == null ? (
             <div className="mt-[22px] shrink-0">
               <button onClick={() => queueSave({ [discountValueKey]: 0, [discountTypeKey]: 'fixed' } as any)} className={cn("p-1.5 h-[38px] rounded-lg border flex items-center justify-center transition-all", dk ? "border-white/10 text-slate-400 hover:text-teal-400 bg-[#1E293B]" : "border-slate-200 text-slate-400 hover:text-teal-500 hover:bg-slate-50 bg-white")}>
                 <Ticket size={16} />
