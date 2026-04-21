@@ -213,7 +213,7 @@ function BedSlot({
 
         <div className={cn('px-2 rounded-lg border text-xs font-black text-center h-[38px] flex items-center justify-center shrink-0', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} style={{ width: 48 }}>{nights}N</div>
         
-        <button type="button" onClick={() => { setCheckIn(''); setCheckOut(''); }} className={cn("p-2 h-[38px] rounded-lg transition-colors border shrink-0 flex items-center justify-center", dk ? "border-white/10 text-slate-500 hover:text-red-400 hover:bg-white/5" : "border-slate-200 text-slate-400 hover:text-red-500 hover:bg-slate-50")} title={lang === 'de' ? 'Daten löschen' : 'Clear dates'}>
+        <button type="button" onClick={() => { setCheckIn(''); setCheckOut(''); }} className={cn("p-2 h-[38px] rounded-lg transition-colors border shrink-0 flex items-center justify-center text-slate-400 hover:text-red-500", dk ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50")} title={lang === 'de' ? 'Daten löschen' : 'Clear dates'}>
            <Calendar size={14} className="mr-1 opacity-50" /><X size={14} />
         </button>
 
@@ -261,6 +261,7 @@ function InlineNMBRow({
   const sumLbl = cn('text-[11px] font-black mt-1 pl-1 h-4 flex items-center', dk ? 'text-slate-500' : 'text-slate-400')
   const inputClsBase = cn('px-3 py-1.5 rounded-lg text-sm font-bold outline-none border transition-all h-[38px]', dk ? 'bg-[#1E293B] border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400')
   const disabledInputCls = cn(inputClsBase, 'opacity-50 cursor-not-allowed pointer-events-none bg-transparent')
+  const dBruttoTotal = dNettoTotal * (1 + (Number(card[mwstKey]) || 0) / 100);
 
   const showSum = activeTab !== 'total_room';
 
@@ -391,11 +392,11 @@ function InlineNMBRow({
           <div className="flex flex-col shrink-0">
             <p className={lbl}>Netto (€)</p>
             <input type="number" min={0} step="0.01" value={nVal} onChange={e => updateNetto(e.target.value)} disabled={disabled} style={noSpinner} className={cn(disabled ? disabledInputCls : inputClsBase, 'w-24', card[bruttoKey] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} placeholder="Auto" />
-            <div className={sumLbl}>
-              {showSum && tNetto > 0 && <span>Σ {formatCurrency(tNetto)}</span>}
+           <div className={sumLbl}>
+              {showSum && tBrutto > 0 && <span>Σ {formatCurrency(tBrutto)}</span>}
               {dNettoTotal !== tNetto && (
                  <span className={cn("ml-2 font-black flex items-center gap-1", dk ? "text-teal-400" : "text-teal-600")}>
-                   ↳ {formatCurrency(dNettoTotal / multiplier)} {multiplier > 1 && <span className="text-[10px] opacity-70 font-bold">(Σ {formatCurrency(dNettoTotal)})</span>}
+                   ↳ {formatCurrency(dBruttoTotal / multiplier)} {multiplier > 1 && <span className="text-[10px] opacity-70 font-bold">(Σ {formatCurrency(dBruttoTotal)})</span>}
                  </span>
               )}
             </div>
@@ -622,10 +623,10 @@ export default function RoomCard({
              {!isMasterPricingActive && (
                <>
                  <button onClick={(e) => { 
-                    e.stopPropagation(); 
-                    setShowPricing(!showPricing); 
-                    if (!showPricing && !card.pricingTab) { queueSave({ pricingTab: 'per_bed' }); } 
-                 }} className={tabBtn(showPricing)}>{lang === 'de' ? 'Preis' : 'Price'}</button>
+                 e.stopPropagation(); 
+                 setShowPricing(!showPricing); 
+                 if (!showPricing) { queueSave({ pricingTab: 'per_bed' }); } 
+              }} className={tabBtn(showPricing)}>{lang === 'de' ? 'Preis' : 'Price'}</button>
                  <div className="flex flex-col items-end min-w-[120px] ml-2"><span className="text-xl font-black">{roomTotalDisplay}</span></div>
                </>
              )}
@@ -642,9 +643,9 @@ export default function RoomCard({
                 {/* LEFT SIDE: PRICING INPUTS */}
                 <div className={cn("flex-1 p-5 border-b xl:border-b-0 xl:border-r flex flex-col gap-5 rounded-t-xl xl:rounded-l-xl xl:rounded-tr-none", dk ? "border-white/10" : "border-slate-200")}>
                   <div className="flex items-center gap-3">
-                    <button onClick={() => queueSave({ pricingTab: 'per_bed', hasDiscount: false, discountValue: null, discountType: 'percentage' })} className={tabBtn(activeTab === 'per_bed')}>{lang === 'de' ? 'Preis/Bett' : 'Price/Bed'}</button>
-                    <button onClick={() => queueSave({ pricingTab: 'per_room', hasDiscount: false, discountValue: null, discountType: 'percentage' })} className={tabBtn(activeTab === 'per_room')}>{lang === 'de' ? 'Preis/Zimmer' : 'Price/Room'}</button>
-                    <button onClick={() => queueSave({ pricingTab: 'total_room', hasDiscount: false, discountValue: null, discountType: 'percentage' })} className={tabBtn(activeTab === 'total_room')}>{lang === 'de' ? 'Gesamt/Zimmer' : 'Total/Room'}</button>
+                    <button onClick={() => queueSave({ pricingTab: 'per_bed' })} className={tabBtn(activeTab === 'per_bed')}>{lang === 'de' ? 'Preis/Bett' : 'Price/Bed'}</button>
+                    <button onClick={() => queueSave({ pricingTab: 'per_room' })} className={tabBtn(activeTab === 'per_room')}>{lang === 'de' ? 'Preis/Zimmer' : 'Price/Room'}</button>
+                    <button onClick={() => queueSave({ pricingTab: 'total_room' })} className={tabBtn(activeTab === 'total_room')}>{lang === 'de' ? 'Gesamt/Zimmer' : 'Total/Room'}</button>
                   </div>
                   
                   <div className="flex items-start gap-4 flex-wrap pb-2">
