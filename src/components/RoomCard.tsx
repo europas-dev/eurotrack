@@ -254,7 +254,7 @@ function InlineNMBRow({
   card: RoomCardType; dk: boolean; lang: 'de' | 'en'; onPatch: (p: Partial<RoomCardType>) => void; disabled?: boolean; multiplier: number; activeTab: PricingTab;
 }) {
   const lbl = cn('text-[10px] font-black uppercase tracking-widest h-4 flex items-end mb-1.5', dk ? 'text-slate-500' : 'text-slate-400')
-  const sumLbl = cn('text-[11px] font-black mt-1 pl-1 h-4', dk ? 'text-slate-500' : 'text-slate-400')
+  const sumLbl = cn('text-[11px] font-black mt-1 pl-1 h-4 flex items-center', dk ? 'text-slate-500' : 'text-slate-400')
   const inputClsBase = cn('px-3 py-1.5 rounded-lg text-sm font-bold outline-none border transition-all h-[38px]', dk ? 'bg-[#1E293B] border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400')
   const disabledInputCls = cn(inputClsBase, 'opacity-50 cursor-not-allowed pointer-events-none bg-transparent')
 
@@ -264,11 +264,11 @@ function InlineNMBRow({
     const cleanV = v.replace(/^0+(?=\d)/, '');
     const n = cleanV === '' ? null : normalizeNumberInput(cleanV);
     const m = card[mwstKey] as number | null | undefined;
-    if (m != null) {
+    if (m != null && String(m) !== '') {
       const b = n !== null ? Number((n * (1 + m / 100)).toFixed(2)) : null;
       onPatch({ [nettoKey]: n, [bruttoKey]: b } as any);
     } else {
-      onPatch({ [nettoKey]: n } as any);
+      onPatch({ [nettoKey]: n, [bruttoKey]: null } as any);
     }
   }
 
@@ -276,11 +276,11 @@ function InlineNMBRow({
     const cleanV = v.replace(/^0+(?=\d)/, '');
     const b = cleanV === '' ? null : normalizeNumberInput(cleanV);
     const m = card[mwstKey] as number | null | undefined;
-    if (m != null) {
+    if (m != null && String(m) !== '') {
       const n = b !== null ? Number((b / (1 + m / 100)).toFixed(2)) : null;
       onPatch({ [bruttoKey]: b, [nettoKey]: n } as any);
     } else {
-      onPatch({ [bruttoKey]: b } as any);
+      onPatch({ [bruttoKey]: b, [nettoKey]: null } as any);
     }
   }
 
@@ -289,7 +289,7 @@ function InlineNMBRow({
     const m = cleanV === '' ? null : normalizeNumberInput(cleanV);
     const n = card[nettoKey] as number | null | undefined;
     const b = card[bruttoKey] as number | null | undefined;
-    if (m != null) {
+    if (m != null && cleanV !== '') {
       if (n != null) {
         onPatch({ [mwstKey]: m, [bruttoKey]: Number((n * (1 + m / 100)).toFixed(2)) } as any);
       } else if (b != null) {
@@ -298,7 +298,7 @@ function InlineNMBRow({
         onPatch({ [mwstKey]: m } as any);
       }
     } else {
-      onPatch({ [mwstKey]: null } as any);
+      onPatch({ [mwstKey]: null, [bruttoKey]: null } as any);
     }
   }
 
@@ -307,11 +307,11 @@ function InlineNMBRow({
     const cleanV = v.replace(/^0+(?=\d)/, '');
     const n = cleanV === '' ? null : normalizeNumberInput(cleanV);
     const m = card[energyMwstKey!] as number | null | undefined;
-    if (m != null) {
+    if (m != null && String(m) !== '') {
       const b = n !== null ? Number((n * (1 + m / 100)).toFixed(2)) : null;
       onPatch({ [energyNettoKey]: n, [energyBruttoKey]: b } as any);
     } else {
-      onPatch({ [energyNettoKey]: n } as any);
+      onPatch({ [energyNettoKey]: n, [energyBruttoKey]: null } as any);
     }
   }
 
@@ -320,11 +320,11 @@ function InlineNMBRow({
     const cleanV = v.replace(/^0+(?=\d)/, '');
     const b = cleanV === '' ? null : normalizeNumberInput(cleanV);
     const m = card[energyMwstKey!] as number | null | undefined;
-    if (m != null) {
+    if (m != null && String(m) !== '') {
       const n = b !== null ? Number((b / (1 + m / 100)).toFixed(2)) : null;
       onPatch({ [energyBruttoKey]: b, [energyNettoKey]: n } as any);
     } else {
-      onPatch({ [energyBruttoKey]: b } as any);
+      onPatch({ [energyBruttoKey]: b, [energyNettoKey]: null } as any);
     }
   }
 
@@ -334,7 +334,7 @@ function InlineNMBRow({
     const m = cleanV === '' ? null : normalizeNumberInput(cleanV);
     const n = card[energyNettoKey] as number | null | undefined;
     const b = card[energyBruttoKey] as number | null | undefined;
-    if (m != null) {
+    if (m != null && cleanV !== '') {
       if (n != null) {
         onPatch({ [energyMwstKey]: m, [energyBruttoKey]: Number((n * (1 + m / 100)).toFixed(2)) } as any);
       } else if (b != null) {
@@ -343,26 +343,26 @@ function InlineNMBRow({
         onPatch({ [energyMwstKey]: m } as any);
       }
     } else {
-      onPatch({ [energyMwstKey]: null } as any);
+      onPatch({ [energyMwstKey]: null, [energyBruttoKey]: null } as any);
     }
   }
 
-  const bNettoDisplay = (card[bruttoKey] != null && card[mwstKey] != null) ? (Number(card[bruttoKey]) / (1 + Number(card[mwstKey])/100)).toFixed(2) : '';
-  const bBruttoDisplay = (card[nettoKey] != null && card[mwstKey] != null) ? (Number(card[nettoKey]) * (1 + Number(card[mwstKey])/100)).toFixed(2) : '';
+  const bNettoDisplay = (card[bruttoKey] != null && card[mwstKey] != null && String(card[mwstKey]) !== '') ? (Number(card[bruttoKey]) / (1 + Number(card[mwstKey])/100)).toFixed(2) : '';
+  const bBruttoDisplay = (card[nettoKey] != null && card[mwstKey] != null && String(card[mwstKey]) !== '') ? (Number(card[nettoKey]) * (1 + Number(card[mwstKey])/100)).toFixed(2) : '';
 
-  const eNettoDisplay = (energyBruttoKey && energyMwstKey && card[energyBruttoKey] != null && card[energyMwstKey] != null) ? (Number(card[energyBruttoKey]) / (1 + Number(card[energyMwstKey])/100)).toFixed(2) : '';
-  const eBruttoDisplay = (energyNettoKey && energyMwstKey && card[energyNettoKey] != null && card[energyMwstKey] != null) ? (Number(card[energyNettoKey]) * (1 + Number(card[energyMwstKey])/100)).toFixed(2) : '';
+  const eNettoDisplay = (energyBruttoKey && energyMwstKey && card[energyBruttoKey] != null && card[energyMwstKey] != null && String(card[energyMwstKey]) !== '') ? (Number(card[energyBruttoKey]) / (1 + Number(card[energyMwstKey])/100)).toFixed(2) : '';
+  const eBruttoDisplay = (energyNettoKey && energyMwstKey && card[energyNettoKey] != null && card[energyMwstKey] != null && String(card[energyMwstKey]) !== '') ? (Number(card[energyNettoKey]) * (1 + Number(card[energyMwstKey])/100)).toFixed(2) : '';
 
   const tNetto = (card[nettoKey] != null ? Number(card[nettoKey]) : Number(bNettoDisplay) || 0) * multiplier;
   const tBrutto = (card[bruttoKey] != null ? Number(card[bruttoKey]) : Number(bBruttoDisplay) || 0) * multiplier;
   const tENetto = energyNettoKey ? (card[energyNettoKey] != null ? Number(card[energyNettoKey]) : Number(eNettoDisplay) || 0) * multiplier : 0;
   const tEBrutto = energyBruttoKey ? (card[energyBruttoKey] != null ? Number(card[energyBruttoKey]) : Number(eBruttoDisplay) || 0) * multiplier : 0;
 
-  let dNetto = tNetto;
+  let dNettoTotal = tNetto;
   if (card.hasDiscount || Boolean(card.discountValue)) {
      const dv = Number(card.discountValue) || 0;
      if (dv > 0) {
-        dNetto = card.discountType === 'percentage' ? tNetto * (1 - dv/100) : Math.max(0, tNetto - dv);
+        dNettoTotal = card.discountType === 'percentage' ? tNetto * (1 - dv/100) : Math.max(0, tNetto - dv);
      }
   }
 
@@ -377,11 +377,14 @@ function InlineNMBRow({
             <input type="number" min={0} step="0.01" value={card[nettoKey] != null ? card[nettoKey] : bNettoDisplay} onChange={e => updateNetto(e.target.value)} disabled={disabled} style={noSpinner} className={cn(disabled ? disabledInputCls : inputClsBase, 'w-24', card[bruttoKey] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} placeholder="Auto" />
             <div className={sumLbl}>
               {showSum && tNetto > 0 && <span>Σ {formatCurrency(tNetto)}</span>}
-              {dNetto !== tNetto && <span className={cn("ml-2 font-black", dk ? "text-teal-400" : "text-teal-600")}>↳ {formatCurrency(dNetto)}</span>}
+              {dNettoTotal !== tNetto && (
+                 <span className={cn("ml-2 font-black flex items-center gap-1", dk ? "text-teal-400" : "text-teal-600")}>
+                   ↳ {formatCurrency(dNettoTotal / multiplier)} {multiplier > 1 && <span className="text-[10px] opacity-70 font-bold">(Σ {formatCurrency(dNettoTotal)})</span>}
+                 </span>
+              )}
             </div>
           </div>
           
-          {/* TICKET DISCOUNT BUTTON OR UI */}
           {!(card.hasDiscount || Boolean(card.discountValue)) ? (
             <div className="mt-[22px] shrink-0">
               <button onClick={() => onPatch({ hasDiscount: true, discountType: 'fixed' } as any)} className={cn("p-1.5 h-[38px] rounded-lg border flex items-center justify-center transition-all", dk ? "border-white/10 text-slate-400 hover:text-teal-400 bg-[#1E293B]" : "border-slate-200 text-slate-400 hover:text-teal-500 hover:bg-slate-50 bg-white")}>
@@ -469,8 +472,8 @@ export default function RoomCard({
 
        if (inD && outD) {
            if (outD <= durationStart || inD >= durationEnd) {
-              inD = durationStart;
-              outD = durationEnd;
+              inD = '';
+              outD = '';
               modified = true;
            } else {
               if (inD < durationStart) { inD = durationStart; modified = true; }
@@ -496,14 +499,9 @@ export default function RoomCard({
   function queueSave(patch: Partial<RoomCardType>) {
     clearTimeout(saveTimer.current)
     const updatedCard = { ...card, ...patch };
-    const newNettoTotal = calcRoomCardNettoSum(updatedCard, durationStart, durationEnd);
-    const newBruttoTotal = calcRoomCardTotal(updatedCard, durationStart, durationEnd);
-
-    const finalPatch = { ...patch, totalNetto: newNettoTotal, totalBrutto: newBruttoTotal };
-
-    onUpdate(card.id, finalPatch)
+    onUpdate(card.id, patch)
     saveTimer.current = setTimeout(async () => {
-      try { await enqueue({ type: 'updateRoomCard', payload: { id: card.id, ...finalPatch } }) }
+      try { await enqueue({ type: 'updateRoomCard', payload: { id: card.id, ...patch } }) }
       catch (e) { console.error(e) }
     }, 400)
   }
@@ -516,19 +514,19 @@ export default function RoomCard({
 
   if (activeTab === 'per_bed') {
      baseNetto = (Number(card.bedNetto) || 0) * multiplier;
-     mwstRate = Number(card.bedMwst) || 7;
+     mwstRate = Number(card.bedMwst) || 0;
      cEnergyNetto = (Number(card.bedEnergyNetto) || 0) * multiplier;
-     eMwstRate = Number(card.bedEnergyMwst) || 19;
+     eMwstRate = Number(card.bedEnergyMwst) || 0;
   } else if (activeTab === 'per_room') {
      baseNetto = (Number(card.roomNetto) || 0) * multiplier;
-     mwstRate = Number(card.roomMwst) || 7;
+     mwstRate = Number(card.roomMwst) || 0;
      cEnergyNetto = (Number(card.roomEnergyNetto) || 0) * multiplier;
-     eMwstRate = Number(card.roomEnergyMwst) || 19;
+     eMwstRate = Number(card.roomEnergyMwst) || 0;
   } else {
      baseNetto = Number(card.totalNetto) || 0;
-     mwstRate = Number(card.totalMwst) || 7;
+     mwstRate = Number(card.totalMwst) || 0;
      cEnergyNetto = Number(card.totalEnergyNetto) || 0;
-     eMwstRate = Number(card.totalEnergyMwst) || 19;
+     eMwstRate = Number(card.totalEnergyMwst) || 0;
   }
 
   let cRoomNetto = baseNetto;
@@ -559,7 +557,6 @@ export default function RoomCard({
                <span className={cn("font-black w-8", dk ? "text-white" : "text-slate-900")}>{card.roomType}</span>
                <span className={cn("text-base font-bold w-24 truncate", dk ? "text-slate-300" : "text-slate-700")}>{card.roomNo || '---'}</span>
                
-               {/* INCREASED NIGHTS AND BEDS TYPOGRAPHY */}
                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-blue-500/10 text-blue-500 font-black text-sm shrink-0">
                  <Moon size={16} /> <span className="text-[15px]">{nights}</span> 
                  <div className="w-px h-3 bg-blue-500/30 mx-1" /> 
