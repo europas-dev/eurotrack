@@ -18,6 +18,7 @@ export interface Employee {
   name: string
   checkIn?: string
   checkOut?: string
+  phone?: string // Added phone since it's used in RoomCard
 }
 
 export interface ExtraCost {
@@ -36,39 +37,52 @@ export interface RoomCard {
 
   // ── New 3-tab pricing model ──
   pricingTab: PricingTab    // which tab is active
+  
   // per_bed tab
   bedNetto?: number | null
   bedMwst?: number | null
-  bedBrutto?: number | null   // per bed per night
-  bedEnergy?: number | null   // extra per bed per night (same unit)
+  bedBrutto?: number | null
+  bedEnergyNetto?: number | null
+  bedEnergyMwst?: number | null
+  bedEnergyBrutto?: number | null
+  bedDiscountType?: 'percentage' | 'fixed'
+  bedDiscountValue?: number | null
+
   // per_room tab
   roomNetto?: number | null
   roomMwst?: number | null
-  roomBrutto?: number | null  // per room per night
-  roomEnergy?: number | null  // extra per room per night
+  roomBrutto?: number | null
+  roomEnergyNetto?: number | null
+  roomEnergyMwst?: number | null
+  roomEnergyBrutto?: number | null
+  roomDiscountType?: 'percentage' | 'fixed'
+  roomDiscountValue?: number | null
+
   // total_room tab
   totalNetto?: number | null
   totalMwst?: number | null
-  totalBrutto?: number | null // total brutto for whole room
-  totalEnergy?: number | null // flat extra on top of total
+  totalBrutto?: number | null 
+  totalEnergyNetto?: number | null
+  totalEnergyMwst?: number | null
+  totalEnergyBrutto?: number | null
+  totalDiscountType?: 'percentage' | 'fixed'
+  totalDiscountValue?: number | null
 
-  // discount (applies to room total after energy)
-  hasDiscount: boolean
-  discountType: 'percentage' | 'fixed'
-  discountValue: number
+  // NOTE: The global hasDiscount, discountType, and discountValue have been REMOVED
+  // in favor of the tab-specific fields above.
 
   // legacy fields (kept for backward compat)
-  nightlyPrice: number
-  pricePerBed: boolean
-  pricePerBedAmount: number
-  useBruttoNetto: boolean
+  nightlyPrice?: number
+  pricePerBed?: boolean
+  pricePerBedAmount?: number
+  useBruttoNetto?: boolean
   brutto?: number | null
   netto?: number | null
   mwst?: number | null
-  useManualPrices: boolean
-  nightlyPrices: Record<string, number>
-  pricingSynced: boolean
-  pricingMode: 'simple' | 'brutto_netto'
+  useManualPrices?: boolean
+  nightlyPrices?: Record<string, number>
+  pricingSynced?: boolean
+  pricingMode?: 'simple' | 'brutto_netto'
 
   sortOrder: number
   employees: Employee[]
@@ -97,20 +111,20 @@ export interface Duration {
   startDate: string
   endDate: string
   // legacy flat fields (kept for backward compat)
-  roomType: RoomType
-  numberOfRooms: number
+  roomType?: RoomType
+  numberOfRooms?: number
   bedsPerRoom?: number
-  pricePerNightPerRoom: number
-  useManualPrices: boolean
-  nightlyPrices: Record<string, number>
-  autoDistribute: boolean
-  useBruttoNetto: boolean
+  pricePerNightPerRoom?: number
+  useManualPrices?: boolean
+  nightlyPrices?: Record<string, number>
+  autoDistribute?: boolean
+  useBruttoNetto?: boolean
   brutto?: number | null
   netto?: number | null
   mwst?: number | null
-  hasDiscount: boolean
-  discountType: 'percentage' | 'fixed'
-  discountValue: number
+  hasDiscount?: boolean
+  discountType?: 'percentage' | 'fixed'
+  discountValue?: number
   isPaid: boolean
   rechnungNr?: string | null
   bookingId?: string | null
