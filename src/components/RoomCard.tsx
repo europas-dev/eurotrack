@@ -213,7 +213,8 @@ function BedSlot({
 
         <div className={cn('px-2 rounded-lg border text-xs font-black text-center h-[38px] flex items-center justify-center shrink-0', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} style={{ width: 48 }}>{nights}N</div>
         
-        <button type="button" onClick={() => { setCheckIn(''); setCheckOut(''); }} className={cn("p-2 h-[38px] rounded-lg transition-colors border shrink-0 flex items-center justify-center text-slate-400 hover:text-red-500", dk ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50")} title={lang === 'de' ? 'Daten löschen' : 'Clear dates'}>
+        {/* CLEAR DATES ICON */}
+        <button type="button" onClick={() => { setCheckIn(''); setCheckOut(''); }} className={cn("p-2 h-[38px] rounded-lg transition-colors border shrink-0 flex items-center justify-center", dk ? "border-white/10 text-slate-500 hover:text-red-400 hover:bg-white/5" : "border-slate-200 text-slate-400 hover:text-red-500 hover:bg-slate-50")} title={lang === 'de' ? 'Daten löschen' : 'Clear dates'}>
            <Calendar size={14} className="mr-1 opacity-50" /><X size={14} />
         </button>
 
@@ -261,7 +262,6 @@ function InlineNMBRow({
   const sumLbl = cn('text-[11px] font-black mt-1 pl-1 h-4 flex items-center', dk ? 'text-slate-500' : 'text-slate-400')
   const inputClsBase = cn('px-3 py-1.5 rounded-lg text-sm font-bold outline-none border transition-all h-[38px]', dk ? 'bg-[#1E293B] border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400')
   const disabledInputCls = cn(inputClsBase, 'opacity-50 cursor-not-allowed pointer-events-none bg-transparent')
-  const dBruttoTotal = dNettoTotal * (1 + (Number(card[mwstKey]) || 0) / 100);
 
   const showSum = activeTab !== 'total_room';
 
@@ -378,6 +378,9 @@ function InlineNMBRow({
      }
   }
 
+  // Calculate discounted Brutto for display arrow
+  const dBruttoTotal = dNettoTotal * (1 + (Number(card[mwstKey]) || 0) / 100);
+
   const nVal = card[nettoKey] === 0 ? '' : (card[nettoKey] != null ? card[nettoKey] : bNettoDisplay);
   const bVal = card[bruttoKey] === 0 ? '' : (card[bruttoKey] != null ? card[bruttoKey] : bBruttoDisplay);
   const enVal = energyNettoKey && card[energyNettoKey] === 0 ? '' : (card[energyNettoKey!] != null ? card[energyNettoKey!] : eNettoDisplay);
@@ -392,11 +395,11 @@ function InlineNMBRow({
           <div className="flex flex-col shrink-0">
             <p className={lbl}>Netto (€)</p>
             <input type="number" min={0} step="0.01" value={nVal} onChange={e => updateNetto(e.target.value)} disabled={disabled} style={noSpinner} className={cn(disabled ? disabledInputCls : inputClsBase, 'w-24', card[bruttoKey] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} placeholder="Auto" />
-           <div className={sumLbl}>
-              {showSum && tBrutto > 0 && <span>Σ {formatCurrency(tBrutto)}</span>}
+            <div className={sumLbl}>
+              {showSum && tNetto > 0 && <span>Σ {formatCurrency(tNetto)}</span>}
               {dNettoTotal !== tNetto && (
                  <span className={cn("ml-2 font-black flex items-center gap-1", dk ? "text-teal-400" : "text-teal-600")}>
-                   ↳ {formatCurrency(dBruttoTotal / multiplier)} {multiplier > 1 && <span className="text-[10px] opacity-70 font-bold">(Σ {formatCurrency(dBruttoTotal)})</span>}
+                   ↳ {formatCurrency(dNettoTotal / multiplier)} {multiplier > 1 && <span className="text-[10px] opacity-70 font-bold">(Σ {formatCurrency(dNettoTotal)})</span>}
                  </span>
               )}
             </div>
@@ -433,7 +436,14 @@ function InlineNMBRow({
       <div className="flex flex-col shrink-0">
         <p className={lbl}>Brutto (€)</p>
         <input type="number" min={0} step="0.01" value={bVal} onChange={e => updateBrutto(e.target.value)} disabled={disabled} style={noSpinner} className={cn(disabled ? disabledInputCls : inputClsBase, 'w-24 h-[38px]', card[nettoKey] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} placeholder="Auto" />
-        <div className={sumLbl}>{showSum && tBrutto > 0 && `Σ ${formatCurrency(tBrutto)}`}</div>
+        <div className={sumLbl}>
+          {showSum && tBrutto > 0 && <span>Σ {formatCurrency(tBrutto)}</span>}
+          {dNettoTotal !== tNetto && (
+             <span className={cn("ml-2 font-black flex items-center gap-1", dk ? "text-teal-400" : "text-teal-600")}>
+               ↳ {formatCurrency(dBruttoTotal / multiplier)} {multiplier > 1 && <span className="text-[10px] opacity-70 font-bold">(Σ {formatCurrency(dBruttoTotal)})</span>}
+             </span>
+          )}
+        </div>
       </div>
 
       {/* ENERGY GROUP */}
@@ -623,10 +633,10 @@ export default function RoomCard({
              {!isMasterPricingActive && (
                <>
                  <button onClick={(e) => { 
-                 e.stopPropagation(); 
-                 setShowPricing(!showPricing); 
-                 if (!showPricing) { queueSave({ pricingTab: 'per_bed' }); } 
-              }} className={tabBtn(showPricing)}>{lang === 'de' ? 'Preis' : 'Price'}</button>
+                    e.stopPropagation(); 
+                    setShowPricing(!showPricing); 
+                    if (!showPricing) { queueSave({ pricingTab: 'per_bed' }); } 
+                 }} className={tabBtn(showPricing)}>{lang === 'de' ? 'Preis' : 'Price'}</button>
                  <div className="flex flex-col items-end min-w-[120px] ml-2"><span className="text-xl font-black">{roomTotalDisplay}</span></div>
                </>
              )}
