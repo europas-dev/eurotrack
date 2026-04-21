@@ -11,20 +11,48 @@ import type { Employee, PricingTab, RoomCard as RoomCardType } from '../lib/type
 
 const noSpinner: React.CSSProperties = { MozAppearance: 'textfield' as any, WebkitAppearance: 'none' as any }
 
-function fmtDate(iso: string) {
+function fmtDateDe(iso: string) {
   if (!iso) return '—'
   const [y, m, d] = iso.split('-')
-  return `${d}/${m}/${y}`
+  return `${d}.${m}.${y}`
 }
 
 function empBorderColor(emp: Employee | null, dk: boolean): string {
   if (!emp) return dk ? 'border-white/10' : 'border-slate-200'
   const s = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '')
-  if (s === 'active') return dk ? 'border-emerald-500/60' : 'border-emerald-500'
-  if (s === 'ending-soon') return dk ? 'border-red-500/60' : 'border-red-500'
+  if (s === 'active') return dk ? 'border-emerald-500/50' : 'border-emerald-500'
+  if (s === 'ending-soon') return dk ? 'border-red-500/50' : 'border-red-500'
   if (s === 'completed') return dk ? 'border-slate-500/40' : 'border-slate-400'
-  if (s === 'upcoming') return dk ? 'border-blue-500/60' : 'border-blue-500'
+  if (s === 'upcoming') return dk ? 'border-blue-500/50' : 'border-blue-500'
   return dk ? 'border-white/10' : 'border-slate-200'
+}
+
+// Mini Dropdown for MwSt
+function MwstInput({ value, onChange, isDarkMode, disabled }: { value: string | null, onChange: (v: string | null) => void, isDarkMode: boolean, disabled?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, []);
+
+  const baseInputCls = cn('w-16 px-2 py-1.5 rounded-l-lg text-sm font-bold outline-none border transition-all h-full text-center', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900');
+  
+  return (
+    <div ref={ref} className={cn("relative flex items-center h-[38px]", disabled && "opacity-50 pointer-events-none")}>
+      <input type="number" value={value ?? ''} onChange={e => onChange(e.target.value === '' ? null : e.target.value)} disabled={disabled} className={baseInputCls} placeholder="--" style={noSpinner} />
+      <button onClick={() => setOpen(!open)} disabled={disabled} className={cn('px-1.5 h-full rounded-r-lg border border-l-0 transition-all flex items-center justify-center', isDarkMode ? 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100')}><ChevronDown size={14} /></button>
+      {open && !disabled && (
+        <div className={cn("absolute top-full right-0 mt-1 w-20 z-[999] rounded-lg shadow-xl overflow-hidden border", isDarkMode ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+          {[7, 19, 0].map(v => (
+            <button key={v} onClick={() => { onChange(v.toString()); setOpen(false); }} className={cn("w-full text-center py-2 text-sm font-bold transition-all", isDarkMode ? "text-white hover:bg-white/10" : "text-slate-900 hover:bg-slate-100")}>{v}%</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function BedSlot({
@@ -92,10 +120,10 @@ function BedSlot({
   if (confirmDel) {
     return (
       <div className={cn('flex items-center justify-between px-4 py-2 rounded-lg border', dk ? 'bg-red-900/10 border-red-500/30' : 'bg-red-50 border-red-200')}>
-        <span className={cn('text-sm font-bold', dk ? 'text-red-300' : 'text-red-700')}>Delete {employee?.name}?</span>
+        <span className={cn('text-sm font-bold', dk ? 'text-red-300' : 'text-red-700')}>{lang === 'de' ? 'Löschen' : 'Delete'} {employee?.name}?</span>
         <div className="flex gap-2">
-          <button onClick={remove} disabled={saving} className="px-4 py-1.5 rounded bg-red-600 text-white text-xs font-bold">Yes</button>
-          <button onClick={() => setConfirmDel(false)} className={cn('px-4 py-1.5 rounded text-xs font-bold border', dk ? 'border-white/10 text-slate-300' : 'border-slate-200 text-slate-700')}>Cancel</button>
+          <button onClick={remove} disabled={saving} className="px-4 py-1.5 rounded bg-red-600 text-white text-xs font-bold">{lang === 'de' ? 'Ja' : 'Yes'}</button>
+          <button onClick={() => setConfirmDel(false)} className={cn('px-4 py-1.5 rounded text-xs font-bold border', dk ? 'border-white/10 text-slate-300' : 'border-slate-200 text-slate-700')}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
         </div>
       </div>
     )
@@ -103,22 +131,23 @@ function BedSlot({
 
   if (!editing && employee) {
     return (
-      <div className={cn('flex items-center gap-4 px-4 py-2.5 rounded-lg transition-all group', borderCls, isPartial ? 'border-2 border-dashed' : 'border-2 border-solid', dk ? 'bg-[#1E293B]' : 'bg-white')}>
-        <IconToUse size={16} className={status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400'} />
+      <div className={cn('flex items-center gap-4 px-4 py-3 rounded-lg transition-all group relative', borderCls, isPartial ? 'border-2 border-dashed' : 'border-2 border-solid', dk ? 'bg-[#1E293B]' : 'bg-white')}>
+        <IconToUse size={18} className={status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400'} />
         
-        <div className="flex flex-col flex-1 overflow-hidden">
-          <span onClick={() => { setName(employee.name); setPhone(employee.phone || '+49 '); setCheckIn(employee.checkIn ?? effectiveIn); setCheckOut(employee.checkOut ?? effectiveOut); setEditing(true) }} className={cn('text-base font-bold cursor-pointer truncate', dk ? 'text-white' : 'text-slate-900')}>{employee.name}</span>
+        <div className="flex flex-col flex-1 overflow-hidden relative">
+          <span onClick={() => { setName(employee.name); setPhone(employee.phone || '+49 '); setCheckIn(employee.checkIn ?? effectiveIn); setCheckOut(employee.checkOut ?? effectiveOut); setEditing(true) }} className={cn('text-[15px] font-bold cursor-pointer truncate', dk ? 'text-white' : 'text-slate-900')}>{employee.name}</span>
+          
+          {/* HUGE HOVER PHONE POPOVER */}
+          {employee.phone && employee.phone !== '+49' && employee.phone !== '+49 ' && (
+            <div className="absolute bottom-full left-0 mb-2 hidden group-hover:flex z-[100] bg-slate-900 text-white text-lg font-black px-4 py-2 rounded-xl shadow-2xl whitespace-nowrap items-center gap-2 border border-white/10 animate-in fade-in zoom-in-95">
+              <Phone size={18} className="text-blue-400" /> {employee.phone}
+            </div>
+          )}
         </div>
 
-        {employee.phone && employee.phone !== '+49' && employee.phone !== '+49 ' && (
-          <a href={`tel:${employee.phone.replace(/\s/g, '')}`} onClick={e => e.stopPropagation()} className={cn("flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition-colors border", dk ? "bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10" : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100")}>
-            <Phone size={12} /> <span className="hidden sm:inline">{employee.phone}</span>
-          </a>
-        )}
-
-        <span className={cn('text-[13px] tabular-nums shrink-0 hidden md:block', dk ? 'text-slate-400' : 'text-slate-500')}>{fmtDate(employee.checkIn ?? '')} ➔ {fmtDate(employee.checkOut ?? '')}</span>
-        <span className={cn('text-[14px] font-black shrink-0 w-10 text-right', dk ? 'text-slate-300' : 'text-slate-600')}>{calculateNights(employee.checkIn||'', employee.checkOut||'')}N</span>
-        {saving ? <Loader2 size={16} className="animate-spin text-blue-400" /> : <button onClick={() => setConfirmDel(true)} className={cn('opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded', dk ? 'text-red-400 hover:bg-red-900/20' : 'text-red-500 hover:bg-red-50')}><Trash2 size={16} /></button>}
+        <span className={cn('text-[14px] font-bold tabular-nums shrink-0 hidden md:block', dk ? 'text-slate-400' : 'text-slate-500')}>{fmtDateDe(employee.checkIn ?? '')} ➔ {fmtDateDe(employee.checkOut ?? '')}</span>
+        <span className={cn('text-[15px] font-black shrink-0 w-12 text-right', dk ? 'text-slate-300' : 'text-slate-600')}>{calculateNights(employee.checkIn||'', employee.checkOut||'')}N</span>
+        {saving ? <Loader2 size={18} className="animate-spin text-blue-400" /> : <button onClick={() => setConfirmDel(true)} className={cn('opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded', dk ? 'text-red-400 hover:bg-red-900/20' : 'text-red-500 hover:bg-red-50')}><Trash2 size={18} /></button>}
       </div>
     )
   }
@@ -127,30 +156,51 @@ function BedSlot({
     const isGap = !!(gapStart || gapEnd)
     return (
       <button onClick={() => { setCheckIn(effectiveIn); setCheckOut(effectiveOut); setEditing(true); setTimeout(() => inputRef.current?.focus(), 40) }} className={cn('w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border-2 border-dashed text-sm font-bold transition-all', isGap ? (dk ? 'border-amber-500/40 text-amber-400 hover:bg-amber-900/10' : 'border-amber-400 text-amber-600 hover:bg-amber-50') : (dk ? 'border-white/10 text-slate-500 hover:border-blue-500/40 hover:text-blue-400' : 'border-slate-200 text-slate-400 hover:border-blue-400 hover:text-blue-500'))}>
-        <Plus size={16} /> {isGap ? `${lang === 'de' ? 'Lücke füllen' : 'Fill gap'} (${fmtDate(effectiveIn)} ➔ ${fmtDate(effectiveOut)})` : 'Assign bed'}
+        <Plus size={16} /> {isGap ? `${lang === 'de' ? 'Lücke füllen' : 'Fill gap'} (${fmtDateDe(effectiveIn)} ➔ ${fmtDateDe(effectiveOut)})` : (lang === 'de' ? 'Bett zuweisen' : 'Assign bed')}
       </button>
     )
   }
 
-  // 2-ROW EDIT LAYOUT
+  // 2-ROW EDIT LAYOUT with Formatting Date Trick
   return (
-    <div className={cn('flex flex-col gap-3 p-3 rounded-xl border', dk ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200')}>
+    <div className={cn('flex flex-col gap-3 p-4 rounded-xl border shadow-sm', dk ? 'bg-[#1E293B] border-white/10' : 'bg-slate-50 border-slate-200')}>
+      
+      {/* Row 1: Name and Phone */}
       <div className="flex items-center gap-3">
-        <IconToUse size={18} className={dk ? 'text-blue-400 ml-1 hidden sm:block' : 'text-blue-500 ml-1 hidden sm:block'} />
-        <input ref={inputRef} type="text" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder="Name..." className={cn(inputCls, 'flex-[6] font-bold text-base')} />
-        <div className="relative flex items-center flex-[4]">
+        <IconToUse size={18} className={dk ? 'text-blue-400 shrink-0 hidden sm:block' : 'text-blue-500 shrink-0 hidden sm:block'} />
+        <input ref={inputRef} type="text" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder={lang === 'de' ? 'Name...' : 'Name...'} className={cn(inputCls, 'flex-[6] font-bold text-base w-full')} />
+        <div className="relative flex items-center flex-[4] w-full">
           <Phone size={14} className={cn("absolute left-2.5", dk ? "text-slate-500" : "text-slate-400")} />
           <input type="text" value={phone} onChange={e => setPhone(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder="+49" className={cn(inputCls, 'w-full pl-8 text-sm')} />
         </div>
       </div>
-      <div className="flex items-center gap-3 pl-1 sm:pl-8 flex-wrap sm:flex-nowrap">
-        <input type="date" value={checkIn} min={effectiveIn} max={effectiveOut} onChange={e => setCheckIn(e.target.value)} className={cn(inputCls, 'w-[130px] px-3 font-medium')} />
+
+      {/* Row 2: Dates and Actions */}
+      <div className="flex items-center gap-3 pl-0 sm:pl-8 flex-wrap sm:flex-nowrap">
+        
+        {/* Invisible Date Overlay Trick */}
+        <div className="relative w-[130px] shrink-0">
+          <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between font-bold text-[13px] pointer-events-none bg-transparent')}>
+            <span>{fmtDateDe(checkIn)}</span><Calendar size={14} className="opacity-40" />
+          </div>
+          <input type="date" value={checkIn} min={effectiveIn} max={effectiveOut} onChange={e => setCheckIn(e.target.value)} className="w-full h-[38px] opacity-0 cursor-pointer" />
+        </div>
+        
         <span className="text-slate-400 text-sm hidden sm:block">➔</span>
-        <input type="date" value={checkOut} min={checkIn} max={effectiveOut} onChange={e => setCheckOut(e.target.value)} className={cn(inputCls, 'w-[130px] px-3 font-medium')} />
-        <div className={cn('px-2 rounded border text-xs font-black text-center h-[38px] flex items-center justify-center shrink-0', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} style={{ width: 48 }}>{nights}N</div>
-        <div className="flex-1" />
-        <button onClick={save} disabled={saving || !name.trim()} className="px-5 h-[38px] rounded bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-sm">Save</button>
-        <button onClick={() => setEditing(false)} className={cn('px-3 h-[38px] rounded text-sm transition-all shrink-0 border', dk ? 'border-white/10 text-slate-400 hover:bg-white/10' : 'border-slate-200 text-slate-500 hover:bg-slate-100')}><X size={16} /></button>
+        
+        <div className="relative w-[130px] shrink-0">
+          <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between font-bold text-[13px] pointer-events-none bg-transparent')}>
+            <span>{fmtDateDe(checkOut)}</span><Calendar size={14} className="opacity-40" />
+          </div>
+          <input type="date" value={checkOut} min={checkIn} max={effectiveOut} onChange={e => setCheckOut(e.target.value)} className="w-full h-[38px] opacity-0 cursor-pointer" />
+        </div>
+
+        <div className={cn('px-2 rounded-lg border text-xs font-black text-center h-[38px] flex items-center justify-center shrink-0', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} style={{ width: 48 }}>{nights}N</div>
+        
+        <div className="flex-1 min-w-[20px]" />
+        
+        <button onClick={save} disabled={saving || !name.trim()} className="px-5 h-[38px] rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md shrink-0 transition-colors">{lang === 'de' ? 'Speichern' : 'Save'}</button>
+        <button onClick={() => setEditing(false)} className={cn('px-3 h-[38px] rounded-lg text-sm transition-all shrink-0 border', dk ? 'border-white/10 text-slate-400 hover:bg-white/10' : 'border-slate-200 text-slate-500 hover:bg-slate-100')}><X size={16} /></button>
       </div>
     </div>
   )
@@ -181,13 +231,14 @@ function getGapSlots(beds: number, employees: Employee[], durationStart: string,
 
 function InlineNMBRow({
   nettoKey, mwstKey, bruttoKey, energyNettoKey, energyMwstKey, energyBruttoKey,
-  card, dk, inputCls, onPatch, disabled
+  card, dk, lang, inputCls, onPatch, disabled, multiplier, activeTab
 }: {
   nettoKey: keyof RoomCardType; mwstKey: keyof RoomCardType; bruttoKey: keyof RoomCardType;
   energyNettoKey?: keyof RoomCardType; energyMwstKey?: keyof RoomCardType; energyBruttoKey?: keyof RoomCardType;
-  card: RoomCardType; dk: boolean; inputCls: string; onPatch: (p: Partial<RoomCardType>) => void; disabled?: boolean;
+  card: RoomCardType; dk: boolean; lang: 'de' | 'en'; inputCls: string; onPatch: (p: Partial<RoomCardType>) => void; disabled?: boolean; multiplier: number; activeTab: PricingTab;
 }) {
   const lbl = cn('text-[10px] font-black uppercase tracking-widest h-4 flex items-end mb-1.5', dk ? 'text-slate-500' : 'text-slate-400')
+  const sumLbl = cn('text-[11px] font-black mt-1 pl-1 h-4', dk ? 'text-slate-500' : 'text-slate-400')
   const disabledInputCls = cn(inputCls, 'opacity-40 cursor-not-allowed pointer-events-none')
 
   // COMPUTED LOCKS FOR NETTO/BRUTTO
@@ -197,22 +248,29 @@ function InlineNMBRow({
   const eNettoDisplay = (energyBruttoKey && energyMwstKey && card[energyBruttoKey] != null && card[energyMwstKey] != null) ? (Number(card[energyBruttoKey]) / (1 + Number(card[energyMwstKey])/100)).toFixed(2) : '';
   const eBruttoDisplay = (energyNettoKey && energyMwstKey && card[energyNettoKey] != null && card[energyMwstKey] != null) ? (Number(card[energyNettoKey]) * (1 + Number(card[energyMwstKey])/100)).toFixed(2) : '';
 
+  const tNetto = (card[nettoKey] != null ? Number(card[nettoKey]) : Number(bNettoDisplay) || 0) * multiplier;
+  const tBrutto = (card[bruttoKey] != null ? Number(card[bruttoKey]) : Number(bBruttoDisplay) || 0) * multiplier;
+  
+  const tENetto = energyNettoKey ? (card[energyNettoKey] != null ? Number(card[energyNettoKey]) : Number(eNettoDisplay) || 0) * multiplier : 0;
+  const tEBrutto = energyBruttoKey ? (card[energyBruttoKey] != null ? Number(card[energyBruttoKey]) : Number(eBruttoDisplay) || 0) * multiplier : 0;
+
   return (
     <div className={cn("flex items-start gap-4 flex-nowrap w-max", disabled && "opacity-50 pointer-events-none")}>
       
       {/* BASE PRICE GROUP */}
       <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-start gap-1.5">
           <div className="flex flex-col">
             <p className={lbl}>Netto (€)</p>
-            <input type="number" min={0} step="0.01" value={card[nettoKey] != null ? card[nettoKey] : bNettoDisplay} onChange={e => onPatch({[nettoKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value), [bruttoKey]: null} as any)} disabled={disabled} style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-24', card[bruttoKey] != null && 'bg-slate-100 dark:bg-white/5 text-slate-400')} placeholder="Auto" />
+            <input type="number" min={0} step="0.01" value={card[nettoKey] != null ? card[nettoKey] : bNettoDisplay} onChange={e => onPatch({[nettoKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value), [bruttoKey]: null} as any)} disabled={disabled} style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-24 h-[38px]', card[bruttoKey] != null && 'bg-slate-100 dark:bg-white/5 text-slate-400')} placeholder="Auto" />
+            <div className={sumLbl}>{tNetto > 0 && `Σ ${formatCurrency(tNetto)}`}</div>
           </div>
           
           {/* TICKET DISCOUNT BUTTON */}
           {!(card.hasDiscount || Boolean(card.discountValue)) && (
-            <div className="flex flex-col justify-end h-full mt-[22px]">
-              <button onClick={() => onPatch({ hasDiscount: true } as any)} className={cn("p-1.5 h-[34px] rounded-lg border flex items-center justify-center transition-all", dk ? "border-white/10 text-slate-400 hover:text-teal-400" : "border-slate-200 text-slate-400 hover:text-teal-500 hover:bg-slate-50")}>
-                <Ticket size={14} />
+            <div className="flex flex-col justify-start h-full mt-[22px]">
+              <button onClick={() => onPatch({ hasDiscount: true } as any)} className={cn("p-1.5 h-[38px] rounded-lg border flex items-center justify-center transition-all", dk ? "border-white/10 text-slate-400 hover:text-teal-400 bg-[#1E293B]" : "border-slate-200 text-slate-400 hover:text-teal-500 hover:bg-slate-50 bg-white")}>
+                <Ticket size={16} />
               </button>
             </div>
           )}
@@ -223,7 +281,7 @@ function InlineNMBRow({
           <div className="flex items-center gap-1.5 shrink-0 animate-in fade-in zoom-in-95 duration-200 mt-1">
             <span className={cn('text-[10px] font-bold uppercase text-slate-400', dk && 'text-slate-500')}>Disc.</span>
             <div className="relative flex items-center h-[34px] w-[80px]">
-              <input type="number" value={card.discountValue || ''} onChange={e => onPatch({discountValue: e.target.value === '' ? null : normalizeNumberInput(e.target.value)} as any)} className={cn(inputCls, 'w-full pr-6 h-full')} placeholder="0" />
+              <input type="number" value={card.discountValue || ''} onChange={e => onPatch({discountValue: e.target.value === '' ? null : normalizeNumberInput(e.target.value)} as any)} className={cn(inputCls, 'w-full pr-6 h-full text-xs')} placeholder="0" />
               <button onClick={() => onPatch({discountType: card.discountType === 'percentage' ? 'fixed' : 'percentage'} as any)} className={cn("absolute right-1 w-5 h-5 rounded flex items-center justify-center text-xs font-bold", dk ? "bg-white/10 text-white hover:bg-white/20" : "bg-slate-100 text-slate-700 hover:bg-slate-200")}>{card.discountType === 'percentage' ? '%' : '€'}</button>
             </div>
             <button onClick={() => onPatch({hasDiscount: false, discountValue: null} as any)} className="text-slate-400 hover:text-red-500 p-1"><X size={14} /></button>
@@ -233,12 +291,14 @@ function InlineNMBRow({
 
       <div className="flex flex-col">
         <p className={lbl}>MwSt (%)</p>
-        <input type="number" min={0} max={99} step="0.5" value={card[mwstKey] ?? ''} onChange={e => onPatch({[mwstKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value)} as any)} disabled={disabled} style={{ ...noSpinner }} className={cn(disabled ? disabledInputCls : inputCls, 'w-16 text-center')} placeholder="%" />
+        <MwstInput value={card[mwstKey] as any} onChange={(v) => onPatch({[mwstKey]: v === '' ? null : normalizeNumberInput(v)} as any)} isDarkMode={dk} disabled={disabled} />
+        <div className={sumLbl}/>
       </div>
 
       <div className="flex flex-col">
         <p className={lbl}>Brutto (€)</p>
-        <input type="number" min={0} step="0.01" value={card[bruttoKey] != null ? card[bruttoKey] : bBruttoDisplay} onChange={e => onPatch({[bruttoKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value), [nettoKey]: null} as any)} disabled={disabled} style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-24', card[nettoKey] != null && 'bg-slate-100 dark:bg-white/5 text-slate-400')} placeholder="Auto" />
+        <input type="number" min={0} step="0.01" value={card[bruttoKey] != null ? card[bruttoKey] : bBruttoDisplay} onChange={e => onPatch({[bruttoKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value), [nettoKey]: null} as any)} disabled={disabled} style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-24 h-[38px]', card[nettoKey] != null && 'bg-slate-100 dark:bg-white/5 text-slate-400')} placeholder="Auto" />
+        <div className={sumLbl}>{tBrutto > 0 && `Σ ${formatCurrency(tBrutto)}`}</div>
       </div>
 
       {/* ENERGY GROUP */}
@@ -246,15 +306,18 @@ function InlineNMBRow({
         <div className={cn("flex items-start gap-4 px-4 py-2.5 rounded-xl border border-dashed ml-2", dk ? "border-yellow-500/30 bg-yellow-500/5" : "border-yellow-400/60 bg-yellow-50/50")}>
           <div className="flex flex-col">
             <p className={lbl}><Zap size={10} className="inline mr-1 text-yellow-500" />En. Netto</p>
-            <input type="number" min={0} step="0.01" value={card[energyNettoKey] != null ? card[energyNettoKey] : eNettoDisplay} onChange={e => onPatch({[energyNettoKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value), [energyBruttoKey!]: null} as any)} disabled={disabled} style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-24', card[energyBruttoKey!] != null && 'bg-slate-100 dark:bg-white/5 text-slate-400')} placeholder="Auto" />
+            <input type="number" min={0} step="0.01" value={card[energyNettoKey] != null ? card[energyNettoKey] : eNettoDisplay} onChange={e => onPatch({[energyNettoKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value), [energyBruttoKey!]: null} as any)} disabled={disabled} style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-24 h-[38px]', card[energyBruttoKey!] != null && 'bg-slate-100 dark:bg-white/5 text-slate-400')} placeholder="Auto" />
+            <div className={cn(sumLbl, "text-yellow-600/70")}>{tENetto > 0 && `Σ ${formatCurrency(tENetto)}`}</div>
           </div>
           <div className="flex flex-col">
             <p className={lbl}>MwSt</p>
-            <input type="number" min={0} max={99} step="0.5" value={card[energyMwstKey!] ?? ''} onChange={e => onPatch({[energyMwstKey!]: e.target.value === '' ? null : normalizeNumberInput(e.target.value)} as any)} disabled={disabled} style={{ ...noSpinner }} className={cn(disabled ? disabledInputCls : inputCls, 'w-16 text-center')} placeholder="%" />
+            <MwstInput value={card[energyMwstKey!] as any} onChange={(v) => onPatch({[energyMwstKey!]: v === '' ? null : normalizeNumberInput(v)} as any)} isDarkMode={dk} disabled={disabled} />
+            <div className={sumLbl}/>
           </div>
           <div className="flex flex-col">
             <p className={lbl}>En. Brutto</p>
-            <input type="number" min={0} step="0.01" value={card[energyBruttoKey!] != null ? card[energyBruttoKey!] : eBruttoDisplay} onChange={e => onPatch({[energyBruttoKey!]: e.target.value === '' ? null : normalizeNumberInput(e.target.value), [energyNettoKey]: null} as any)} disabled={disabled} style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-24', card[energyNettoKey!] != null && 'bg-slate-100 dark:bg-white/5 text-slate-400')} placeholder="Auto" />
+            <input type="number" min={0} step="0.01" value={card[energyBruttoKey!] != null ? card[energyBruttoKey!] : eBruttoDisplay} onChange={e => onPatch({[energyBruttoKey!]: e.target.value === '' ? null : normalizeNumberInput(e.target.value), [energyNettoKey]: null} as any)} disabled={disabled} style={noSpinner} className={cn(disabled ? disabledInputCls : inputCls, 'w-24 h-[38px]', card[energyNettoKey!] != null && 'bg-slate-100 dark:bg-white/5 text-slate-400')} placeholder="Auto" />
+            <div className={cn(sumLbl, "text-yellow-600/70")}>{tEBrutto > 0 && `Σ ${formatCurrency(tEBrutto)}`}</div>
           </div>
         </div>
       )}
@@ -281,7 +344,7 @@ export default function RoomCard({
   const activeTab: PricingTab = card.pricingTab ?? 'per_room'
   const employees = card.employees ?? []
 
-  const inputCls = cn('px-2 py-1 rounded-lg text-sm font-bold outline-none border transition-all h-[34px]', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900')
+  const inputCls = cn('px-2 py-1 rounded-lg text-sm font-bold outline-none border transition-all h-[38px]', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200 text-slate-900')
   const labelCls = cn('text-[10px] font-black uppercase tracking-widest text-slate-400')
   const tabBtn = (active: boolean) => cn('px-5 py-2.5 rounded-lg text-sm font-black border transition-all shadow-sm', active ? 'bg-blue-600 text-white border-transparent' : 'bg-white text-slate-500 border-slate-200')
 
@@ -300,19 +363,33 @@ export default function RoomCard({
     }, 400)
   }
 
-  // --- Calculations for UI ---
-  const calculatedFinalBrutto = calcRoomCardTotal(card, durationStart, durationEnd);
-  const calculatedTotalNetto = calcRoomCardNettoSum(card, durationStart, durationEnd);
-  const calculatedTotalMwst = Math.max(0, calculatedFinalBrutto - calculatedTotalNetto);
-  
+  // --- EXACT SUMMARY BOX MATH ---
   const multiplier = activeTab === 'per_bed' ? (beds * nights) : activeTab === 'per_room' ? nights : 1;
+  const calculatedFinalBrutto = calcRoomCardTotal(card, durationStart, durationEnd);
   
-  let calculatedTotalEnergy = 0;
-  if (activeTab === 'per_bed') calculatedTotalEnergy = (Number(card.bedEnergyNetto) || 0) * multiplier;
-  else if (activeTab === 'per_room') calculatedTotalEnergy = (Number(card.roomEnergyNetto) || 0) * multiplier;
-  else if (activeTab === 'total_room') calculatedTotalEnergy = Number(card.totalEnergyNetto) || 0;
+  let cEnergyNetto = 0; let cEnergyBrutto = 0; let cRoomNetto = 0; let cRoomBrutto = 0;
+  
+  if (activeTab === 'per_bed') {
+     cEnergyNetto = (Number(card.bedEnergyNetto) || 0) * multiplier;
+     cEnergyBrutto = (Number(card.bedEnergyBrutto) || (cEnergyNetto * (1 + (Number(card.bedEnergyMwst)||0)/100))) * multiplier;
+  } else if (activeTab === 'per_room') {
+     cEnergyNetto = (Number(card.roomEnergyNetto) || 0) * multiplier;
+     cEnergyBrutto = (Number(card.roomEnergyBrutto) || (cEnergyNetto * (1 + (Number(card.roomEnergyMwst)||0)/100))) * multiplier;
+  } else if (activeTab === 'total_room') {
+     cEnergyNetto = Number(card.totalEnergyNetto) || 0;
+     cEnergyBrutto = Number(card.totalEnergyBrutto) || (cEnergyNetto * (1 + (Number(card.totalEnergyMwst)||0)/100));
+  }
 
-  const pricePerBedPerNight = (beds > 0 && nights > 0) ? calculatedTotalNetto / (beds * nights) : 0;
+  // Netto sum calculates total netto including energy, so room netto is total - energy
+  const totalNettoIncEnergy = calcRoomCardNettoSum(card, durationStart, durationEnd);
+  cRoomNetto = totalNettoIncEnergy - cEnergyNetto;
+  
+  // MwSt amounts are derived from differences
+  const cEnergyMwst = cEnergyBrutto - cEnergyNetto;
+  const cRoomMwst = calculatedFinalBrutto - totalNettoIncEnergy - cEnergyMwst;
+
+  // NETTO Price per bed per night (Including Energy)
+  const pricePerBedPerNight = (beds > 0 && nights > 0) ? totalNettoIncEnergy / (beds * nights) : 0;
   const roomTotalDisplay = formatCurrency(calculatedFinalBrutto)
 
   return (
@@ -341,13 +418,18 @@ export default function RoomCard({
                      
                      const isPartial = (emp.checkIn || '') > durationStart || (emp.checkOut || '') < durationEnd;
                      const isSubstitute = empIdx > 0;
-                     const phoneTip = emp.phone && emp.phone !== '+49' && emp.phone !== '+49 ' ? `📞 ${emp.phone} | ` : '';
-                     const tooltipText = `${phoneTip}${calculateNights(emp.checkIn||'', emp.checkOut||'')}N (${fmtDate(emp.checkIn||'')} ➔ ${fmtDate(emp.checkOut||'')})`;
+                     const tooltipText = `${calculateNights(emp.checkIn||'', emp.checkOut||'')}N (${fmtDateDe(emp.checkIn||'')} ➔ ${fmtDateDe(emp.checkOut||'')})`;
                      
                      return (
-                       <div key={emp.id} title={tooltipText} className={cn("px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-2", isPartial ? "border-2 border-dashed" : "border-2 border-solid", empBorderColor(emp, dk), dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-700")}>
+                       <div key={emp.id} title={tooltipText} className={cn("px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-2 group relative cursor-pointer", isPartial ? "border-2 border-dashed" : "border-2 border-solid", empBorderColor(emp, dk), dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-700")}>
                          {isSubstitute ? <CornerDownRight size={12} className={textColor} /> : <span className={cn("w-2 h-2 rounded-full shrink-0", dotColor)} />}
                          <span className="truncate max-w-[120px]">{emp.name}</span>
+                         {/* HUGE HOVER PHONE POPOVER */}
+                         {emp.phone && emp.phone !== '+49' && emp.phone !== '+49 ' && (
+                           <div className="absolute bottom-full left-0 mb-2 hidden group-hover:flex z-[100] bg-slate-900 text-white text-base font-black px-4 py-2 rounded-xl shadow-2xl whitespace-nowrap items-center gap-2 border border-white/20 animate-in fade-in zoom-in-95">
+                             <Phone size={16} className="text-blue-400" /> {emp.phone}
+                           </div>
+                         )}
                        </div>
                      )
                    });
@@ -376,7 +458,7 @@ export default function RoomCard({
              <div className="flex-1" />
              {!isMasterPricingActive && (
                <>
-                 <button onClick={(e) => { e.stopPropagation(); setShowPricing(!showPricing) }} className={tabBtn(showPricing)}>Price</button>
+                 <button onClick={(e) => { e.stopPropagation(); setShowPricing(!showPricing) }} className={tabBtn(showPricing)}>{lang === 'de' ? 'Preis' : 'Price'}</button>
                  <div className="flex flex-col items-end min-w-[120px] ml-2"><span className="text-xl font-black">{roomTotalDisplay}</span></div>
                </>
              )}
@@ -406,12 +488,12 @@ export default function RoomCard({
                       energyNettoKey={activeTab === 'per_bed' ? "bedEnergyNetto" : activeTab === 'per_room' ? "roomEnergyNetto" : "totalEnergyNetto"}
                       energyMwstKey={activeTab === 'per_bed' ? "bedEnergyMwst" : activeTab === 'per_room' ? "roomEnergyMwst" : "totalEnergyMwst"}
                       energyBruttoKey={activeTab === 'per_bed' ? "bedEnergyBrutto" : activeTab === 'per_room' ? "roomEnergyBrutto" : "totalEnergyBrutto"}
-                      card={card} dk={dk} inputCls={inputCls} onPatch={queueSave} multiplier={multiplier} activeTab={activeTab} 
+                      card={card} dk={dk} lang={lang} inputCls={inputCls} onPatch={queueSave} multiplier={multiplier} activeTab={activeTab} 
                     />
                     
                     {allCardsOfSameType.length > 1 && (
-                      <div className="flex items-end h-full mt-[22px]">
-                        <button onClick={() => { onApplyToSameType(card); setApplyActive(true); setTimeout(()=>setApplyActive(false), 1000); }} className={cn('px-4 h-[34px] rounded-lg text-sm font-black border flex items-center gap-2 transition-all', isApplyActive ? 'bg-green-500 text-white border-transparent shadow-lg' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5 hover:text-blue-400' : 'border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600')}>
+                      <div className="flex items-start h-full pt-6">
+                        <button onClick={() => { onApplyToSameType(card); setApplyActive(true); setTimeout(()=>setApplyActive(false), 1000); }} className={cn('px-4 h-[38px] rounded-lg text-sm font-black border flex items-center gap-2 transition-all', isApplyActive ? 'bg-green-500 text-white border-transparent shadow-lg' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5 hover:text-blue-400' : 'border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600')}>
                           {isApplyActive ? <Check size={14}/> : <Copy size={14}/>} All {card.roomType}
                         </button>
                       </div>
@@ -419,20 +501,25 @@ export default function RoomCard({
                   </div>
                 </div>
 
-                {/* RIGHT SIDE: SUMMARY COLUMN */}
-                <div className="w-full xl:w-[280px] shrink-0 p-5 bg-slate-50 dark:bg-[#0F172A]/80 flex flex-col justify-between">
+                {/* RIGHT SIDE: DETAILED SUMMARY COLUMN */}
+                <div className="w-full xl:w-[300px] shrink-0 p-5 bg-slate-50 dark:bg-[#0B1224] flex flex-col justify-between">
                    <div className="space-y-2 mb-4 text-[13px] font-medium">
-                      <div className="flex justify-between items-center"><span className={dk ? "text-slate-400" : "text-slate-500"}>Total Netto</span><span className={cn("font-bold", dk ? "text-white" : "text-slate-900")}>{formatCurrency(calculatedTotalNetto)}</span></div>
-                      {calculatedTotalEnergy > 0 && <div className="flex justify-between items-center text-yellow-600 dark:text-yellow-500"><span className="opacity-80">Energy</span><span>{formatCurrency(calculatedTotalEnergy)}</span></div>}
-                      {calculatedTotalMwst > 0 && <div className="flex justify-between items-center text-slate-500 dark:text-slate-400"><span>MwSt</span><span>{formatCurrency(calculatedTotalMwst)}</span></div>}
+                      <div className="flex justify-between items-center"><span className={dk ? "text-slate-400" : "text-slate-500"}>Zimmer Netto</span><span className={cn("font-bold", dk ? "text-white" : "text-slate-900")}>{formatCurrency(cRoomNetto)}</span></div>
+                      {cEnergyNetto > 0 && <div className="flex justify-between items-center text-yellow-600 dark:text-yellow-500"><span className="opacity-80">Energie Netto</span><span>{formatCurrency(cEnergyNetto)}</span></div>}
+                      
+                      {(cRoomMwst > 0 || cEnergyMwst > 0) && <div className="w-full h-px bg-slate-200 dark:bg-white/10 my-2" />}
+                      
+                      {cRoomMwst > 0 && <div className="flex justify-between items-center text-slate-500 dark:text-slate-400"><span>MwSt (Zimmer)</span><span>{formatCurrency(cRoomMwst)}</span></div>}
+                      {cEnergyMwst > 0 && <div className="flex justify-between items-center text-slate-500 dark:text-slate-400"><span>MwSt (Energie)</span><span>{formatCurrency(cEnergyMwst)}</span></div>}
                    </div>
+                   
                    <div className="pt-3 border-t border-slate-200 dark:border-white/10">
                       <div className="flex justify-between items-center">
                          <span className="text-xs font-black uppercase text-slate-500">Final Brutto</span>
                          <span className="text-xl font-black text-teal-600 dark:text-teal-400">{formatCurrency(calculatedFinalBrutto)}</span>
                       </div>
-                      <div className="flex justify-between items-center mt-1 text-xs text-slate-400">
-                         <span>Price / Bed</span>
+                      <div className="flex justify-between items-center mt-1 text-[11px] font-bold text-slate-400">
+                         <span>{lang === 'de' ? 'Preis / Bett (Netto)' : 'Price / Bed (Netto)'}</span>
                          <span>{formatCurrency(pricePerBedPerNight)} / N</span>
                       </div>
                    </div>
@@ -468,8 +555,8 @@ export default function RoomCard({
       {confirmDelete && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
           <div className={cn('w-full max-w-sm rounded-3xl border p-6 shadow-2xl', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
-            <h3 className="text-xl font-black mb-3">Delete Room?</h3><p className="text-sm mb-6 opacity-60">This cannot be undone.</p>
-            <div className="flex justify-end gap-3"><button onClick={() => setConfirmDelete(false)} className={cn('px-5 py-2.5 rounded-lg border text-sm font-bold', dk ? 'border-white/10 text-slate-300' : 'border-slate-200 text-slate-700')}>Cancel</button><button onClick={async () => { await enqueue({ type: 'deleteRoomCard', payload: { id: card.id } }); onDelete(card.id); setConfirmDelete(false); }} className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold">Delete</button></div>
+            <h3 className="text-xl font-black mb-3">{lang === 'de' ? 'Zimmer löschen?' : 'Delete Room?'}</h3><p className="text-sm mb-6 opacity-60">{lang === 'de' ? 'Das kann nicht rückgängig gemacht werden.' : 'This cannot be undone.'}</p>
+            <div className="flex justify-end gap-3"><button onClick={() => setConfirmDelete(false)} className={cn('px-5 py-2.5 rounded-lg border text-sm font-bold', dk ? 'border-white/10 text-slate-300' : 'border-slate-200 text-slate-700')}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button><button onClick={async () => { await enqueue({ type: 'deleteRoomCard', payload: { id: card.id } }); onDelete(card.id); setConfirmDelete(false); }} className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold">{lang === 'de' ? 'Löschen' : 'Delete'}</button></div>
           </div>
         </div>
       )}
