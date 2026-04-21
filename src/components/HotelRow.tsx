@@ -6,6 +6,7 @@ import {
   cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatDateChip, formatLastUpdated, calculateNights
 } from '../lib/utils';
 import { createDuration, updateHotel, deleteHotel } from '../lib/supabase';
+import { calcRoomCardTotal, calcRoomCardNettoSum } from '../lib/roomCardUtils';
 import DurationCard from './DurationCard';
 
 export const DEFAULT_COUNTRIES = ['Germany', 'Switzerland', 'Austria', 'Netherlands', 'Poland', 'Belgium', 'France', 'Luxembourg'];
@@ -180,9 +181,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
          totalNightsAllRooms += (b * nights);
          allEmps.push(...(c.employees || []));
 
-         // FIX: Use Number() and ensure we add to the global total once
-         sumDurationNetto += (Number(c.totalNetto) || 0);
-         sumDurationBrutto += (Number(c.totalBrutto) || 0);
+         // CRITICAL FIX: Dynamically calculate raw numbers directly from the utility so it never fails
+         sumDurationNetto += calcRoomCardNettoSum(c, d.startDate, d.endDate);
+         sumDurationBrutto += calcRoomCardTotal(c, d.startDate, d.endDate);
       });
 
       // Status tracking for the header
