@@ -37,12 +37,12 @@ function MwstInput({ value, onChange, isDarkMode, disabled }: { value: string | 
     return () => document.removeEventListener('mousedown', handle);
   }, []);
 
-  const baseInputCls = cn('w-16 px-2 py-1.5 rounded-l-lg text-sm font-bold outline-none border transition-all h-[38px] text-center', disabled && "opacity-50", isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900');
+  const baseInputCls = cn('w-16 px-2 py-1.5 rounded-l-lg text-sm font-bold outline-none border transition-all h-[38px] text-center', disabled && "opacity-50 cursor-not-allowed bg-transparent", !disabled && (isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'));
   
   return (
     <div ref={ref} className="relative flex items-center h-[38px]">
       <input type="number" value={value ?? ''} onChange={e => onChange(e.target.value === '' ? null : e.target.value)} disabled={disabled} className={baseInputCls} placeholder="%" style={noSpinner} />
-      <button onClick={() => setOpen(!open)} disabled={disabled} className={cn('px-1.5 h-[38px] rounded-r-lg border border-l-0 transition-all flex items-center justify-center', disabled && "opacity-50", isDarkMode ? 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100')}><ChevronDown size={14} /></button>
+      <button onClick={() => setOpen(!open)} disabled={disabled} className={cn('px-1.5 h-[38px] rounded-r-lg border border-l-0 transition-all flex items-center justify-center', disabled && "opacity-50 cursor-not-allowed", !disabled && (isDarkMode ? 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'))}><ChevronDown size={14} /></button>
       {open && !disabled && (
         <div className={cn("absolute top-full right-0 mt-1 w-20 z-[999] rounded-lg shadow-xl overflow-hidden border", isDarkMode ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
           {[7, 19, 0].map(v => (
@@ -54,7 +54,7 @@ function MwstInput({ value, onChange, isDarkMode, disabled }: { value: string | 
   );
 }
 
-function CompactEmployeePill({ emp, dk, lang, durationStart, durationEnd, isSubstitute }: any) {
+function CompactEmployeePill({ emp, dk, durationStart, durationEnd, isSubstitute }: any) {
   const [showPhone, setShowPhone] = useState(false);
   const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
   const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
@@ -65,16 +65,14 @@ function CompactEmployeePill({ emp, dk, lang, durationStart, durationEnd, isSubs
   const tooltipText = `${calculateNights(emp.checkIn||'', emp.checkOut||'')}N (${fmtDateDe(emp.checkIn||'')} ➔ ${fmtDateDe(emp.checkOut||'')})`;
 
   return (
-    <div title={tooltipText} className={cn("px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-2 transition-all", isPartial ? "border-2 border-dashed" : "border-2 border-solid", empBorderColor(emp, dk), dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-700")}>
+    <div title={tooltipText} onClick={(e) => { if(hasPhone) { e.stopPropagation(); setShowPhone(!showPhone); } }} className={cn("px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-2 transition-all cursor-pointer", isPartial ? "border-2 border-dashed" : "border-2 border-solid", empBorderColor(emp, dk), dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-700")}>
       {isSubstitute ? <CornerDownRight size={12} className={textColor} /> : <span className={cn("w-2 h-2 rounded-full shrink-0", dotColor)} />}
       <span className="truncate max-w-[120px]">{emp.name}</span>
-      {hasPhone && (
-        <button onClick={(e) => { e.stopPropagation(); setShowPhone(!showPhone); }} className={cn("ml-1 p-0.5 rounded-full transition-colors shrink-0", showPhone ? "bg-blue-500 text-white" : dk ? "bg-white/10 text-slate-400 hover:text-white" : "bg-slate-200 text-slate-500 hover:text-slate-900")}>
-          <Phone size={10} />
-        </button>
+      {hasPhone && !showPhone && (
+        <Phone size={11} className={dk ? "text-slate-400" : "text-slate-500"} />
       )}
       {showPhone && hasPhone && (
-        <span className="ml-1 font-mono text-[11px] text-blue-500 dark:text-blue-400">{emp.phone}</span>
+        <span className="ml-1 font-black text-[14px] text-blue-500 dark:text-blue-400" onClick={e => e.stopPropagation()}>{emp.phone}</span>
       )}
     </div>
   )
@@ -189,10 +187,10 @@ function BedSlot({
     <div className={cn('flex flex-col gap-3 p-4 rounded-xl border shadow-sm', dk ? 'bg-[#0F172A] border-white/10' : 'bg-slate-50 border-slate-200')}>
       <div className="flex items-center gap-3 w-full">
         <IconToUse size={18} className={dk ? 'text-blue-400 shrink-0 hidden sm:block' : 'text-blue-500 shrink-0 hidden sm:block'} />
-        <input ref={inputRef} type="text" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder={lang === 'de' ? 'Name...' : 'Name...'} className={cn(inputCls, 'flex-[6] min-w-0')} />
+        <input ref={inputRef} type="text" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder={lang === 'de' ? 'Name...' : 'Name...'} className={cn(inputCls, 'flex-[6] min-w-0 text-base')} />
         <div className="relative flex items-center flex-[4] min-w-0">
           <Phone size={14} className={cn("absolute left-2.5", dk ? "text-slate-500" : "text-slate-400")} />
-          <input type="text" value={phone} onChange={e => setPhone(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder="+49" className={cn(inputCls, 'w-full pl-8 text-sm')} />
+          <input type="text" value={phone} onChange={e => setPhone(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder="+49" className={cn(inputCls, 'w-full pl-8 text-base')} />
         </div>
       </div>
 
@@ -249,18 +247,17 @@ function getGapSlots(beds: number, employees: Employee[], durationStart: string,
 
 function InlineNMBRow({
   nettoKey, mwstKey, bruttoKey, energyNettoKey, energyMwstKey, energyBruttoKey,
-  card, dk, lang, onPatch, disabled, multiplier, activeTab
+  card, dk, lang, onPatch, disabled, multiplier
 }: {
   nettoKey: keyof RoomCardType; mwstKey: keyof RoomCardType; bruttoKey: keyof RoomCardType;
   energyNettoKey?: keyof RoomCardType; energyMwstKey?: keyof RoomCardType; energyBruttoKey?: keyof RoomCardType;
-  card: RoomCardType; dk: boolean; lang: 'de' | 'en'; onPatch: (p: Partial<RoomCardType>) => void; disabled?: boolean; multiplier: number; activeTab: PricingTab;
+  card: RoomCardType; dk: boolean; lang: 'de' | 'en'; onPatch: (p: Partial<RoomCardType>) => void; disabled?: boolean; multiplier: number;
 }) {
   const lbl = cn('text-[10px] font-black uppercase tracking-widest h-4 flex items-end mb-1.5', dk ? 'text-slate-500' : 'text-slate-400')
   const sumLbl = cn('text-[11px] font-black mt-1 pl-1 h-4', dk ? 'text-slate-500' : 'text-slate-400')
   const inputClsBase = cn('px-3 py-1.5 rounded-lg text-sm font-bold outline-none border transition-all h-[38px]', dk ? 'bg-[#1E293B] border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400')
-  const disabledInputCls = cn(inputClsBase, 'opacity-40 cursor-not-allowed pointer-events-none')
+  const disabledInputCls = cn(inputClsBase, 'opacity-50 cursor-not-allowed pointer-events-none bg-transparent')
 
-  // COMPUTED LOCKS FOR NETTO/BRUTTO
   const bNettoDisplay = (card[bruttoKey] != null && card[mwstKey] != null) ? (Number(card[bruttoKey]) / (1 + Number(card[mwstKey])/100)).toFixed(2) : '';
   const bBruttoDisplay = (card[nettoKey] != null && card[mwstKey] != null) ? (Number(card[nettoKey]) * (1 + Number(card[mwstKey])/100)).toFixed(2) : '';
 
@@ -285,7 +282,6 @@ function InlineNMBRow({
             <div className={sumLbl}>{tNetto > 0 && `Σ ${formatCurrency(tNetto)}`}</div>
           </div>
           
-          {/* TICKET DISCOUNT BUTTON OR UI */}
           {!(card.hasDiscount || Boolean(card.discountValue)) ? (
             <div className="mt-[22px] shrink-0">
               <button onClick={() => onPatch({ hasDiscount: true } as any)} className={cn("p-1.5 h-[38px] rounded-lg border flex items-center justify-center transition-all", dk ? "border-white/10 text-slate-400 hover:text-teal-400 bg-[#1E293B]" : "border-slate-200 text-slate-400 hover:text-teal-500 hover:bg-slate-50 bg-white")}>
@@ -319,11 +315,10 @@ function InlineNMBRow({
         <div className={sumLbl}>{tBrutto > 0 && `Σ ${formatCurrency(tBrutto)}`}</div>
       </div>
 
-      {/* ENERGY GROUP */}
       {energyNettoKey && (
         <div className={cn("flex items-start gap-4 px-4 py-2.5 rounded-xl border border-dashed ml-2 shrink-0", dk ? "border-yellow-500/30 bg-yellow-500/5" : "border-yellow-400/60 bg-yellow-50/50")}>
           <div className="flex flex-col shrink-0">
-            <p className={lbl}><Zap size={10} className="inline mr-1 text-yellow-500" />En. Netto</p>
+            <p className={lbl}><Zap size={10} className="inline mr-1 text-yellow-500" />{lang === 'de' ? 'En. Netto' : 'En. Netto'}</p>
             <input type="number" min={0} step="0.01" value={card[energyNettoKey] != null ? card[energyNettoKey] : eNettoDisplay} onChange={e => onPatch({[energyNettoKey]: e.target.value === '' ? null : normalizeNumberInput(e.target.value), [energyBruttoKey!]: null} as any)} disabled={disabled} style={noSpinner} className={cn(disabled ? disabledInputCls : inputClsBase, 'w-24 h-[38px]', card[energyBruttoKey!] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} placeholder="Auto" />
             <div className={cn(sumLbl, "text-yellow-600/70")}>{tENetto > 0 && `Σ ${formatCurrency(tENetto)}`}</div>
           </div>
@@ -333,7 +328,7 @@ function InlineNMBRow({
             <div className={sumLbl}/>
           </div>
           <div className="flex flex-col shrink-0">
-            <p className={lbl}>En. Brutto</p>
+            <p className={lbl}>{lang === 'de' ? 'En. Brutto' : 'En. Brutto'}</p>
             <input type="number" min={0} step="0.01" value={card[energyBruttoKey!] != null ? card[energyBruttoKey!] : eBruttoDisplay} onChange={e => onPatch({[energyBruttoKey!]: e.target.value === '' ? null : normalizeNumberInput(e.target.value), [energyNettoKey]: null} as any)} disabled={disabled} style={noSpinner} className={cn(disabled ? disabledInputCls : inputClsBase, 'w-24 h-[38px]', card[energyNettoKey!] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} placeholder="Auto" />
             <div className={cn(sumLbl, "text-yellow-600/70")}>{tEBrutto > 0 && `Σ ${formatCurrency(tEBrutto)}`}</div>
           </div>
@@ -385,23 +380,22 @@ export default function RoomCard({
   const multiplier = activeTab === 'per_bed' ? (beds * nights) : activeTab === 'per_room' ? nights : 1;
   const calculatedFinalBrutto = calcRoomCardTotal(card, durationStart, durationEnd);
   
-  let cEnergyNetto = 0; let cEnergyBrutto = 0; let cRoomNetto = 0;
+  let cEnergyNetto = 0; let cEnergyBrutto = 0;
   
   if (activeTab === 'per_bed') {
      cEnergyNetto = (Number(card.bedEnergyNetto) || 0) * multiplier;
-     cEnergyBrutto = (Number(card.bedEnergyBrutto) || (cEnergyNetto * (1 + (Number(card.bedEnergyMwst)||0)/100))) * multiplier;
+     cEnergyBrutto = (Number(card.bedEnergyBrutto) || (Number(card.bedEnergyNetto) * (1 + (Number(card.bedEnergyMwst)||0)/100))) * multiplier;
   } else if (activeTab === 'per_room') {
      cEnergyNetto = (Number(card.roomEnergyNetto) || 0) * multiplier;
-     cEnergyBrutto = (Number(card.roomEnergyBrutto) || (cEnergyNetto * (1 + (Number(card.roomEnergyMwst)||0)/100))) * multiplier;
+     cEnergyBrutto = (Number(card.roomEnergyBrutto) || (Number(card.roomEnergyNetto) * (1 + (Number(card.roomEnergyMwst)||0)/100))) * multiplier;
   } else if (activeTab === 'total_room') {
      cEnergyNetto = Number(card.totalEnergyNetto) || 0;
      cEnergyBrutto = Number(card.totalEnergyBrutto) || (cEnergyNetto * (1 + (Number(card.totalEnergyMwst)||0)/100));
   }
 
   const totalNettoIncEnergy = calcRoomCardNettoSum(card, durationStart, durationEnd);
-  cRoomNetto = totalNettoIncEnergy - cEnergyNetto;
+  const cRoomNetto = totalNettoIncEnergy - cEnergyNetto;
   
-  // MwSt amounts
   const cEnergyMwst = Math.max(0, cEnergyBrutto - cEnergyNetto);
   const cRoomMwst = Math.max(0, calculatedFinalBrutto - totalNettoIncEnergy - cEnergyMwst);
 
@@ -442,7 +436,7 @@ export default function RoomCard({
              </div>
              
              <div className="flex flex-col items-end shrink-0 ml-4">
-                {isMasterPricingActive ? <span className="text-[10px] opacity-40 font-black uppercase tracking-widest">Master Active</span> : <span className="text-xl font-black tabular-nums">{roomTotalDisplay}</span>}
+                {isMasterPricingActive ? <span className="text-[10px] opacity-40 font-black uppercase tracking-widest">{lang === 'de' ? 'Master Aktiv' : 'Master Active'}</span> : <span className="text-xl font-black tabular-nums">{roomTotalDisplay}</span>}
              </div>
              <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className={cn('p-2 rounded transition-all shrink-0 ml-4', dk ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-red-500 hover:bg-red-50')}><Trash2 size={18} /></button>
            </>
@@ -512,7 +506,7 @@ export default function RoomCard({
                    
                    <div className="pt-3 border-t border-slate-200 dark:border-white/10">
                       <div className="flex justify-between items-center">
-                         <span className="text-xs font-black uppercase text-slate-500">{lang === 'de' ? 'Gesamt Brutto' : 'Final Brutto'}</span>
+                         <span className="text-xs font-black uppercase text-slate-500">{lang === 'de' ? 'Brutto' : 'Brutto'}</span>
                          <span className="text-xl font-black text-teal-600 dark:text-teal-400">{formatCurrency(calculatedFinalBrutto)}</span>
                       </div>
                       <div className="flex justify-between items-center mt-1 text-[11px] font-bold text-slate-400">
