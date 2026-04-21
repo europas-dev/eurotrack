@@ -22,8 +22,6 @@ export function deriveN(netto: number | null | undefined, brutto: number | null 
   return 0
 }
 
-/** * NEW: Calculate specific Netto Sum for the Master Invoice 
- */
 export function calcRoomCardNettoSum(card: any, durationStart: string, durationEnd: string): number {
   const nights = calculateNights(durationStart, durationEnd)
   if (nights === 0) return 0
@@ -84,8 +82,6 @@ export function calcRoomCardTotal(card: any, durationStart: string, durationEnd:
   const cEnergyMwst = cEnergyNetto * (eMwstRate / 100);
 
   return cRoomNetto + cRoomMwst + cEnergyNetto + cEnergyMwst;
-}
-  return raw
 }
 
 export function extractPricingFields(card: any) {
