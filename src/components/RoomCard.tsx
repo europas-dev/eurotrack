@@ -194,30 +194,43 @@ function BedSlot({
         </div>
       </div>
 
-      <div className="flex items-center gap-3 pl-0 sm:pl-8 flex-nowrap w-full">
-        <div className="relative w-[140px] shrink-0 group cursor-pointer" onClick={(e) => { try { (e.currentTarget.querySelector('input[type="date"]') as HTMLInputElement)?.showPicker() } catch(err){} }}>
-          <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent')}>
-            <span>{fmtDateDe(checkIn)}</span><Calendar size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
-          </div>
-          <input type="date" value={checkIn} min={effectiveIn} max={effectiveOut} onChange={e => setCheckIn(e.target.value)} onClick={e => e.stopPropagation()} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-        </div>
-        
-        <span className="text-slate-400 text-sm hidden sm:block">➔</span>
-        
-        <div className="relative w-[140px] shrink-0 group cursor-pointer" onClick={(e) => { try { (e.currentTarget.querySelector('input[type="date"]') as HTMLInputElement)?.showPicker() } catch(err){} }}>
-          <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent')}>
-            <span>{fmtDateDe(checkOut)}</span><Calendar size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
-          </div>
-          <input type="date" value={checkOut} min={checkIn} max={effectiveOut} onChange={e => setCheckOut(e.target.value)} onClick={e => e.stopPropagation()} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+      <div className="flex items-center gap-2 flex-nowrap w-full">
+        {/* Check In */}
+        <div className="relative w-[135px]">
+          <input 
+            type="date" 
+            value={checkIn} 
+            onChange={e => setCheckIn(e.target.value)} 
+            className={cn(inputCls, "w-full cursor-pointer uppercase text-[12px]")} 
+          />
         </div>
 
-        <div className={cn('px-2 rounded-lg border text-xs font-black text-center h-[38px] flex items-center justify-center shrink-0', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} style={{ width: 48 }}>{nights}N</div>
-        
-        {/* MANUAL CLEAR DURATION BUTTON */}
-        <button type="button" onClick={() => { setCheckIn(''); setCheckOut(''); }} className={cn("p-2 h-[38px] rounded-lg transition-colors border shrink-0 flex items-center justify-center text-slate-400 hover:text-red-500", dk ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50")} title={lang === 'de' ? 'Daten löschen' : 'Clear dates'}>
-           <Calendar size={14} className="mr-1 opacity-50" /><X size={14} />
+        <span className="text-slate-400">➔</span>
+
+        {/* Check Out */}
+        <div className="relative w-[135px]">
+          <input 
+            type="date" 
+            value={checkOut} 
+            onChange={e => setCheckOut(e.target.value)} 
+            className={cn(inputCls, "w-full cursor-pointer uppercase text-[12px]")} 
+          />
+        </div>
+
+        {/* Clear Dates Button sitting perfectly inline */}
+        <button 
+          type="button" 
+          onClick={() => { setCheckIn(''); setCheckOut(''); }} 
+          className={cn("p-2 h-[38px] w-[38px] rounded-lg border shrink-0 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors", dk ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50")}
+          title={lang === 'de' ? 'Daten löschen' : 'Clear dates'}
+        >
+           <X size={18} />
         </button>
 
+        <div className={cn("px-2 rounded-lg border text-xs font-black text-center h-[38px] flex items-center justify-center shrink-0 w-12", dk ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200 text-slate-900")}>
+          {nights}N
+        </div>
+        
         <div className="flex-1 min-w-[10px]" />
         
         <button onClick={save} disabled={saving || !name.trim()} className="px-5 h-[38px] rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md shrink-0 transition-colors">{lang === 'de' ? 'Speichern' : 'Save'}</button>
@@ -389,8 +402,8 @@ function InlineNMBRow({
       
       {/* BASE PRICE GROUP */}
       <div className="flex flex-col gap-1">
-        <div className="flex items-start flex-nowrap">
-          <div className="flex flex-col shrink-0 pr-1.5">
+        <div className="flex items-start gap-1.5 flex-nowrap">
+          <div className="flex flex-col shrink-0">
             <p className={lbl}>Netto (€)</p>
             <input type="number" min={0} step="0.01" value={nVal} onChange={e => updateNetto(e.target.value)} disabled={disabled} style={noSpinner} className={cn(disabled ? disabledInputCls : inputClsBase, 'w-24', card[bruttoKey] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} placeholder="Auto" />
             <div className={cn(sumLbl, "min-h-[16px]")}>
@@ -410,29 +423,32 @@ function InlineNMBRow({
               </button>
             </div>
           ) : (
-            <div className="flex flex-col shrink-0">
-  <p className={lbl}>{lang === 'de' ? 'Rabatt' : 'Disc.'}</p>
-  <div className="flex items-center gap-1.5">
-    <div className="relative flex items-center h-[38px] w-[95px]">
-      <input 
-        type="number" 
-        value={card.discountValue || ''} 
-        onChange={e => onPatch({discountValue: normalizeNumberInput(e.target.value)})} 
-        className={cn(inputClsBase, 'w-full pr-8 h-full text-sm font-black')} 
-        placeholder="0" 
-      />
-      <button 
-        onClick={() => onPatch({discountType: card.discountType === 'percentage' ? 'fixed' : 'percentage'} as any)} 
-        className={cn("absolute right-1 w-7 h-7 rounded flex items-center justify-center text-[12px] font-black border", dk ? "bg-white/10 border-white/10 text-white" : "bg-slate-100 border-slate-300 text-slate-700")}
-      >
-        {card.discountType === 'percentage' ? '%' : '€'}
-      </button>
-    </div>
-    <button onClick={() => onPatch({hasDiscount: false, discountValue: null} as any)} className="p-1 hover:text-red-500 transition-colors">
-      <X size={16} />
-    </button>
-  </div>
-</div>
+            <div className="flex flex-col shrink-0 pl-1">
+              <p className={lbl}>{lang === 'de' ? 'Rabatt' : 'Disc.'}</p>
+              <div className="flex items-center gap-1">
+                <div className="relative flex items-center h-[38px] w-[95px]">
+                  <input 
+                    type="number" 
+                    value={card.discountValue || ''} 
+                    onChange={e => onPatch({discountValue: e.target.value.replace(/^0+(?=\d)/, '') === '' ? null : normalizeNumberInput(e.target.value.replace(/^0+(?=\d)/, ''))} as any)} 
+                    className={cn(inputClsBase, 'w-full pr-8 h-full text-sm font-black')} 
+                    placeholder="0" 
+                  />
+                  <button 
+                    onClick={() => onPatch({discountType: card.discountType === 'percentage' ? 'fixed' : 'percentage'} as any)} 
+                    className={cn("absolute right-1 w-7 h-7 rounded flex items-center justify-center text-[12px] font-black border", dk ? "bg-white/10 border-white/10 text-white hover:bg-white/20" : "bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200")}
+                  >
+                    {card.discountType === 'percentage' ? '%' : '€'}
+                  </button>
+                </div>
+                <button onClick={() => onPatch({hasDiscount: false, discountValue: null} as any)} className={cn("p-1 transition-colors", dk ? "text-slate-500 hover:text-red-400" : "text-slate-400 hover:text-red-500")}>
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="flex flex-col shrink-0">
         <p className={lbl}>MwSt (%)</p>
@@ -443,7 +459,7 @@ function InlineNMBRow({
       <div className="flex flex-col shrink-0">
         <p className={lbl}>Brutto (€)</p>
         <input type="number" min={0} step="0.01" value={bVal} onChange={e => updateBrutto(e.target.value)} disabled={disabled} style={noSpinner} className={cn(disabled ? disabledInputCls : inputClsBase, 'w-24 h-[38px]', card[nettoKey] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} placeholder="Auto" />
-        <div className={sumLbl}>
+        <div className={cn(sumLbl, "min-h-[16px]")}>
           {showSum && tBrutto > 0 && <span>Σ {formatCurrency(tBrutto)}</span>}
           {dNettoTotal !== tNetto && (
              <span className={cn("ml-1 font-black flex items-center gap-0.5", dk ? "text-teal-400" : "text-teal-600")}>
@@ -659,10 +675,9 @@ export default function RoomCard({
                 {/* LEFT SIDE: PRICING INPUTS */}
                 <div className={cn("flex-1 p-5 border-b xl:border-b-0 xl:border-r flex flex-col gap-5 rounded-t-xl xl:rounded-l-xl xl:rounded-tr-none", dk ? "border-white/10" : "border-slate-200")}>
                   <div className="flex items-center gap-3">
-                   // Find these lines and simplify them to ONLY change the pricingTab:
-                      <button onClick={() => queueSave({ pricingTab: 'per_bed' })} ...>Price/Bed</button>
-                      <button onClick={() => queueSave({ pricingTab: 'per_room' })} ...>Price/Room</button>
-                      <button onClick={() => queueSave({ pricingTab: 'total_room' })} ...>Total/Room</button>
+                    <button onClick={() => queueSave({ pricingTab: 'per_bed' })} className={tabBtn(activeTab === 'per_bed')}>{lang === 'de' ? 'Preis/Bett' : 'Price/Bed'}</button>
+                    <button onClick={() => queueSave({ pricingTab: 'per_room' })} className={tabBtn(activeTab === 'per_room')}>{lang === 'de' ? 'Preis/Zimmer' : 'Price/Room'}</button>
+                    <button onClick={() => queueSave({ pricingTab: 'total_room' })} className={tabBtn(activeTab === 'total_room')}>{lang === 'de' ? 'Gesamt/Zimmer' : 'Total/Room'}</button>
                   </div>
                   
                   <div className="flex items-start gap-4 flex-wrap pb-2">
