@@ -194,8 +194,8 @@ function BedSlot({
         </div>
       </div>
 
-      <div className="flex items-center gap-3 pl-0 sm:pl-8 flex-wrap sm:flex-nowrap">
-        <div className="relative w-[140px] shrink-0 group cursor-pointer" onClick={(e) => { try { (e.currentTarget.querySelector('input[type="date"]') as HTMLInputElement)?.showPicker() } catch(e){} }}>
+      <div className="flex items-center gap-3 pl-0 sm:pl-8 flex-wrap sm:flex-nowrap w-full">
+        <div className="relative w-[130px] shrink-0 group cursor-pointer" onClick={(e) => { try { (e.currentTarget.querySelector('input[type="date"]') as HTMLInputElement)?.showPicker() } catch(e){} }}>
           <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent')}>
             <span>{fmtDateDe(checkIn)}</span><Calendar size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
           </div>
@@ -204,19 +204,19 @@ function BedSlot({
         
         <span className="text-slate-400 text-sm hidden sm:block">➔</span>
         
-        <div className="relative w-[140px] shrink-0 group cursor-pointer" onClick={(e) => { try { (e.currentTarget.querySelector('input[type="date"]') as HTMLInputElement)?.showPicker() } catch(e){} }}>
+        <div className="relative w-[130px] shrink-0 group cursor-pointer" onClick={(e) => { try { (e.currentTarget.querySelector('input[type="date"]') as HTMLInputElement)?.showPicker() } catch(e){} }}>
           <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent')}>
             <span>{fmtDateDe(checkOut)}</span><Calendar size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
           </div>
           <input type="date" value={checkOut} min={checkIn} max={effectiveOut} onChange={e => setCheckOut(e.target.value)} onClick={e => e.stopPropagation()} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
         </div>
 
-        <button type="button" onClick={() => { setCheckIn(''); setCheckOut(''); }} className={cn('px-2.5 h-[38px] rounded-lg text-sm transition-all shrink-0 border flex items-center justify-center gap-1', dk ? 'border-white/10 text-slate-400 hover:bg-white/10 hover:text-red-400' : 'border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-red-500')} title={lang === 'de' ? 'Daten löschen' : 'Clear Dates'}>
-          <Calendar size={14} className="opacity-60" /><X size={14} />
-        </button>
-
         <div className={cn('px-2 rounded-lg border text-xs font-black text-center h-[38px] flex items-center justify-center shrink-0', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} style={{ width: 48 }}>{nights}N</div>
         
+        <button type="button" onClick={() => { setCheckIn(''); setCheckOut(''); }} className={cn("p-2 h-[38px] rounded-lg transition-colors border shrink-0 flex items-center justify-center", dk ? "border-white/10 text-slate-500 hover:text-red-400 hover:bg-white/5" : "border-slate-200 text-slate-400 hover:text-red-500 hover:bg-slate-50")} title={lang === 'de' ? 'Daten löschen' : 'Clear dates'}>
+           <Calendar size={14} className="mr-1 opacity-50" /><X size={14} />
+        </button>
+
         <div className="flex-1 min-w-[10px]" />
         
         <button onClick={save} disabled={saving || !name.trim()} className="px-5 h-[38px] rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md shrink-0 transition-colors">{lang === 'de' ? 'Speichern' : 'Save'}</button>
@@ -366,7 +366,14 @@ function InlineNMBRow({
   if (card.hasDiscount || Boolean(card.discountValue)) {
      const dv = Number(card.discountValue) || 0;
      if (dv > 0) {
-        dNettoTotal = card.discountType === 'percentage' ? tNetto * (1 - dv/100) : Math.max(0, tNetto - dv);
+        if (card.discountType === 'percentage') {
+           dNettoTotal = tNetto * (1 - dv/100);
+        } else {
+           // Fixed € discount applies to the UNIT price before multiplier
+           const rawUnit = card[nettoKey] != null ? Number(card[nettoKey]) : Number(bNettoDisplay) || 0;
+           const discountedUnit = Math.max(0, rawUnit - dv);
+           dNettoTotal = discountedUnit * multiplier;
+        }
      }
   }
 
@@ -471,7 +478,7 @@ export default function RoomCard({
   const activeTab: PricingTab = card.pricingTab ?? 'per_bed'
   const employees = card.employees ?? []
 
-  // DATE BOUNDARY CLAMPING ENGINE (Use Case D)
+  // DATE BOUNDARY CLAMPING ENGINE
   useEffect(() => {
     if (!employees.length) return;
     let changed = false;
@@ -516,7 +523,6 @@ export default function RoomCard({
   }
 
   const multiplier = activeTab === 'per_bed' ? (beds * nights) : activeTab === 'per_room' ? nights : 1;
-  const calculatedFinalBrutto = calcRoomCardTotal(card, durationStart, durationEnd);
   
   let baseNetto = 0; let mwstRate = 0;
   let cEnergyNetto = 0; let eMwstRate = 0;
@@ -542,12 +548,20 @@ export default function RoomCard({
   if (card.hasDiscount || Boolean(card.discountValue)) {
       const dv = Number(card.discountValue) || 0;
       if (dv > 0) {
-         cRoomNetto = card.discountType === 'percentage' ? baseNetto * (1 - dv/100) : Math.max(0, baseNetto - dv);
+         if (card.discountType === 'percentage') {
+             cRoomNetto = baseNetto * (1 - dv/100);
+         } else {
+             // Fixed €
+             const baseUnit = (activeTab === 'per_bed' ? Number(card.bedNetto) : activeTab === 'per_room' ? Number(card.roomNetto) : Number(card.totalNetto)) || 0;
+             const discountedUnit = Math.max(0, baseUnit - dv);
+             cRoomNetto = discountedUnit * multiplier;
+         }
       }
   }
 
   const cRoomMwst = cRoomNetto * (mwstRate / 100);
   const cEnergyMwst = cEnergyNetto * (eMwstRate / 100);
+  const calculatedFinalBrutto = cRoomNetto + cRoomMwst + cEnergyNetto + cEnergyMwst;
 
   const pricePerBedPerNight = (beds > 0 && nights > 0) ? cRoomNetto / (beds * nights) : 0;
   const roomTotalDisplay = formatCurrency(calculatedFinalBrutto)
@@ -607,7 +621,11 @@ export default function RoomCard({
              <div className="flex-1" />
              {!isMasterPricingActive && (
                <>
-                 <button onClick={(e) => { e.stopPropagation(); setShowPricing(!showPricing); if (!showPricing && !card.pricingTab) { queueSave({ pricingTab: 'per_bed' }); } }} className={tabBtn(showPricing)}>{lang === 'de' ? 'Preis' : 'Price'}</button>
+                 <button onClick={(e) => { 
+                    e.stopPropagation(); 
+                    setShowPricing(!showPricing); 
+                    if (!showPricing && !card.pricingTab) { queueSave({ pricingTab: 'per_bed' }); } 
+                 }} className={tabBtn(showPricing)}>{lang === 'de' ? 'Preis' : 'Price'}</button>
                  <div className="flex flex-col items-end min-w-[120px] ml-2"><span className="text-xl font-black">{roomTotalDisplay}</span></div>
                </>
              )}
