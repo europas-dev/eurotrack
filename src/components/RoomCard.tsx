@@ -195,12 +195,13 @@ function BedSlot({
       </div>
 
       <div className="flex items-center gap-2 flex-nowrap w-full">
+        {/* Date fields made visible directly to ensure clickability */}
         <div className="relative w-[135px] shrink-0">
           <input 
             type="date" 
             value={checkIn} 
             onChange={e => setCheckIn(e.target.value)} 
-            className={cn(inputCls, "w-full cursor-pointer uppercase text-[12px]")} 
+            className={cn(inputCls, "w-full cursor-pointer text-[13px] uppercase")} 
           />
         </div>
         
@@ -211,11 +212,17 @@ function BedSlot({
             type="date" 
             value={checkOut} 
             onChange={e => setCheckOut(e.target.value)} 
-            className={cn(inputCls, "w-full cursor-pointer uppercase text-[12px]")} 
+            className={cn(inputCls, "w-full cursor-pointer text-[13px] uppercase")} 
           />
         </div>
 
-        <button type="button" onClick={() => { setCheckIn(''); setCheckOut(''); }} className={cn("p-2 h-[38px] w-[38px] rounded-lg transition-colors border shrink-0 flex items-center justify-center text-slate-400 hover:text-red-500", dk ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50")} title={lang === 'de' ? 'Daten löschen' : 'Clear dates'}>
+        {/* Clear Dates Inline */}
+        <button 
+          type="button" 
+          onClick={() => { setCheckIn(''); setCheckOut(''); }} 
+          className={cn("p-2 h-[38px] w-[38px] rounded-lg transition-colors border shrink-0 flex items-center justify-center", dk ? "border-white/10 text-slate-500 hover:text-red-400 hover:bg-white/5" : "border-slate-200 text-slate-400 hover:text-red-500 hover:bg-slate-50")} 
+          title={lang === 'de' ? 'Daten löschen' : 'Clear dates'}
+        >
            <X size={18} />
         </button>
 
@@ -256,12 +263,13 @@ function getGapSlots(beds: number, employees: Employee[], durationStart: string,
 function InlineNMBRow({
   nettoKey, mwstKey, bruttoKey, energyNettoKey, energyMwstKey, energyBruttoKey,
   discountValueKey, discountTypeKey,
-  card, dk, lang, onPatch, disabled, multiplier, activeTab
+  card, dk, lang, onPatch, disabled, multiplier, activeTab, queueSave
 }: {
   nettoKey: keyof RoomCardType; mwstKey: keyof RoomCardType; bruttoKey: keyof RoomCardType;
   energyNettoKey?: keyof RoomCardType; energyMwstKey?: keyof RoomCardType; energyBruttoKey?: keyof RoomCardType;
   discountValueKey: keyof RoomCardType; discountTypeKey: keyof RoomCardType;
   card: RoomCardType; dk: boolean; lang: 'de' | 'en'; onPatch: (p: Partial<RoomCardType>) => void; disabled?: boolean; multiplier: number; activeTab: PricingTab;
+  queueSave: (patch: Partial<RoomCardType>) => void;
 }) {
   const lbl = cn('text-[10px] font-black uppercase tracking-widest h-4 flex items-end mb-1.5', dk ? 'text-slate-500' : 'text-slate-400')
   const sumLbl = cn('text-[11px] font-black mt-1 pl-1 h-4 flex items-center', dk ? 'text-slate-500' : 'text-slate-400')
@@ -394,7 +402,7 @@ function InlineNMBRow({
       
       {/* BASE PRICE GROUP */}
       <div className="flex flex-col gap-1">
-        <div className="flex items-start flex-nowrap">
+        <div className="flex items-start gap-1 flex-nowrap">
           <div className="flex flex-col shrink-0 pr-1.5">
             <p className={lbl}>Netto (€)</p>
             <input type="number" min={0} step="0.01" value={nVal} onChange={e => updateNetto(e.target.value)} disabled={disabled} style={noSpinner} className={cn(disabled ? disabledInputCls : inputClsBase, 'w-24', card[bruttoKey] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} placeholder="Auto" />
@@ -410,30 +418,30 @@ function InlineNMBRow({
           
           {!(currentDiscountValue && currentDiscountValue > 0) ? (
             <div className="mt-[22px] shrink-0">
-              <button onClick={() => onPatch({ [discountValueKey]: 0, [discountTypeKey]: 'fixed' } as any)} className={cn("p-1.5 h-[38px] rounded-lg border flex items-center justify-center transition-all", dk ? "border-white/10 text-slate-400 hover:text-teal-400 bg-[#1E293B]" : "border-slate-200 text-slate-400 hover:text-teal-500 hover:bg-slate-50 bg-white")}>
+              <button onClick={() => queueSave({ [discountValueKey]: 0, [discountTypeKey]: 'fixed' } as any)} className={cn("p-1.5 h-[38px] rounded-lg border flex items-center justify-center transition-all", dk ? "border-white/10 text-slate-400 hover:text-teal-400 bg-[#1E293B]" : "border-slate-200 text-slate-400 hover:text-teal-500 hover:bg-slate-50 bg-white")}>
                 <Ticket size={16} />
               </button>
             </div>
           ) : (
-            <div className="flex flex-col shrink-0 pl-1">
+            <div className="flex flex-col shrink-0">
               <p className={lbl}>{lang === 'de' ? 'Rabatt' : 'Disc.'}</p>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <div className="relative flex items-center h-[38px] w-[95px]">
                   <input 
                     type="number" 
                     value={currentDiscountValue || ''} 
-                    onChange={e => onPatch({ [discountValueKey]: e.target.value.replace(/^0+(?=\d)/, '') === '' ? null : normalizeNumberInput(e.target.value.replace(/^0+(?=\d)/, '')) } as any)} 
+                    onChange={e => queueSave({ [discountValueKey]: e.target.value.replace(/^0+(?=\d)/, '') === '' ? null : normalizeNumberInput(e.target.value.replace(/^0+(?=\d)/, '')) } as any)} 
                     className={cn(inputClsBase, 'w-full pr-8 h-full text-sm font-black')} 
                     placeholder="0" 
                   />
                   <button 
-                    onClick={() => onPatch({ [discountTypeKey]: currentDiscountType === 'percentage' ? 'fixed' : 'percentage'} as any)} 
-                    className={cn("absolute right-1 w-7 h-7 rounded flex items-center justify-center text-[12px] font-black border", dk ? "bg-white/10 border-white/10 text-white hover:bg-white/20" : "bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200")}
+                    onClick={() => queueSave({ [discountTypeKey]: currentDiscountType === 'percentage' ? 'fixed' : 'percentage'} as any)} 
+                    className={cn("absolute right-1 w-7 h-7 rounded flex items-center justify-center text-[12px] font-black border transition-colors", dk ? "bg-white/10 border-white/10 text-white hover:bg-white/20" : "bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200")}
                   >
                     {currentDiscountType === 'percentage' ? '%' : '€'}
                   </button>
                 </div>
-                <button onClick={() => onPatch({ [discountValueKey]: null } as any)} className={cn("p-1 transition-colors", dk ? "text-slate-500 hover:text-red-400" : "text-slate-400 hover:text-red-500")}>
+                <button onClick={() => queueSave({ [discountValueKey]: null, [discountTypeKey]: 'percentage' } as any)} className={cn("p-1 transition-colors", dk ? "text-slate-500 hover:text-red-400" : "text-slate-400 hover:text-red-500")}>
                   <X size={16} />
                 </button>
               </div>
@@ -686,7 +694,7 @@ export default function RoomCard({
                       energyBruttoKey={activeTab === 'per_bed' ? "bedEnergyBrutto" : activeTab === 'per_room' ? "roomEnergyBrutto" : "totalEnergyBrutto"}
                       discountValueKey={activeTab === 'per_bed' ? "bedDiscountValue" : activeTab === 'per_room' ? "roomDiscountValue" : "totalDiscountValue"}
                       discountTypeKey={activeTab === 'per_bed' ? "bedDiscountType" : activeTab === 'per_room' ? "roomDiscountType" : "totalDiscountType"}
-                      card={card} dk={dk} lang={lang} onPatch={queueSave} multiplier={multiplier} activeTab={activeTab} 
+                      card={card} dk={dk} lang={lang} onPatch={queueSave} multiplier={multiplier} activeTab={activeTab} queueSave={queueSave}
                     />
                     
                     {allCardsOfSameType.length > 1 && (
