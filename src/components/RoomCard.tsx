@@ -194,8 +194,8 @@ function BedSlot({
         </div>
       </div>
 
-      <div className="flex items-center gap-3 pl-0 sm:pl-8 flex-wrap sm:flex-nowrap w-full">
-        <div className="relative w-[130px] shrink-0 group cursor-pointer" onClick={(e) => { try { (e.currentTarget.querySelector('input[type="date"]') as HTMLInputElement)?.showPicker() } catch(e){} }}>
+      <div className="flex items-center gap-3 pl-0 sm:pl-8 flex-nowrap w-full">
+        <div className="relative w-[140px] shrink-0 group cursor-pointer" onClick={(e) => { try { (e.currentTarget.querySelector('input[type="date"]') as HTMLInputElement)?.showPicker() } catch(err){} }}>
           <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent')}>
             <span>{fmtDateDe(checkIn)}</span><Calendar size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
           </div>
@@ -204,7 +204,7 @@ function BedSlot({
         
         <span className="text-slate-400 text-sm hidden sm:block">➔</span>
         
-        <div className="relative w-[130px] shrink-0 group cursor-pointer" onClick={(e) => { try { (e.currentTarget.querySelector('input[type="date"]') as HTMLInputElement)?.showPicker() } catch(e){} }}>
+        <div className="relative w-[140px] shrink-0 group cursor-pointer" onClick={(e) => { try { (e.currentTarget.querySelector('input[type="date"]') as HTMLInputElement)?.showPicker() } catch(err){} }}>
           <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent')}>
             <span>{fmtDateDe(checkOut)}</span><Calendar size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
           </div>
@@ -213,8 +213,8 @@ function BedSlot({
 
         <div className={cn('px-2 rounded-lg border text-xs font-black text-center h-[38px] flex items-center justify-center shrink-0', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')} style={{ width: 48 }}>{nights}N</div>
         
-        {/* CLEAR DATES ICON */}
-        <button type="button" onClick={() => { setCheckIn(''); setCheckOut(''); }} className={cn("p-2 h-[38px] rounded-lg transition-colors border shrink-0 flex items-center justify-center", dk ? "border-white/10 text-slate-500 hover:text-red-400 hover:bg-white/5" : "border-slate-200 text-slate-400 hover:text-red-500 hover:bg-slate-50")} title={lang === 'de' ? 'Daten löschen' : 'Clear dates'}>
+        {/* MANUAL CLEAR DURATION BUTTON */}
+        <button type="button" onClick={() => { setCheckIn(''); setCheckOut(''); }} className={cn("p-2 h-[38px] rounded-lg transition-colors border shrink-0 flex items-center justify-center text-slate-400 hover:text-red-500", dk ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50")} title={lang === 'de' ? 'Daten löschen' : 'Clear dates'}>
            <Calendar size={14} className="mr-1 opacity-50" /><X size={14} />
         </button>
 
@@ -370,7 +370,6 @@ function InlineNMBRow({
         if (card.discountType === 'percentage') {
            dNettoTotal = tNetto * (1 - dv/100);
         } else {
-           // Fixed € discount applies to the UNIT price before multiplier
            const rawUnit = card[nettoKey] != null ? Number(card[nettoKey]) : Number(bNettoDisplay) || 0;
            const discountedUnit = Math.max(0, rawUnit - dv);
            dNettoTotal = discountedUnit * multiplier;
@@ -378,7 +377,6 @@ function InlineNMBRow({
      }
   }
 
-  // Calculate discounted Brutto for display arrow
   const dBruttoTotal = dNettoTotal * (1 + (Number(card[mwstKey]) || 0) / 100);
 
   const nVal = card[nettoKey] === 0 ? '' : (card[nettoKey] != null ? card[nettoKey] : bNettoDisplay);
@@ -391,21 +389,20 @@ function InlineNMBRow({
       
       {/* BASE PRICE GROUP */}
       <div className="flex flex-col gap-1">
-        <div className="flex items-start gap-2 flex-nowrap">
-          <div className="flex flex-col shrink-0">
+        <div className="flex items-start flex-nowrap">
+          <div className="flex flex-col shrink-0 pr-1.5">
             <p className={lbl}>Netto (€)</p>
             <input type="number" min={0} step="0.01" value={nVal} onChange={e => updateNetto(e.target.value)} disabled={disabled} style={noSpinner} className={cn(disabled ? disabledInputCls : inputClsBase, 'w-24', card[bruttoKey] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} placeholder="Auto" />
-            <div className={sumLbl}>
+            <div className={cn(sumLbl, "min-h-[16px]")}>
               {showSum && tNetto > 0 && <span>Σ {formatCurrency(tNetto)}</span>}
               {dNettoTotal !== tNetto && (
-                 <span className={cn("ml-2 font-black flex items-center gap-1", dk ? "text-teal-400" : "text-teal-600")}>
-                   ↳ {formatCurrency(dNettoTotal / multiplier)} {multiplier > 1 && <span className="text-[10px] opacity-70 font-bold">(Σ {formatCurrency(dNettoTotal)})</span>}
+                 <span className={cn("ml-1 font-black flex items-center gap-0.5", dk ? "text-teal-400" : "text-teal-600")}>
+                   ↳ {formatCurrency(dNettoTotal / multiplier)} {multiplier > 1 && <span className="text-[9px] opacity-70 font-bold">({formatCurrency(dNettoTotal)})</span>}
                  </span>
               )}
             </div>
           </div>
           
-          {/* TICKET DISCOUNT BUTTON OR UI */}
           {!(card.hasDiscount || Boolean(card.discountValue)) ? (
             <div className="mt-[22px] shrink-0">
               <button onClick={() => onPatch({ hasDiscount: true, discountType: 'fixed' } as any)} className={cn("p-1.5 h-[38px] rounded-lg border flex items-center justify-center transition-all", dk ? "border-white/10 text-slate-400 hover:text-teal-400 bg-[#1E293B]" : "border-slate-200 text-slate-400 hover:text-teal-500 hover:bg-slate-50 bg-white")}>
@@ -416,11 +413,11 @@ function InlineNMBRow({
             <div className="flex flex-col shrink-0">
                <p className={lbl}>{lang === 'de' ? 'Rabatt' : 'Disc.'}</p>
                <div className="flex items-start gap-1">
-                 <div className="relative flex items-center h-[38px] w-[85px]">
-                   <input type="number" value={card.discountValue || ''} onChange={e => onPatch({discountValue: e.target.value.replace(/^0+(?=\d)/, '') === '' ? null : normalizeNumberInput(e.target.value.replace(/^0+(?=\d)/, ''))} as any)} className={cn(inputClsBase, 'w-full pr-6 h-full text-sm')} placeholder="0" />
-                   <button onClick={() => onPatch({discountType: card.discountType === 'percentage' ? 'fixed' : 'percentage'} as any)} className={cn("absolute right-1 w-6 h-6 rounded flex items-center justify-center text-xs font-bold", dk ? "bg-white/10 text-white hover:bg-white/20" : "bg-slate-100 text-slate-700 hover:bg-slate-200")}>{card.discountType === 'percentage' ? '%' : '€'}</button>
+                 <div className="relative flex items-center h-[38px] w-[80px]">
+                   <input type="number" value={card.discountValue || ''} onChange={e => onPatch({discountValue: e.target.value.replace(/^0+(?=\d)/, '') === '' ? null : normalizeNumberInput(e.target.value.replace(/^0+(?=\d)/, ''))} as any)} className={cn(inputClsBase, 'w-full pr-6 h-full text-xs')} placeholder="0" />
+                   <button onClick={() => onPatch({discountType: card.discountType === 'percentage' ? 'fixed' : 'percentage'} as any)} className={cn("absolute right-1 w-5 h-5 rounded flex items-center justify-center text-[10px] font-black", dk ? "bg-white/10 text-white hover:bg-white/20" : "bg-slate-100 text-slate-700 hover:bg-slate-200")}>{card.discountType === 'percentage' ? '%' : '€'}</button>
                  </div>
-                 <button onClick={() => onPatch({hasDiscount: false, discountValue: null} as any)} className={cn("p-1.5 mt-1 transition-colors", dk ? "text-slate-500 hover:text-red-400" : "text-slate-400 hover:text-red-500")}><X size={14} /></button>
+                 <button onClick={() => onPatch({hasDiscount: false, discountValue: null} as any)} className={cn("p-1 mt-1.5 transition-colors", dk ? "text-slate-500 hover:text-red-400" : "text-slate-400 hover:text-red-500")}><X size={12} /></button>
                </div>
             </div>
           )}
@@ -439,8 +436,8 @@ function InlineNMBRow({
         <div className={sumLbl}>
           {showSum && tBrutto > 0 && <span>Σ {formatCurrency(tBrutto)}</span>}
           {dNettoTotal !== tNetto && (
-             <span className={cn("ml-2 font-black flex items-center gap-1", dk ? "text-teal-400" : "text-teal-600")}>
-               ↳ {formatCurrency(dBruttoTotal / multiplier)} {multiplier > 1 && <span className="text-[10px] opacity-70 font-bold">(Σ {formatCurrency(dBruttoTotal)})</span>}
+             <span className={cn("ml-1 font-black flex items-center gap-0.5", dk ? "text-teal-400" : "text-teal-600")}>
+               ↳ {formatCurrency(dBruttoTotal / multiplier)} {multiplier > 1 && <span className="text-[9px] opacity-70 font-bold">({formatCurrency(dBruttoTotal)})</span>}
              </span>
           )}
         </div>
@@ -534,6 +531,7 @@ export default function RoomCard({
   }
 
   const multiplier = activeTab === 'per_bed' ? (beds * nights) : activeTab === 'per_room' ? nights : 1;
+  const calculatedFinalBrutto = calcRoomCardTotal(card, durationStart, durationEnd);
   
   let baseNetto = 0; let mwstRate = 0;
   let cEnergyNetto = 0; let eMwstRate = 0;
@@ -562,7 +560,6 @@ export default function RoomCard({
          if (card.discountType === 'percentage') {
              cRoomNetto = baseNetto * (1 - dv/100);
          } else {
-             // Fixed €
              const baseUnit = (activeTab === 'per_bed' ? Number(card.bedNetto) : activeTab === 'per_room' ? Number(card.roomNetto) : Number(card.totalNetto)) || 0;
              const discountedUnit = Math.max(0, baseUnit - dv);
              cRoomNetto = discountedUnit * multiplier;
@@ -572,7 +569,6 @@ export default function RoomCard({
 
   const cRoomMwst = cRoomNetto * (mwstRate / 100);
   const cEnergyMwst = cEnergyNetto * (eMwstRate / 100);
-  const calculatedFinalBrutto = cRoomNetto + cRoomMwst + cEnergyNetto + cEnergyMwst;
 
   const pricePerBedPerNight = (beds > 0 && nights > 0) ? cRoomNetto / (beds * nights) : 0;
   const roomTotalDisplay = formatCurrency(calculatedFinalBrutto)
@@ -653,9 +649,9 @@ export default function RoomCard({
                 {/* LEFT SIDE: PRICING INPUTS */}
                 <div className={cn("flex-1 p-5 border-b xl:border-b-0 xl:border-r flex flex-col gap-5 rounded-t-xl xl:rounded-l-xl xl:rounded-tr-none", dk ? "border-white/10" : "border-slate-200")}>
                   <div className="flex items-center gap-3">
-                    <button onClick={() => queueSave({ pricingTab: 'per_bed' })} className={tabBtn(activeTab === 'per_bed')}>{lang === 'de' ? 'Preis/Bett' : 'Price/Bed'}</button>
-                    <button onClick={() => queueSave({ pricingTab: 'per_room' })} className={tabBtn(activeTab === 'per_room')}>{lang === 'de' ? 'Preis/Zimmer' : 'Price/Room'}</button>
-                    <button onClick={() => queueSave({ pricingTab: 'total_room' })} className={tabBtn(activeTab === 'total_room')}>{lang === 'de' ? 'Gesamt/Zimmer' : 'Total/Room'}</button>
+                    <button onClick={() => queueSave({ pricingTab: 'per_bed', hasDiscount: false, discountValue: null })} className={tabBtn(activeTab === 'per_bed')}>{lang === 'de' ? 'Preis/Bett' : 'Price/Bed'}</button>
+                    <button onClick={() => queueSave({ pricingTab: 'per_room', hasDiscount: false, discountValue: null })} className={tabBtn(activeTab === 'per_room')}>{lang === 'de' ? 'Preis/Zimmer' : 'Price/Room'}</button>
+                    <button onClick={() => queueSave({ pricingTab: 'total_room', hasDiscount: false, discountValue: null })} className={tabBtn(activeTab === 'total_room')}>{lang === 'de' ? 'Gesamt/Zimmer' : 'Total/Room'}</button>
                   </div>
                   
                   <div className="flex items-start gap-4 flex-wrap pb-2">
