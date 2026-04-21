@@ -195,8 +195,7 @@ function BedSlot({
       </div>
 
       <div className="flex items-center gap-2 flex-nowrap w-full">
-        {/* Check In */}
-        <div className="relative w-[135px]">
+        <div className="relative w-[135px] shrink-0">
           <input 
             type="date" 
             value={checkIn} 
@@ -204,11 +203,10 @@ function BedSlot({
             className={cn(inputCls, "w-full cursor-pointer uppercase text-[12px]")} 
           />
         </div>
-
-        <span className="text-slate-400">➔</span>
-
-        {/* Check Out */}
-        <div className="relative w-[135px]">
+        
+        <span className="text-slate-400 text-sm hidden sm:block">➔</span>
+        
+        <div className="relative w-[135px] shrink-0">
           <input 
             type="date" 
             value={checkOut} 
@@ -217,19 +215,11 @@ function BedSlot({
           />
         </div>
 
-        {/* Clear Dates Button sitting perfectly inline */}
-        <button 
-          type="button" 
-          onClick={() => { setCheckIn(''); setCheckOut(''); }} 
-          className={cn("p-2 h-[38px] w-[38px] rounded-lg border shrink-0 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors", dk ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50")}
-          title={lang === 'de' ? 'Daten löschen' : 'Clear dates'}
-        >
+        <button type="button" onClick={() => { setCheckIn(''); setCheckOut(''); }} className={cn("p-2 h-[38px] w-[38px] rounded-lg transition-colors border shrink-0 flex items-center justify-center text-slate-400 hover:text-red-500", dk ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50")} title={lang === 'de' ? 'Daten löschen' : 'Clear dates'}>
            <X size={18} />
         </button>
 
-        <div className={cn("px-2 rounded-lg border text-xs font-black text-center h-[38px] flex items-center justify-center shrink-0 w-12", dk ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200 text-slate-900")}>
-          {nights}N
-        </div>
+        <div className={cn('px-2 rounded-lg border text-xs font-black text-center h-[38px] flex items-center justify-center shrink-0 w-12', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>{nights}N</div>
         
         <div className="flex-1 min-w-[10px]" />
         
@@ -265,10 +255,12 @@ function getGapSlots(beds: number, employees: Employee[], durationStart: string,
 
 function InlineNMBRow({
   nettoKey, mwstKey, bruttoKey, energyNettoKey, energyMwstKey, energyBruttoKey,
+  discountValueKey, discountTypeKey,
   card, dk, lang, onPatch, disabled, multiplier, activeTab
 }: {
   nettoKey: keyof RoomCardType; mwstKey: keyof RoomCardType; bruttoKey: keyof RoomCardType;
   energyNettoKey?: keyof RoomCardType; energyMwstKey?: keyof RoomCardType; energyBruttoKey?: keyof RoomCardType;
+  discountValueKey: keyof RoomCardType; discountTypeKey: keyof RoomCardType;
   card: RoomCardType; dk: boolean; lang: 'de' | 'en'; onPatch: (p: Partial<RoomCardType>) => void; disabled?: boolean; multiplier: number; activeTab: PricingTab;
 }) {
   const lbl = cn('text-[10px] font-black uppercase tracking-widest h-4 flex items-end mb-1.5', dk ? 'text-slate-500' : 'text-slate-400')
@@ -376,18 +368,18 @@ function InlineNMBRow({
   const tENetto = energyNettoKey ? (card[energyNettoKey] != null ? Number(card[energyNettoKey]) : Number(eNettoDisplay) || 0) * multiplier : 0;
   const tEBrutto = energyBruttoKey ? (card[energyBruttoKey] != null ? Number(card[energyBruttoKey]) : Number(eBruttoDisplay) || 0) * multiplier : 0;
 
+  const currentDiscountValue = card[discountValueKey] as number | null | undefined;
+  const currentDiscountType = card[discountTypeKey] as 'percentage' | 'fixed' | undefined || 'percentage';
+
   let dNettoTotal = tNetto;
-  if (card.hasDiscount || Boolean(card.discountValue)) {
-     const dv = Number(card.discountValue) || 0;
-     if (dv > 0) {
-        if (card.discountType === 'percentage') {
-           dNettoTotal = tNetto * (1 - dv/100);
-        } else {
-           const rawUnit = card[nettoKey] != null ? Number(card[nettoKey]) : Number(bNettoDisplay) || 0;
-           const discountedUnit = Math.max(0, rawUnit - dv);
-           dNettoTotal = discountedUnit * multiplier;
-        }
-     }
+  if (currentDiscountValue && currentDiscountValue > 0) {
+      if (currentDiscountType === 'percentage') {
+          dNettoTotal = tNetto * (1 - currentDiscountValue/100);
+      } else {
+          const rawUnit = card[nettoKey] != null ? Number(card[nettoKey]) : Number(bNettoDisplay) || 0;
+          const discountedUnit = Math.max(0, rawUnit - currentDiscountValue);
+          dNettoTotal = discountedUnit * multiplier;
+      }
   }
 
   const dBruttoTotal = dNettoTotal * (1 + (Number(card[mwstKey]) || 0) / 100);
@@ -402,8 +394,8 @@ function InlineNMBRow({
       
       {/* BASE PRICE GROUP */}
       <div className="flex flex-col gap-1">
-        <div className="flex items-start gap-1.5 flex-nowrap">
-          <div className="flex flex-col shrink-0">
+        <div className="flex items-start flex-nowrap">
+          <div className="flex flex-col shrink-0 pr-1.5">
             <p className={lbl}>Netto (€)</p>
             <input type="number" min={0} step="0.01" value={nVal} onChange={e => updateNetto(e.target.value)} disabled={disabled} style={noSpinner} className={cn(disabled ? disabledInputCls : inputClsBase, 'w-24', card[bruttoKey] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} placeholder="Auto" />
             <div className={cn(sumLbl, "min-h-[16px]")}>
@@ -416,9 +408,9 @@ function InlineNMBRow({
             </div>
           </div>
           
-          {!(card.hasDiscount || Boolean(card.discountValue)) ? (
+          {!(currentDiscountValue && currentDiscountValue > 0) ? (
             <div className="mt-[22px] shrink-0">
-              <button onClick={() => onPatch({ hasDiscount: true, discountType: 'fixed' } as any)} className={cn("p-1.5 h-[38px] rounded-lg border flex items-center justify-center transition-all", dk ? "border-white/10 text-slate-400 hover:text-teal-400 bg-[#1E293B]" : "border-slate-200 text-slate-400 hover:text-teal-500 hover:bg-slate-50 bg-white")}>
+              <button onClick={() => onPatch({ [discountValueKey]: 0, [discountTypeKey]: 'fixed' } as any)} className={cn("p-1.5 h-[38px] rounded-lg border flex items-center justify-center transition-all", dk ? "border-white/10 text-slate-400 hover:text-teal-400 bg-[#1E293B]" : "border-slate-200 text-slate-400 hover:text-teal-500 hover:bg-slate-50 bg-white")}>
                 <Ticket size={16} />
               </button>
             </div>
@@ -429,19 +421,19 @@ function InlineNMBRow({
                 <div className="relative flex items-center h-[38px] w-[95px]">
                   <input 
                     type="number" 
-                    value={card.discountValue || ''} 
-                    onChange={e => onPatch({discountValue: e.target.value.replace(/^0+(?=\d)/, '') === '' ? null : normalizeNumberInput(e.target.value.replace(/^0+(?=\d)/, ''))} as any)} 
+                    value={currentDiscountValue || ''} 
+                    onChange={e => onPatch({ [discountValueKey]: e.target.value.replace(/^0+(?=\d)/, '') === '' ? null : normalizeNumberInput(e.target.value.replace(/^0+(?=\d)/, '')) } as any)} 
                     className={cn(inputClsBase, 'w-full pr-8 h-full text-sm font-black')} 
                     placeholder="0" 
                   />
                   <button 
-                    onClick={() => onPatch({discountType: card.discountType === 'percentage' ? 'fixed' : 'percentage'} as any)} 
+                    onClick={() => onPatch({ [discountTypeKey]: currentDiscountType === 'percentage' ? 'fixed' : 'percentage'} as any)} 
                     className={cn("absolute right-1 w-7 h-7 rounded flex items-center justify-center text-[12px] font-black border", dk ? "bg-white/10 border-white/10 text-white hover:bg-white/20" : "bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200")}
                   >
-                    {card.discountType === 'percentage' ? '%' : '€'}
+                    {currentDiscountType === 'percentage' ? '%' : '€'}
                   </button>
                 </div>
-                <button onClick={() => onPatch({hasDiscount: false, discountValue: null} as any)} className={cn("p-1 transition-colors", dk ? "text-slate-500 hover:text-red-400" : "text-slate-400 hover:text-red-500")}>
+                <button onClick={() => onPatch({ [discountValueKey]: null } as any)} className={cn("p-1 transition-colors", dk ? "text-slate-500 hover:text-red-400" : "text-slate-400 hover:text-red-500")}>
                   <X size={16} />
                 </button>
               </div>
@@ -561,36 +553,40 @@ export default function RoomCard({
   
   let baseNetto = 0; let mwstRate = 0;
   let cEnergyNetto = 0; let eMwstRate = 0;
+  let currentDiscountValue = 0; let currentDiscountType = 'percentage';
 
   if (activeTab === 'per_bed') {
      baseNetto = (Number(card.bedNetto) || 0) * multiplier;
      mwstRate = Number(card.bedMwst) || 0;
      cEnergyNetto = (Number(card.bedEnergyNetto) || 0) * multiplier;
      eMwstRate = Number(card.bedEnergyMwst) || 0;
+     currentDiscountValue = Number(card.bedDiscountValue) || 0;
+     currentDiscountType = card.bedDiscountType || 'percentage';
   } else if (activeTab === 'per_room') {
      baseNetto = (Number(card.roomNetto) || 0) * multiplier;
      mwstRate = Number(card.roomMwst) || 0;
      cEnergyNetto = (Number(card.roomEnergyNetto) || 0) * multiplier;
      eMwstRate = Number(card.roomEnergyMwst) || 0;
+     currentDiscountValue = Number(card.roomDiscountValue) || 0;
+     currentDiscountType = card.roomDiscountType || 'percentage';
   } else {
      baseNetto = Number(card.totalNetto) || 0;
      mwstRate = Number(card.totalMwst) || 0;
      cEnergyNetto = Number(card.totalEnergyNetto) || 0;
      eMwstRate = Number(card.totalEnergyMwst) || 0;
+     currentDiscountValue = Number(card.totalDiscountValue) || 0;
+     currentDiscountType = card.totalDiscountType || 'percentage';
   }
 
   let cRoomNetto = baseNetto;
-  if (card.hasDiscount || Boolean(card.discountValue)) {
-      const dv = Number(card.discountValue) || 0;
-      if (dv > 0) {
-         if (card.discountType === 'percentage') {
-             cRoomNetto = baseNetto * (1 - dv/100);
-         } else {
-             const baseUnit = (activeTab === 'per_bed' ? Number(card.bedNetto) : activeTab === 'per_room' ? Number(card.roomNetto) : Number(card.totalNetto)) || 0;
-             const discountedUnit = Math.max(0, baseUnit - dv);
-             cRoomNetto = discountedUnit * multiplier;
-         }
-      }
+  if (currentDiscountValue > 0) {
+     if (currentDiscountType === 'percentage') {
+         cRoomNetto = baseNetto * (1 - currentDiscountValue/100);
+     } else {
+         const baseUnit = (activeTab === 'per_bed' ? Number(card.bedNetto) : activeTab === 'per_room' ? Number(card.roomNetto) : Number(card.totalNetto)) || 0;
+         const discountedUnit = Math.max(0, baseUnit - currentDiscountValue);
+         cRoomNetto = discountedUnit * multiplier;
+     }
   }
 
   const cRoomMwst = cRoomNetto * (mwstRate / 100);
@@ -657,7 +653,7 @@ export default function RoomCard({
                  <button onClick={(e) => { 
                     e.stopPropagation(); 
                     setShowPricing(!showPricing); 
-                    if (!showPricing) { queueSave({ pricingTab: 'per_bed' }); } 
+                    if (!showPricing && !card.pricingTab) { queueSave({ pricingTab: 'per_bed' }); } 
                  }} className={tabBtn(showPricing)}>{lang === 'de' ? 'Preis' : 'Price'}</button>
                  <div className="flex flex-col items-end min-w-[120px] ml-2"><span className="text-xl font-black">{roomTotalDisplay}</span></div>
                </>
@@ -688,6 +684,8 @@ export default function RoomCard({
                       energyNettoKey={activeTab === 'per_bed' ? "bedEnergyNetto" : activeTab === 'per_room' ? "roomEnergyNetto" : "totalEnergyNetto"}
                       energyMwstKey={activeTab === 'per_bed' ? "bedEnergyMwst" : activeTab === 'per_room' ? "roomEnergyMwst" : "totalEnergyMwst"}
                       energyBruttoKey={activeTab === 'per_bed' ? "bedEnergyBrutto" : activeTab === 'per_room' ? "roomEnergyBrutto" : "totalEnergyBrutto"}
+                      discountValueKey={activeTab === 'per_bed' ? "bedDiscountValue" : activeTab === 'per_room' ? "roomDiscountValue" : "totalDiscountValue"}
+                      discountTypeKey={activeTab === 'per_bed' ? "bedDiscountType" : activeTab === 'per_room' ? "roomDiscountType" : "totalDiscountType"}
                       card={card} dk={dk} lang={lang} onPatch={queueSave} multiplier={multiplier} activeTab={activeTab} 
                     />
                     
