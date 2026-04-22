@@ -1,9 +1,11 @@
+// src/components/EmployeeSlot.tsx
 import React, { useState, useRef } from 'react';
-import { Loader2, User, X, ChevronDown, CornerDownRight } from 'lucide-react';
+import { Loader2, User, X, CornerDownRight } from 'lucide-react';
 import { cn, formatDateDisplay, getEmployeeStatus } from '../lib/utils';
-import { createEmployee, updateEmployee, deleteEmployee } from '../lib/supabase';
+import { enqueue } from '../lib/offlineSync'; // FIX: Imported the sync engine
 
 interface EmployeeSlotProps {
+  roomCardId: string; // FIX: Added roomCardId so the database knows where this employee belongs
   durationId: string;
   slotIndex: number;
   employee: any | null;
@@ -16,7 +18,7 @@ interface EmployeeSlotProps {
 }
 
 export function EmployeeSlot({
-  durationId, slotIndex, employee, durationStart, durationEnd,
+  roomCardId, durationId, slotIndex, employee, durationStart, durationEnd,
   isDarkMode: dk, lang, onUpdated, substituteWindow,
 }: EmployeeSlotProps) {
   const [editing, setEditing] = useState(false);
@@ -41,7 +43,6 @@ export function EmployeeSlot({
        : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-blue-500'
   );
 
-  // Determine if this specific slot is acting as a substitute
   const isSubstitute = substituteWindow || (employee && employee.checkIn > durationStart);
   const IconToUse = isSubstitute ? CornerDownRight : User;
 
@@ -50,11 +51,16 @@ export function EmployeeSlot({
     setSaving(true);
     try {
       if (employee?.id) {
-        await updateEmployee(employee.id, { name: name.trim(), checkIn, checkOut });
-        onUpdated(slotIndex, { ...employee, name: name.trim(), checkIn, checkOut });
+        // FIX: Using enqueue for updates
+        const payload = { id: employee.id, name: name.trim(), checkIn, checkOut, phone: employee.phone || '' };
+        await enqueue({ type: 'updateEmployee', payload });
+        onUpdated(slotIndex, { ...employee, ...payload });
       } else {
-        const created = await createEmployee(durationId, slotIndex, { name: name.trim(), checkIn, checkOut });
-        onUpdated(slotIndex, created);
+        // FIX: Using enqueue for creation, generating a safe offline ID, and passing roomCardId
+        const newId = crypto.randomUUID();
+        const payload = { id: newId, durationId, roomCardId, slotIndex, name: name.trim(), checkIn, checkOut, phone: '' };
+        await enqueue({ type: 'createEmployee', payload });
+        onUpdated(slotIndex, payload);
       }
       setEditing(false);
     } catch (e) { console.error(e); }
@@ -65,7 +71,8 @@ export function EmployeeSlot({
     if (!employee?.id) { onUpdated(slotIndex, null); return; }
     setSaving(true);
     try {
-      await deleteEmployee(employee.id);
+      // FIX: Using enqueue for deletions
+      await enqueue({ type: 'deleteEmployee', payload: { id: employee.id } });
       onUpdated(slotIndex, null);
       setName(''); setEditing(false);
     } catch (e) { console.error(e); }
@@ -102,7 +109,7 @@ export function EmployeeSlot({
       )} onClick={() => { setName(employee.name ?? ''); setCheckIn(employee.checkIn ?? durationStart); setCheckOut(employee.checkOut ?? durationEnd); setEditing(true); }}>
         <IconToUse size={12} className={statusColor} />
         <span className={cn('text-xs font-bold flex-1 truncate', dk ? 'text-white' : 'text-slate-900')}>{employee.name}</span>
-        <span className={cn('text-10px', dk ? 'text-slate-500' : 'text-slate-400')}>
+        <span className={cn('text-[10px]', dk ? 'text-slate-500' : 'text-slate-400')}>
           {formatDateDisplay(employee.checkIn, lang)} – {formatDateDisplay(employee.checkOut, lang)}
         </span>
         {saving && <Loader2 size={11} className="animate-spin text-blue-400" />}
@@ -122,13 +129,13 @@ export function EmployeeSlot({
         className={inputCls} />
       <div className="flex gap-2">
         <div className="flex-1">
-          <p className={cn('text-9px font-bold uppercase tracking-widest mb-1', dk ? 'text-slate-500' : 'text-slate-400')}>
+          <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-1', dk ? 'text-slate-500' : 'text-slate-400')}>
             {lang === 'de' ? 'Check-in' : 'Check-in'}
           </p>
           <input type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)} className={inputCls} />
         </div>
         <div className="flex-1">
-          <p className={cn('text-9px font-bold uppercase tracking-widest mb-1', dk ? 'text-slate-500' : 'text-slate-400')}>
+          <p className={cn('text-[9px] font-bold uppercase tracking-widest mb-1', dk ? 'text-slate-500' : 'text-slate-400')}>
             {lang === 'de' ? 'Check-out' : 'Check-out'}
           </p>
           <input type="date" value={checkOut} onChange={e => setCheckOut(e.target.value)} className={inputCls} />
