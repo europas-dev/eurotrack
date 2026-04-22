@@ -673,40 +673,45 @@ export default function RoomCard({
              <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className={cn('p-2 rounded transition-all shrink-0 ml-4', dk ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-red-500 hover:bg-red-50')}><Trash2 size={18} /></button>
            </>
         ) : (
-           <div className="flex items-center gap-3 flex-1">
-             <select value={card.roomType} onChange={e => { const rt = e.target.value as any; queueSave({ roomType: rt, bedCount: rt === 'EZ' ? 1 : rt === 'DZ' ? 2 : rt === 'TZ' ? 3 : card.bedCount }) }} className={cn(inputCls, 'w-20 text-center pr-0')}><option value="EZ">EZ</option><option value="DZ">DZ</option><option value="TZ">TZ</option><option value="WG">WG</option></select>
+           <div className="flex items-center gap-3 flex-1 flex-wrap sm:flex-nowrap">
+             <select value={card.roomType} onChange={e => { const rt = e.target.value as any; queueSave({ roomType: rt, bedCount: rt === 'EZ' ? 1 : rt === 'DZ' ? 2 : rt === 'TZ' ? 3 : card.bedCount }) }} className={cn(inputCls, 'w-20 text-center pr-0 shrink-0')}><option value="EZ">EZ</option><option value="DZ">DZ</option><option value="TZ">TZ</option><option value="WG">WG</option></select>
              
-             {/* THE FIX: Only show this bed counter if it is a WG */}
+             {/* THE FIX: Bulletproof WG Bed Counter */}
              {card.roomType === 'WG' && (
-                 <div className="flex items-center gap-1.5">
+                 <div className="flex items-center gap-2 shrink-0">
                    <span className={labelCls}>{lang === 'de' ? 'Betten:' : 'Beds:'}</span>
-                   <input type="number" min={1} value={card.bedCount || 1} onChange={e => queueSave({ bedCount: parseInt(e.target.value) || 1 })} className={cn(inputCls, 'w-16 text-center')} />
+                   <div className={cn("flex items-center h-[38px] rounded-lg border", dk ? "border-white/10 bg-[#1E293B]" : "border-slate-200 bg-white")}>
+                     <button onClick={(e) => { e.stopPropagation(); queueSave({ bedCount: Math.max(1, (card.bedCount || 1) - 1) }) }} className={cn("px-2.5 h-full font-black text-lg transition-colors border-r", dk ? "hover:bg-white/10 border-white/10" : "hover:bg-slate-100 border-slate-200")}>−</button>
+                     <div className={cn("flex items-center justify-center w-8 h-full font-black text-sm", dk ? "text-white" : "text-slate-900")}>{card.bedCount || 1}</div>
+                     <button onClick={(e) => { e.stopPropagation(); queueSave({ bedCount: (card.bedCount || 1) + 1 }) }} className={cn("px-2.5 h-full font-black text-lg transition-colors border-l", dk ? "hover:bg-white/10 border-white/10" : "hover:bg-slate-100 border-slate-200")}>+</button>
+                   </div>
                  </div>
              )}
 
-             <div className="flex items-center gap-1.5"><span className={labelCls}>No:</span><input type="text" value={card.roomNo || ''} onChange={e => queueSave({ roomNo: e.target.value })} placeholder="101" className={cn(inputCls, 'w-44')} /></div>
-             <div className="flex items-center gap-1.5"><span className={labelCls}>Etg:</span><input type="text" value={card.floor || ''} onChange={e => queueSave({ floor: e.target.value })} placeholder="1" className={cn(inputCls, 'w-16')} /></div>
-             <span className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-500/10 text-blue-500 font-black text-sm shrink-0 ml-2">
+             {/* COMPACT INPUTS: Replaced "No:" and "Etg:" labels with placeholders */}
+             <input type="text" value={card.roomNo || ''} onChange={e => queueSave({ roomNo: e.target.value })} placeholder={lang === 'de' ? "Zimmer Nr..." : "Room No..."} className={cn(inputCls, 'w-28 shrink-0')} />
+             <input type="text" value={card.floor || ''} onChange={e => queueSave({ floor: e.target.value })} placeholder={lang === 'de' ? "Etg..." : "Floor..."} className={cn(inputCls, 'w-16 shrink-0')} />
+             
+             <span className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-500/10 text-blue-500 font-black text-sm shrink-0 ml-1">
                <Moon size={16} /> <span className="text-[15px]">{nights}</span> 
                <div className="w-px h-3 bg-blue-500/30 mx-1" /> 
                <Bed size={16} /> <span className="text-[15px]">{beds}</span>
              </span>
-             <div className="flex-1" />
+             
+             <div className="flex-1 min-w-[10px]" />
+             
              {!isMasterPricingActive && (
-               <>
+               <div className="flex items-center shrink-0">
                  <button onClick={(e) => { 
                     e.stopPropagation(); 
                     setShowPricing(!showPricing); 
                     if (!showPricing) { queueSave({ pricingTab: 'per_bed' }); } 
                  }} className={tabBtn(showPricing)}>{lang === 'de' ? 'Preis' : 'Price'}</button>
-                 <div className="flex flex-col items-end min-w-[120px] ml-2"><span className="text-xl font-black">{roomTotalDisplay}</span></div>
-               </>
+                 <div className="flex flex-col items-end min-w-[100px] ml-3"><span className="text-xl font-black">{roomTotalDisplay}</span></div>
+               </div>
              )}
-             <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-2 text-slate-400 hover:text-red-500"><Trash2 size={18} /></button>
+             <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-2 text-slate-400 hover:text-red-500 shrink-0 ml-1"><Trash2 size={18} /></button>
            </div>
-        )}
-      </div>
-
       {isOpen && (
         <div className={cn("p-6 border-t", dk ? "bg-black/20 border-white/5" : "bg-slate-50/50 border-slate-100")}>
            {showPricing && !isMasterPricingActive && (
