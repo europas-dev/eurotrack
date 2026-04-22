@@ -675,6 +675,15 @@ export default function RoomCard({
         ) : (
            <div className="flex items-center gap-3 flex-1">
              <select value={card.roomType} onChange={e => { const rt = e.target.value as any; queueSave({ roomType: rt, bedCount: rt === 'EZ' ? 1 : rt === 'DZ' ? 2 : rt === 'TZ' ? 3 : card.bedCount }) }} className={cn(inputCls, 'w-20 text-center pr-0')}><option value="EZ">EZ</option><option value="DZ">DZ</option><option value="TZ">TZ</option><option value="WG">WG</option></select>
+             
+             {/* THE FIX: Only show this bed counter if it is a WG */}
+             {card.roomType === 'WG' && (
+                 <div className="flex items-center gap-1.5">
+                   <span className={labelCls}>{lang === 'de' ? 'Betten:' : 'Beds:'}</span>
+                   <input type="number" min={1} value={card.bedCount || 1} onChange={e => queueSave({ bedCount: parseInt(e.target.value) || 1 })} className={cn(inputCls, 'w-16 text-center')} />
+                 </div>
+             )}
+
              <div className="flex items-center gap-1.5"><span className={labelCls}>No:</span><input type="text" value={card.roomNo || ''} onChange={e => queueSave({ roomNo: e.target.value })} placeholder="101" className={cn(inputCls, 'w-44')} /></div>
              <div className="flex items-center gap-1.5"><span className={labelCls}>Etg:</span><input type="text" value={card.floor || ''} onChange={e => queueSave({ floor: e.target.value })} placeholder="1" className={cn(inputCls, 'w-16')} /></div>
              <span className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-500/10 text-blue-500 font-black text-sm shrink-0 ml-2">
