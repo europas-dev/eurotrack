@@ -206,7 +206,14 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     });
 
     let bNettoTotal = 0; let bBruttoTotal = 0;
-    let isMasterActive = false;
+    
+    // THE FIX: Check if Master is active BEFORE processing base costs
+    let isMasterActive = (localHotel.baseCosts || []).some((bc: any) => bc.netto != null || bc.brutto != null);
+
+    // If Master Pricing is active, empty the room tax buckets so they don't leak into the total!
+    if (isMasterActive) {
+        buckets = {};
+    }
 
     const baseCostsWithDisplay = (localHotel.baseCosts || []).map((bc: any) => {
         let bNetto = 0; let bBrutto = 0;
@@ -573,7 +580,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                     <div className="flex flex-col gap-1">
                                        <div className="flex items-center gap-1.5">
                                           <span className={labelCls}>Netto</span>
-                                          <input type="number" value={bc.netto != null ? bc.netto : bc.bNettoDisplay} onChange={e => updateBaseCost(bc.id, {netto: e.target.value === '' ? null : e.target.value, brutto: null})} className={cn(inputCls, 'w-full max-w-[120px] min-w-[80px]', bc.brutto != null && "bg-slate-100 dark:bg-black/20 text-slate-400")} placeholder="Auto" />
+                                          <input type="number" value={bc.brutto != null ? bc.brutto : bc.bBruttoDisplay} onChange={e => updateBaseCost(bc.id, {brutto: e.target.value === '' ? null : e.target.value, netto: null})} className={cn(inputCls, 'w-full max-w-[120px] min-w-[80px]', bc.netto != null && "opacity-50 pointer-events-none")} placeholder="Auto" />
                                           
                                           {!(bc.showDiscount || Boolean(bc.discountValue)) ? (
                                              <button onClick={() => updateBaseCost(bc.id, {showDiscount: true})} title="Rabatt hinzufügen" className={cn("p-1.5 rounded-lg border transition-all flex items-center justify-center shrink-0", dk ? "bg-[#1E293B] border-white/10 text-slate-400 hover:text-teal-400" : "bg-white border-slate-200 text-slate-400 hover:text-teal-500 hover:bg-slate-50")}>
