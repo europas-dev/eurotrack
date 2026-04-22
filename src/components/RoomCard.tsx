@@ -108,12 +108,12 @@ function BedSlot({
     dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-blue-500 placeholder-slate-500' : 'bg-white border-slate-200 text-slate-900 focus:border-blue-500 placeholder-slate-400'
   )
 
- async function save() {
+  async function save() {
     if (!name.trim()) return
     setSaving(true)
     const cleanPhone = phone.trim() === '+49' ? '' : phone.trim();
     
-    // THE FIX: Convert empty strings to null for the database
+    // FIX: Map empty strings to null so the database doesn't reject it
     const finalIn = checkIn === '' ? null : checkIn;
     const finalOut = checkOut === '' ? null : checkOut;
 
@@ -201,37 +201,37 @@ function BedSlot({
 
       <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full">
         {/* Check In - Invisible Overlay */}
-        <div className="relative w-[135px] h-[38px] shrink-0 group cursor-pointer">
+        <div className="relative w-[135px] h-[38px] shrink-0 group">
           <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent')}>
             <span className="text-[13px]">{fmtDateDe(checkIn)}</span>
             <Calendar size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
           </div>
-         <input 
-          type="date" 
-          value={checkIn} 
-          min={effectiveIn} 
-          max={effectiveOut} 
-          onChange={e => setCheckIn(e.target.value)} 
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer" 
-        />
+          <input 
+            type="date" 
+            value={checkIn || ''} 
+            min={effectiveIn} 
+            max={effectiveOut} 
+            onChange={e => setCheckIn(e.target.value)} 
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer" 
+          />
         </div>
         
         <span className="text-slate-400 text-sm hidden sm:block shrink-0">➔</span>
         
         {/* Check Out - Invisible Overlay */}
-        <div className="relative w-[135px] h-[38px] shrink-0 group cursor-pointer">
+        <div className="relative w-[135px] h-[38px] shrink-0 group">
           <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent')}>
             <span className="text-[13px]">{fmtDateDe(checkOut)}</span>
             <Calendar size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
           </div>
           <input 
-          type="date" 
-          value={checkOut} 
-          min={checkIn} 
-          max={effectiveOut} 
-          onChange={e => setCheckOut(e.target.value)} 
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer" 
-        />
+            type="date" 
+            value={checkOut || ''} 
+            min={checkIn || effectiveIn} 
+            max={effectiveOut} 
+            onChange={e => setCheckOut(e.target.value)} 
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer" 
+          />
         </div>
 
         {/* Clear Dates Inline */}
@@ -434,7 +434,7 @@ function InlineNMBRow({
             </div>
           </div>
           
-         {currentDiscountValue == null ? (
+          {currentDiscountValue == null ? (
             <div className="mt-[22px] shrink-0">
               <button onClick={() => queueSave({ [discountValueKey]: 0, [discountTypeKey]: 'fixed' } as any)} className={cn("p-1.5 h-[38px] rounded-lg border flex items-center justify-center transition-all", dk ? "border-white/10 text-slate-400 hover:text-teal-400 bg-[#1E293B]" : "border-slate-200 text-slate-400 hover:text-teal-500 hover:bg-slate-50 bg-white")}>
                 <Ticket size={16} />
@@ -531,21 +531,22 @@ export default function RoomCard({
   const employees = card.employees ?? []
 
   // DATE BOUNDARY CLAMPING ENGINE
+  const employeesStr = JSON.stringify(card.employees ?? []);
   useEffect(() => {
-    if (!employees.length) return;
-    let changed = false;
-    const changedEmployees: any[] = []; // Track only the ones that actually changed
+    const currentEmps = card.employees ?? [];
+    if (!currentEmps.length) return;
     
-    const newEmp = employees.map(emp => {
+    let changed = false;
+    const changedEmployees: any[] = [];
+    
+    const newEmp = currentEmps.map(emp => {
        let inD = emp.checkIn || '';
        let outD = emp.checkOut || '';
        let modified = false;
 
        if (inD && outD) {
            if (outD <= durationStart || inD >= durationEnd) {
-              inD = '';
-              outD = '';
-              modified = true;
+              inD = ''; outD = ''; modified = true;
            } else {
               if (inD < durationStart) { inD = durationStart; modified = true; }
               if (outD > durationEnd) { outD = durationEnd; modified = true; }
@@ -554,7 +555,6 @@ export default function RoomCard({
        
        if (modified) {
            changed = true;
-           // THE FIX: Ensure we use null instead of empty strings
            const updatedEmp = { ...emp, checkIn: inD === '' ? null : inD, checkOut: outD === '' ? null : outD };
            changedEmployees.push(updatedEmp);
            return updatedEmp;
@@ -568,7 +568,7 @@ export default function RoomCard({
           enqueue({ type: 'updateEmployee', payload: { id: emp.id, checkIn: emp.checkIn, checkOut: emp.checkOut } });
        });
     }
-  }, [durationStart, durationEnd]);
+  }, [durationStart, durationEnd, employeesStr]);
 
   const inputCls = cn('px-3 py-1.5 rounded-lg text-sm font-bold outline-none border transition-all h-[38px]', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')
   const labelCls = cn('text-[10px] font-black uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')
