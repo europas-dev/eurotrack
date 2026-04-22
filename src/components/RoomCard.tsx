@@ -194,9 +194,9 @@ function BedSlot({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 flex-nowrap w-full">
+      <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full">
         {/* Check In - Invisible Overlay */}
-        <div className="relative w-[135px] shrink-0 group cursor-pointer">
+        <div className="relative w-[135px] h-[38px] shrink-0 group cursor-pointer">
           <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent')}>
             <span className="text-[13px]">{fmtDateDe(checkIn)}</span>
             <Calendar size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
@@ -211,10 +211,10 @@ function BedSlot({
           />
         </div>
         
-        <span className="text-slate-400 text-sm hidden sm:block">➔</span>
+        <span className="text-slate-400 text-sm hidden sm:block shrink-0">➔</span>
         
         {/* Check Out - Invisible Overlay */}
-        <div className="relative w-[135px] shrink-0 group cursor-pointer">
+        <div className="relative w-[135px] h-[38px] shrink-0 group cursor-pointer">
           <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent')}>
             <span className="text-[13px]">{fmtDateDe(checkOut)}</span>
             <Calendar size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
