@@ -137,6 +137,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
   const [localHotel, setLocalHotel] = useState({
     ...entry,
+    contactPerson: entry?.contactperson || entry?.contactPerson || '',
+    website: entry?.weblink || entry?.website || '',
     companyTag: Array.isArray(entry?.companyTag) ? entry.companyTag : (entry?.companyTag ? [entry.companyTag] : []),
     durations: entry?.durations ?? [],
     extraCosts: entry?.extra_costs ?? [],
@@ -172,6 +174,32 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     let totalNightsAllRooms = 0;
     
     let buckets: Record<string, number> = {};
+    let minPricePerBed: number | null = null; // <--- ADD THIS
+
+    (localHotel.durations || []).forEach((d: any) => {
+      const nights = calculateNights(d.startDate, d.endDate);
+      
+      (d.roomCards || []).forEach((c: any) => {
+         const b = c.roomType === 'EZ' ? 1 : c.roomType === 'DZ' ? 2 : c.roomType === 'TZ' ? 3 : (c.bedCount || 2);
+         tBeds += b;
+         totalNightsAllRooms += (b * nights);
+         allEmps.push(...(c.employees || []));
+
+         const cardNetto = calcRoomCardNettoSum(c, d.startDate, d.endDate);
+         const cardBrutto = calcRoomCardTotal(c, d.startDate, d.endDate);
+         
+         sumDurationNetto += cardNetto;
+         sumDurationBrutto += cardBrutto;
+
+         // <--- ADD THIS BLOCK TO FIND THE CHEAPEST BED
+         if (b > 0 && nights > 0 && cardNetto > 0) {
+             const pricePerNight = cardNetto / (b * nights);
+             if (minPricePerBed === null || pricePerNight < minPricePerBed) {
+                 minPricePerBed = pricePerNight;
+             }
+         }
+
+         let activeMwst: number | null = null;
 
     (localHotel.durations || []).forEach((d: any) => {
       const nights = calculateNights(d.startDate, d.endDate);
@@ -316,8 +344,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     let pricePerBed = 0;
     if (localHotel.override_price_per_bed != null) {
        pricePerBed = parseFloat(localHotel.override_price_per_bed);
-    } else if (!isMasterActive && totalNightsAllRooms > 0) {
-       pricePerBed = finalNetto / totalNightsAllRooms;
+    } else if (!isMasterActive && minPricePerBed !== null) {
+       pricePerBed = minPricePerBed; // <--- FIX: Uses the cheapest bed
     }
 
     return { 
@@ -467,27 +495,39 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
           <div className="flex-[1.5] px-2 min-w-[120px]">
             <div className="flex flex-wrap gap-1.5">
-              {localHotel.durations.map((d: any) => (
-                <div key={d.id} className={cn('px-2.5 py-1 rounded-md text-xs font-bold border truncate text-center transition-all shadow-sm', dk ? 'bg-[#0F172A] border-white/10 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700')}>
-                  {d.startDate && d.endDate ? `${formatShortDate(d.startDate, lang)} - ${formatShortDate(d.endDate, lang)}` : 'New'}
-                </div>
-              ))}
+              {localHotel.durations.map((d: any, i: number) => {
+                const typeCount: any = {};
+                (d.roomCards || []).forEach((c:any) => { typeCount[c.roomType] = (typeCount[c.roomType] || 0) + 1 });
+                const roomStr = Object.entries(typeCount).map(([rt, count]) => `${count} ${rt}`).join(', ');
+                const n = calculateNights(d.startDate, d.endDate);
+                const title = `${n} N, ${(d.roomCards || []).length} Rooms ${roomStr ? `(${roomStr})` : ''}`;
+                
+                return (
+                  <button key={d.id} title={title} onClick={(e) => { e.stopPropagation(); setOpen(true); setActiveDurationTab(i); }} className={cn('px-2.5 py-1 rounded-md text-xs font-bold border truncate text-center transition-all shadow-sm hover:ring-2 ring-teal-500/30', dk ? 'bg-[#0F172A] border-white/10 text-slate-300 hover:bg-white/10' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100')}>
+                    {d.startDate && d.endDate ? `${formatShortDate(d.startDate, lang)} - ${formatShortDate(d.endDate, lang)}` : 'New'}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
           <div className="flex-[2.5] px-2">
             <div className="flex flex-wrap gap-1.5">
               {visibleEmps.map((emp: any, i: number) => {
-                const status = getEmployeeStatus(emp.checkIn, emp.checkOut);
-                const borderCls = status === 'active' ? "border-emerald-500" : status === 'upcoming' ? "border-blue-500 border-dashed" : status === 'ending-soon' ? "border-red-500 border-dashed" : "border-slate-300 dark:border-slate-600";
+                const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
+                const borderCls = status === 'active' ? "border-emerald-500/50" : status === 'upcoming' ? "border-blue-500/50" : status === 'ending-soon' ? "border-red-500/50" : "border-slate-500/40";
+                const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
+                const n = calculateNights(emp.checkIn||'', emp.checkOut||'');
+                const tooltip = `${n}N (${formatShortDate(emp.checkIn, lang)} ➔ ${formatShortDate(emp.checkOut, lang)})`;
+
                 return (
-                  <div key={i} className={cn("px-2 py-0.5 rounded-md border text-xs font-bold truncate text-center min-w-[70px] shadow-sm flex items-center justify-center gap-1", borderCls, dk ? "bg-black/20 text-white" : "bg-white text-slate-900")}>
-                    {status === 'upcoming' && <CornerDownRight size={10} className="shrink-0 opacity-70 text-blue-500" />}
+                  <button key={i} title={tooltip} onClick={(e) => { e.stopPropagation(); setOpen(true); }} className={cn("px-2.5 py-0.5 rounded-full border-2 text-xs font-bold truncate text-center shadow-sm flex items-center justify-center gap-1.5 transition-all hover:opacity-80", borderCls, dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-700")}>
+                    <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
                     <HighlightText text={emp.name || '_ _ _'} query={searchQuery} />
-                  </div>
+                  </button>
                 );
               })}
-              {hiddenEmpsCount > 0 && <div className="px-2 py-0.5 rounded-md border border-dashed border-slate-400 text-[11px] font-bold text-center flex items-center justify-center">+{hiddenEmpsCount}</div>}
+              {hiddenEmpsCount > 0 && <div className="px-2 py-0.5 rounded-full border border-dashed border-slate-400 text-[11px] font-bold text-center flex items-center justify-center">+{hiddenEmpsCount}</div>}
             </div>
           </div>
 
@@ -693,29 +733,25 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       )}
                    </div>
 
-                   <div className={cn("pt-4 border-t flex flex-col gap-2 mt-auto", dk ? "border-white/10" : "border-slate-200")}>
+                   <div className={cn("pt-4 border-t flex flex-col gap-3 mt-auto", dk ? "border-white/10" : "border-slate-200")}>
                       
-                      {/* FIX: Total Brutto is now right-aligned cleanly */}
                       <div className="flex justify-between items-center group w-full">
-                         <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">{lang === 'de' ? 'Gesamt Brutto' : 'Total Brutto'}</span>
+                         <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 shrink-0">{lang === 'de' ? 'Gesamt Brutto' : 'Total Brutto'}</span>
                          {editingOBrutto ? (
-                           <input autoFocus type="number" value={editBruttoValue} onChange={e => setEditBruttoValue(e.target.value)} onBlur={() => {patchHotel({override_total_brutto: editBruttoValue === '' ? null : editBruttoValue}); setEditingOBrutto(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-32 text-right px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-600 font-black text-xl outline-none")} />
+                           <input autoFocus type="number" value={editBruttoValue} onChange={e => setEditBruttoValue(e.target.value)} onBlur={() => {patchHotel({override_total_brutto: editBruttoValue === '' ? null : editBruttoValue}); setEditingOBrutto(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-32 text-right px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-600 font-black text-xl outline-none ml-auto")} />
                          ) : (
-                           <div className="flex-1 flex justify-end">
-                             <span onClick={() => {setEditBruttoValue(masterMath.displayBrutto.toFixed(2)); setEditingOBrutto(true);}} className={cn("text-xl font-black cursor-pointer rounded px-1 -mr-1 transition-colors flex items-center gap-2", masterMath.isOverriddenBrutto ? "text-yellow-500 bg-yellow-500/10" : dk ? "text-white group-hover:bg-white/10" : "text-slate-900 group-hover:bg-slate-200")}>{formatCurrency(masterMath.displayBrutto)} <Edit3 size={12} className="opacity-0 group-hover:opacity-100"/></span>
-                           </div>
+                           <span onClick={() => {setEditBruttoValue(masterMath.displayBrutto.toFixed(2)); setEditingOBrutto(true);}} className={cn("text-[22px] font-black cursor-pointer rounded px-1 -mr-1 transition-colors flex items-center gap-2 text-right ml-auto", masterMath.isOverriddenBrutto ? "text-yellow-500 bg-yellow-500/10" : dk ? "text-white group-hover:bg-white/10" : "text-slate-900 group-hover:bg-slate-200")}>{formatCurrency(masterMath.displayBrutto)} <Edit3 size={14} className="opacity-0 group-hover:opacity-100"/></span>
                          )}
                       </div>
                       
-                      {/* FIX: Price / Bed is larger and higher contrast */}
                       <div className="flex justify-between items-center group w-full">
-                        <span className={cn("text-[11px] font-bold", dk ? "text-slate-500" : "text-slate-400")}>{lang === 'de' ? 'Preis / Bett' : 'Price / Bed'}</span>
+                        <span className={cn("text-[11px] font-bold shrink-0", dk ? "text-slate-500" : "text-slate-400")}>{lang === 'de' ? 'Preis / Bett' : 'Price / Bed'}</span>
                         {editingPriceBed ? (
-                           <input autoFocus type="number" value={editPriceBedValue} onChange={e => setEditPriceBedValue(e.target.value)} onBlur={() => {patchHotel({override_price_per_bed: editPriceBedValue === '' ? null : editPriceBedValue}); setEditingPriceBed(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-20 text-right px-1 rounded bg-yellow-500/20 text-yellow-600 font-bold text-[13px] outline-none")} />
+                           <input autoFocus type="number" value={editPriceBedValue} onChange={e => setEditPriceBedValue(e.target.value)} onBlur={() => {patchHotel({override_price_per_bed: editPriceBedValue === '' ? null : editPriceBedValue}); setEditingPriceBed(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-20 text-right px-1 rounded bg-yellow-500/20 text-yellow-600 font-bold text-[14px] outline-none ml-auto")} />
                         ) : (
-                           <div className="flex-1 flex justify-end">
-                             <span onClick={() => {setEditPriceBedValue(masterMath.pricePerBed.toFixed(2)); setEditingPriceBed(true);}} className={cn("text-[13px] font-bold cursor-pointer rounded px-1 -mr-1 transition-colors flex items-center gap-1", masterMath.isOverriddenBed ? "text-yellow-600 bg-yellow-500/10" : dk ? "text-slate-300 group-hover:bg-white/10" : "text-slate-600 group-hover:bg-slate-200")}>{formatCurrency(masterMath.pricePerBed)} / N <Edit3 size={11} className="opacity-0 group-hover:opacity-100"/></span>
-                           </div>
+                           <span onClick={() => {setEditPriceBedValue(masterMath.pricePerBed.toFixed(2)); setEditingPriceBed(true);}} className={cn("text-[14px] font-bold cursor-pointer rounded px-1 -mr-1 transition-colors flex items-center gap-1.5 text-right ml-auto", masterMath.isOverriddenBed ? "text-yellow-600 bg-yellow-500/10" : dk ? "text-slate-300 group-hover:bg-white/10" : "text-slate-600 group-hover:bg-slate-200")}>
+                             {!masterMath.isOverriddenBed && masterMath.pricePerBed > 0 ? 'ab ' : ''}{formatCurrency(masterMath.pricePerBed)} / N <Edit3 size={11} className="opacity-0 group-hover:opacity-100"/>
+                           </span>
                         )}
                       </div>
                    </div>
