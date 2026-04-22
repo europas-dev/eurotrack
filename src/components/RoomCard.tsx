@@ -108,19 +108,24 @@ function BedSlot({
     dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-blue-500 placeholder-slate-500' : 'bg-white border-slate-200 text-slate-900 focus:border-blue-500 placeholder-slate-400'
   )
 
-  async function save() {
+ async function save() {
     if (!name.trim()) return
     setSaving(true)
     const cleanPhone = phone.trim() === '+49' ? '' : phone.trim();
+    
+    // THE FIX: Convert empty strings to null for the database
+    const finalIn = checkIn === '' ? null : checkIn;
+    const finalOut = checkOut === '' ? null : checkOut;
+
     try {
       if (employee?.id) {
-        const payload = { id: employee.id, name: name.trim(), phone: cleanPhone, checkIn, checkOut };
+        const payload = { id: employee.id, name: name.trim(), phone: cleanPhone, checkIn: finalIn, checkOut: finalOut };
         await enqueue({ type: 'updateEmployee', payload });
         onUpdated(slotIndex, { ...employee, ...payload });
       } else {
         const isGapFill = !!(gapStart || gapEnd)
         const newId = crypto.randomUUID();
-        const payload = { id: newId, durationId, roomCardId, slotIndex, name: name.trim(), phone: cleanPhone, checkIn, checkOut };
+        const payload = { id: newId, durationId, roomCardId, slotIndex, name: name.trim(), phone: cleanPhone, checkIn: finalIn, checkOut: finalOut };
         await enqueue({ type: 'createEmployee', payload });
         onUpdated(slotIndex, payload as any, isGapFill);
       }
@@ -529,6 +534,8 @@ export default function RoomCard({
   useEffect(() => {
     if (!employees.length) return;
     let changed = false;
+    const changedEmployees: any[] = []; // Track only the ones that actually changed
+    
     const newEmp = employees.map(emp => {
        let inD = emp.checkIn || '';
        let outD = emp.checkOut || '';
@@ -544,13 +551,20 @@ export default function RoomCard({
               if (outD > durationEnd) { outD = durationEnd; modified = true; }
            }
        }
-       if (modified) changed = true;
-       return modified ? { ...emp, checkIn: inD, checkOut: outD } : emp;
+       
+       if (modified) {
+           changed = true;
+           // THE FIX: Ensure we use null instead of empty strings
+           const updatedEmp = { ...emp, checkIn: inD === '' ? null : inD, checkOut: outD === '' ? null : outD };
+           changedEmployees.push(updatedEmp);
+           return updatedEmp;
+       }
+       return emp;
     });
 
     if (changed) {
        onUpdate(card.id, { employees: newEmp });
-       newEmp.forEach(emp => {
+       changedEmployees.forEach(emp => {
           enqueue({ type: 'updateEmployee', payload: { id: emp.id, checkIn: emp.checkIn, checkOut: emp.checkOut } });
        });
     }
