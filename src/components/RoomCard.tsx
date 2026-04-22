@@ -201,14 +201,14 @@ function BedSlot({
             <span className="text-[13px]">{fmtDateDe(checkIn)}</span>
             <Calendar size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
           </div>
-          <input 
-            type="date" 
-            value={checkIn} 
-            min={effectiveIn} 
-            max={effectiveOut} 
-            onChange={e => setCheckIn(e.target.value)} 
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
-          />
+         <input 
+          type="date" 
+          value={checkIn} 
+          min={effectiveIn} 
+          max={effectiveOut} 
+          onChange={e => setCheckIn(e.target.value)} 
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer" 
+        />
         </div>
         
         <span className="text-slate-400 text-sm hidden sm:block shrink-0">➔</span>
@@ -220,13 +220,13 @@ function BedSlot({
             <Calendar size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
           </div>
           <input 
-            type="date" 
-            value={checkOut} 
-            min={checkIn} 
-            max={effectiveOut} 
-            onChange={e => setCheckOut(e.target.value)} 
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
-          />
+          type="date" 
+          value={checkOut} 
+          min={checkIn} 
+          max={effectiveOut} 
+          onChange={e => setCheckOut(e.target.value)} 
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer" 
+        />
         </div>
 
         {/* Clear Dates Inline */}
