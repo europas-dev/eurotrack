@@ -272,18 +272,20 @@ export default function DurationCard({
               {/* FIRST DIVIDER */}
               <div className={cn("w-px h-6 mx-1", dk ? "bg-white/10" : "bg-slate-300")}></div>
               
-              {/* 2. THE LOUD STATUS (Only renders if relevant) */}
+              {/* 2. THE STATUS STAGE (Only renders if relevant) */}
               {isPast ? (
                   <>
-                    <span className="text-slate-500 font-black text-lg uppercase tracking-wider">{lang === 'de' ? 'ABGELAUFEN' : 'EXPIRED'}</span>
+                    {/* Softened, Title Case, smaller size for past dates */}
+                    <span className="text-slate-500 font-bold text-base tracking-wide">{lang === 'de' ? 'Abgelaufen' : 'Expired'}</span>
                     <div className={cn("w-px h-6 mx-1", dk ? "bg-white/10" : "bg-slate-300")}></div>
                   </>
               ) : totalBeds > 0 ? (
                   <>
+                    {/* Uppercase but slightly smaller (text-lg) for compact badges */}
                     {freeBeds > 0 ? (
-                        <span className="text-red-500 font-black text-xl uppercase tracking-wider">{lang === 'de' ? 'FREI' : 'FREE'} <span className="ml-1">{freeBeds}</span></span>
+                        <span className="text-red-500 font-black text-lg uppercase tracking-wider">{lang === 'de' ? 'FREI' : 'FREE'} <span className="ml-1">{freeBeds}</span></span>
                     ) : (
-                        <span className="text-emerald-500 dark:text-emerald-400 font-black text-xl uppercase tracking-wider">{lang === 'de' ? 'VOLL' : 'FULL'}</span>
+                        <span className="text-emerald-500 dark:text-emerald-400 font-black text-lg uppercase tracking-wider">{lang === 'de' ? 'VOLL' : 'FULL'}</span>
                     )}
                     {/* SECOND DIVIDER (Only if status is showing) */}
                     <div className={cn("w-px h-6 mx-1", dk ? "bg-white/10" : "bg-slate-300")}></div>
