@@ -261,26 +261,36 @@ export default function DurationCard({
         {/* RIGHT: CLEAN, LARGE INFO DISPLAY & TRASH */}
         {hasDates && (
             <div className="flex items-center gap-4 shrink-0 ml-auto">
-              <span className="flex items-center gap-1.5 text-lg font-bold text-slate-400"><Moon size={18} /> {nights}</span>
-              <span className="flex items-center gap-1.5 text-lg font-bold text-slate-400"><DoorClosed size={18} /> {roomCards.length}</span>
               
+              {/* 1. THE GREY BASE SPECS */}
+              <div className="flex items-center gap-4 text-slate-400">
+                <span className="flex items-center gap-1.5 text-lg font-bold"><Moon size={18} /> {nights}</span>
+                <span className="flex items-center gap-1.5 text-lg font-bold"><DoorClosed size={18} /> {roomCards.length}</span>
+                <span className="flex items-center gap-1.5 text-lg font-bold"><Bed size={18} /> {totalBeds}</span>
+              </div>
+              
+              {/* FIRST DIVIDER */}
               <div className={cn("w-px h-6 mx-1", dk ? "bg-white/10" : "bg-slate-300")}></div>
               
-              <span className={cn('text-xl font-black flex items-center gap-1.5', dk ? 'text-slate-200' : 'text-slate-800')}><Bed size={20} /> {totalBeds}</span>
-              
-              {/* CLEAN LOGIC: Past = Expired. Future + Beds = Frei/Voll. Future + 0 Beds = Nothing. */}
+              {/* 2. THE LOUD STATUS (Only renders if relevant) */}
               {isPast ? (
-                  <span className="text-slate-500 font-black text-sm uppercase tracking-widest">{lang === 'de' ? 'ABGELAUFEN' : 'EXPIRED'}</span>
+                  <>
+                    <span className="text-slate-500 font-black text-lg uppercase tracking-wider">{lang === 'de' ? 'ABGELAUFEN' : 'EXPIRED'}</span>
+                    <div className={cn("w-px h-6 mx-1", dk ? "bg-white/10" : "bg-slate-300")}></div>
+                  </>
               ) : totalBeds > 0 ? (
-                  freeBeds > 0 ? (
-                      <span className="text-red-500 font-black text-sm uppercase tracking-widest">{freeBeds} {lang === 'de' ? 'FREI' : 'FREE'}</span>
-                  ) : (
-                      <span className="text-emerald-500 font-black text-sm uppercase tracking-widest">{lang === 'de' ? 'VOLL' : 'FULL'}</span>
-                  )
+                  <>
+                    {freeBeds > 0 ? (
+                        <span className="text-red-500 font-black text-xl uppercase tracking-wider">{lang === 'de' ? 'FREI' : 'FREE'} <span className="ml-1">{freeBeds}</span></span>
+                    ) : (
+                        <span className="text-emerald-500 dark:text-emerald-400 font-black text-xl uppercase tracking-wider">{lang === 'de' ? 'VOLL' : 'FULL'}</span>
+                    )}
+                    {/* SECOND DIVIDER (Only if status is showing) */}
+                    <div className={cn("w-px h-6 mx-1", dk ? "bg-white/10" : "bg-slate-300")}></div>
+                  </>
               ) : null}
               
-              <div className={cn("w-px h-6 mx-1", dk ? "bg-white/10" : "bg-slate-300")}></div>
-              
+              {/* 3. PRICE & TRASH */}
               {isMasterPricingActive ? (
                   <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Master active</span>
               ) : (
