@@ -7,6 +7,7 @@ import {
 } from '../lib/utils';
 import { createDuration, updateHotel, deleteHotel } from '../lib/supabase';
 import { calcRoomCardTotal, calcRoomCardNettoSum } from '../lib/roomCardUtils';
+import { enqueue } from '../lib/offlineSync'; // NEW: Imported for duration deletion
 import DurationCard from './DurationCard';
 
 export const DEFAULT_COUNTRIES = ['Germany', 'Switzerland', 'Austria', 'Netherlands', 'Poland', 'Belgium', 'France', 'Luxembourg'];
@@ -107,7 +108,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [open, setOpen] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   
-  // FIX: STRICT default to 'fixed' (€) if the discount is 0 or empty
   const initialBaseCosts = entry?.base_costs?.length > 0 
     ? entry.base_costs.map((bc: any) => ({
         ...bc,
@@ -163,7 +163,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     return null;
   }, [localHotel, searchQuery, lang]);
 
-  // --- THE MASTER ACCOUNTING ENGINE ---
+  // --- THE MASTER ACCOUNTING ENGINE & MWST BUCKETER ---
   const masterMath = useMemo(() => {
     let tFree = 0; let tBeds = 0; const allEmps: any[] = [];
     const today = new Date().toISOString().split('T')[0];
@@ -171,30 +171,43 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     let sumDurationBrutto = 0;
     let totalNightsAllRooms = 0;
     
+    let buckets: Record<string, number> = {};
+
     (localHotel.durations || []).forEach((d: any) => {
       const nights = calculateNights(d.startDate, d.endDate);
       
-      // We sum up the rooms for this specific duration
       (d.roomCards || []).forEach((c: any) => {
          const b = c.roomType === 'EZ' ? 1 : c.roomType === 'DZ' ? 2 : c.roomType === 'TZ' ? 3 : (c.bedCount || 2);
          tBeds += b;
          totalNightsAllRooms += (b * nights);
          allEmps.push(...(c.employees || []));
 
-         // CRITICAL FIX: Dynamically calculate raw numbers directly from the utility so it never fails
-         sumDurationNetto += calcRoomCardNettoSum(c, d.startDate, d.endDate);
-         sumDurationBrutto += calcRoomCardTotal(c, d.startDate, d.endDate);
+         const cardNetto = calcRoomCardNettoSum(c, d.startDate, d.endDate);
+         const cardBrutto = calcRoomCardTotal(c, d.startDate, d.endDate);
+         
+         sumDurationNetto += cardNetto;
+         sumDurationBrutto += cardBrutto;
+
+         // SMART MWST BUCKETING FOR ROOM CARDS
+         // We check if the room has an active MwSt rate applied in its pricing tab
+         let activeMwst: number | null = null;
+         if (c.pricingTab === 'per_room') {
+            if (c.roomMwst != null && c.roomMwst !== '') activeMwst = parseFloat(c.roomMwst);
+         } else {
+            if (c.bedMwst != null && c.bedMwst !== '') activeMwst = parseFloat(c.bedMwst);
+         }
+
+         if (activeMwst !== null && !isNaN(activeMwst)) {
+             buckets[activeMwst] = (buckets[activeMwst] || 0) + (cardBrutto - cardNetto);
+         }
       });
 
-      // Status tracking for the header
       tFree += calcDurationFreeBeds(d, today);
     });
 
     let bNettoTotal = 0; let bBruttoTotal = 0;
     let isMasterActive = false;
-    let buckets: Record<string, number> = {};
 
-    // Check if any "Grundkosten" inputs are filled
     const baseCostsWithDisplay = (localHotel.baseCosts || []).map((bc: any) => {
         let bNetto = 0; let bBrutto = 0;
         let bMwSt = bc.mwst != null ? parseFloat(bc.mwst) : null;
@@ -266,14 +279,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
        return { ...ec, eNettoDisplay, eBruttoDisplay };
     });
 
-    // CRITICAL FIX: If no Master Base Cost is active, pull from roomCardsTotal
     let preGlobalNetto = (isMasterActive ? bNettoTotal : sumDurationNetto) + extraNettoTotal;
     let preGlobalBrutto = (isMasterActive ? bBruttoTotal : sumDurationBrutto) + extraBruttoTotal;
     
     let finalNetto = preGlobalNetto;
     let finalBrutto = preGlobalBrutto;
 
-    // Apply Global Discount
     if (localHotel.has_global_discount && localHotel.global_discount_value) {
        const gVal = parseFloat(localHotel.global_discount_value);
        const isFixed = localHotel.global_discount_type === 'fixed';
@@ -331,7 +342,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         const dbPayload: any = {};
         if ('name' in next) dbPayload.name = next.name;
         if ('city' in next) dbPayload.city = next.city;
-        if ('companyTag' in next) dbPayload.company_tag = next.companyTag;
+        if ('companyTag' in next) dbPayload.company_tag = next.companyTag; // FIX: Ensure proper mapping
         if ('address' in next) dbPayload.address = next.address;
         if ('contactPerson' in next) dbPayload.contactperson = next.contactPerson;
         if ('phone' in next) dbPayload.phone = next.phone;
@@ -340,8 +351,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         if ('country' in next) dbPayload.country = next.country;
         if ('notes' in next) dbPayload.notes = next.notes;
         
-        if ('rechnungNr' in next) dbPayload.rechnung_nr = next.rechnungNr;
-        if ('bookingId' in next) dbPayload.booking_id = next.bookingId;
+        if ('rechnungNr' in next) dbPayload.rechnung_nr = next.rechnungNr; // FIX: Ensure proper mapping
+        if ('bookingId' in next) dbPayload.booking_id = next.bookingId;   // FIX: Ensure proper mapping
         if ('isPaid' in next) dbPayload.is_paid = next.isPaid;
         
         if ('depositEnabled' in next) dbPayload.deposit_enabled = next.depositEnabled;
@@ -643,7 +654,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    </div>
                 </div>
 
-                {/* COL 3: Master Summary */}
+                {/* COL 3: Master Summary (FIXED ALIGNMENT) */}
                 <div className={cn("w-full xl:w-[380px] p-5 flex flex-col shrink-0 border-t xl:border-t-0 xl:border-l rounded-tr-2xl rounded-br-2xl rounded-bl-2xl xl:rounded-bl-none", dk ? "bg-[#0F172A]/80 border-white/10" : "bg-slate-50 border-slate-200")}>
                    <div className="flex items-center justify-between gap-2 mb-4">
                       <div className="flex items-center gap-1.5 flex-1 max-w-[160px]">
@@ -677,59 +688,90 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
                    <div className={cn("pt-4 border-t flex flex-col gap-2 mt-auto", dk ? "border-white/10" : "border-slate-200")}>
                       
-                      <div className="flex justify-between items-center group">
+                      {/* FIX: Total Brutto is now right-aligned cleanly */}
+                      <div className="flex justify-between items-center group w-full">
                          <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">{lang === 'de' ? 'Gesamt Brutto' : 'Total Brutto'}</span>
                          {editingOBrutto ? (
                            <input autoFocus type="number" value={editBruttoValue} onChange={e => setEditBruttoValue(e.target.value)} onBlur={() => {patchHotel({override_total_brutto: editBruttoValue === '' ? null : editBruttoValue}); setEditingOBrutto(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-32 text-right px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-600 font-black text-xl outline-none")} />
                          ) : (
-                           <span onClick={() => {setEditBruttoValue(masterMath.displayBrutto.toFixed(2)); setEditingOBrutto(true);}} className={cn("text-xl font-black cursor-pointer rounded px-1 -ml-1 transition-colors flex items-center gap-2", masterMath.isOverriddenBrutto ? "text-yellow-500 bg-yellow-500/10" : dk ? "text-white group-hover:bg-white/10" : "text-slate-900 group-hover:bg-slate-200")}>{formatCurrency(masterMath.displayBrutto)} <Edit3 size={12} className="opacity-0 group-hover:opacity-100"/></span>
+                           <div className="flex-1 flex justify-end">
+                             <span onClick={() => {setEditBruttoValue(masterMath.displayBrutto.toFixed(2)); setEditingOBrutto(true);}} className={cn("text-xl font-black cursor-pointer rounded px-1 -mr-1 transition-colors flex items-center gap-2", masterMath.isOverriddenBrutto ? "text-yellow-500 bg-yellow-500/10" : dk ? "text-white group-hover:bg-white/10" : "text-slate-900 group-hover:bg-slate-200")}>{formatCurrency(masterMath.displayBrutto)} <Edit3 size={12} className="opacity-0 group-hover:opacity-100"/></span>
+                           </div>
                          )}
                       </div>
                       
-                      <div className="flex justify-between items-center group">
-                        <span className={cn("text-[10px] font-bold", dk ? "text-slate-500" : "text-slate-400")}>{lang === 'de' ? 'Preis / Bett' : 'Price / Bed'}</span>
+                      {/* FIX: Price / Bed is larger and higher contrast */}
+                      <div className="flex justify-between items-center group w-full">
+                        <span className={cn("text-[11px] font-bold", dk ? "text-slate-500" : "text-slate-400")}>{lang === 'de' ? 'Preis / Bett' : 'Price / Bed'}</span>
                         {editingPriceBed ? (
-                           <input autoFocus type="number" value={editPriceBedValue} onChange={e => setEditPriceBedValue(e.target.value)} onBlur={() => {patchHotel({override_price_per_bed: editPriceBedValue === '' ? null : editPriceBedValue}); setEditingPriceBed(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-20 text-right px-1 rounded bg-yellow-500/20 text-yellow-600 font-bold text-[11px] outline-none")} />
+                           <input autoFocus type="number" value={editPriceBedValue} onChange={e => setEditPriceBedValue(e.target.value)} onBlur={() => {patchHotel({override_price_per_bed: editPriceBedValue === '' ? null : editPriceBedValue}); setEditingPriceBed(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-20 text-right px-1 rounded bg-yellow-500/20 text-yellow-600 font-bold text-[13px] outline-none")} />
                         ) : (
-                           <span onClick={() => {setEditPriceBedValue(masterMath.pricePerBed.toFixed(2)); setEditingPriceBed(true);}} className={cn("text-[11px] font-bold cursor-pointer rounded px-1 -mr-1 transition-colors flex items-center gap-1", masterMath.isOverriddenBed ? "text-yellow-600 bg-yellow-500/10" : dk ? "text-slate-400 group-hover:bg-white/10" : "text-slate-500 group-hover:bg-slate-200")}>{formatCurrency(masterMath.pricePerBed)} / N <Edit3 size={10} className="opacity-0 group-hover:opacity-100"/></span>
+                           <div className="flex-1 flex justify-end">
+                             <span onClick={() => {setEditPriceBedValue(masterMath.pricePerBed.toFixed(2)); setEditingPriceBed(true);}} className={cn("text-[13px] font-bold cursor-pointer rounded px-1 -mr-1 transition-colors flex items-center gap-1", masterMath.isOverriddenBed ? "text-yellow-600 bg-yellow-500/10" : dk ? "text-slate-300 group-hover:bg-white/10" : "text-slate-600 group-hover:bg-slate-200")}>{formatCurrency(masterMath.pricePerBed)} / N <Edit3 size={11} className="opacity-0 group-hover:opacity-100"/></span>
+                           </div>
                         )}
                       </div>
                    </div>
                 </div>
             </div>
             
-            {/* DURATION TABS */}
+            {/* DURATION TABS (FUSED FOLDER EFFECT) */}
             <div className="pt-4">
-              <div className={cn("inline-flex items-center gap-1 p-1.5 rounded-xl shadow-inner border flex-wrap", dk ? "bg-black/40 border-white/5" : "bg-slate-100 border-slate-200")}>
-                {(localHotel.durations || []).map((d: any, i: number) => (
-                  <button key={d.id || i} onClick={() => setActiveDurationTab(i)} className={cn('px-5 py-2 rounded-lg text-sm font-bold transition-all shadow-sm', activeDurationTab === i ? (dk ? 'bg-teal-600 text-white border-transparent' : 'bg-white text-teal-700 border-teal-600 border') : (dk ? 'text-slate-400 hover:text-white border border-transparent' : 'text-slate-500 hover:text-slate-800 border border-transparent'))}>
-                    {getDurationTabLabel(d, lang)}
-                  </button>
-                ))}
+              <div className={cn("flex items-end gap-1 flex-wrap", dk ? "" : "")}>
+                {(localHotel.durations || []).map((d: any, i: number) => {
+                  const isActive = activeDurationTab === i;
+                  return (
+                    <button 
+                      key={d.id || i} 
+                      onClick={() => setActiveDurationTab(i)} 
+                      // FIX: Active tab perfectly matches the dark mode card below it, and removes its bottom border radius
+                      className={cn(
+                        'px-5 py-2.5 text-sm font-bold transition-all border', 
+                        isActive 
+                          ? (dk ? 'bg-[#0B1224] text-teal-400 border-white/5 border-b-0 rounded-t-xl z-10' : 'bg-white text-teal-700 border-slate-200 border-b-0 rounded-t-xl z-10') 
+                          : (dk ? 'bg-[#1E293B]/50 text-slate-500 border-transparent hover:text-slate-300 rounded-lg' : 'bg-slate-100 text-slate-500 border-transparent hover:text-slate-700 rounded-lg')
+                      )}
+                      style={isActive ? { marginBottom: '-1px' } : { marginBottom: '3px' }}
+                    >
+                      {getDurationTabLabel(d, lang)}
+                    </button>
+                  );
+                })}
                 <button onClick={async () => {
                   setCreatingDuration(true);
                   const created = await createDuration({ hotelId: localHotel.id });
                   const next = { ...localHotel, durations: [...localHotel.durations, { ...created, roomCards: [] }] };
                   setLocalHotel(next); onUpdate(localHotel.id, next); setActiveDurationTab(next.durations.length - 1);
                   setCreatingDuration(false);
-                }} className={cn("px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all border border-dashed", dk ? "border-white/20 text-slate-400 hover:bg-white/10 hover:text-white hover:border-white/40" : "border-slate-300 text-slate-500 hover:bg-slate-200 hover:text-slate-800 hover:border-slate-400")}>
+                }} className={cn("px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all border border-dashed mb-[3px] ml-1", dk ? "border-white/20 text-slate-400 hover:bg-white/10 hover:text-white hover:border-white/40" : "border-slate-300 text-slate-500 hover:bg-slate-200 hover:text-slate-800 hover:border-slate-400")}>
                   {creatingDuration ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} strokeWidth={3} />} {lang === 'de' ? 'Neu' : 'New'}
                 </button>
               </div>
             </div>
             
+            {/* FIX: Remove top-left border radius of card so it perfectly connects to the first tab */}
             {localHotel.durations[activeDurationTab] ? (
-              <DurationCard duration={localHotel.durations[activeDurationTab]} isDarkMode={dk} lang={lang} 
-                isMasterPricingActive={masterMath.isMasterActive}
-                onUpdate={(id, upd) => {
-                  const next = { ...localHotel, durations: localHotel.durations.map((d: any) => d.id === id ? upd : d) };
-                  setLocalHotel(next); onUpdate(localHotel.id, next);
-                }}
-                onDelete={(id) => {
-                  const next = { ...localHotel, durations: localHotel.durations.filter((d: any) => d.id !== id) };
-                  setLocalHotel(next); onUpdate(localHotel.id, next);
-                }}
-              />
+              <div className={cn("relative z-0", activeDurationTab === 0 ? "[&>div]:rounded-tl-none" : "")}>
+                <DurationCard duration={localHotel.durations[activeDurationTab]} isDarkMode={dk} lang={lang} 
+                  isMasterPricingActive={masterMath.isMasterActive}
+                  onUpdate={(id, upd) => {
+                    const next = { ...localHotel, durations: localHotel.durations.map((d: any) => d.id === id ? upd : d) };
+                    setLocalHotel(next); onUpdate(localHotel.id, next);
+                  }}
+                  onDelete={(id) => {
+                    const next = { ...localHotel, durations: localHotel.durations.filter((d: any) => d.id !== id) };
+                    setLocalHotel(next); onUpdate(localHotel.id, next);
+                    
+                    // FIX: This permanently queues the duration deletion in the database!
+                    enqueue({ type: 'deleteDuration', payload: { id } });
+                    
+                    // Reset tab to 0 if we deleted the active one
+                    if (activeDurationTab >= next.durations.length) {
+                       setActiveDurationTab(Math.max(0, next.durations.length - 1));
+                    }
+                  }}
+                />
+              </div>
             ) : null}
           </div>
         )}
