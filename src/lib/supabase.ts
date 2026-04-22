@@ -168,19 +168,16 @@ export async function updateHotel(id: string, data: any) {
   const { data: { user } } = await supabase.auth.getUser()
   const authorName = user?.user_metadata?.full_name || user?.email || 'Admin'
   
+  // Clean the payload (remove 'id' if it accidentally got passed so we don't overwrite the Primary Key)
+  const { id: _id, ...payload } = data;
+
+  // Spreading the payload perfectly passes the snake_case keys directly to the DB!
   const { error } = await supabase.from('hotels').update({
-    name: data.name,
-    city: data.city,
-    company_tag: data.companyTag,
-    address: data.address,
-    contactperson: data.contactPerson,
-    phone: data.phone,
-    email: data.email,
-    weblink: data.webLink,
-    notes: data.notes,
+    ...payload,
     last_updated_at: new Date().toISOString(),
     last_updated_by: authorName
   }).eq('id', id)
+  
   if (error) throw error
 }
 
