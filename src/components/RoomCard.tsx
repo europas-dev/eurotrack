@@ -159,7 +159,10 @@ function BedSlot({
 
   if (!editing && employee) {
     return (
-      <div className={cn('flex items-center gap-4 px-4 py-3 rounded-lg transition-all group relative', borderCls, isPartial ? 'border-2 border-dashed' : 'border-2 border-solid', dk ? 'bg-[#0F172A]' : 'bg-white')}>
+      <div 
+      id={`emp-slot-${employee.id}`} // <-- ADD THIS ID
+      className={cn('flex items-center gap-4 px-4 py-3 rounded-lg transition-all group relative', borderCls, isPartial ? 'border-2 border-dashed' : 'border-2 border-solid', dk ? 'bg-[#0F172A]' : 'bg-white')}
+    >
         <IconToUse size={18} className={status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400'} />
         
         <div className="flex flex-col flex-1 overflow-hidden relative">
