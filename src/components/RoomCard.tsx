@@ -688,7 +688,7 @@ export default function RoomCard({
                  <button onClick={(e) => { 
                     e.stopPropagation(); 
                     setShowPricing(!showPricing); 
-                    if (!showPricing && !card.pricingTab) { queueSave({ pricingTab: 'per_bed' }); } 
+                    if (!showPricing) { queueSave({ pricingTab: 'per_bed' }); } 
                  }} className={tabBtn(showPricing)}>{lang === 'de' ? 'Preis' : 'Price'}</button>
                  <div className="flex flex-col items-end min-w-[120px] ml-2"><span className="text-xl font-black">{roomTotalDisplay}</span></div>
                </>
