@@ -488,14 +488,45 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             <div className="flex flex-wrap gap-1.5">
               {visibleEmps.map((emp: any, i: number) => {
                 const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
+                
+                // NEW: Find the duration this employee belongs to so we can check for partial stays
+                const parentDuration = localHotel.durations.find((d: any) => d.id === emp.duration_id || d.id === emp.durationId);
+                const isPartial = parentDuration && (emp.checkIn > parentDuration.startDate || emp.checkOut < parentDuration.endDate);
+                
+                // NEW: Check if this employee is a replacement (Substitute)
+                // In the main row list, we check if they have a 'slot_index' shared with another emp in the same duration
+                const isSubstitute = masterMath.employees.some((other: any) => 
+                  other.id !== emp.id && 
+                  other.slot_index === emp.slot_index && 
+                  other.duration_id === emp.duration_id &&
+                  (other.checkIn < emp.checkIn) // The one who came first is the original
+                );
+
                 const borderCls = status === 'active' ? "border-emerald-500/50" : status === 'upcoming' ? "border-blue-500/50" : status === 'ending-soon' ? "border-red-500/50" : "border-slate-500/40";
                 const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
+                const textColor = status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400';
+                
                 const n = calculateNights(emp.checkIn||'', emp.checkOut||'');
                 const tooltip = `${n}N (${formatShortDate(emp.checkIn, lang)} ➔ ${formatShortDate(emp.checkOut, lang)})`;
 
                 return (
-                  <button key={i} title={tooltip} onClick={(e) => { e.stopPropagation(); setOpen(true); }} className={cn("px-2.5 py-0.5 rounded-full border-2 text-xs font-bold truncate text-center shadow-sm flex items-center justify-center gap-1.5 transition-all hover:opacity-80", borderCls, dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-700")}>
-                    <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
+                  <button 
+                    key={emp.id || i} 
+                    title={tooltip} 
+                    onClick={(e) => { e.stopPropagation(); setOpen(true); }} 
+                    className={cn(
+                      "px-2.5 py-0.5 rounded-full border-2 text-xs font-bold truncate text-center shadow-sm flex items-center justify-center gap-1.5 transition-all hover:opacity-80", 
+                      borderCls, 
+                      isPartial ? "border-dashed" : "border-solid", // FIX: Passes the dashed border
+                      dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-700"
+                    )}
+                  >
+                    {/* FIX: Shows the replacement arrow if they are a substitute */}
+                    {isSubstitute ? (
+                      <CornerDownRight size={12} className={textColor} />
+                    ) : (
+                      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
+                    )}
                     <HighlightText text={emp.name || '_ _ _'} query={searchQuery} />
                   </button>
                 );
