@@ -7,7 +7,7 @@ import {
 } from '../lib/utils';
 import { createDuration, updateHotel, deleteHotel } from '../lib/supabase';
 import { calcRoomCardTotal, calcRoomCardNettoSum } from '../lib/roomCardUtils';
-import { enqueue } from '../lib/offlineSync'; // NEW: Imported for duration deletion
+import { enqueue } from '../lib/offlineSync';
 import DurationCard from './DurationCard';
 
 export const DEFAULT_COUNTRIES = ['Germany', 'Switzerland', 'Austria', 'Netherlands', 'Poland', 'Belgium', 'France', 'Luxembourg'];
@@ -174,7 +174,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     let totalNightsAllRooms = 0;
     
     let buckets: Record<string, number> = {};
-    let minPricePerBed: number | null = null; // <--- ADD THIS
+    let minPricePerBed: number | null = null;
 
     (localHotel.durations || []).forEach((d: any) => {
       const nights = calculateNights(d.startDate, d.endDate);
@@ -191,7 +191,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
          sumDurationNetto += cardNetto;
          sumDurationBrutto += cardBrutto;
 
-         // <--- ADD THIS BLOCK TO FIND THE CHEAPEST BED
          if (b > 0 && nights > 0 && cardNetto > 0) {
              const pricePerNight = cardNetto / (b * nights);
              if (minPricePerBed === null || pricePerNight < minPricePerBed) {
@@ -199,25 +198,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
              }
          }
 
-         let activeMwst: number | null = null;
-
-    (localHotel.durations || []).forEach((d: any) => {
-      const nights = calculateNights(d.startDate, d.endDate);
-      
-      (d.roomCards || []).forEach((c: any) => {
-         const b = c.roomType === 'EZ' ? 1 : c.roomType === 'DZ' ? 2 : c.roomType === 'TZ' ? 3 : (c.bedCount || 2);
-         tBeds += b;
-         totalNightsAllRooms += (b * nights);
-         allEmps.push(...(c.employees || []));
-
-         const cardNetto = calcRoomCardNettoSum(c, d.startDate, d.endDate);
-         const cardBrutto = calcRoomCardTotal(c, d.startDate, d.endDate);
-         
-         sumDurationNetto += cardNetto;
-         sumDurationBrutto += cardBrutto;
-
-         // SMART MWST BUCKETING FOR ROOM CARDS
-         // We check if the room has an active MwSt rate applied in its pricing tab
          let activeMwst: number | null = null;
          if (c.pricingTab === 'per_room') {
             if (c.roomMwst != null && c.roomMwst !== '') activeMwst = parseFloat(c.roomMwst);
@@ -234,11 +214,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     });
 
     let bNettoTotal = 0; let bBruttoTotal = 0;
-    
-    // THE FIX: Check if Master is active BEFORE processing base costs
     let isMasterActive = (localHotel.baseCosts || []).some((bc: any) => bc.netto != null || bc.brutto != null);
 
-    // If Master Pricing is active, empty the room tax buckets so they don't leak into the total!
     if (isMasterActive) {
         buckets = {};
     }
@@ -249,10 +226,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         let isMwstValid = bMwSt !== null && !isNaN(bMwSt);
         let bNettoDisplay = ''; let bBruttoDisplay = '';
         let discountedNetto = 0;
-
-        if (bc.netto != null || bc.brutto != null) {
-            isMasterActive = true;
-        }
 
         if (bc.netto != null) {
             bNetto = parseFloat(bc.netto);
@@ -345,7 +318,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     if (localHotel.override_price_per_bed != null) {
        pricePerBed = parseFloat(localHotel.override_price_per_bed);
     } else if (!isMasterActive && minPricePerBed !== null) {
-       pricePerBed = minPricePerBed; // <--- FIX: Uses the cheapest bed
+       pricePerBed = minPricePerBed;
     }
 
     return { 
@@ -377,7 +350,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         const dbPayload: any = {};
         if ('name' in next) dbPayload.name = next.name;
         if ('city' in next) dbPayload.city = next.city;
-        if ('companyTag' in next) dbPayload.company_tag = next.companyTag; // FIX: Ensure proper mapping
+        if ('companyTag' in next) dbPayload.company_tag = next.companyTag;
         if ('address' in next) dbPayload.address = next.address;
         if ('contactPerson' in next) dbPayload.contactperson = next.contactPerson;
         if ('phone' in next) dbPayload.phone = next.phone;
@@ -386,8 +359,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         if ('country' in next) dbPayload.country = next.country;
         if ('notes' in next) dbPayload.notes = next.notes;
         
-        if ('rechnungNr' in next) dbPayload.rechnung_nr = next.rechnungNr; // FIX: Ensure proper mapping
-        if ('bookingId' in next) dbPayload.booking_id = next.bookingId;   // FIX: Ensure proper mapping
+        if ('rechnungNr' in next) dbPayload.rechnung_nr = next.rechnungNr;
+        if ('bookingId' in next) dbPayload.booking_id = next.bookingId;
         if ('isPaid' in next) dbPayload.is_paid = next.isPaid;
         
         if ('depositEnabled' in next) dbPayload.deposit_enabled = next.depositEnabled;
@@ -620,7 +593,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                     <div className="flex flex-col gap-1">
                                        <div className="flex items-center gap-1.5">
                                           <span className={labelCls}>Netto</span>
-                                          <input type="number" value={bc.brutto != null ? bc.brutto : bc.bBruttoDisplay} onChange={e => updateBaseCost(bc.id, {brutto: e.target.value === '' ? null : e.target.value, netto: null})} className={cn(inputCls, 'w-full max-w-[120px] min-w-[80px]', bc.netto != null && "opacity-50 pointer-events-none")} placeholder="Auto" />
+                                          <input type="number" value={bc.netto != null ? bc.netto : bc.bNettoDisplay} onChange={e => updateBaseCost(bc.id, {netto: e.target.value === '' ? null : e.target.value, brutto: null})} className={cn(inputCls, 'w-full max-w-[120px] min-w-[80px]', bc.brutto != null && "opacity-50 pointer-events-none")} placeholder="Auto" />
                                           
                                           {!(bc.showDiscount || Boolean(bc.discountValue)) ? (
                                              <button onClick={() => updateBaseCost(bc.id, {showDiscount: true})} title="Rabatt hinzufügen" className={cn("p-1.5 rounded-lg border transition-all flex items-center justify-center shrink-0", dk ? "bg-[#1E293B] border-white/10 text-slate-400 hover:text-teal-400" : "bg-white border-slate-200 text-slate-400 hover:text-teal-500 hover:bg-slate-50")}>
@@ -649,7 +622,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                     
                                     <div className="flex items-center gap-1.5">
                                        <span className={labelCls}>Brutto</span>
-                                       <input type="number" value={bc.brutto != null ? bc.brutto : bc.bBruttoDisplay} onChange={e => updateBaseCost(bc.id, {brutto: e.target.value === '' ? null : e.target.value, netto: null})} className={cn(inputCls, 'w-full max-w-[120px] min-w-[80px]', bc.netto != null && "bg-slate-100 dark:bg-black/20 text-slate-400")} placeholder="Auto" />
+                                       <input type="number" value={bc.brutto != null ? bc.brutto : bc.bBruttoDisplay} onChange={e => updateBaseCost(bc.id, {brutto: e.target.value === '' ? null : e.target.value, netto: null})} className={cn(inputCls, 'w-full max-w-[120px] min-w-[80px]', bc.netto != null && "opacity-50 pointer-events-none")} placeholder="Auto" />
                                     </div>
 
                                     {localHotel.baseCosts.length > 1 ? (
@@ -689,9 +662,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                      <button onClick={addExtra} className={cn("p-1.5 h-[34px] rounded-lg transition-all flex items-center justify-center shrink-0 border", dk ? "bg-[#1E293B] border-white/10 text-teal-400 hover:bg-white/10" : "bg-white border-slate-200 text-teal-600 hover:bg-slate-100")}><Plus size={16}/></button>
                                      <input value={ec.note} onChange={e => updateExtra(ec.id, {note: e.target.value})} className={cn(inputCls, 'flex-1 min-w-[140px]')} placeholder={lang === 'de' ? "Notiz..." : "Note..."} />
                                      
-                                     <div className="flex items-center gap-1.5"><span className={labelCls}>Netto</span><input type="number" value={ec.netto != null ? ec.netto : ec.eNettoDisplay} onChange={e => updateExtra(ec.id, {netto: e.target.value === '' ? null : e.target.value, brutto: null})} className={cn(inputCls, 'w-full max-w-[100px] min-w-[70px]', ec.brutto != null && "bg-slate-100 dark:bg-black/20 text-slate-400")} placeholder="Auto" /></div>
+                                     <div className="flex items-center gap-1.5"><span className={labelCls}>Netto</span><input type="number" value={ec.netto != null ? ec.netto : ec.eNettoDisplay} onChange={e => updateExtra(ec.id, {netto: e.target.value === '' ? null : e.target.value, brutto: null})} className={cn(inputCls, 'w-full max-w-[100px] min-w-[70px]', ec.brutto != null && "opacity-50 pointer-events-none")} placeholder="Auto" /></div>
                                      <div className="flex items-center gap-1.5 shrink-0"><span className={labelCls}>MwSt</span><MwstInput value={ec.mwst} onChange={(v) => updateExtra(ec.id, {mwst: v})} isDarkMode={dk} /></div>
-                                     <div className="flex items-center gap-1.5"><span className={labelCls}>Brutto</span><input type="number" value={ec.brutto != null ? ec.brutto : ec.eBruttoDisplay} onChange={e => updateExtra(ec.id, {brutto: e.target.value === '' ? null : e.target.value, netto: null})} className={cn(inputCls, 'w-full max-w-[100px] min-w-[70px]', ec.netto != null && "bg-slate-100 dark:bg-black/20 text-slate-400")} placeholder="Auto" /></div>
+                                     <div className="flex items-center gap-1.5"><span className={labelCls}>Brutto</span><input type="number" value={ec.brutto != null ? ec.brutto : ec.eBruttoDisplay} onChange={e => updateExtra(ec.id, {brutto: e.target.value === '' ? null : e.target.value, netto: null})} className={cn(inputCls, 'w-full max-w-[100px] min-w-[70px]', ec.netto != null && "opacity-50 pointer-events-none")} placeholder="Auto" /></div>
                                      <button onClick={() => removeExtra(ec.id)} className={cn("p-1.5 h-[34px] rounded-lg transition-all flex items-center justify-center shrink-0 border", dk ? "bg-[#1E293B] border-white/10 text-red-400 hover:bg-white/10" : "bg-white border-slate-200 text-red-500 hover:bg-slate-100")}><X size={16}/></button>
                                   </div>
                                ))}
@@ -767,7 +740,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                     <button 
                       key={d.id || i} 
                       onClick={() => setActiveDurationTab(i)} 
-                      // FIX: Active tab perfectly matches the dark mode card below it, and removes its bottom border radius
                       className={cn(
                         'px-5 py-2.5 text-sm font-bold transition-all border', 
                         isActive 
@@ -804,11 +776,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                   onDelete={(id) => {
                     const next = { ...localHotel, durations: localHotel.durations.filter((d: any) => d.id !== id) };
                     setLocalHotel(next); onUpdate(localHotel.id, next);
-                    
-                    // FIX: This permanently queues the duration deletion in the database!
                     enqueue({ type: 'deleteDuration', payload: { id } });
-                    
-                    // Reset tab to 0 if we deleted the active one
                     if (activeDurationTab >= next.durations.length) {
                        setActiveDurationTab(Math.max(0, next.durations.length - 1));
                     }
