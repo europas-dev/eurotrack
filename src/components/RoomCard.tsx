@@ -195,24 +195,37 @@ function BedSlot({
       </div>
 
       <div className="flex items-center gap-2 flex-nowrap w-full">
-        {/* Date fields made visible directly to ensure clickability */}
-        <div className="relative w-[135px] shrink-0">
+        {/* Check In - Invisible Overlay */}
+        <div className="relative w-[135px] shrink-0 group cursor-pointer">
+          <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent')}>
+            <span className="text-[13px]">{fmtDateDe(checkIn)}</span>
+            <Calendar size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
+          </div>
           <input 
             type="date" 
             value={checkIn} 
+            min={effectiveIn} 
+            max={effectiveOut} 
             onChange={e => setCheckIn(e.target.value)} 
-            className={cn(inputCls, "w-full cursor-pointer text-[13px] uppercase")} 
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
           />
         </div>
         
         <span className="text-slate-400 text-sm hidden sm:block">➔</span>
         
-        <div className="relative w-[135px] shrink-0">
+        {/* Check Out - Invisible Overlay */}
+        <div className="relative w-[135px] shrink-0 group cursor-pointer">
+          <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent')}>
+            <span className="text-[13px]">{fmtDateDe(checkOut)}</span>
+            <Calendar size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
+          </div>
           <input 
             type="date" 
             value={checkOut} 
+            min={checkIn} 
+            max={effectiveOut} 
             onChange={e => setCheckOut(e.target.value)} 
-            className={cn(inputCls, "w-full cursor-pointer text-[13px] uppercase")} 
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
           />
         </div>
 
