@@ -238,7 +238,7 @@ export async function createRoomCard(data: any) {
     duration_id: data.durationId,
     room_type: data.roomType || 'EZ',
     bed_count: data.bedCount || 1,
-    pricing_tab: 'per_room'
+    pricing_tab: 'per_bed' // FIXED: Now defaults to per_bed
   }).select().single()
   if (error) throw error
   return result
@@ -272,9 +272,14 @@ export async function updateRoomCard(id: string, data: any) {
   if (data.totalEnergyMwst !== undefined) payload.total_energy_mwst = data.totalEnergyMwst;
   if (data.totalEnergyBrutto !== undefined) payload.total_energy_brutto = data.totalEnergyBrutto;
 
-  if (data.hasDiscount !== undefined) payload.has_discount = data.hasDiscount;
-  if (data.discountType !== undefined) payload.discount_type = data.discountType;
-  if (data.discountValue !== undefined) payload.discount_value = data.discountValue;
+  // FIXED: Removed old global discounts and mapped the 6 new tab-specific columns
+  // Note: The SQL created these as camelCase inside quotes, so we map them exactly as named.
+  if (data.bedDiscountType !== undefined) payload['bedDiscountType'] = data.bedDiscountType;
+  if (data.bedDiscountValue !== undefined) payload['bedDiscountValue'] = data.bedDiscountValue;
+  if (data.roomDiscountType !== undefined) payload['roomDiscountType'] = data.roomDiscountType;
+  if (data.roomDiscountValue !== undefined) payload['roomDiscountValue'] = data.roomDiscountValue;
+  if (data.totalDiscountType !== undefined) payload['totalDiscountType'] = data.totalDiscountType;
+  if (data.totalDiscountValue !== undefined) payload['totalDiscountValue'] = data.totalDiscountValue;
 
   if (Object.keys(payload).length > 0) {
     const { error } = await supabase.from('room_cards').update(payload).eq('id', id)
@@ -290,10 +295,11 @@ export async function deleteRoomCard(id: string) {
 export async function createEmployee(durationId: string, slotIndex: number, data: any) {
   const { data: result, error } = await supabase.from('employees').insert({
     id: data.id, 
-    duration_id: durationId,           // PERFECT MATCH TO SQL
+    duration_id: durationId,           
     room_card_id: data.roomCardId,    
-    slot_index: slotIndex,             // PERFECT MATCH TO SQL
+    slot_index: slotIndex,             
     name: data.name,
+    phone: data.phone, // FIXED: Added phone
     checkin: data.checkIn,
     checkout: data.checkOut
   }).select().single()
@@ -304,6 +310,7 @@ export async function createEmployee(durationId: string, slotIndex: number, data
 export async function updateEmployee(id: string, data: any) {
   const { error } = await supabase.from('employees').update({
     name: data.name,
+    phone: data.phone, // FIXED: Added phone
     checkin: data.checkIn,
     checkout: data.checkOut
   }).eq('id', id)
