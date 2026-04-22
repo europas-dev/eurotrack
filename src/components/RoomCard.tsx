@@ -712,6 +712,8 @@ export default function RoomCard({
              )}
              <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-2 text-slate-400 hover:text-red-500 shrink-0 ml-1"><Trash2 size={18} /></button>
            </div>
+          )}
+      </div>
       {isOpen && (
         <div className={cn("p-6 border-t", dk ? "bg-black/20 border-white/5" : "bg-slate-50/50 border-slate-100")}>
            {showPricing && !isMasterPricingActive && (
