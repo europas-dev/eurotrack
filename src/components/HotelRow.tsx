@@ -510,25 +510,43 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 const tooltip = `${n}N (${formatShortDate(emp.checkIn, lang)} ➔ ${formatShortDate(emp.checkOut, lang)})`;
 
                 return (
-                  <button 
-                    key={emp.id || i} 
-                    title={tooltip} 
-                    onClick={(e) => { e.stopPropagation(); setOpen(true); }} 
-                    className={cn(
-                      "px-2.5 py-0.5 rounded-full border-2 text-xs font-bold truncate text-center shadow-sm flex items-center justify-center gap-1.5 transition-all hover:opacity-80", 
-                      borderCls, 
-                      isPartial ? "border-dashed" : "border-solid", // FIX: Passes the dashed border
-                      dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-700"
-                    )}
-                  >
-                    {/* FIX: Shows the replacement arrow if they are a substitute */}
-                    {isSubstitute ? (
-                      <CornerDownRight size={12} className={textColor} />
-                    ) : (
-                      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
-                    )}
-                    <HighlightText text={emp.name || '_ _ _'} query={searchQuery} />
-                  </button>
+                <button 
+                  key={emp.id || i} 
+                  title={tooltip} 
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    // 1. Open the hotel row if it's closed
+                    setOpen(true); 
+                    
+                    // 2. Find and set the correct duration tab
+                    const durationIdx = localHotel.durations.findIndex((d: any) => d.id === emp.duration_id || d.id === emp.durationId);
+                    if (durationIdx !== -1) setActiveDurationTab(durationIdx);
+                
+                    // 3. Scroll to the specific employee slot
+                    setTimeout(() => {
+                      const element = document.getElementById(`emp-slot-${emp.id}`);
+                      if (element) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        // Optional: Add a brief "flash" effect so the user sees which one it is
+                        element.classList.add('ring-2', 'ring-teal-500');
+                        setTimeout(() => element.classList.remove('ring-2', 'ring-teal-500'), 2000);
+                      }
+                    }, 100); 
+                  }} 
+                  className={cn(
+                    "px-2.5 py-0.5 rounded-full border-2 text-xs font-bold truncate text-center shadow-sm flex items-center justify-center gap-1.5 transition-all hover:opacity-80", 
+                    borderCls, 
+                    isPartial ? "border-dashed" : "border-solid",
+                    dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-700"
+                  )}
+                >
+                  {isSubstitute ? (
+                    <CornerDownRight size={12} className={textColor} />
+                  ) : (
+                    <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
+                  )}
+                  <HighlightText text={emp.name || '_ _ _'} query={searchQuery} />
+               </button>
                 );
               })}
               {hiddenEmpsCount > 0 && <div className="px-2 py-0.5 rounded-full border border-dashed border-slate-400 text-[11px] font-bold text-center flex items-center justify-center">+{hiddenEmpsCount}</div>}
