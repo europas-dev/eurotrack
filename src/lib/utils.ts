@@ -351,17 +351,22 @@ export function getDurationTabLabel(d: any, lang: 'de' | 'en'): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EXPORT & PRINT FUNCTIONS (Professional PDF & CSV Engine)
+// EXPORT FUNCTIONS (Professional)
 // ─────────────────────────────────────────────────────────────────────────────
+// src/lib/utils.ts - Full Export & Print Section
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
-function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de' | 'en') {
+function fmtDateFull(iso: string) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return `${d}.${m}.${y}`;
+}
+
+export function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de' | 'en') {
   return hotels.map(h => {
-    const company = Array.isArray(h.companyTag) ? h.companyTag.join(', ') : (h.companyTag || '—');
-    const invoice = h.rechnungNr || h.rechnung_nr || '—';
-    
-    // Professional Full Dates: 05.04.2026 - 12.04.2026
+    const isDe = lang === 'de';
     const dates = (h.durations || []).map((d: any) => 
       d.startDate && d.endDate ? `${fmtDateFull(d.startDate)} - ${fmtDateFull(d.endDate)}` : ''
     ).filter(Boolean).join('\n');
@@ -370,151 +375,81 @@ function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de'
       (d.roomCards || []).flatMap((rc: any) => (rc.employees || []).map((e: any) => e.name))
     ).filter(Boolean).join(', ');
 
-    const cost = formatCurrency(calcCost(h));
-    
-    const isPaid = h.isPaid || h.is_paid;
-    const status = isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid');
-
-    const hasDeposit = h.depositEnabled || h.deposit_enabled;
-    const depositAmount = Number(h.depositAmount || h.deposit_amount) || 0;
-    const depositStr = hasDeposit 
-        ? (depositAmount > 0 ? formatCurrency(depositAmount) : (lang === 'de' ? 'Ja' : 'Yes')) 
-        : (lang === 'de' ? 'Nein' : 'No');
-
     return {
       hotel: h.name || '—',
-      company,
+      company: Array.isArray(h.companyTag) ? h.companyTag.join(', ') : (h.companyTag || '—'),
       city: h.city || '—',
       address: h.address || '—',
       contact: h.contactPerson || h.contactperson || '—',
       phone: h.phone || '—',
-      invoice,
-      dates,
-      employees,
-      cost,
-      status,
-      depositStr,
-      hasDeposit
+      invoice: h.rechnungNr || h.rechnung_nr || '—',
+      dates: dates || '—',
+      employees: employees || '—',
+      cost: (calcCost(h) || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }),
+      status: (h.isPaid || h.is_paid) ? (isDe ? 'Bezahlt' : 'Paid') : (isDe ? 'Offen' : 'Unpaid'),
+      deposit: h.depositEnabled ? (Number(h.depositAmount) > 0 ? (Number(h.depositAmount).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })) : (isDe ? 'Ja' : 'Yes')) : (isDe ? 'Nein' : 'No')
     };
   });
 }
 
-function fmtDateFull(iso: string) {
-  if (!iso) return '';
-  const [y, m, d] = iso.split('-');
-  return `${d}.${m}.${y}`;
-}
-
-export function exportToCSV(
-  hotels: any[], 
-  calcCost: (h: any) => number, 
-  grandTotal: number, 
-  reportTitle: string, 
-  lang: 'de' | 'en',
-  showStatus: boolean,
-  showDeposit: boolean
-) {
-  const data = buildReportData(hotels, calcCost, lang);
-  const isDe = lang === 'de';
-
-  let headers = isDe 
-    ? ['Hotelname', 'Firma', 'Stadt', 'Adresse', 'Ansprechpartner', 'Telefon', 'Rechnungsnr.', 'Zeitraum', 'Mitarbeiter', 'Gesamtkosten']
-    : ['Hotel Name', 'Company', 'City', 'Address', 'Contact', 'Phone', 'Invoice No.', 'Durations', 'Employees', 'Total Cost'];
-  
-  if (showStatus) headers.splice(headers.length - 1, 0, 'Status');
-  if (showDeposit) headers.push(isDe ? 'Kaution' : 'Deposit');
-
-  const rows = data.map(d => {
-    const row = [d.hotel, d.company, d.city, d.address, d.contact, d.phone, d.invoice, d.dates, d.employees];
-    if (showStatus) row.push(d.status);
-    row.push(d.cost);
-    if (showDeposit) row.push(d.depositStr);
-    return row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
-  });
-
-  const totalRow = Array(headers.length).fill('""');
-  const costIndex = showDeposit ? headers.length - 2 : headers.length - 1;
-  totalRow[costIndex - 1] = isDe ? `"GESAMTSUMME"` : `"GRAND TOTAL"`;
-  totalRow[costIndex] = `"${formatCurrency(grandTotal)}"`;
-  rows.push(totalRow.join(','));
-
-  const csvContent = headers.map(h => `"${h}"`).join(',') + '\n' + rows.join('\n');
-  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `Europas_GmbH_Report_${new Date().toISOString().split('T')[0]}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-export function printDocument(
-  hotels: any[], 
-  calcCost: (h: any) => number, 
-  grandTotal: number, 
-  reportTitle: string, 
-  lang: 'de' | 'en',
-  activeCols: string[] 
-) {
+// PDF Generation using jsPDF
+export function generatePDF(data: any[], activeCols: string[], title: string, lang: 'de' | 'en', grandTotal: number) {
   const isDe = lang === 'de';
   const doc = new jsPDF('l', 'pt', 'a4');
-
-  // HEADER
+  
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.text("Europas GmbH", 40, 40);
-  
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.setTextColor(100);
-  doc.text(reportTitle, 40, 55);
+  doc.text(title, 40, 55);
 
-  // TOP TOTAL
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(0);
   doc.text(isDe ? "Gesamtkosten" : "Total Cost", doc.internal.pageSize.width - 40, 40, { align: 'right' });
   doc.setFontSize(15);
-  doc.text(formatCurrency(grandTotal), doc.internal.pageSize.width - 40, 58, { align: 'right' });
+  doc.text(grandTotal.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }), doc.internal.pageSize.width - 40, 58, { align: 'right' });
 
-  // COLUMNS
   const columns = [{ header: isDe ? 'Hotelname' : 'Hotel Name', dataKey: 'hotel' }];
   if (activeCols.includes('company')) columns.push({ header: isDe ? 'Firma' : 'Company', dataKey: 'company' });
   if (activeCols.includes('city')) columns.push({ header: isDe ? 'Stadt' : 'City', dataKey: 'city' });
   if (activeCols.includes('address')) columns.push({ header: isDe ? 'Adresse' : 'Address', dataKey: 'address' });
   if (activeCols.includes('contact')) columns.push({ header: isDe ? 'Ansprechpartner' : 'Contact', dataKey: 'contact' });
   if (activeCols.includes('phone')) columns.push({ header: isDe ? 'Telefon' : 'Phone', dataKey: 'phone' });
-  if (activeCols.includes('invoice')) columns.push({ header: isDe ? 'Rechnungsnr.' : 'Invoice No.', dataKey: 'invoice' });
+  if (activeCols.includes('invoice')) columns.push({ header: isDe ? 'Rechnungsnr.' : 'Invoice No', dataKey: 'invoice' });
   if (activeCols.includes('durations')) columns.push({ header: isDe ? 'Zeitraum' : 'Durations', dataKey: 'dates' });
   if (activeCols.includes('employees')) columns.push({ header: isDe ? 'Mitarbeiter' : 'Employees', dataKey: 'employees' });
   columns.push({ header: isDe ? 'Kosten' : 'Cost', dataKey: 'cost' });
   if (activeCols.includes('status')) columns.push({ header: 'Status', dataKey: 'status' });
   if (activeCols.includes('deposit')) columns.push({ header: isDe ? 'Kaution' : 'Deposit', dataKey: 'deposit' });
 
-  const body = buildReportData(hotels, calcCost, lang);
-
   autoTable(doc, {
-    columns: columns,
-    body: body,
+    columns,
+    body: data,
     startY: 80,
     theme: 'grid',
-    styles: { fontSize: 10, font: "helvetica", cellPadding: 4, overflow: 'linebreak' },
-    headStyles: { fillColor: [245, 245, 245], textColor: [0, 0, 0], fontStyle: 'bold' },
-    columnStyles: {
-      hotel: { fontStyle: 'bold' },
-      employees: { cellWidth: 'auto' },
-      cost: { fontStyle: 'bold', halign: 'right' }
-    },
-    didDrawPage: (data) => {
-      const footerY = doc.internal.pageSize.height - 20;
+    styles: { fontSize: 10, font: "helvetica", cellPadding: 4, overflow: 'linebreak', lineColor: [0,0,0], lineWidth: 0.5 },
+    headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.5 },
+    didDrawPage: (d) => {
       doc.setFontSize(8);
-      doc.setTextColor(150);
-      doc.text(`${isDe ? 'Erstellt am:' : 'Generated on:'} ${new Date().toLocaleString()}`, 40, footerY);
-      
-      const pageNumber = "Page " + doc.internal.getNumberOfPages();
-      doc.text(pageNumber, doc.internal.pageSize.width - 40, footerY, { align: 'right' });
+      doc.text(`${isDe ? 'Erstellt am' : 'Generated on'}: ${new Date().toLocaleString()}`, 40, doc.internal.pageSize.height - 20);
+      doc.text(`Page ${doc.internal.getNumberOfPages()}`, doc.internal.pageSize.width - 40, doc.internal.pageSize.height - 20, { align: 'right' });
     }
   });
+  return doc;
+}
 
-  window.open(doc.output('bloburl'), '_blank');
+// EXCEL Generation using XLSX
+export function generateExcel(data: any[], activeCols: string[], lang: 'de' | 'en') {
+  const isDe = lang === 'de';
+  const headers = ['Hotelname', ...activeCols, 'Kosten'];
+  const excelData = data.map(row => {
+    const obj: any = { [isDe ? 'Hotelname' : 'Hotel Name']: row.hotel };
+    activeCols.forEach(col => { obj[col] = row[col]; });
+    obj[isDe ? 'Kosten' : 'Cost'] = row.cost;
+    return obj;
+  });
+  const ws = XLSX.utils.json_to_sheet(excelData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Report");
+  XLSX.writeFile(wb, `Europas_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
