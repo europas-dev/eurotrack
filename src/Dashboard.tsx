@@ -7,6 +7,7 @@ import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Undo2, Redo2, Star, Calen
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import { HotelRow, ModernDropdown, CompanyMultiSelect, getCountryOptions } from './components/HotelRow';
+import ExportStudio from './components/ExportStudio';
 
 // --- SYSTEM COMPANIES API ---
 async function getSystemCompanies(): Promise<string[]> {
@@ -44,6 +45,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchScope, setSearchScope] = useState('all');
+  const [showStudio, setShowStudio] = useState(false);
 
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportCols, setExportCols] = useState({
@@ -400,7 +402,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           
           // FIX: Passing the dynamic title and the active filter states!
           onExportCsv={() => exportToCSV(finalFiltered, calcHotelTotalCost, totalSpend, `Report: Period ${displayTitle}`, lang, filterPaid !== 'all', filterDeposit !== 'all')} 
-          onPrint={() => setShowExportModal(true)}
+          onPrint={() => setShowStudio(true)}
           
           viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} 
           offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} 
@@ -637,56 +639,19 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           </main>
         )}
 
-        {/* --- EXPORT MODAL (CONTROL CENTER) --- */}
-        {showExportModal && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className={cn('w-full max-w-lg rounded-3xl border p-8 shadow-2xl animate-in zoom-in-95', dk ? 'bg-[#1E293B] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200')}>
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-black">{lang === 'de' ? 'Bericht anpassen' : 'Customize Report'}</h3>
-                <button onClick={() => setShowExportModal(false)} className="text-slate-400 hover:text-red-500 transition-colors"><X size={24} /></button>
-              </div>
-
-              <p className="text-sm font-bold text-slate-500 mb-6">
-                {lang === 'de' ? 'Wählen Sie die Spalten aus. Hotelname und Kosten sind fix.' : 'Select the columns to include. Hotel Name and Cost are fixed.'}
-              </p>
-
-              <div className="grid grid-cols-2 gap-3 mb-8">
-                {Object.entries(exportCols).map(([key, val]) => (
-                  <label key={key} className={cn("flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all", val ? "border-teal-500 bg-teal-500/10" : "border-transparent bg-black/5 hover:bg-black/10")}>
-                    <input type="checkbox" checked={val} onChange={() => setExportCols(prev => ({ ...prev, [key]: !val }))} className="w-5 h-5 rounded accent-teal-600" />
-                    <span className="text-sm font-bold">
-                      {key === 'company' && (lang === 'de' ? 'Firma' : 'Company')}
-                      {key === 'city' && (lang === 'de' ? 'Stadt' : 'City')}
-                      {key === 'address' && (lang === 'de' ? 'Adresse' : 'Address')}
-                      {key === 'contact' && (lang === 'de' ? 'Ansprechpartner' : 'Contact')}
-                      {key === 'phone' && (lang === 'de' ? 'Telefon' : 'Phone')}
-                      {key === 'invoice' && (lang === 'de' ? 'Rechnungsnr.' : 'Invoice No')}
-                      {key === 'durations' && (lang === 'de' ? 'Zeitraum' : 'Durations')}
-                      {key === 'employees' && (lang === 'de' ? 'Mitarbeiter' : 'Employees')}
-                      {key === 'status' && 'Status'}
-                      {key === 'deposit' && (lang === 'de' ? 'Kaution' : 'Deposit')}
-                    </span>
-                  </label>
-                ))}
-              </div>
-
-              <button 
-                onClick={() => {
-                  const activeKeys = Object.entries(exportCols).filter(([_, v]) => v).map(([k]) => k);
-                  // Dynamic Period Title
-                  const periodTitle = selectedMonth !== null 
-                    ? `Period: ${lang === 'de' ? monthNamesDe[selectedMonth] : monthNamesEn[selectedMonth]} ${selectedYear}`
-                    : `Period: ${selectedYear}`;
-                  
-                  printDocument(finalFiltered, calcHotelTotalCost, totalSpend, periodTitle, lang, activeKeys);
-                  setShowExportModal(false);
-                }} 
-                className="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-2xl transition-all shadow-lg flex items-center justify-center gap-3"
-              >
-                <Plus size={20} strokeWidth={3} /> {lang === 'de' ? 'PDF generieren' : 'Generate PDF'}
-              </button>
-            </div>
-          </div>
+        {/* --- THE EXPORT STUDIO (LIVE PREVIEW & CONTROL CENTER) --- */}
+        {showStudio && (
+          <ExportStudio 
+            hotels={finalFiltered} 
+            calcCost={calcHotelTotalCost} 
+            lang={lang} 
+            total={totalSpend}
+            title={selectedMonth !== null 
+              ? `Period: ${lang === 'de' ? monthNamesDe[selectedMonth] : monthNamesEn[selectedMonth]} ${selectedYear}` 
+              : `Period: ${selectedYear}`}
+            onClose={() => setShowStudio(false)}
+            dk={dk}
+          />
         )}
       </div>
     </div>
