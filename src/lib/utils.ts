@@ -435,7 +435,14 @@ export function generatePDF(data: any[], activeCols: string[], title: string, la
     theme: 'grid',
     styles: { fontSize: 8, font: "helvetica", cellPadding: 4, lineColor: [200, 200, 200], lineWidth: 0.5 },
     headStyles: { fillColor: [245, 245, 245], textColor: [0, 0, 0], fontStyle: 'bold' },
-    columnStyles: { cost: { fontStyle: 'bold', halign: 'right' } },
+    columnStyles: { 
+      hotel: { cellWidth: 85 },      // Added space back to Hotel
+      address: { cellWidth: 90 },    // Added space back to Address
+      contact: { cellWidth: 80 },    // Added space back to Contact
+      dates: { cellWidth: 95 },      // Controlled width for Durations
+      employees: { cellWidth: 105 }, // Controlled width for Employees
+      cost: { fontStyle: 'bold', halign: 'right' } 
+    },
     didDrawPage: (d) => {
       const now = new Date();
       const ts = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}, ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
