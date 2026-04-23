@@ -36,7 +36,7 @@ export default function ExportStudio({ hotels, calcCost, lang, title, total, onC
         </div>
         
         <div className="flex items-center gap-3">
-          <button onClick={() => generateExcel(reportData, activeCols, lang)} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-sm transition-all"><Download size={16}/> Excel</button>
+          <button onClick={() => generateExcel(reportData, activeCols, lang, title, total)} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-sm"> <Download size={16}/> Excel </button>
           <button onClick={() => { const doc = generatePDF(reportData, activeCols, title, lang, total); doc.save('Report.pdf'); }} className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-bold text-sm transition-all"><FileText size={16}/> PDF</button>
           <button onClick={() => { const doc = generatePDF(reportData, activeCols, title, lang, total); window.open(doc.output('bloburl'), '_blank'); }} className="flex items-center gap-2 px-4 py-2 bg-white text-slate-900 hover:bg-slate-100 rounded-lg font-bold text-sm transition-all"><Printer size={16}/> {isDe ? 'Drucken' : 'Print'}</button>
         </div>
