@@ -351,15 +351,25 @@ export function getDurationTabLabel(d: any, lang: 'de' | 'en'): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EXPORT & PRINT FUNCTIONS
+// EXPORT & PRINT FUNCTIONS (Professional PDF & CSV Engine)
 // ─────────────────────────────────────────────────────────────────────────────
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de' | 'en') {
   return hotels.map(h => {
     const company = Array.isArray(h.companyTag) ? h.companyTag.join(', ') : (h.companyTag || '—');
     const invoice = h.rechnungNr || h.rechnung_nr || '—';
-    const dates = (h.durations || []).map((d: any) => d.startDate && d.endDate ? `${formatDateChip(d.startDate)} - ${formatDateChip(d.endDate)}` : '').filter(Boolean).join(', ') || '—';
-    const employees = (h.durations || []).flatMap((d: any) => (d.roomCards || []).flatMap((rc: any) => (rc.employees || []).map((e: any) => e.name))).filter(Boolean).join(', ') || '—';
+    
+    // Professional Full Dates: 05.04.2026 - 12.04.2026
+    const dates = (h.durations || []).map((d: any) => 
+      d.startDate && d.endDate ? `${fmtDateFull(d.startDate)} - ${fmtDateFull(d.endDate)}` : ''
+    ).filter(Boolean).join('\n');
+
+    const employees = (h.durations || []).flatMap((d: any) => 
+      (d.roomCards || []).flatMap((rc: any) => (rc.employees || []).map((e: any) => e.name))
+    ).filter(Boolean).join(', ');
+
     const cost = formatCurrency(calcCost(h));
     
     const isPaid = h.isPaid || h.is_paid;
@@ -371,15 +381,12 @@ function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de'
         ? (depositAmount > 0 ? formatCurrency(depositAmount) : (lang === 'de' ? 'Ja' : 'Yes')) 
         : (lang === 'de' ? 'Nein' : 'No');
 
-    // FIX: Address now strictly maps to the address field only
-    const address = h.address || '—';
-    const contact = h.contactPerson || h.contactperson || '—';
-
     return {
       hotel: h.name || '—',
       company,
-      address,
-      contact,
+      city: h.city || '—',
+      address: h.address || '—',
+      contact: h.contactPerson || h.contactperson || '—',
       phone: h.phone || '—',
       invoice,
       dates,
@@ -387,27 +394,38 @@ function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de'
       cost,
       status,
       depositStr,
-      hasDeposit,
-      isPaid
+      hasDeposit
     };
   });
 }
 
-// FIX: Added showStatus and showDeposit boolean parameters
-export function exportToCSV(hotels: any[], calcCost: (h: any) => number, grandTotal: number, reportTitle: string, lang: 'de' | 'en', showStatus: boolean, showDeposit: boolean) {
+function fmtDateFull(iso: string) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return `${d}.${m}.${y}`;
+}
+
+export function exportToCSV(
+  hotels: any[], 
+  calcCost: (h: any) => number, 
+  grandTotal: number, 
+  reportTitle: string, 
+  lang: 'de' | 'en',
+  showStatus: boolean,
+  showDeposit: boolean
+) {
   const data = buildReportData(hotels, calcCost, lang);
   const isDe = lang === 'de';
 
   let headers = isDe 
-    ? ['Hotelname', 'Firma', 'Adresse', 'Kontakt', 'Telefon', 'Rechnungsnr.', 'Zeitraum', 'Mitarbeiter', 'Gesamtkosten']
-    : ['Hotel Name', 'Company', 'Address', 'Contact', 'Phone', 'Invoice No.', 'Durations', 'Employees', 'Total Cost'];
+    ? ['Hotelname', 'Firma', 'Stadt', 'Adresse', 'Ansprechpartner', 'Telefon', 'Rechnungsnr.', 'Zeitraum', 'Mitarbeiter', 'Gesamtkosten']
+    : ['Hotel Name', 'Company', 'City', 'Address', 'Contact', 'Phone', 'Invoice No.', 'Durations', 'Employees', 'Total Cost'];
   
-  // Splice optional columns in before Total Cost if active
   if (showStatus) headers.splice(headers.length - 1, 0, 'Status');
   if (showDeposit) headers.push(isDe ? 'Kaution' : 'Deposit');
 
   const rows = data.map(d => {
-    const row = [d.hotel, d.company, d.address, d.contact, d.phone, d.invoice, d.dates, d.employees];
+    const row = [d.hotel, d.company, d.city, d.address, d.contact, d.phone, d.invoice, d.dates, d.employees];
     if (showStatus) row.push(d.status);
     row.push(d.cost);
     if (showDeposit) row.push(d.depositStr);
@@ -430,132 +448,73 @@ export function exportToCSV(hotels: any[], calcCost: (h: any) => number, grandTo
   URL.revokeObjectURL(url);
 }
 
-// FIX: Added showStatus and showDeposit boolean parameters
-export function printDocument(hotels: any[], calcCost: (h: any) => number, grandTotal: number, reportTitle: string, lang: 'de' | 'en', showStatus: boolean, showDeposit: boolean) {
-  const data = buildReportData(hotels, calcCost, lang);
-  const dateStr = new Date().toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+export function printDocument(
+  hotels: any[], 
+  calcCost: (h: any) => number, 
+  grandTotal: number, 
+  reportTitle: string, 
+  lang: 'de' | 'en',
+  activeCols: string[] 
+) {
   const isDe = lang === 'de';
+  const doc = new jsPDF('l', 'pt', 'a4');
 
-  const employeeWidth = (showDeposit && showStatus) ? '18%' : (showDeposit || showStatus) ? '21%' : '25%';
+  // HEADER
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Europas GmbH", 40, 40);
+  
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+  doc.text(reportTitle, 40, 55);
 
-  let html = `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>Europas_GmbH_Report</title>
-        <style>
-          /* FIX: Enforced Landscape orientation */
-          @page { size: landscape; margin: 12mm; }
-          body { 
-            font-family: 'Calibri', 'Arial', sans-serif; 
-            color: #000; 
-            margin: 0; 
-            font-size: 11pt; 
-            -webkit-print-color-adjust: exact; 
-            print-color-adjust: exact; 
-          }
-          .header-container { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: flex-end; 
-            border-bottom: 2px solid #000; 
-            padding-bottom: 12px; 
-            margin-bottom: 20px; 
-          }
-          .company-name { font-size: 14pt; font-weight: bold; margin: 0 0 4px 0; }
-          .report-title { font-size: 11pt; margin: 0; color: #4B5563; }
-          .total-block { text-align: right; }
-          .total-label { font-size: 11pt; margin: 0 0 2px 0; color: #4B5563; }
-          .total-value { font-size: 16pt; font-weight: bold; margin: 0; }
-          
-          table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-          th, td { 
-            border: 1px solid #D1D5DB; 
-            padding: 8px 6px; 
-            text-align: left; 
-            vertical-align: top; 
-            word-wrap: break-word; 
-            font-size: 11pt; 
-          }
-          th { 
-            background-color: #F3F4F6; 
-            font-weight: bold; 
-          }
-          
-          .date-footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            font-size: 9pt;
-            color: #6B7280;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header-container">
-          <div>
-            <h1 class="company-name">Europas GmbH</h1>
-            <p class="report-title">${reportTitle}</p>
-          </div>
-          <div class="total-block">
-            <p class="total-label">${isDe ? 'Gesamtkosten' : 'Total Cost'}</p>
-            <p class="total-value">${formatCurrency(grandTotal)}</p>
-          </div>
-        </div>
-        
-        <table>
-          <thead>
-            <tr>
-              <th style="width: 13%;">${isDe ? 'Hotelname' : 'Hotel Name'}</th>
-              <th style="width: 9%;">${isDe ? 'Firma' : 'Company'}</th>
-              <th style="width: 12%;">${isDe ? 'Adresse' : 'Address'}</th>
-              <th style="width: 10%;">${isDe ? 'Kontakt' : 'Contact'}</th>
-              <th style="width: 10%;">${isDe ? 'Telefon' : 'Phone'}</th>
-              <th style="width: 9%;">${isDe ? 'Rechnungsnr.' : 'Invoice No.'}</th>
-              <th style="width: 10%;">${isDe ? 'Zeitraum' : 'Durations'}</th>
-              <th style="width: ${employeeWidth};">${isDe ? 'Mitarbeiter' : 'Employees'}</th>
-              ${showStatus ? `<th style="width: 7%;">Status</th>` : ''}
-              <th style="width: 8%;">${isDe ? 'Kosten' : 'Cost'}</th>
-              ${showDeposit ? `<th style="width: 7%;">${isDe ? 'Kaution' : 'Deposit'}</th>` : ''}
-            </tr>
-          </thead>
-          <tbody>
-  `;
+  // TOP TOTAL
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(0);
+  doc.text(isDe ? "Gesamtkosten" : "Total Cost", doc.internal.pageSize.width - 40, 40, { align: 'right' });
+  doc.setFontSize(15);
+  doc.text(formatCurrency(grandTotal), doc.internal.pageSize.width - 40, 58, { align: 'right' });
 
-  data.forEach(d => {
-    html += `<tr>
-      <td><strong>${d.hotel}</strong></td>
-      <td>${d.company}</td>
-      <td>${d.address}</td>
-      <td>${d.contact}</td>
-      <td>${d.phone}</td>
-      <td>${d.invoice}</td>
-      <td>${d.dates}</td>
-      <td>${d.employees}</td>
-      ${showStatus ? `<td><strong>${d.status}</strong></td>` : ''}
-      <td><strong>${d.cost}</strong></td>
-      ${showDeposit ? `<td>${d.depositStr}</td>` : ''}
-    </tr>`;
+  // COLUMNS
+  const columns = [{ header: isDe ? 'Hotelname' : 'Hotel Name', dataKey: 'hotel' }];
+  if (activeCols.includes('company')) columns.push({ header: isDe ? 'Firma' : 'Company', dataKey: 'company' });
+  if (activeCols.includes('city')) columns.push({ header: isDe ? 'Stadt' : 'City', dataKey: 'city' });
+  if (activeCols.includes('address')) columns.push({ header: isDe ? 'Adresse' : 'Address', dataKey: 'address' });
+  if (activeCols.includes('contact')) columns.push({ header: isDe ? 'Ansprechpartner' : 'Contact', dataKey: 'contact' });
+  if (activeCols.includes('phone')) columns.push({ header: isDe ? 'Telefon' : 'Phone', dataKey: 'phone' });
+  if (activeCols.includes('invoice')) columns.push({ header: isDe ? 'Rechnungsnr.' : 'Invoice No.', dataKey: 'invoice' });
+  if (activeCols.includes('durations')) columns.push({ header: isDe ? 'Zeitraum' : 'Durations', dataKey: 'dates' });
+  if (activeCols.includes('employees')) columns.push({ header: isDe ? 'Mitarbeiter' : 'Employees', dataKey: 'employees' });
+  columns.push({ header: isDe ? 'Kosten' : 'Cost', dataKey: 'cost' });
+  if (activeCols.includes('status')) columns.push({ header: 'Status', dataKey: 'status' });
+  if (activeCols.includes('deposit')) columns.push({ header: isDe ? 'Kaution' : 'Deposit', dataKey: 'deposit' });
+
+  const body = buildReportData(hotels, calcCost, lang);
+
+  autoTable(doc, {
+    columns: columns,
+    body: body,
+    startY: 80,
+    theme: 'grid',
+    styles: { fontSize: 10, font: "helvetica", cellPadding: 4, overflow: 'linebreak' },
+    headStyles: { fillColor: [245, 245, 245], textColor: [0, 0, 0], fontStyle: 'bold' },
+    columnStyles: {
+      hotel: { fontStyle: 'bold' },
+      employees: { cellWidth: 'auto' },
+      cost: { fontStyle: 'bold', halign: 'right' }
+    },
+    didDrawPage: (data) => {
+      const footerY = doc.internal.pageSize.height - 20;
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(`${isDe ? 'Erstellt am:' : 'Generated on:'} ${new Date().toLocaleString()}`, 40, footerY);
+      
+      const pageNumber = "Page " + doc.internal.getNumberOfPages();
+      doc.text(pageNumber, doc.internal.pageSize.width - 40, footerY, { align: 'right' });
+    }
   });
 
-  html += `
-          </tbody>
-        </table>
-        
-        <div class="date-footer">
-          ${isDe ? 'Erstellt am:' : 'Generated on:'} ${dateStr}
-        </div>
-      </body>
-    </html>
-  `;
-
-  const printWindow = window.open('', '_blank');
-  if (printWindow) {
-    printWindow.document.title = 'Europas_GmbH_Report';
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => { printWindow.print(); printWindow.close(); }, 300);
-  }
+  window.open(doc.output('bloburl'), '_blank');
 }
