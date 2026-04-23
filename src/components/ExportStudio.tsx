@@ -13,11 +13,12 @@ export default function ExportStudio({ hotels, calcCost, lang, title, total, onC
     setActiveCols(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
   };
 
+  // Inside ExportStudio.tsx, update colLabels:
   const colLabels: any = {
     company: isDe ? 'Firma' : 'Company',
     city: isDe ? 'Stadt' : 'City',
     address: isDe ? 'Adresse' : 'Address',
-    contact: isDe ? 'Ansprechpartner' : 'Contact',
+    contact: isDe ? 'Kontakt' : 'Contact', // FIXED: Back to Kontakt
     phone: isDe ? 'Telefon' : 'Phone',
     invoice: isDe ? 'Rechnungsnr.' : 'Invoice No',
     durations: isDe ? 'Zeitraum' : 'Durations',
