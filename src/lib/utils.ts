@@ -354,7 +354,7 @@ export function getDurationTabLabel(d: any, lang: 'de' | 'en'): string {
 // EXPORT FUNCTIONS (Professional)
 // ─────────────────────────────────────────────────────────────────────────────
 // src/lib/utils.ts - Master Export Section
-import jsPDF from 'jsPDF';
+import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
