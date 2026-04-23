@@ -358,7 +358,6 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
-// Force DD.MM.YYYY format globally
 function fmtDateFull(iso: string) {
   if (!iso) return '';
   const [y, m, d] = iso.split('-');
@@ -368,7 +367,6 @@ function fmtDateFull(iso: string) {
 export function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de' | 'en') {
   return hotels.map(h => {
     const isDe = lang === 'de';
-    // Join multiple durations with a comma and a space for readability
     const dates = (h.durations || []).map((d: any) => 
       d.startDate && d.endDate ? `${fmtDateFull(d.startDate)} - ${fmtDateFull(d.endDate)}` : ''
     ).filter(Boolean).join(', '); 
@@ -383,7 +381,8 @@ export function buildReportData(hotels: any[], calcCost: (h: any) => number, lan
       city: h.city || '—',
       address: h.address || '—',
       contact: h.contactPerson || h.contactperson || '—',
-      phone: h.phone || '—',
+      // FIX: Force phone number to string to preserve country codes (+49 etc.)
+      phone: h.phone ? String(h.phone) : '—',
       invoice: h.rechnungNr || h.rechnung_nr || '—',
       dates: dates || '—',
       employees: employees || '—',
@@ -428,26 +427,15 @@ export function generatePDF(data: any[], activeCols: string[], title: string, la
     body: data,
     startY: 80,
     theme: 'grid',
-    styles: { 
-      fontSize: 9, 
-      font: "helvetica", 
-      cellPadding: 4, 
-      overflow: 'linebreak', 
-      lineColor: [180, 180, 180], 
-      lineWidth: 0.5 
-    },
-    headStyles: { 
-      fillColor: [240, 240, 240], 
-      textColor: [0, 0, 0], 
-      fontStyle: 'bold', 
-      fontSize: 10 
-    },
+    styles: { fontSize: 9, font: "helvetica", cellPadding: 4, overflow: 'linebreak', lineColor: [180,180,180], lineWidth: 0.5 },
+    headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 10 },
     columnStyles: {
-      hotel: { cellWidth: 100 },      // Increased space for Hotel Name
-      address: { cellWidth: 130 },    // FIX: Significantly more space for Address
-      invoice: { cellWidth: 65 },     // FIX: Reduced width for Invoice No.
-      dates: { cellWidth: 110 },      // Standard space for Zeitraum
-      employees: { cellWidth: 'auto' },// Flexible space for Employees
+      hotel: { cellWidth: 90 },
+      address: { cellWidth: 110 },   // FIX: Reduced address width slightly
+      contact: { cellWidth: 85 },    // FIX: Increased contact width for better wrapping
+      invoice: { cellWidth: 65 },
+      dates: { cellWidth: 110 },
+      employees: { cellWidth: 'auto' },
       cost: { fontStyle: 'bold', halign: 'right', cellWidth: 70 }
     },
     didDrawPage: (d) => {
@@ -470,7 +458,7 @@ export function generateExcel(data: any[], activeCols: string[], lang: 'de' | 'e
     ["Europas GmbH"],
     [`${isDe ? 'Zeitraum' : 'Period'}: ${period.replace('Period: ', '')}`],
     [`${isDe ? 'Erstellt am' : 'Generated on'}: ${timestamp}`],
-    [] // Spacer
+    []
   ];
 
   const headers = [isDe ? 'Hotelname' : 'Hotel Name'];
@@ -503,7 +491,6 @@ export function generateExcel(data: any[], activeCols: string[], lang: 'de' | 'e
     rows.push(row);
   });
 
-  // Aligned Total Row: Moves "GESAMTSUMME" to the column just before the cost
   rows.push([]); 
   const totalRow = Array(headers.length).fill('');
   const costIdx = headers.indexOf(isDe ? 'Kosten' : 'Cost');
@@ -513,14 +500,14 @@ export function generateExcel(data: any[], activeCols: string[], lang: 'de' | 'e
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
 
-  // Apply Auto-Width calculation
+  // FIX: Force column widths to prevent text cut-off
   ws['!cols'] = headers.map((h, i) => {
     let maxLen = h.length;
     rows.slice(4).forEach(row => {
       const cellValue = String(row[i] || '');
       if (cellValue.length > maxLen) maxLen = cellValue.length;
     });
-    return { wch: Math.min(maxLen + 5, 50) };
+    return { wch: Math.min(maxLen + 5, 55) };
   });
 
   const wb = XLSX.utils.book_new();
