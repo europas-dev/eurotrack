@@ -437,14 +437,14 @@ export function generatePDF(data: any[], activeCols: string[], title: string, la
     headStyles: { fillColor: [245, 245, 245], textColor: [0, 0, 0], fontStyle: 'bold' },
     columnStyles: { 
       hotel: { cellWidth: 80 },
-      company: { cellWidth: 60 },    // FIX: Gives Firma enough room
+      company: { cellWidth: 55 },    // FIX: Gives Firma enough room
       city: { cellWidth: 55 },
       address: { cellWidth: 80 },
       contact: { cellWidth: 75 },
-      phone: { cellWidth: 70 },      // FIX: Forces Telefon to stay on one line
+      phone: { cellWidth: 65 },      // FIX: Forces Telefon to stay on one line
       invoice: { cellWidth: 65 },
       dates: { cellWidth: 100 },      
-      employees: { cellWidth: 100 },  
+      employees: { cellWidth: 120 },  
       cost: { fontStyle: 'bold', halign: 'right', cellWidth: 60 },
       status: { cellWidth: 45 },
       deposit: { cellWidth: 55 }     // FIX: Gives Kaution enough room for currency
