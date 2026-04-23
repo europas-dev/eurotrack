@@ -433,21 +433,15 @@ export function generatePDF(data: any[], activeCols: string[], title: string, la
     startY: 80,
     margin: { left: 40, right: 40 },
     theme: 'grid',
-    styles: { fontSize: 8, font: "helvetica", cellPadding: 4, lineColor: [200, 200, 200], lineWidth: 0.5 },
+    // Reduced cellPadding to 3 to give Address and Hotel more breathing room
+    styles: { fontSize: 8, font: "helvetica", cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.5 },
     headStyles: { fillColor: [245, 245, 245], textColor: [0, 0, 0], fontStyle: 'bold' },
     columnStyles: { 
-      hotel: { cellWidth: 72 },
-      company: { cellWidth: 50 },
-      city: { cellWidth: 48 },
-      address: { cellWidth: 72 },
-      contact: { cellWidth: 66 },
-      phone: { cellWidth: 64 },      // Still safely fits +49
-      invoice: { cellWidth: 56 },
-      dates: { cellWidth: 88 },      
-      employees: { cellWidth: 104 },  
-      cost: { fontStyle: 'bold', halign: 'right', cellWidth: 55 },
-      status: { cellWidth: 40 },
-      deposit: { cellWidth: 45 }     
+      // ONLY locking the problem columns. The library will auto-balance the rest beautifully.
+      phone: { cellWidth: 65 },       // Prevents the country code from wrapping
+      dates: { cellWidth: 95 },       // Keeps date ranges clean
+      employees: { cellWidth: 110 },  // Prevents names from taking over the whole page
+      cost: { fontStyle: 'bold', halign: 'right', cellWidth: 60 }
     },
     
     didDrawPage: (d) => {
@@ -458,10 +452,7 @@ export function generatePDF(data: any[], activeCols: string[], title: string, la
       doc.text(`Page ${doc.internal.getNumberOfPages()}`, pageWidth - 40, doc.internal.pageSize.height - 20, { align: 'right' });
     }
   });
-
-  
-
-  
+ 
   const fileDate = `${new Date().getDate().toString().padStart(2, '0')}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}-${new Date().getFullYear()}`;
   const fileName = `Europas GmbH_${isDe ? 'Bericht' : 'Report'}_${cleanTitle}_${fileDate}.pdf`;
   if (shouldPrint) { window.open(doc.output('bloburl'), '_blank'); } else { doc.save(fileName); }
