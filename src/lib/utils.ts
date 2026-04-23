@@ -357,25 +357,33 @@ export function getDurationTabLabel(d: any, lang: 'de' | 'en'): string {
 function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de' | 'en') {
   return hotels.map(h => {
     const company = Array.isArray(h.companyTag) ? h.companyTag.join(', ') : (h.companyTag || '—');
-    const invoice = (h.durations || []).map((d: any) => d.rechnungNr).filter(Boolean).join(', ') || '—';
+    
+    // FIX: Invoice No is now properly pulled from the Master Hotel settings
+    const invoice = h.rechnungNr || h.rechnung_nr || '—';
+    
     const dates = (h.durations || []).map((d: any) => d.startDate && d.endDate ? `${formatDateChip(d.startDate)} - ${formatDateChip(d.endDate)}` : '').filter(Boolean).join(', ') || '—';
     const employees = (h.durations || []).flatMap((d: any) => (d.roomCards || []).flatMap((rc: any) => (rc.employees || []).map((e: any) => e.name))).filter(Boolean).join(', ') || '—';
     const cost = formatCurrency(calcCost(h));
     
-    const isFullyPaid = h.durations?.length > 0 && h.durations.every((d: any) => d.isPaid);
-    const hasUnpaid = h.durations?.some((d: any) => !d.isPaid);
-    const status = isFullyPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : hasUnpaid ? (lang === 'de' ? 'Offen' : 'Unpaid') : '—';
+    // FIX: Status and Deposit are now pulled correctly from Master Hotel settings
+    const isPaid = h.isPaid || h.is_paid;
+    const status = isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid');
 
-    const hasDeposit = h.durations?.some((d: any) => d.depositEnabled);
-    const depositAmount = (h.durations || []).reduce((sum: number, d: any) => sum + (d.depositEnabled ? (Number(d.depositAmount) || 0) : 0), 0);
-    const depositStr = hasDeposit ? formatCurrency(depositAmount) : '—';
+    const hasDeposit = h.depositEnabled || h.deposit_enabled;
+    const depositAmount = Number(h.depositAmount || h.deposit_amount) || 0;
+    const depositStr = hasDeposit 
+        ? (depositAmount > 0 ? formatCurrency(depositAmount) : (lang === 'de' ? 'Ja' : 'Yes')) 
+        : (lang === 'de' ? 'Nein' : 'No');
+
+    // FIX: Merged Address and City to save horizontal space
+    const address = [h.address, h.city].filter(Boolean).join(', ') || '—';
+    const contact = h.contactPerson || h.contactperson || '—';
 
     return {
       hotel: h.name || '—',
-      city: h.city || '—',
       company,
-      contact: h.contactPerson || '—',
-      address: h.address || '—',
+      address,
+      contact,
       phone: h.phone || '—',
       invoice,
       dates,
@@ -383,7 +391,8 @@ function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de'
       cost,
       status,
       depositStr,
-      hasDeposit
+      hasDeposit,
+      isPaid
     };
   });
 }
@@ -393,14 +402,15 @@ export function exportToCSV(hotels: any[], calcCost: (h: any) => number, grandTo
   const showDeposit = data.some(d => d.hasDeposit);
   const isDe = lang === 'de';
 
+  // Aligned strictly to your requested layout order
   let headers = isDe 
-    ? ['Hotelname', 'Stadt', 'Firma', 'Kontakt', 'Adresse', 'Telefon', 'Rechnungsnr.', 'Zeitraum', 'Mitarbeiter', 'Status', 'Gesamtkosten']
-    : ['Hotel Name', 'City', 'Company', 'Contact', 'Address', 'Phone', 'Invoice No.', 'Durations', 'Employees', 'Status', 'Total Cost'];
+    ? ['Hotelname', 'Firma', 'Adresse', 'Kontakt', 'Telefon', 'Rechnungsnr.', 'Zeitraum', 'Mitarbeiter', 'Status', 'Gesamtkosten']
+    : ['Hotel Name', 'Company', 'Address', 'Contact', 'Phone', 'Invoice No.', 'Durations', 'Employees', 'Status', 'Total Cost'];
   
   if (showDeposit) headers.push(isDe ? 'Kaution' : 'Deposit');
 
   const rows = data.map(d => {
-    const row = [d.hotel, d.city, d.company, d.contact, d.address, d.phone, d.invoice, d.dates, d.employees, d.status, d.cost];
+    const row = [d.hotel, d.company, d.address, d.contact, d.phone, d.invoice, d.dates, d.employees, d.status, d.cost];
     if (showDeposit) row.push(d.depositStr);
     return row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
   });
@@ -422,47 +432,96 @@ export function exportToCSV(hotels: any[], calcCost: (h: any) => number, grandTo
 
 export function printDocument(hotels: any[], calcCost: (h: any) => number, grandTotal: number, reportTitle: string, lang: 'de' | 'en') {
   const data = buildReportData(hotels, calcCost, lang);
+  
+  // Smart dynamic columns
   const showDeposit = data.some(d => d.hasDeposit);
+  const showStatus = data.some(d => !d.isPaid); // Only show status column if there is an unpaid hotel
+  
   const dateStr = new Date().toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' });
   const isDe = lang === 'de';
 
+  // Dynamic width calculation so Employees always gets maximum possible space
+  const employeeWidth = (showDeposit && showStatus) ? '18%' : (showDeposit || showStatus) ? '21%' : '25%';
+
   let html = `
+    <!DOCTYPE html>
     <html>
       <head>
-        <title>Europas GmbH Report</title>
+        <title>Europas_GmbH_Report</title>
         <style>
-          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #111827; padding: 20px; font-size: 11px; }
-          .header { border-bottom: 2px solid #111827; padding-bottom: 10px; margin-bottom: 20px; }
-          .title { font-size: 24px; font-weight: 900; margin: 0 0 5px 0; }
-          .subtitle { font-size: 12px; color: #4B5563; margin: 0; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed; }
-          th, td { border: 1px solid #E5E7EB; padding: 8px; text-align: left; vertical-align: top; word-wrap: break-word; }
-          th { background-color: #F9FAFB; font-weight: bold; text-transform: uppercase; font-size: 10px; }
-          .grand-total { font-size: 14px; font-weight: 900; text-align: right; margin-top: 20px; border-top: 2px solid #111827; padding-top: 10px; }
-          .footer { margin-top: 40px; font-size: 9px; color: #6B7280; text-align: center; }
-          @media print { body { padding: 0; } @page { size: landscape; margin: 1cm; } }
+          @page { margin: 12mm; }
+          body { 
+            font-family: 'Calibri', 'Arial', sans-serif; 
+            color: #000; 
+            margin: 0; 
+            font-size: 11pt; 
+            -webkit-print-color-adjust: exact; 
+            print-color-adjust: exact; 
+          }
+          .header-container { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: flex-end; 
+            border-bottom: 2px solid #000; 
+            padding-bottom: 12px; 
+            margin-bottom: 20px; 
+          }
+          .company-name { font-size: 14pt; font-weight: bold; margin: 0 0 4px 0; }
+          .report-title { font-size: 11pt; margin: 0; color: #4B5563; }
+          .total-block { text-align: right; }
+          .total-label { font-size: 11pt; margin: 0 0 2px 0; color: #4B5563; }
+          .total-value { font-size: 16pt; font-weight: bold; margin: 0; }
+          
+          table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+          th, td { 
+            border: 1px solid #D1D5DB; 
+            padding: 8px 6px; 
+            text-align: left; 
+            vertical-align: top; 
+            word-wrap: break-word; 
+            font-size: 11pt; 
+          }
+          th { 
+            background-color: #F3F4F6; 
+            font-weight: bold; 
+            /* Removed uppercase constraint */
+          }
+          
+          .date-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            font-size: 9pt;
+            color: #6B7280;
+          }
         </style>
       </head>
       <body>
-        <div class="header">
-          <h1 class="title">Europas GmbH</h1>
-          <p class="subtitle">${reportTitle}</p>
-          <p class="subtitle">${isDe ? 'Erstellt am:' : 'Generated on:'} ${dateStr}</p>
+        <div class="header-container">
+          <div>
+            <h1 class="company-name">Europas GmbH</h1>
+            <p class="report-title">${reportTitle}</p>
+          </div>
+          <div class="total-block">
+            <p class="total-label">${isDe ? 'Gesamtkosten' : 'Total Cost'}</p>
+            <p class="total-value">${formatCurrency(grandTotal)}</p>
+          </div>
         </div>
+        
         <table>
           <thead>
             <tr>
-              <th style="width: 12%;">${isDe ? 'Hotelname' : 'Hotel Name'}</th>
-              <th style="width: 8%;">${isDe ? 'Stadt' : 'City'}</th>
-              <th style="width: 8%;">${isDe ? 'Firma' : 'Company'}</th>
+              <th style="width: 13%;">${isDe ? 'Hotelname' : 'Hotel Name'}</th>
+              <th style="width: 9%;">${isDe ? 'Firma' : 'Company'}</th>
+              <th style="width: 12%;">${isDe ? 'Adresse' : 'Address'}</th>
               <th style="width: 10%;">${isDe ? 'Kontakt' : 'Contact'}</th>
               <th style="width: 10%;">${isDe ? 'Telefon' : 'Phone'}</th>
-              <th style="width: 12%;">${isDe ? 'Rechnungsnr.' : 'Invoice No.'}</th>
+              <th style="width: 9%;">${isDe ? 'Rechnungsnr.' : 'Invoice No.'}</th>
               <th style="width: 10%;">${isDe ? 'Zeitraum' : 'Durations'}</th>
-              <th style="width: 15%;">${isDe ? 'Mitarbeiter' : 'Employees'}</th>
-              <th style="width: 7%;">Status</th>
+              <th style="width: ${employeeWidth};">${isDe ? 'Mitarbeiter' : 'Employees'}</th>
+              ${showStatus ? `<th style="width: 7%;">Status</th>` : ''}
               <th style="width: 8%;">${isDe ? 'Kosten' : 'Cost'}</th>
-              ${showDeposit ? `<th style="width: 8%;">${isDe ? 'Kaution' : 'Deposit'}</th>` : ''}
+              ${showDeposit ? `<th style="width: 7%;">${isDe ? 'Kaution' : 'Deposit'}</th>` : ''}
             </tr>
           </thead>
           <tbody>
@@ -471,14 +530,14 @@ export function printDocument(hotels: any[], calcCost: (h: any) => number, grand
   data.forEach(d => {
     html += `<tr>
       <td><strong>${d.hotel}</strong></td>
-      <td>${d.city}</td>
       <td>${d.company}</td>
-      <td>${d.contact}<br><span style="font-size:9px; color:#6B7280">${d.address}</span></td>
+      <td>${d.address}</td>
+      <td>${d.contact}</td>
       <td>${d.phone}</td>
       <td>${d.invoice}</td>
       <td>${d.dates}</td>
       <td>${d.employees}</td>
-      <td><strong>${d.status}</strong></td>
+      ${showStatus ? `<td><strong>${d.status}</strong></td>` : ''}
       <td><strong>${d.cost}</strong></td>
       ${showDeposit ? `<td>${d.depositStr}</td>` : ''}
     </tr>`;
@@ -487,11 +546,9 @@ export function printDocument(hotels: any[], calcCost: (h: any) => number, grand
   html += `
           </tbody>
         </table>
-        <div class="grand-total">
-          ${isDe ? 'GESAMTSUMME' : 'GRAND TOTAL'}: ${formatCurrency(grandTotal)}
-        </div>
-        <div class="footer">
-          ${isDe ? 'Bericht sicher generiert von der Europas GmbH Management Software.' : 'Report securely generated by Europas GmbH Management System.'}
+        
+        <div class="date-footer">
+          ${isDe ? 'Erstellt am:' : 'Generated on:'} ${dateStr}
         </div>
       </body>
     </html>
@@ -499,10 +556,11 @@ export function printDocument(hotels: any[], calcCost: (h: any) => number, grand
 
   const printWindow = window.open('', '_blank');
   if (printWindow) {
+    printWindow.document.title = 'Europas_GmbH_Report';
     printWindow.document.open();
     printWindow.document.write(html);
     printWindow.document.close();
     printWindow.focus();
-    setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 300);
   }
 }
