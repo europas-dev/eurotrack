@@ -44,6 +44,13 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchScope, setSearchScope] = useState('all');
+
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportCols, setExportCols] = useState({
+    company: true, city: true, address: true, contact: true, 
+    phone: true, invoice: true, durations: true, employees: true, 
+    status: false, deposit: false
+  });
   
   // MENU VISIBILITY
   const [showFilterMenu, setShowFilterMenu] = useState(false);
@@ -393,7 +400,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           
           // FIX: Passing the dynamic title and the active filter states!
           onExportCsv={() => exportToCSV(finalFiltered, calcHotelTotalCost, totalSpend, `Report: Period ${displayTitle}`, lang, filterPaid !== 'all', filterDeposit !== 'all')} 
-          onPrint={() => printDocument(finalFiltered, calcHotelTotalCost, totalSpend, `Report: Period ${displayTitle}`, lang, filterPaid !== 'all', filterDeposit !== 'all')} 
+          onPrint={() => setShowExportModal(true)}
           
           viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} 
           offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} 
@@ -619,15 +626,67 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                   ))
                 )}
                 
-                {!loading && finalFiltered.length === 0 && (
+{!loading && finalFiltered.length === 0 && (
                   <div className="text-center py-20 opacity-50 flex flex-col items-center">
-                     <Building size={48} className="mb-4 text-slate-400" />
-                     <p className="text-lg font-bold">{lang === 'de' ? 'Keine Hotels gefunden' : 'No hotels found'}</p>
-                     <p className="text-sm">{lang === 'de' ? 'Versuchen Sie, Ihre Filter anzupassen oder ein neues hinzuzufügen.' : 'Try adjusting your filters or adding a new one.'}</p>
+                    <Building size={48} className="mb-4 text-slate-400" />
+                    <p className="text-lg font-bold">{lang === 'de' ? 'Keine Hotels gefunden' : 'No hotels found'}</p>
+                    <p className="text-sm">{lang === 'de' ? 'Versuchen Sie, Ihre Filter anzupassen oder ein neues hinzuzufügen.' : 'Try adjusting your filters or adding a new one.'}</p>
                   </div>
                 )}
             </div>
           </main>
+        )}
+
+        {/* --- EXPORT MODAL (CONTROL CENTER) --- */}
+        {showExportModal && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className={cn('w-full max-w-lg rounded-3xl border p-8 shadow-2xl animate-in zoom-in-95', dk ? 'bg-[#1E293B] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200')}>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-black">{lang === 'de' ? 'Bericht anpassen' : 'Customize Report'}</h3>
+                <button onClick={() => setShowExportModal(false)} className="text-slate-400 hover:text-red-500 transition-colors"><X size={24} /></button>
+              </div>
+
+              <p className="text-sm font-bold text-slate-500 mb-6">
+                {lang === 'de' ? 'Wählen Sie die Spalten aus. Hotelname und Kosten sind fix.' : 'Select the columns to include. Hotel Name and Cost are fixed.'}
+              </p>
+
+              <div className="grid grid-cols-2 gap-3 mb-8">
+                {Object.entries(exportCols).map(([key, val]) => (
+                  <label key={key} className={cn("flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all", val ? "border-teal-500 bg-teal-500/10" : "border-transparent bg-black/5 hover:bg-black/10")}>
+                    <input type="checkbox" checked={val} onChange={() => setExportCols(prev => ({ ...prev, [key]: !val }))} className="w-5 h-5 rounded accent-teal-600" />
+                    <span className="text-sm font-bold">
+                      {key === 'company' && (lang === 'de' ? 'Firma' : 'Company')}
+                      {key === 'city' && (lang === 'de' ? 'Stadt' : 'City')}
+                      {key === 'address' && (lang === 'de' ? 'Adresse' : 'Address')}
+                      {key === 'contact' && (lang === 'de' ? 'Ansprechpartner' : 'Contact')}
+                      {key === 'phone' && (lang === 'de' ? 'Telefon' : 'Phone')}
+                      {key === 'invoice' && (lang === 'de' ? 'Rechnungsnr.' : 'Invoice No')}
+                      {key === 'durations' && (lang === 'de' ? 'Zeitraum' : 'Durations')}
+                      {key === 'employees' && (lang === 'de' ? 'Mitarbeiter' : 'Employees')}
+                      {key === 'status' && 'Status'}
+                      {key === 'deposit' && (lang === 'de' ? 'Kaution' : 'Deposit')}
+                    </span>
+                  </label>
+                ))}
+              </div>
+
+              <button 
+                onClick={() => {
+                  const activeKeys = Object.entries(exportCols).filter(([_, v]) => v).map(([k]) => k);
+                  // Dynamic Period Title
+                  const periodTitle = selectedMonth !== null 
+                    ? `Period: ${lang === 'de' ? monthNamesDe[selectedMonth] : monthNamesEn[selectedMonth]} ${selectedYear}`
+                    : `Period: ${selectedYear}`;
+                  
+                  printDocument(finalFiltered, calcHotelTotalCost, totalSpend, periodTitle, lang, activeKeys);
+                  setShowExportModal(false);
+                }} 
+                className="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-2xl transition-all shadow-lg flex items-center justify-center gap-3"
+              >
+                <Plus size={20} strokeWidth={3} /> {lang === 'de' ? 'PDF generieren' : 'Generate PDF'}
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
