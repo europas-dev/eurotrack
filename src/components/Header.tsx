@@ -24,12 +24,23 @@ const AVATARS = [
   { id: 'butterfly', emoji: '🦋', bg: '#a855f7' },
   { id: 'dolphin',   emoji: '🐬', bg: '#06b6d4' },
   { id: 'eagle',     emoji: '🦅', bg: '#1e3a5f' },
+  { id: 'cactus',    emoji: '🌵', bg: '#16a34a' },
+  { id: 'fire',      emoji: '🔥', bg: '#dc2626' },
+  { id: 'moon',      emoji: '🌙', bg: '#4f46e5' },
+  { id: 'lightning', emoji: '⚡', bg: '#ca8a04' },
+  { id: 'target',    emoji: '🎯', bg: '#475569' },
 ];
 
 const FONTS = [
   { value: 'inter',      label: 'Inter',            family: 'Inter, sans-serif' },
   { value: 'roboto',     label: 'Roboto',           family: 'Roboto, sans-serif' },
   { value: 'open-sans',  label: 'Open Sans',        family: '"Open Sans", sans-serif' },
+  { value: 'dm-sans',    label: 'DM Sans',          family: '"DM Sans", sans-serif' },
+  { value: 'nunito',     label: 'Nunito',           family: 'Nunito, sans-serif' },
+  { value: 'poppins',    label: 'Poppins',          family: 'Poppins, sans-serif' },
+  { value: 'georgia',    label: 'Georgia',          family: 'Georgia, serif' },
+  { value: 'playfair',   label: 'Playfair Display', family: '"Playfair Display", serif' },
+  { value: 'lora',       label: 'Lora',             family: 'Lora, serif' },
   { value: 'jetbrains',  label: 'JetBrains Mono',   family: '"JetBrains Mono", monospace' },
 ];
 
@@ -87,7 +98,7 @@ interface HeaderProps {
   searchScope: string;
   setSearchScope: (scope: string) => void;
   onSignOut: () => void;
-  onPrint?: () => void; // This now triggers Export Studio
+  onPrint?: () => void;
   viewOnly?: boolean;
   userRole?: string;
   offlineMode?: boolean;
@@ -180,6 +191,7 @@ export default function Header({
       document.documentElement.style.setProperty('--font-body', font.family);
     }
     document.documentElement.style.setProperty('--font-size-base', `${size}px`);
+    document.documentElement.style.fontSize = `${size}px`;
   }
 
   function handleFontFamilyChange(value: string) {
@@ -195,6 +207,7 @@ export default function Header({
     const clamped = Math.min(20, Math.max(12, value)); 
     setFontSizeState(clamped);
     document.documentElement.style.setProperty('--font-size-base', `${clamped}px`);
+    document.documentElement.style.fontSize = `${clamped}px`;
   }
 
   async function handleSavePersonalization() {
@@ -382,6 +395,11 @@ export default function Header({
                           <button onClick={handleSavePersonalization} disabled={savingPersonalize} className={cn('flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ml-auto', dk ? 'border-white/10 hover:bg-white/10 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-700')}>{savingPersonalize ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />} {lang === 'de' ? 'Speichern' : 'Save'}</button>
                         </div>
                       </div>
+                      <div className="space-y-2">
+                        <Accordion title="FAQ" icon={HelpCircle} dk={dk}><p>{lang === 'de' ? 'Hier finden Sie Antworten auf häufig gestellte Fragen zu EuroTrack.' : 'Find answers to frequently asked questions about EuroTrack here.'}</p></Accordion>
+                        <Accordion title={lang === 'de' ? 'Datenschutz' : 'Privacy Policy'} icon={FileText} dk={dk}><p>{lang === 'de' ? 'Ihre Daten werden sicher gespeichert und nicht an Dritte weitergegeben.' : 'Your data is stored securely and never shared with third parties.'}</p></Accordion>
+                        <Accordion title={lang === 'de' ? 'Über EuroTrack' : 'About EuroTrack'} icon={Info} dk={dk}><p>{lang === 'de' ? 'EuroTrack ist ein internes Hotel-Verwaltungstool für das Europa-Park-Team.' : 'EuroTrack is an internal hotel management tool for the Europa-Park team.'}</p></Accordion>
+                      </div>
                     </>
                   )}
                 </>
@@ -390,8 +408,9 @@ export default function Header({
               {settingsTab === 'security' && (
                 <>
                   {profile?.email && <div className={cn('rounded-xl border p-4', dk ? 'border-white/10 bg-white/2' : 'border-slate-200 bg-slate-50')}><SectionLabel dk={dk}>{lang === 'de' ? 'Aktuelle E-Mail' : 'Current Email'}</SectionLabel><div className="flex items-center gap-2"><Mail size={13} className={dk ? 'text-slate-400' : 'text-slate-500'} /><span className={cn('text-sm font-bold', dk ? 'text-white' : 'text-slate-900')}>{profile.email}</span></div></div>}
-                  <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-white/10' : 'border-slate-200')}><SectionLabel dk={dk}>{lang === 'de' ? 'Benutzername ändern' : 'Change Username'}</SectionLabel><input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder={lang === 'de' ? 'Neuer Benutzername...' : 'New username...'} className={cn(inputCls)} />{usernameMsg && <p className={cn('text-xs font-bold', usernameMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{usernameMsg}</p>}<button onClick={handleSaveUsername} disabled={savingUsername} className={btnPrimary}>{savingUsername ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} {lang === 'de' ? 'Speichern' : 'Save Username'}</button></div>
-                  <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-white/10' : 'border-slate-200')}><SectionLabel dk={dk}>{lang === 'de' ? 'Passwort ändern' : 'Change Password'}</SectionLabel><div className="relative"><input type={showCurrentPass ? 'text' : 'password'} value={currentPass} onChange={e => setCurrentPass(e.target.value)} placeholder={lang === 'de' ? 'Aktuelles Passwort' : 'Current password'} className={inputCls} /></div><div className="relative"><input type={showNewPass ? 'text' : 'password'} value={newPass} onChange={e => setNewPass(e.target.value)} placeholder={lang === 'de' ? 'Neues Passwort' : 'New password'} className={inputCls} /></div><input type="password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)} placeholder={lang === 'de' ? 'Passwort bestätigen' : 'Confirm password'} className={inputCls} />{passMsg && <p className={cn('text-xs font-bold', passMsg.startsWith('Error') || passMsg.includes('match') ? 'text-red-400' : 'text-green-400')}>{passMsg}</p>}<button onClick={handleSavePassword} disabled={savingPass} className={btnPrimary}>{savingPass ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />} {lang === 'de' ? 'Passwort ändern' : 'Change Password'}</button></div>
+                  <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-white/10' : 'border-slate-200')}><SectionLabel dk={dk}>{lang === 'de' ? 'Benutzername ändern' : 'Change Username'}</SectionLabel><div className="relative"><AtSign size={13} className={cn('absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none', dk ? 'text-slate-500' : 'text-slate-400')} /><input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder={lang === 'de' ? 'Neuer Benutzername...' : 'New username...'} className={cn(inputCls, 'pl-8')} /></div>{usernameMsg && <p className={cn('text-xs font-bold', usernameMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{usernameMsg}</p>}<button onClick={handleSaveUsername} disabled={savingUsername} className={btnPrimary}>{savingUsername ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} {lang === 'de' ? 'Speichern' : 'Save Username'}</button></div>
+                  <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-white/10' : 'border-slate-200')}><SectionLabel dk={dk}>{lang === 'de' ? 'E-Mail ändern' : 'Change Email'}</SectionLabel><div className="relative"><Mail size={13} className={cn('absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none', dk ? 'text-slate-500' : 'text-slate-400')} /><input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder={lang === 'de' ? 'Neue E-Mail-Adresse...' : 'New email address...'} className={cn(inputCls, 'pl-8')} /></div>{emailMsg && <p className={cn('text-xs font-bold', emailMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{emailMsg}</p>}<button onClick={handleSaveEmail} disabled={savingEmail} className={btnPrimary}>{savingEmail ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />} {lang === 'de' ? 'E-Mail aktualisieren' : 'Update Email'}</button></div>
+                  <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-white/10' : 'border-slate-200')}><SectionLabel dk={dk}>{lang === 'de' ? 'Passwort ändern' : 'Change Password'}</SectionLabel><div className="relative"><input type={showCurrentPass ? 'text' : 'password'} value={currentPass} onChange={e => setCurrentPass(e.target.value)} placeholder={lang === 'de' ? 'Aktuelles Passwort' : 'Current password'} className={inputCls} /><button onClick={() => setShowCurrentPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2">{showCurrentPass ? <EyeOff size={13} className={dk ? 'text-slate-500' : 'text-slate-400'} /> : <Eye size={13} className={dk ? 'text-slate-500' : 'text-slate-400'} />}</button></div><div className="relative"><input type={showNewPass ? 'text' : 'password'} value={newPass} onChange={e => setNewPass(e.target.value)} placeholder={lang === 'de' ? 'Neues Passwort' : 'New password'} className={inputCls} /><button onClick={() => setShowNewPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2">{showNewPass ? <EyeOff size={13} className={dk ? 'text-slate-500' : 'text-slate-400'} /> : <Eye size={13} className={dk ? 'text-slate-500' : 'text-slate-400'} />}</button></div><input type="password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)} placeholder={lang === 'de' ? 'Passwort bestätigen' : 'Confirm password'} className={inputCls} />{passMsg && <p className={cn('text-xs font-bold', passMsg.startsWith('Error') || passMsg.includes('match') ? 'text-red-400' : 'text-green-400')}>{passMsg}</p>}<div className="flex items-center justify-between flex-wrap gap-2"><button onClick={handleForgotPassword} disabled={sendingReset} className={cn('text-xs font-bold transition-all', dk ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-800')}>{sendingReset ? '...' : (lang === 'de' ? 'Passwort vergessen?' : 'Forgot password?')}</button>{resetMsg && <p className={cn('text-xs font-bold', resetMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{resetMsg}</p>}<button onClick={handleSavePassword} disabled={savingPass} className={btnPrimary}>{savingPass ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />} {lang === 'de' ? 'Passwort ändern' : 'Change Password'}</button></div></div>
                 </>
               )}
 
@@ -400,6 +419,7 @@ export default function Header({
                   <div>
                     <SectionLabel dk={dk}>{lang === 'de' ? 'Nutzer suchen & Zugriff erteilen' : 'Find user & grant access'}</SectionLabel>
                     <div className="relative mb-3"><Search size={13} className={cn('absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none', dk ? 'text-slate-500' : 'text-slate-400')} /><input type="text" value={accessSearch} onChange={e => setAccessSearch(e.target.value)} placeholder={lang === 'de' ? 'Benutzername oder E-Mail...' : 'Username or email...'} className={cn(inputCls, 'pl-9')} /></div>
+                    {accessSearching && <div className="flex items-center gap-2 py-2"><Loader2 size={13} className="animate-spin text-blue-500" /><span className={cn('text-xs', dk ? 'text-slate-400' : 'text-slate-500')}>{lang === 'de' ? 'Suche...' : 'Searching...'}</span></div>}
                     {accessResults.length > 0 && !selectedUser && (
                       <div className="space-y-1 mb-3">
                         {accessResults.map(u => (
@@ -414,6 +434,7 @@ export default function Header({
                       <div className={cn('rounded-xl border p-4 space-y-3 mb-3', dk ? 'border-blue-500/40 bg-blue-500/5' : 'border-blue-300 bg-blue-50')}>
                         <div className="flex items-center justify-between"><p className={cn('text-sm font-black', dk ? 'text-white' : 'text-slate-900')}>{selectedUser.fullName || selectedUser.username || selectedUser.email}</p><button onClick={() => setSelectedUser(null)} className={cn('p-1 rounded', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-blue-100 text-slate-500')}><X size={13} /></button></div>
                         <select value={grantRole} onChange={e => setGrantRole(e.target.value as any)} className={selectCls}><option value="viewer">👁 Viewer</option><option value="editor">✏️ Editor</option><option value="admin">🛡️ Admin</option></select>
+                        {grantMsg && <p className={cn('text-xs font-bold', grantMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{grantMsg}</p>}
                         <button onClick={handleGrantAccess} disabled={granting} className={btnPrimary}>{granting ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />} {lang === 'de' ? 'Zugriff erteilen' : 'Grant Access'}</button>
                       </div>
                     )}
@@ -421,6 +442,7 @@ export default function Header({
                   <div>
                     <SectionLabel dk={dk}>{lang === 'de' ? 'Aktueller Zugriff' : 'Current Access'}</SectionLabel>
                     {collabsLoading ? <div className="flex items-center gap-2 py-3"><Loader2 size={14} className="animate-spin text-blue-500" /><span className={cn('text-xs', dk ? 'text-slate-400' : 'text-slate-500')}>Loading...</span></div>
+                    : collabs.length === 0 ? <p className={cn('text-xs py-3', dk ? 'text-slate-500' : 'text-slate-400')}>{lang === 'de' ? 'Noch keine Mitarbeiter' : 'No collaborators yet'}</p>
                     : <div className="space-y-2">{collabs.map(c => <CollabRow key={c.userId} c={c} />)}</div>}
                   </div>
                 </>
