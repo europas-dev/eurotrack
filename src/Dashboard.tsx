@@ -1,4 +1,4 @@
-// src/pages/Dashboard.tsx
+// src/Dashboard.tsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase, deleteHotel, createHotel } from './lib/supabase';
 import { cn, formatCurrency, hotelMatchesSearch, exportToCSV, printDocument, calcHotelTotalCost, calcHotelFreeBedsToday } from './lib/utils';
@@ -385,7 +385,19 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       <Sidebar theme={theme} lang={lang} selectedYear={selectedYear} setSelectedYear={setSelectedYear} selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} hotels={hotels} />
       
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        <Header theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchScope={searchScope} setSearchScope={setSearchScope} onSignOut={onSignOut} onExportCsv={() => exportToCSV(finalFiltered, calcHotelTotalCost, totalSpend, "Report", lang)} onPrint={() => printDocument(finalFiltered, calcHotelTotalCost, totalSpend, "Report", lang)} viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} />
+        <Header 
+          theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} 
+          searchQuery={searchQuery} setSearchQuery={setSearchQuery} 
+          searchScope={searchScope} setSearchScope={setSearchScope} 
+          onSignOut={onSignOut} 
+          
+          // FIX: Passing the dynamic title and the active filter states!
+          onExportCsv={() => exportToCSV(finalFiltered, calcHotelTotalCost, totalSpend, `Report: Period ${displayTitle}`, lang, filterPaid !== 'all', filterDeposit !== 'all')} 
+          onPrint={() => printDocument(finalFiltered, calcHotelTotalCost, totalSpend, `Report: Period ${displayTitle}`, lang, filterPaid !== 'all', filterDeposit !== 'all')} 
+          
+          viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} 
+          offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} 
+        />
         
         {(!isOnline || offlineMode) && (
           <div className="bg-amber-500 border-b border-amber-600 text-white px-6 py-2.5 text-sm font-bold flex items-center justify-center gap-2 z-[60] relative">
