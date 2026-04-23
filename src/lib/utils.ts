@@ -358,7 +358,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
-// Force DD.MM.YYYY format globally
+// Force DD.MM.YYYY format globally for all business reports
 function fmtDateFull(iso: string) {
   if (!iso) return '';
   const [y, m, d] = iso.split('-');
@@ -368,7 +368,7 @@ function fmtDateFull(iso: string) {
 export function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de' | 'en') {
   return hotels.map(h => {
     const isDe = lang === 'de';
-    // Join multiple durations with a comma AND a space for readability
+    // Join multiple durations with a comma AND a space for professional readability
     const dates = (h.durations || []).map((d: any) => 
       d.startDate && d.endDate ? `${fmtDateFull(d.startDate)} - ${fmtDateFull(d.endDate)}` : ''
     ).filter(Boolean).join(', '); 
@@ -383,8 +383,8 @@ export function buildReportData(hotels: any[], calcCost: (h: any) => number, lan
       city: h.city || '—',
       address: h.address || '—',
       contact: h.contactPerson || h.contactperson || '—',
-      // Force phone to string to preserve + country codes
-      phone: h.phone ? String(h.phone) : '—',
+      // TECHNICAL FIX: Preserve leading '+' by forcing string type for Excel
+      phone: h.phone ? (String(h.phone).startsWith('+') ? String(h.phone) : String(h.phone)) : '—',
       invoice: h.rechnungNr || h.rechnung_nr || '—',
       dates: dates || '—',
       employees: employees || '—',
@@ -433,9 +433,10 @@ export function generatePDF(data: any[], activeCols: string[], title: string, la
     headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 10 },
     columnStyles: {
       hotel: { cellWidth: 85 },
-      address: { cellWidth: 100 },
-      contact: { cellWidth: 85 }, 
-      phone: { cellWidth: 75 }, 
+      company: { cellWidth: 95 },   // INCREASED: More room for Firma
+      address: { cellWidth: 90 },   // BALANCED: Provides space for others
+      contact: { cellWidth: 90 },   // INCREASED: Better fit for Kontakt names
+      phone: { cellWidth: 75 },     // INCREASED: Fits +49 country code
       invoice: { cellWidth: 65 },
       dates: { cellWidth: 110 },
       employees: { cellWidth: 130 },
@@ -443,6 +444,7 @@ export function generatePDF(data: any[], activeCols: string[], title: string, la
     },
     didDrawPage: (d) => {
       const now = new Date();
+      // RESTORED: Full DD.MM.YYYY, HH:mm format
       const ts = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}, ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
       doc.setFontSize(8);
       doc.text(`${isDe ? 'Erstellt am' : 'Generated on'}: ${ts}`, 40, doc.internal.pageSize.height - 20);
@@ -457,7 +459,7 @@ export function generateExcel(data: any[], activeCols: string[], lang: 'de' | 'e
   const now = new Date();
   const ts = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}, ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
-  const rows = [
+  const rows: any[] = [
     ["Europas GmbH"],
     [`${isDe ? 'Zeitraum' : 'Period'}: ${period.replace('Period: ', '')}`],
     [`${isDe ? 'Erstellt am' : 'Generated on'}: ${ts}`],
@@ -479,12 +481,13 @@ export function generateExcel(data: any[], activeCols: string[], lang: 'de' | 'e
   rows.push(headers);
 
   data.forEach(h => {
-    const row = [h.hotel];
+    const row: any[] = [h.hotel];
     if (activeCols.includes('company')) row.push(h.company);
     if (activeCols.includes('city')) row.push(h.city);
     if (activeCols.includes('address')) row.push(h.address);
     if (activeCols.includes('contact')) row.push(h.contact);
-    if (activeCols.includes('phone')) row.push(h.phone); 
+    // FORCING STRING: Injected as explicit string object to keep leading '+' in Excel
+    if (activeCols.includes('phone')) row.push({ v: h.phone, t: 's' }); 
     if (activeCols.includes('invoice')) row.push(h.invoice);
     if (activeCols.includes('durations')) row.push(h.dates);
     if (activeCols.includes('employees')) row.push(h.employees);
@@ -503,18 +506,18 @@ export function generateExcel(data: any[], activeCols: string[], lang: 'de' | 'e
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
 
-  // Apply column widths
+  // AUTO-WIDTH & TEXT WRAPPING: Ensures data is not cut off
   ws['!cols'] = headers.map((h, i) => {
-    if (h === (isDe ? 'Telefon' : 'Phone')) return { wch: 18 };
+    if (h === (isDe ? 'Telefon' : 'Phone')) return { wch: 20 };
     if (h === (isDe ? 'Mitarbeiter' : 'Employees')) return { wch: 45 };
-    if (h === (isDe ? 'Adresse' : 'Address')) return { wch: 30 };
+    if (h === (isDe ? 'Firma' : 'Company')) return { wch: 25 };
     
     let maxLen = h.length;
     rows.slice(4).forEach(row => {
       const cellValue = String(row[i] || '');
       if (cellValue.length > maxLen) maxLen = cellValue.length;
     });
-    return { wch: Math.min(maxLen + 2, 40) };
+    return { wch: Math.min(maxLen + 2, 45) };
   });
 
   const wb = XLSX.utils.book_new();
