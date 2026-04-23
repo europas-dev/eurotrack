@@ -18,7 +18,7 @@ export function calculateNights(start?: string | null, end?: string | null): num
 }
 
 /**
- * NEW: Calculates exactly how many nights of a booking fall within a specific boundary.
+ * Calculates exactly how many nights of a booking fall within a specific boundary.
  */
 export function getOverlappingNights(bookingStart: string, bookingEnd: string, filterStart: string, filterEnd: string): number {
   const bStart = new Date(bookingStart).getTime();
@@ -112,11 +112,10 @@ export function calcDurationFreeBeds(duration: any, targetDateIso: string): numb
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// UPGRADED MASTER MATH FUNCTIONS (Date-Boundary Aware)
+// UPGRADED MASTER MATH ENGINE (Unified with HotelRow logic)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function calcHotelTotalCost(hotel: any, selectedMonth?: number | null, selectedYear?: number | null): number {
-  let tCost = 0;
   let filterStart: string | null = null;
   let filterEnd: string | null = null;
 
@@ -134,43 +133,114 @@ export function calcHotelTotalCost(hotel: any, selectedMonth?: number | null, se
     }
   }
 
+  let totalNightsAll = 0;
+  let overlapNightsAll = 0;
+  let sumDurationBrutto = 0;
+  let sumDurationNetto = 0;
+
   (hotel.durations || []).forEach((d: any) => {
     if (!d.startDate || !d.endDate) return;
 
-    const totalDurationNights = calculateNights(d.startDate, d.endDate);
-    if (totalDurationNights <= 0) return;
+    const dNights = calculateNights(d.startDate, d.endDate);
+    if (dNights <= 0) return;
 
-    let overlapNights = totalDurationNights;
-    
+    totalNightsAll += dNights;
+
     if (filterStart && filterEnd) {
-      overlapNights = getOverlappingNights(d.startDate, d.endDate, filterStart, filterEnd);
+      overlapNightsAll += getOverlappingNights(d.startDate, d.endDate, filterStart, filterEnd);
+    } else {
+      overlapNightsAll += dNights;
     }
-
-    if (overlapNights <= 0) return;
 
     const rCards = d.roomCards || [];
-    const extraTotal = (d.extraCosts || []).reduce((s: number, e: any) => s + (Number(e.amount) || 0), 0);
+    sumDurationBrutto += rCards.reduce((s: number, c: any) => s + calcRoomCardTotal(c, d.startDate, d.endDate), 0);
     
-    let bruttoBase = d.useBruttoNetto ? (d.brutto || 0) : rCards.reduce((s: number, c: any) => {
-      return s + calcRoomCardTotal(c, d.startDate, d.endDate);
-    }, 0);
-    
-    bruttoBase += extraTotal;
-    
-    if (!d.useBruttoNetto && d.hasDiscount && d.discountValue) {
-      bruttoBase = d.discountType === 'fixed' ? bruttoBase - d.discountValue : bruttoBase * (1 - d.discountValue / 100);
-    }
-
-    // Apply strict proportional cost if filters are active, otherwise add whole duration cost
-    if (filterStart && filterEnd) {
-      const dailyRate = bruttoBase / totalDurationNights;
-      tCost += Math.max(0, dailyRate * overlapNights);
-    } else {
-      tCost += Math.max(0, bruttoBase);
-    }
+    // Rough netto aggregation for percentage ratio scaling
+    sumDurationNetto += rCards.reduce((s: number, c: any) => s + ((parseFloat(c.bedNetto) || 0) * dNights), 0); 
   });
 
-  return tCost;
+  // 1. Base Costs (Master Invoice)
+  const baseCosts = hotel.baseCosts || hotel.base_costs || [];
+  let isMasterActive = baseCosts.some((bc: any) => bc.netto != null || bc.brutto != null);
+  let bBruttoTotal = 0;
+  let bNettoTotal = 0;
+
+  baseCosts.forEach((bc: any) => {
+    let bBrutto = 0;
+    let bNetto = 0;
+    let bMwSt = bc.mwst != null ? parseFloat(bc.mwst) : null;
+    let isMwstValid = bMwSt !== null && !isNaN(bMwSt);
+
+    if (bc.netto != null) {
+        bNetto = parseFloat(bc.netto);
+        let discountedNetto = bNetto;
+        if (bc.discountValue) {
+            const dVal = parseFloat(bc.discountValue);
+            discountedNetto = bc.discountType === 'fixed' ? Math.max(0, bNetto - dVal) : Math.max(0, bNetto * (1 - dVal/100));
+        }
+        bBrutto = isMwstValid ? discountedNetto * (1 + bMwSt/100) : discountedNetto;
+    } else if (bc.brutto != null) {
+        bBrutto = parseFloat(bc.brutto);
+        if (isMwstValid) bNetto = bBrutto / (1 + bMwSt/100);
+    }
+    bBruttoTotal += bBrutto;
+    bNettoTotal += bNetto;
+  });
+
+  // 2. Extra Costs
+  let eBruttoTotal = 0;
+  let eNettoTotal = 0;
+  const extraCosts = hotel.extraCosts || hotel.extra_costs || [];
+  extraCosts.forEach((ec: any) => {
+     if (ec.brutto != null) {
+       eBruttoTotal += parseFloat(ec.brutto);
+       let eMwst = ec.mwst != null ? parseFloat(ec.mwst) : 0;
+       eNettoTotal += parseFloat(ec.brutto) / (1 + eMwst/100);
+     } else if (ec.netto != null) {
+       let eNetto = parseFloat(ec.netto);
+       let eMwst = ec.mwst != null ? parseFloat(ec.mwst) : 0;
+       eBruttoTotal += eNetto * (1 + eMwst/100);
+       eNettoTotal += eNetto;
+     }
+  });
+
+  // 3. Pre-Global Totals
+  let preGlobalBrutto = (isMasterActive ? bBruttoTotal : sumDurationBrutto) + eBruttoTotal;
+  let preGlobalNetto = (isMasterActive ? bNettoTotal : sumDurationNetto) + eNettoTotal;
+  
+  let finalBrutto = preGlobalBrutto;
+
+  // 4. Global Discount
+  const hasGD = hotel.has_global_discount ?? hotel.hasGlobalDiscount;
+  if (hasGD) {
+     const gVal = parseFloat(hotel.global_discount_value ?? hotel.globalDiscountValue);
+     const isFixed = (hotel.global_discount_type ?? hotel.globalDiscountType) === 'fixed';
+     const target = (hotel.global_discount_target ?? hotel.globalDiscountTarget) || 'netto';
+     
+     if (gVal) {
+         if (target === 'netto') {
+            let ratio = isFixed ? (gVal / (preGlobalNetto || 1)) : (gVal / 100);
+            if (!isFinite(ratio)) ratio = 0;
+            finalBrutto = Math.max(0, preGlobalBrutto * (1 - ratio));
+         } else {
+            finalBrutto = Math.max(0, preGlobalBrutto - (isFixed ? gVal : preGlobalBrutto * (gVal/100)));
+         }
+     }
+  }
+
+  // 5. Hard Brutto Override
+  const override = hotel.override_total_brutto ?? hotel.overrideTotalBrutto;
+  if (override != null) {
+      finalBrutto = parseFloat(override);
+  }
+
+  // 6. Proportional scaling by overlapping dates (if filtering by Month/Timeline)
+  if (filterStart && filterEnd) {
+      if (totalNightsAll <= 0) return 0;
+      return (finalBrutto / totalNightsAll) * overlapNightsAll;
+  }
+
+  return finalBrutto;
 }
 
 export function calcHotelFreeBedsToday(hotel: any): number {
