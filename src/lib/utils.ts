@@ -436,13 +436,20 @@ export function generatePDF(data: any[], activeCols: string[], title: string, la
     styles: { fontSize: 8, font: "helvetica", cellPadding: 4, lineColor: [200, 200, 200], lineWidth: 0.5 },
     headStyles: { fillColor: [245, 245, 245], textColor: [0, 0, 0], fontStyle: 'bold' },
     columnStyles: { 
-      hotel: { cellWidth: 85 },      // Added space back to Hotel
-      address: { cellWidth: 90 },    // Added space back to Address
-      contact: { cellWidth: 80 },    // Added space back to Contact
-      dates: { cellWidth: 95 },      // Controlled width for Durations
-      employees: { cellWidth: 105 }, // Controlled width for Employees
-      cost: { fontStyle: 'bold', halign: 'right' } 
+      hotel: { cellWidth: 80 },
+      company: { cellWidth: 70 },    // FIX: Gives Firma enough room
+      city: { cellWidth: 50 },
+      address: { cellWidth: 80 },
+      contact: { cellWidth: 70 },
+      phone: { cellWidth: 75 },      // FIX: Forces Telefon to stay on one line
+      invoice: { cellWidth: 60 },
+      dates: { cellWidth: 110 },      
+      employees: { cellWidth: 95 },  
+      cost: { fontStyle: 'bold', halign: 'right', cellWidth: 60 },
+      status: { cellWidth: 45 },
+      deposit: { cellWidth: 55 }     // FIX: Gives Kaution enough room for currency
     },
+    
     didDrawPage: (d) => {
       const now = new Date();
       const ts = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}, ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
@@ -452,6 +459,9 @@ export function generatePDF(data: any[], activeCols: string[], title: string, la
     }
   });
 
+  
+
+  
   const fileDate = `${new Date().getDate().toString().padStart(2, '0')}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}-${new Date().getFullYear()}`;
   const fileName = `Europas GmbH_${isDe ? 'Bericht' : 'Report'}_${cleanTitle}_${fileDate}.pdf`;
   if (shouldPrint) { window.open(doc.output('bloburl'), '_blank'); } else { doc.save(fileName); }
