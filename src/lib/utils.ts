@@ -353,12 +353,11 @@ export function getDurationTabLabel(d: any, lang: 'de' | 'en'): string {
 // ─────────────────────────────────────────────────────────────────────────────
 // EXPORT FUNCTIONS (Professional)
 // ─────────────────────────────────────────────────────────────────────────────
-// src/lib/utils.ts - Master Export & Print Section
-import jsPDF from 'jspdf';
+// src/lib/utils.ts - Master Export Section
+import jsPDF from 'jsPDF';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
-// Standardized German date format: DD.MM.YYYY
 function fmtDateFull(iso: string) {
   if (!iso) return '';
   const [y, m, d] = iso.split('-');
@@ -368,6 +367,9 @@ function fmtDateFull(iso: string) {
 export function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de' | 'en') {
   return hotels.map(h => {
     const isDe = lang === 'de';
+    // FIX: Combined Country Code (+49) and Telefon field
+    const fullPhone = h.countryCode && h.phone ? `${h.countryCode} ${h.phone}` : (h.phone || '—');
+    
     const dates = (h.durations || []).map((d: any) => 
       d.startDate && d.endDate ? `${fmtDateFull(d.startDate)} - ${fmtDateFull(d.endDate)}` : ''
     ).filter(Boolean).join(', '); 
@@ -382,8 +384,7 @@ export function buildReportData(hotels: any[], calcCost: (h: any) => number, lan
       city: h.city || '—',
       address: h.address || '—',
       contact: h.contactPerson || h.contactperson || '—',
-      // PRESERVE COUNTRY CODE: Kept as raw string for technical forcing below
-      phone: h.phone ? String(h.phone) : '—',
+      phone: fullPhone,
       invoice: h.rechnungNr || h.rechnung_nr || '—',
       dates: dates || '—',
       employees: employees || '—',
@@ -404,19 +405,16 @@ export function generatePDF(data: any[], activeCols: string[], title: string, la
   doc.text("Europas GmbH", 40, 40);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text(`${isDe ? 'Zeitraum' : 'Period'}: ${title.replace('Period: ', '')}`, 40, 55);
+  const periodText = `${isDe ? 'Zeitraum' : 'Period'}: ${title.replace('Period: ', '').replace('Zeitraum: ', '')}`;
+  doc.text(periodText, 40, 55);
 
   doc.setFont("helvetica", "bold");
   doc.text(isDe ? "Gesamtkosten" : "Total Cost", pageWidth - 40, 40, { align: 'right' });
   doc.setFontSize(15);
   doc.text(grandTotal.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }), pageWidth - 40, 58, { align: 'right' });
 
-  // Define Columns with STRICT WIDTHS to prevent overflow
-  const columns = [
-    { header: isDe ? 'Hotelname' : 'Hotel Name', dataKey: 'hotel' }
-  ];
+  const columns = [{ header: isDe ? 'Hotelname' : 'Hotel Name', dataKey: 'hotel' }];
   if (activeCols.includes('company')) columns.push({ header: isDe ? 'Firma' : 'Company', dataKey: 'company' });
-  if (activeCols.includes('city')) columns.push({ header: isDe ? 'Stadt' : 'City', dataKey: 'city' });
   if (activeCols.includes('address')) columns.push({ header: isDe ? 'Adresse' : 'Address', dataKey: 'address' });
   if (activeCols.includes('contact')) columns.push({ header: isDe ? 'Kontakt' : 'Contact', dataKey: 'contact' });
   if (activeCols.includes('phone')) columns.push({ header: isDe ? 'Telefon' : 'Phone', dataKey: 'phone' });
@@ -424,38 +422,39 @@ export function generatePDF(data: any[], activeCols: string[], title: string, la
   if (activeCols.includes('durations')) columns.push({ header: isDe ? 'Zeitraum' : 'Durations', dataKey: 'dates' });
   if (activeCols.includes('employees')) columns.push({ header: isDe ? 'Mitarbeiter' : 'Employees', dataKey: 'employees' });
   columns.push({ header: isDe ? 'Kosten' : 'Cost', dataKey: 'cost' });
-  if (activeCols.includes('status')) columns.push({ header: 'Status', dataKey: 'status' });
-  if (activeCols.includes('deposit')) columns.push({ header: isDe ? 'Kaution' : 'Deposit', dataKey: 'deposit' });
 
   autoTable(doc, {
     columns,
     body: data,
     startY: 80,
+    margin: { left: 40, right: 40 }, // Center alignment
     theme: 'grid',
-    // Header & Data Font Consistency
-    styles: { fontSize: 9, font: "helvetica", cellPadding: 4, overflow: 'linebreak', lineColor: [180,180,180], lineWidth: 0.5 },
-    headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 9 },
+    styles: { fontSize: 9, font: "helvetica", cellPadding: 4, overflow: 'linebreak' },
+    headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
     columnStyles: {
-      hotel: { cellWidth: 80 },
-      company: { cellWidth: 75 },
+      hotel: { cellWidth: 85 },
+      company: { cellWidth: 80 },
       address: { cellWidth: 85 },
-      contact: { cellWidth: 75 },
-      phone: { cellWidth: 70 }, // FIXED: Fits +49 123456789
-      invoice: { cellWidth: 55 }, // FIXED: Slimmer to save space
-      dates: { cellWidth: 100 },
-      employees: { cellWidth: 115 }, // FIXED: Prevents pushing table off-page
-      cost: { fontStyle: 'bold', halign: 'right', cellWidth: 65 }
+      contact: { cellWidth: 80 },
+      phone: { cellWidth: 85 },   // Fits +49 156...
+      invoice: { cellWidth: 65 },
+      dates: { cellWidth: 120 },   // One line per range
+      employees: { cellWidth: 130 },
+      cost: { fontStyle: 'bold', halign: 'right', cellWidth: 70 }
     },
     didDrawPage: (d) => {
       const now = new Date();
-      // RESTORED: Full timestamp
-      const ts = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}, ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      const ts = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}, ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
       doc.setFontSize(8);
       doc.text(`${isDe ? 'Erstellt am' : 'Generated on'}: ${ts}`, 40, doc.internal.pageSize.height - 20);
       doc.text(`Page ${doc.internal.getNumberOfPages()}`, pageWidth - 40, doc.internal.pageSize.height - 20, { align: 'right' });
     }
   });
-  return doc;
+
+  // FIX: Professional Naming Convention
+  const fileDate = `${new Date().getDate().toString().padStart(2, '0')}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}-${new Date().getFullYear()}`;
+  const fileName = `Europas GmbH_${isDe ? 'Bericht' : 'Report'}_${title.replace(':', '')}_${fileDate}.pdf`;
+  doc.save(fileName);
 }
 
 export function generateExcel(data: any[], activeCols: string[], lang: 'de' | 'en', period: string, grandTotal: number) {
@@ -465,14 +464,13 @@ export function generateExcel(data: any[], activeCols: string[], lang: 'de' | 'e
 
   const rows: any[] = [
     ["Europas GmbH"],
-    [`${isDe ? 'Zeitraum' : 'Period'}: ${period.replace('Period: ', '')}`],
+    [`${isDe ? 'Zeitraum' : 'Period'}: ${period}`],
     [`${isDe ? 'Erstellt am' : 'Generated on'}: ${ts}`],
     []
   ];
 
   const headers = [isDe ? 'Hotelname' : 'Hotel Name'];
   if (activeCols.includes('company')) headers.push(isDe ? 'Firma' : 'Company');
-  if (activeCols.includes('city')) headers.push(isDe ? 'Stadt' : 'City');
   if (activeCols.includes('address')) headers.push(isDe ? 'Adresse' : 'Address');
   if (activeCols.includes('contact')) headers.push(isDe ? 'Kontakt' : 'Contact');
   if (activeCols.includes('phone')) headers.push(isDe ? 'Telefon' : 'Phone');
@@ -480,24 +478,19 @@ export function generateExcel(data: any[], activeCols: string[], lang: 'de' | 'e
   if (activeCols.includes('durations')) headers.push(isDe ? 'Zeitraum' : 'Durations');
   if (activeCols.includes('employees')) headers.push(isDe ? 'Mitarbeiter' : 'Employees');
   headers.push(isDe ? 'Kosten' : 'Cost');
-  if (activeCols.includes('status')) headers.push('Status');
-  if (activeCols.includes('deposit')) headers.push(isDe ? 'Kaution' : 'Deposit');
   rows.push(headers);
 
   data.forEach(h => {
     const row: any[] = [h.hotel];
     if (activeCols.includes('company')) row.push(h.company);
-    if (activeCols.includes('city')) row.push(h.city);
     if (activeCols.includes('address')) row.push(h.address);
     if (activeCols.includes('contact')) row.push(h.contact);
-    // FORCE STRING OBJECT: Strictly preserves +49 and prevents math conversion
-    if (activeCols.includes('phone')) row.push({ v: h.phone, t: 's' }); 
+    // FORCE STRING: Preserves +49
+    if (activeCols.includes('phone')) row.push({ v: h.phone, t: 's' });
     if (activeCols.includes('invoice')) row.push(h.invoice);
     if (activeCols.includes('durations')) row.push(h.dates);
     if (activeCols.includes('employees')) row.push(h.employees);
     row.push(h.cost);
-    if (activeCols.includes('status')) row.push(h.status);
-    if (activeCols.includes('deposit')) row.push(h.deposit);
     rows.push(row);
   });
 
@@ -510,19 +503,17 @@ export function generateExcel(data: any[], activeCols: string[], lang: 'de' | 'e
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
 
-  // Apply Auto-Width & Technical Styling
   ws['!cols'] = headers.map((h, i) => {
     if (h === (isDe ? 'Telefon' : 'Phone')) return { wch: 20 };
     if (h === (isDe ? 'Mitarbeiter' : 'Employees')) return { wch: 45 };
-    let maxLen = h.length;
-    rows.slice(4).forEach(row => {
-      const cellValue = String(row[i] || '');
-      if (cellValue.length > maxLen) maxLen = cellValue.length;
-    });
-    return { wch: Math.min(maxLen + 2, 40) };
+    if (h === (isDe ? 'Zeitraum' : 'Durations')) return { wch: 35 };
+    return { wch: 20 };
   });
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Report");
-  XLSX.writeFile(wb, `Europas_Report_${now.getTime()}.xlsx`);
+  
+  const fileDate = `${now.getDate().toString().padStart(2, '0')}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getFullYear()}`;
+  const fileName = `Europas GmbH_${isDe ? 'Bericht' : 'Report'}_${period.replace(':', '')}_${fileDate}.xlsx`;
+  XLSX.writeFile(wb, fileName);
 }
