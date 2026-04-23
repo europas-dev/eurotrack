@@ -332,14 +332,12 @@ export default function Header({
         </div>
 
         <div className="flex items-center gap-1 ml-auto relative">
-          <button onClick={onPrint} className={iconBtn} title={lang === 'de' ? 'Drucken / PDF' : 'Print / Save as PDF'}>
-            <Printer size={18} />
+          <button 
+              onClick={onPrint} 
+              className="p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white transition-all flex items-center gap-2 group">
+              <img src="https://cdn-icons-png.flaticon.com/512/3580/3580198.png" className="w-5 h-5 invert" alt="export" />
+              <span className="text-sm font-bold">{lang === 'de' ? 'Export' : 'Export'}</span>
           </button>
-          
-          <div className="relative">
-            <button onClick={() => setShowExportMenu(!showExportMenu)} className={iconBtn} title={lang === 'de' ? 'Exportieren' : 'Export'}>
-              <Download size={18} />
-            </button>
             {showExportMenu && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowExportMenu(false)} />
