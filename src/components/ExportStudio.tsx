@@ -45,7 +45,7 @@ export default function ExportStudio({ hotels, calcCost, lang, title, total, onC
       <div className="flex-1 flex overflow-hidden">
         {/* LEFT: PREVIEW */}
         <div className="flex-1 overflow-auto p-12 bg-slate-800/50 flex justify-center">
-          <div className="w-[1122px] min-h-[793px] bg-white shadow-2xl p-[40pt] flex flex-col text-slate-900 origin-top">
+          <div className="w-[1440px] min-h-[793px] bg-white shadow-2xl p-[40pt] flex flex-col text-slate-900 origin-top">
             
             {/* HEADER SECTION */}
             <div className="flex justify-between items-end border-b-2 border-slate-900 pb-4 mb-8">
