@@ -353,7 +353,7 @@ export function getDurationTabLabel(d: any, lang: 'de' | 'en'): string {
 // ─────────────────────────────────────────────────────────────────────────────
 // EXPORT FUNCTIONS (Professional)
 // ─────────────────────────────────────────────────────────────────────────────
-// src/lib/utils.ts - Full Export & Print Section
+// src/lib/utils.ts - Final Polished Export Section
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -367,9 +367,10 @@ function fmtDateFull(iso: string) {
 export function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de' | 'en') {
   return hotels.map(h => {
     const isDe = lang === 'de';
+    // FIX: Added comma separator between multiple durations
     const dates = (h.durations || []).map((d: any) => 
       d.startDate && d.endDate ? `${fmtDateFull(d.startDate)} - ${fmtDateFull(d.endDate)}` : ''
-    ).filter(Boolean).join('\n');
+    ).filter(Boolean).join(',\n'); // Comma and Newline for PDF
 
     const employees = (h.durations || []).flatMap((d: any) => 
       (d.roomCards || []).flatMap((rc: any) => (rc.employees || []).map((e: any) => e.name))
@@ -386,13 +387,13 @@ export function buildReportData(hotels: any[], calcCost: (h: any) => number, lan
       dates: dates || '—',
       employees: employees || '—',
       cost: (calcCost(h) || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }),
+      costRaw: calcCost(h) || 0, // Hidden field for Excel math
       status: (h.isPaid || h.is_paid) ? (isDe ? 'Bezahlt' : 'Paid') : (isDe ? 'Offen' : 'Unpaid'),
       deposit: h.depositEnabled ? (Number(h.depositAmount) > 0 ? (Number(h.depositAmount).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })) : (isDe ? 'Ja' : 'Yes')) : (isDe ? 'Nein' : 'No')
     };
   });
 }
 
-// PDF Generation using jsPDF
 export function generatePDF(data: any[], activeCols: string[], title: string, lang: 'de' | 'en', grandTotal: number) {
   const isDe = lang === 'de';
   const doc = new jsPDF('l', 'pt', 'a4');
@@ -402,7 +403,7 @@ export function generatePDF(data: any[], activeCols: string[], title: string, la
   doc.text("Europas GmbH", 40, 40);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text(title, 40, 55);
+  doc.text(`${isDe ? 'Zeitraum' : 'Period'}: ${title}`, 40, 55);
 
   doc.setFont("helvetica", "bold");
   doc.text(isDe ? "Gesamtkosten" : "Total Cost", doc.internal.pageSize.width - 40, 40, { align: 'right' });
@@ -413,7 +414,7 @@ export function generatePDF(data: any[], activeCols: string[], title: string, la
   if (activeCols.includes('company')) columns.push({ header: isDe ? 'Firma' : 'Company', dataKey: 'company' });
   if (activeCols.includes('city')) columns.push({ header: isDe ? 'Stadt' : 'City', dataKey: 'city' });
   if (activeCols.includes('address')) columns.push({ header: isDe ? 'Adresse' : 'Address', dataKey: 'address' });
-  if (activeCols.includes('contact')) columns.push({ header: isDe ? 'Ansprechpartner' : 'Contact', dataKey: 'contact' });
+  if (activeCols.includes('contact')) columns.push({ header: isDe ? 'Kontakt' : 'Contact', dataKey: 'contact' });
   if (activeCols.includes('phone')) columns.push({ header: isDe ? 'Telefon' : 'Phone', dataKey: 'phone' });
   if (activeCols.includes('invoice')) columns.push({ header: isDe ? 'Rechnungsnr.' : 'Invoice No', dataKey: 'invoice' });
   if (activeCols.includes('durations')) columns.push({ header: isDe ? 'Zeitraum' : 'Durations', dataKey: 'dates' });
@@ -427,8 +428,14 @@ export function generatePDF(data: any[], activeCols: string[], title: string, la
     body: data,
     startY: 80,
     theme: 'grid',
-    styles: { fontSize: 10, font: "helvetica", cellPadding: 4, overflow: 'linebreak', lineColor: [0,0,0], lineWidth: 0.5 },
-    headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.5 },
+    styles: { fontSize: 9, font: "helvetica", cellPadding: 4, overflow: 'linebreak', lineColor: [180,180,180], lineWidth: 0.5 },
+    headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 10 },
+    columnStyles: {
+      hotel: { cellWidth: 85 },
+      dates: { cellWidth: 110 },
+      employees: { cellWidth: 120 },
+      cost: { fontStyle: 'bold', halign: 'right', cellWidth: 70 }
+    },
     didDrawPage: (d) => {
       doc.setFontSize(8);
       doc.text(`${isDe ? 'Erstellt am' : 'Generated on'}: ${new Date().toLocaleString()}`, 40, doc.internal.pageSize.height - 20);
@@ -438,17 +445,67 @@ export function generatePDF(data: any[], activeCols: string[], title: string, la
   return doc;
 }
 
-// EXCEL Generation using XLSX
-export function generateExcel(data: any[], activeCols: string[], lang: 'de' | 'en') {
+export function generateExcel(data: any[], activeCols: string[], lang: 'de' | 'en', period: string, grandTotal: number) {
   const isDe = lang === 'de';
-  const headers = ['Hotelname', ...activeCols, 'Kosten'];
-  const excelData = data.map(row => {
-    const obj: any = { [isDe ? 'Hotelname' : 'Hotel Name']: row.hotel };
-    activeCols.forEach(col => { obj[col] = row[col]; });
-    obj[isDe ? 'Kosten' : 'Cost'] = row.cost;
-    return obj;
+  
+  // 1. Prepare Header Rows (Titles)
+  const rows = [
+    ["Europas GmbH"],
+    [`${isDe ? 'Zeitraum' : 'Period'}: ${period}`],
+    [`${isDe ? 'Erstellt am' : 'Generated on'}: ${new Date().toLocaleString()}`],
+    [] // Empty spacer
+  ];
+
+  // 2. Prepare Table Header
+  const headers = [isDe ? 'Hotelname' : 'Hotel Name'];
+  if (activeCols.includes('company')) headers.push(isDe ? 'Firma' : 'Company');
+  if (activeCols.includes('city')) headers.push(isDe ? 'Stadt' : 'City');
+  if (activeCols.includes('address')) headers.push(isDe ? 'Adresse' : 'Address');
+  if (activeCols.includes('contact')) headers.push(isDe ? 'Kontakt' : 'Contact');
+  if (activeCols.includes('phone')) headers.push(isDe ? 'Telefon' : 'Phone');
+  if (activeCols.includes('invoice')) headers.push(isDe ? 'Rechnungsnr.' : 'Invoice No');
+  if (activeCols.includes('durations')) headers.push(isDe ? 'Zeitraum' : 'Durations');
+  if (activeCols.includes('employees')) headers.push(isDe ? 'Mitarbeiter' : 'Employees');
+  headers.push(isDe ? 'Kosten' : 'Cost');
+  if (activeCols.includes('status')) headers.push('Status');
+  if (activeCols.includes('deposit')) headers.push(isDe ? 'Kaution' : 'Deposit');
+  rows.push(headers);
+
+  // 3. Prepare Body Data
+  data.forEach(h => {
+    const row = [h.hotel];
+    if (activeCols.includes('company')) row.push(h.company);
+    if (activeCols.includes('city')) row.push(h.city);
+    if (activeCols.includes('address')) row.push(h.address);
+    if (activeCols.includes('contact')) row.push(h.contact);
+    if (activeCols.includes('phone')) row.push(h.phone);
+    if (activeCols.includes('invoice')) row.push(h.invoice);
+    if (activeCols.includes('durations')) row.push(h.dates);
+    if (activeCols.includes('employees')) row.push(h.employees);
+    row.push(h.cost);
+    if (activeCols.includes('status')) row.push(h.status);
+    if (activeCols.includes('deposit')) row.push(h.deposit);
+    rows.push(row);
   });
-  const ws = XLSX.utils.json_to_sheet(excelData);
+
+  // 4. Add Grand Total
+  const totalRow = Array(headers.length).fill('');
+  totalRow[headers.indexOf(isDe ? 'Hotelname' : 'Hotel Name')] = isDe ? "GESAMTSUMME" : "GRAND TOTAL";
+  totalRow[headers.indexOf(isDe ? 'Kosten' : 'Cost')] = grandTotal.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+  rows.push(totalRow);
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  
+  // 5. Set Column Widths (Characters)
+  ws['!cols'] = headers.map(() => ({ wch: 20 })); // Default width
+  ws['!cols'][headers.indexOf(isDe ? 'Hotelname' : 'Hotel Name')] = { wch: 30 };
+  if (headers.indexOf(isDe ? 'Mitarbeiter' : 'Employees') !== -1) {
+    ws['!cols'][headers.indexOf(isDe ? 'Mitarbeiter' : 'Employees')] = { wch: 40 };
+  }
+  if (headers.indexOf(isDe ? 'Zeitraum' : 'Durations') !== -1) {
+    ws['!cols'][headers.indexOf(isDe ? 'Zeitraum' : 'Durations')] = { wch: 30 };
+  }
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Report");
   XLSX.writeFile(wb, `Europas_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
