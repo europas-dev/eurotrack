@@ -357,15 +357,11 @@ export function getDurationTabLabel(d: any, lang: 'de' | 'en'): string {
 function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de' | 'en') {
   return hotels.map(h => {
     const company = Array.isArray(h.companyTag) ? h.companyTag.join(', ') : (h.companyTag || '—');
-    
-    // FIX: Invoice No is now properly pulled from the Master Hotel settings
     const invoice = h.rechnungNr || h.rechnung_nr || '—';
-    
     const dates = (h.durations || []).map((d: any) => d.startDate && d.endDate ? `${formatDateChip(d.startDate)} - ${formatDateChip(d.endDate)}` : '').filter(Boolean).join(', ') || '—';
     const employees = (h.durations || []).flatMap((d: any) => (d.roomCards || []).flatMap((rc: any) => (rc.employees || []).map((e: any) => e.name))).filter(Boolean).join(', ') || '—';
     const cost = formatCurrency(calcCost(h));
     
-    // FIX: Status and Deposit are now pulled correctly from Master Hotel settings
     const isPaid = h.isPaid || h.is_paid;
     const status = isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid');
 
@@ -375,8 +371,8 @@ function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de'
         ? (depositAmount > 0 ? formatCurrency(depositAmount) : (lang === 'de' ? 'Ja' : 'Yes')) 
         : (lang === 'de' ? 'Nein' : 'No');
 
-    // FIX: Merged Address and City to save horizontal space
-    const address = [h.address, h.city].filter(Boolean).join(', ') || '—';
+    // FIX: Address now strictly maps to the address field only
+    const address = h.address || '—';
     const contact = h.contactPerson || h.contactperson || '—';
 
     return {
@@ -397,27 +393,31 @@ function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de'
   });
 }
 
-export function exportToCSV(hotels: any[], calcCost: (h: any) => number, grandTotal: number, reportTitle: string, lang: 'de' | 'en') {
+// FIX: Added showStatus and showDeposit boolean parameters
+export function exportToCSV(hotels: any[], calcCost: (h: any) => number, grandTotal: number, reportTitle: string, lang: 'de' | 'en', showStatus: boolean, showDeposit: boolean) {
   const data = buildReportData(hotels, calcCost, lang);
-  const showDeposit = data.some(d => d.hasDeposit);
   const isDe = lang === 'de';
 
-  // Aligned strictly to your requested layout order
   let headers = isDe 
-    ? ['Hotelname', 'Firma', 'Adresse', 'Kontakt', 'Telefon', 'Rechnungsnr.', 'Zeitraum', 'Mitarbeiter', 'Status', 'Gesamtkosten']
-    : ['Hotel Name', 'Company', 'Address', 'Contact', 'Phone', 'Invoice No.', 'Durations', 'Employees', 'Status', 'Total Cost'];
+    ? ['Hotelname', 'Firma', 'Adresse', 'Kontakt', 'Telefon', 'Rechnungsnr.', 'Zeitraum', 'Mitarbeiter', 'Gesamtkosten']
+    : ['Hotel Name', 'Company', 'Address', 'Contact', 'Phone', 'Invoice No.', 'Durations', 'Employees', 'Total Cost'];
   
+  // Splice optional columns in before Total Cost if active
+  if (showStatus) headers.splice(headers.length - 1, 0, 'Status');
   if (showDeposit) headers.push(isDe ? 'Kaution' : 'Deposit');
 
   const rows = data.map(d => {
-    const row = [d.hotel, d.company, d.address, d.contact, d.phone, d.invoice, d.dates, d.employees, d.status, d.cost];
+    const row = [d.hotel, d.company, d.address, d.contact, d.phone, d.invoice, d.dates, d.employees];
+    if (showStatus) row.push(d.status);
+    row.push(d.cost);
     if (showDeposit) row.push(d.depositStr);
     return row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
   });
 
   const totalRow = Array(headers.length).fill('""');
-  totalRow[headers.length - 2] = isDe ? `"GESAMTSUMME"` : `"GRAND TOTAL"`;
-  totalRow[headers.length - 1] = `"${formatCurrency(grandTotal)}"`;
+  const costIndex = showDeposit ? headers.length - 2 : headers.length - 1;
+  totalRow[costIndex - 1] = isDe ? `"GESAMTSUMME"` : `"GRAND TOTAL"`;
+  totalRow[costIndex] = `"${formatCurrency(grandTotal)}"`;
   rows.push(totalRow.join(','));
 
   const csvContent = headers.map(h => `"${h}"`).join(',') + '\n' + rows.join('\n');
@@ -430,17 +430,12 @@ export function exportToCSV(hotels: any[], calcCost: (h: any) => number, grandTo
   URL.revokeObjectURL(url);
 }
 
-export function printDocument(hotels: any[], calcCost: (h: any) => number, grandTotal: number, reportTitle: string, lang: 'de' | 'en') {
+// FIX: Added showStatus and showDeposit boolean parameters
+export function printDocument(hotels: any[], calcCost: (h: any) => number, grandTotal: number, reportTitle: string, lang: 'de' | 'en', showStatus: boolean, showDeposit: boolean) {
   const data = buildReportData(hotels, calcCost, lang);
-  
-  // Smart dynamic columns
-  const showDeposit = data.some(d => d.hasDeposit);
-  const showStatus = data.some(d => !d.isPaid); // Only show status column if there is an unpaid hotel
-  
   const dateStr = new Date().toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' });
   const isDe = lang === 'de';
 
-  // Dynamic width calculation so Employees always gets maximum possible space
   const employeeWidth = (showDeposit && showStatus) ? '18%' : (showDeposit || showStatus) ? '21%' : '25%';
 
   let html = `
@@ -449,7 +444,8 @@ export function printDocument(hotels: any[], calcCost: (h: any) => number, grand
       <head>
         <title>Europas_GmbH_Report</title>
         <style>
-          @page { margin: 12mm; }
+          /* FIX: Enforced Landscape orientation */
+          @page { size: landscape; margin: 12mm; }
           body { 
             font-family: 'Calibri', 'Arial', sans-serif; 
             color: #000; 
@@ -484,7 +480,6 @@ export function printDocument(hotels: any[], calcCost: (h: any) => number, grand
           th { 
             background-color: #F3F4F6; 
             font-weight: bold; 
-            /* Removed uppercase constraint */
           }
           
           .date-footer {
