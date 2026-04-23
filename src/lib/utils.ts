@@ -436,18 +436,18 @@ export function generatePDF(data: any[], activeCols: string[], title: string, la
     styles: { fontSize: 8, font: "helvetica", cellPadding: 4, lineColor: [200, 200, 200], lineWidth: 0.5 },
     headStyles: { fillColor: [245, 245, 245], textColor: [0, 0, 0], fontStyle: 'bold' },
     columnStyles: { 
-      hotel: { cellWidth: 80 },
-      company: { cellWidth: 55 },    // FIX: Gives Firma enough room
-      city: { cellWidth: 55 },
-      address: { cellWidth: 80 },
-      contact: { cellWidth: 75 },
-      phone: { cellWidth: 65 },      // FIX: Forces Telefon to stay on one line
-      invoice: { cellWidth: 65 },
-      dates: { cellWidth: 100 },      
-      employees: { cellWidth: 120 },  
-      cost: { fontStyle: 'bold', halign: 'right', cellWidth: 60 },
-      status: { cellWidth: 45 },
-      deposit: { cellWidth: 55 }     // FIX: Gives Kaution enough room for currency
+      hotel: { cellWidth: 72 },
+      company: { cellWidth: 50 },
+      city: { cellWidth: 48 },
+      address: { cellWidth: 72 },
+      contact: { cellWidth: 66 },
+      phone: { cellWidth: 64 },      // Still safely fits +49
+      invoice: { cellWidth: 56 },
+      dates: { cellWidth: 88 },      
+      employees: { cellWidth: 104 },  
+      cost: { fontStyle: 'bold', halign: 'right', cellWidth: 55 },
+      status: { cellWidth: 40 },
+      deposit: { cellWidth: 45 }     
     },
     
     didDrawPage: (d) => {
