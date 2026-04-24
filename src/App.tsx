@@ -15,19 +15,25 @@ type Theme    = 'dark' | 'light';
 type Language = 'de' | 'en';
 
 const VIEW_KEY = 'et_last_view';
+const THEME_KEY = 'et_theme';
+const LANG_KEY = 'et_lang';
+
 const VALID_PERSISTED: View[] = ['dashboard', 'user-management'];
+
 function getPersistedView(): View | null {
   try {
     const v = sessionStorage.getItem(VIEW_KEY) as View | null;
     return v && VALID_PERSISTED.includes(v) ? v : null;
   } catch { return null; }
 }
+
 function persistView(v: View) {
   try {
     if (VALID_PERSISTED.includes(v)) sessionStorage.setItem(VIEW_KEY, v);
     else sessionStorage.removeItem(VIEW_KEY);
   } catch {}
 }
+
 function clearPersistedView() {
   try { sessionStorage.removeItem(VIEW_KEY); } catch {}
 }
@@ -46,22 +52,40 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
 }
 
 export default function App() {
-  const [view,            setView]          = useState<View>('landing');
-  const [loading,         setLoading]       = useState(true);
-  const [accessLevel,     setAccessLevel]   = useState<AccessLevel | null>(null);
-  const [theme,           setTheme]         = useState<Theme>('dark');
-  const [lang,            setLang]          = useState<Language>('en');
+  const [view, setView] = useState<View>('landing');
+  const [loading, setLoading] = useState(true);
+  const [accessLevel, setAccessLevel] = useState<AccessLevel | null>(null);
   
-  const [offlineMode,     setOfflineMode]   = useState(!navigator.onLine);
+  // FIX: Persistent initialization from localStorage
+  const [theme, setTheme] = useState<Theme>(
+    (localStorage.getItem(THEME_KEY) as Theme) || 'dark'
+  );
+  const [lang, setLang] = useState<Language>(
+    (localStorage.getItem(LANG_KEY) as Language) || 'de'
+  );
   
-  const pollRef    = useRef<ReturnType<typeof setInterval> | null>(null);
-  const initDone   = useRef(false);
+  const [offlineMode, setOfflineMode] = useState(!navigator.onLine);
+  
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const initDone = useRef(false);
   const signingOut = useRef(false);
-  
-  // NEW: The Loop Killer memory. Remembers who is logged in so it doesn't panic refresh.
   const currentUser = useRef<string | null>(null); 
 
   const dk = theme === 'dark';
+
+  // NEW: Persistent Handlers for Theme and Language
+  const handleToggleTheme = useCallback(() => {
+    setTheme(prev => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      localStorage.setItem(THEME_KEY, next);
+      return next;
+    });
+  }, []);
+
+  const handleSetLang = useCallback((l: Language) => {
+    setLang(l);
+    localStorage.setItem(LANG_KEY, l);
+  }, []);
 
   const navigate = useCallback((v: View) => {
     setView(v);
@@ -105,6 +129,15 @@ export default function App() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }, []);
 
+  // SYNC: Keep document class in sync with persistent theme state
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -118,7 +151,6 @@ export default function App() {
         return;
       }
       
-      // Save the user ID so we don't trigger unnecessary reloads later
       currentUser.current = session.user.id; 
       
       const persisted = getPersistedView();
@@ -139,11 +171,9 @@ export default function App() {
       if (cancelled || !initDone.current) return;
       
       if (event === 'SIGNED_IN' && session?.user) {
-        // KILL SWITCH: If the Dashboard triggers a session refresh, but we are already logged in... IGNORE IT.
         if (currentUser.current === session.user.id) return; 
         
         currentUser.current = session.user.id;
-
         setLoading(true);
         try {
           await resolveAccess(null);
@@ -156,9 +186,7 @@ export default function App() {
         if (!signingOut.current) return;
         signingOut.current = false;
         
-        // Reset memory on sign out
         currentUser.current = null; 
-        
         stopPoll();
         clearPersistedView();
         setAccessLevel(null);
@@ -216,9 +244,9 @@ export default function App() {
       onLogin={()       => setView('login')}
       onRegister={()    => setView('signup')}
       onAdminLogin={()  => setView('admin-login')}
-      lang={lang} setLang={setLang}
+      lang={lang} setLang={handleSetLang}
       isDarkMode={dk}
-      toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
+      toggleTheme={handleToggleTheme}
     />
   );
 
@@ -265,8 +293,8 @@ export default function App() {
       onDashboard={()      => navigate('dashboard')}
       onUserManagement={() => navigate('user-management')}
       onSignOut={handleSignOut}
-      lang={lang}  setLang={setLang}
-      theme={theme} toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
+      lang={lang}  setLang={handleSetLang}
+      theme={theme} toggleTheme={handleToggleTheme}
     />
   );
 
@@ -276,8 +304,8 @@ export default function App() {
       <ErrorBoundary>
         <UserManagement
           theme={theme} lang={lang}
-          toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
-          setLang={setLang}
+          toggleTheme={handleToggleTheme}
+          setLang={handleSetLang}
           onSignOut={handleSignOut}
           onBack={() => { clearPersistedView(); setView('superadmin-home'); }}
         />
@@ -298,8 +326,8 @@ export default function App() {
         <ErrorBoundary>
           <Dashboard
             theme={theme} lang={lang}
-            toggleTheme={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
-            setLang={setLang}
+            toggleTheme={handleToggleTheme}
+            setLang={handleSetLang}
             offlineMode={offlineMode}
             onToggleOfflineMode={handleToggleOffline}
             viewOnly={isViewOnly}
