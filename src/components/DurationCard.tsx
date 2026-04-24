@@ -19,7 +19,6 @@ interface Props {
   isMasterPricingActive?: boolean
   onUpdate: (id: string, updated: any) => void
   onDelete: (id: string) => void
-  viewOnly?: boolean
 }
 
 function addDays(iso: string, days: number): string {
@@ -32,7 +31,7 @@ function addDays(iso: string, days: number): string {
 const ROOM_TYPES = ['EZ', 'DZ', 'TZ', 'WG'] as const
 
 export default function DurationCard({
-  duration, isDarkMode, lang = 'de', isMasterPricingActive, onUpdate, onDelete, viewOnly
+  duration, isDarkMode, lang = 'de', isMasterPricingActive, onUpdate, onDelete,
 }: Props) {
   const dk = isDarkMode
   const [local, setLocal]           = useState<Duration>(duration)
@@ -68,10 +67,11 @@ export default function DurationCard({
   
   const today = new Date().toISOString().split('T')[0];
   const freeBeds = calcDurationFreeBeds({ ...local, roomCards }, today);
+  
+  // NEW LOGIC: It is EXPIRED if the end date is strictly in the past, regardless of beds.
   const isPast = !!(local.endDate && today > local.endDate);
 
   function queueSave(next: Duration) {
-    if (viewOnly) return;
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(async () => {
       try { 
@@ -86,14 +86,12 @@ export default function DurationCard({
   }
 
   function patch(changes: Partial<Duration>) {
-    if (viewOnly) return;
     const next = { ...local, ...changes } as Duration
     setLocal(next); 
     queueSave(next);
   }
 
   function handleStartDateChange(newStart: string) {
-    if (viewOnly) return;
     let updates: Partial<Duration> = { startDate: newStart };
     if (activePreset === '1W') updates.endDate = addDays(newStart, 7);
     if (activePreset === '1M') updates.endDate = addDays(newStart, 30);
@@ -101,13 +99,12 @@ export default function DurationCard({
   }
 
   function handleEndDateChange(newEnd: string) {
-    if (viewOnly) return;
     setActivePreset(null); 
     patch({ endDate: newEnd });
   }
 
   function togglePreset(preset: '1W' | '1M', days: number) {
-    if (!local.startDate || viewOnly) return
+    if (!local.startDate) return
     if (activePreset === preset) {
       setActivePreset(null) 
     } else {
@@ -117,7 +114,7 @@ export default function DurationCard({
   }
 
   function shiftEndDate(delta: number) {
-    if (!local.endDate || viewOnly) return
+    if (!local.endDate) return
     setActivePreset(null) 
     patch({ endDate: addDays(local.endDate, delta) })
   }
@@ -132,7 +129,7 @@ export default function DurationCard({
   roomCards.forEach(c => { typeCount[c.roomType] = (typeCount[c.roomType] ?? 0) + 1 })
 
   async function handleAddRoomCard(roomType: string, customBedCount?: number) {
-    if (!hasDates || viewOnly) return
+    if (!hasDates) return
     setAddingType(roomType)
     try {
       const bedCount = customBedCount ? customBedCount : (roomType === 'EZ' ? 1 : roomType === 'DZ' ? 2 : roomType === 'TZ' ? 3 : 2)
@@ -148,7 +145,6 @@ export default function DurationCard({
   }
 
   async function handleRemoveLastOfType(roomType: string) {
-    if (viewOnly) return;
     const cards = roomCards.filter(c => c.roomType === roomType)
     if (!cards.length) return
     const last = cards[cards.length - 1]
@@ -161,14 +157,11 @@ export default function DurationCard({
   }
 
   function handleCardUpdate(id: string, p: Partial<RoomCard>) {
-    if (viewOnly) return;
     const n = roomCards.map(c => c.id === id ? { ...c, ...p } : c);
     setRoomCards(n);
     syncRoomCardsToParent(n);
   }
-
   function handleCardDelete(id: string) {
-    if (viewOnly) return;
     const n = roomCards.filter(c => c.id !== id);
     setRoomCards(n);
     syncRoomCardsToParent(n);
@@ -179,11 +172,7 @@ export default function DurationCard({
     const [y, m, d] = isoString.split('-');
     return `${d}/${m}/${y}`;
   }
-
-  function openPicker(ref: React.RefObject<HTMLInputElement>) { 
-    if (viewOnly) return;
-    try { ref.current?.showPicker() } catch (e) { ref.current?.focus() } 
-  }
+  function openPicker(ref: React.RefObject<HTMLInputElement>) { try { ref.current?.showPicker() } catch (e) { ref.current?.focus() } }
 
   return (
     <div className={cn(
@@ -191,27 +180,29 @@ export default function DurationCard({
       dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200'
     )}>
       <div className="flex flex-wrap items-center justify-between gap-3 p-3">
+        
+        {/* LEFT: DATES, PRESETS, COMPACT ROOM CONTROLS */}
         <div className="flex flex-wrap items-center gap-2">
           {/* DATE PICKERS */}
           <div className={cn("flex items-center rounded-lg border h-[42px] px-2 shrink-0 shadow-sm", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
               <CalendarDays size={16} className="mr-2 opacity-50" />
-              <div className={cn("relative w-[90px] h-full", !viewOnly ? "cursor-pointer" : "cursor-default")} onClick={() => openPicker(inDateRef)}>
-                  <input disabled={viewOnly} ref={inDateRef} type="date" value={local.startDate || ''} onChange={e => handleStartDateChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+              <div className="relative w-[90px] h-full cursor-pointer" onClick={() => openPicker(inDateRef)}>
+                  <input ref={inDateRef} type="date" value={local.startDate || ''} onChange={e => handleStartDateChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
                   <div className="absolute inset-0 flex items-center pointer-events-none">
                       <span className={cn("text-[15px] font-bold", local.startDate ? (dk ? 'text-white' : 'text-slate-900') : 'text-slate-400')}>{forceDMY(local.startDate)}</span>
                   </div>
               </div>
               <ArrowRight size={14} className="mx-2 opacity-30" />
-              <div className={cn("relative w-[90px] h-full", !viewOnly ? "cursor-pointer" : "cursor-default")} onClick={() => openPicker(outDateRef)}>
-                  <input disabled={viewOnly} ref={outDateRef} type="date" value={local.endDate || ''} min={local.startDate || undefined} onChange={e => handleEndDateChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+              <div className="relative w-[90px] h-full cursor-pointer" onClick={() => openPicker(outDateRef)}>
+                  <input ref={outDateRef} type="date" value={local.endDate || ''} min={local.startDate || undefined} onChange={e => handleEndDateChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
                   <div className="absolute inset-0 flex items-center pointer-events-none">
                       <span className={cn("text-[15px] font-bold", local.endDate ? (dk ? 'text-white' : 'text-slate-900') : 'text-slate-400')}>{forceDMY(local.endDate)}</span>
                   </div>
               </div>
           </div>
 
-          {/* PRESETS */}
-          {!viewOnly && local.startDate && (
+          {/* SMART PRESETS */}
+          {local.startDate && (
               <div className="flex items-center h-[42px] shrink-0">
                 {[{ label: '1W', days: 7 }, { label: '1M', days: 30 }].map(p => (
                   <div key={p.label} className="flex items-center h-full">
@@ -225,12 +216,14 @@ export default function DurationCard({
               </div>
           )}
 
-          {/* ROOM ADDERS */}
+          {/* ULTRA-COMPACT ROOM ADDERS */}
           {hasDates && (
               <div className="flex items-center gap-1.5 h-[42px] overflow-x-auto no-scrollbar flex-nowrap ml-1">
                 {ROOM_TYPES.map(rt => {
                   const count = typeCount[rt] ?? 0;
-                  if (rt === 'WG' && isAddingWg && !viewOnly) {
+                  
+                  // WG Inline Adder
+                  if (rt === 'WG' && isAddingWg) {
                     return (
                       <div key="wg-input" className={cn('flex items-center h-full rounded-lg border overflow-hidden shrink-0 shadow-sm', dk ? 'border-white/10 bg-[#1E293B]' : 'border-slate-300 bg-white')}>
                         <button onClick={() => setWgBeds(Math.max(1, wgBeds - 1))} className={cn("px-3 h-full font-black text-lg transition-colors border-r", dk ? "hover:bg-white/10 border-white/10" : "hover:bg-slate-100 border-slate-200")}>-</button>
@@ -241,21 +234,23 @@ export default function DurationCard({
                       </div>
                     )
                   }
+
                   if (count === 0) {
-                    return !viewOnly ? (
+                    return (
                       <button key={rt} onClick={() => rt === 'WG' ? setIsAddingWg(true) : handleAddRoomCard(rt)} disabled={!!addingType} className={cn('px-3 h-full rounded-lg text-sm font-black border transition-all flex items-center gap-1 shrink-0 shadow-sm', dk ? 'border-white/10 text-slate-400 bg-[#1E293B] hover:bg-white/5 hover:text-slate-300' : 'border-slate-300 text-slate-500 bg-white hover:bg-slate-50 hover:text-slate-700')}>
                         <Plus size={14} strokeWidth={3} /> {rt}
                       </button>
-                    ) : null;
+                    );
                   }
+                  
                   return (
                     <div key={rt} className="flex items-center h-full shadow-sm rounded-lg overflow-hidden border shrink-0" style={{ borderColor: dk ? 'rgba(255,255,255,0.1)' : '#cbd5e1' }}>
-                      {!viewOnly && <button onClick={() => handleRemoveLastOfType(rt)} className={cn('px-2.5 h-full border-r transition-all', dk ? 'text-slate-400 hover:bg-red-900/20' : 'text-slate-400 hover:bg-red-50')}><Minus size={14} strokeWidth={3} /></button>}
+                      <button onClick={() => handleRemoveLastOfType(rt)} className={cn('px-2.5 h-full border-r transition-all', dk ? 'text-slate-400 hover:bg-red-900/20 hover:text-red-400' : 'text-slate-400 hover:bg-red-50 hover:text-red-600')}><Minus size={14} strokeWidth={3} /></button>
                       <div className={cn("flex items-center h-full px-2.5", dk ? "bg-[#1E293B]" : "bg-white")}>
                          <span className={cn('text-[13px] font-bold mr-1.5', dk ? 'text-slate-400' : 'text-slate-500')}>{rt}</span>
                          <span className={cn('text-[15px] font-black', dk ? 'text-teal-400' : 'text-teal-600')}>{count}</span>
                       </div>
-                      {!viewOnly && <button onClick={() => rt === 'WG' ? setIsAddingWg(true) : handleAddRoomCard(rt)} disabled={!!addingType} className={cn('px-2.5 h-full border-l transition-all', dk ? 'text-slate-400 hover:bg-teal-900/20' : 'text-slate-400 hover:bg-teal-50')}><Plus size={14} strokeWidth={3} /></button>}
+                      <button onClick={() => rt === 'WG' ? setIsAddingWg(true) : handleAddRoomCard(rt)} disabled={!!addingType} className={cn('px-2.5 h-full border-l transition-all', dk ? 'text-slate-400 hover:bg-teal-900/20 hover:text-teal-400' : 'text-slate-400 hover:bg-teal-50 hover:text-teal-600')}><Plus size={14} strokeWidth={3} /></button>
                     </div>
                   );
                 })}
@@ -263,35 +258,50 @@ export default function DurationCard({
           )}
         </div>
 
-        {/* INFO DISPLAY */}
+        {/* RIGHT: CLEAN, LARGE INFO DISPLAY & TRASH */}
         {hasDates && (
             <div className="flex items-center gap-4 shrink-0 ml-auto">
+              
+              {/* 1. THE GREY BASE SPECS */}
               <div className="flex items-center gap-4 text-slate-400">
                 <span className="flex items-center gap-1.5 text-lg font-bold"><Moon size={18} /> {nights}</span>
                 <span className="flex items-center gap-1.5 text-lg font-bold"><DoorClosed size={18} /> {roomCards.length}</span>
                 <span className="flex items-center gap-1.5 text-lg font-bold"><Bed size={18} /> {totalBeds}</span>
               </div>
+              
+              {/* FIRST DIVIDER */}
               <div className={cn("w-px h-6 mx-1", dk ? "bg-white/10" : "bg-slate-300")}></div>
+              
+              {/* 2. THE STATUS STAGE (Only renders if relevant) */}
               {isPast ? (
-                  <span className="text-slate-500 font-bold text-base tracking-wide">{lang === 'de' ? 'Abgelaufen' : 'Expired'}</span>
+                  <>
+                    {/* Softened, Title Case, smaller size for past dates */}
+                    <span className="text-slate-500 font-bold text-base tracking-wide">{lang === 'de' ? 'Abgelaufen' : 'Expired'}</span>
+                    <div className={cn("w-px h-6 mx-1", dk ? "bg-white/10" : "bg-slate-300")}></div>
+                  </>
               ) : totalBeds > 0 ? (
-                  freeBeds > 0 ? (
-                      <span className="text-red-500 font-black text-lg uppercase tracking-wider">{lang === 'de' ? 'FREI' : 'FREE'} <span className="ml-1">{freeBeds}</span></span>
-                  ) : (
-                      <span className="text-emerald-500 dark:text-emerald-400 font-black text-lg uppercase tracking-wider">{lang === 'de' ? 'VOLL' : 'FULL'}</span>
-                  )
+                  <>
+                    {/* Uppercase but slightly smaller (text-lg) for compact badges */}
+                    {freeBeds > 0 ? (
+                        <span className="text-red-500 font-black text-lg uppercase tracking-wider">{lang === 'de' ? 'FREI' : 'FREE'} <span className="ml-1">{freeBeds}</span></span>
+                    ) : (
+                        <span className="text-emerald-500 dark:text-emerald-400 font-black text-lg uppercase tracking-wider">{lang === 'de' ? 'VOLL' : 'FULL'}</span>
+                    )}
+                    {/* SECOND DIVIDER (Only if status is showing) */}
+                    <div className={cn("w-px h-6 mx-1", dk ? "bg-white/10" : "bg-slate-300")}></div>
+                  </>
               ) : null}
-              <div className={cn("w-px h-6 mx-1", dk ? "bg-white/10" : "bg-slate-300")}></div>
+              
+              {/* 3. PRICE & TRASH */}
               {isMasterPricingActive ? (
                   <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Master active</span>
               ) : (
                   <span className="text-xl font-black text-teal-600 dark:text-teal-400">{formatCurrency(roomCardsTotal)}</span>
               )}
-              {!viewOnly && (
-                <button onClick={() => setConfirm(true)} className={cn("p-2 rounded-xl transition-colors shrink-0", dk ? "text-slate-500 hover:text-red-400" : "text-slate-400 hover:text-red-500")}>
-                  <Trash2 size={20} />
-                </button>
-              )}
+              
+              <button onClick={() => setConfirm(true)} className={cn("p-2 rounded-xl flex items-center justify-center transition-colors shrink-0", dk ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-slate-400 hover:text-red-500 hover:bg-red-50")}>
+                <Trash2 size={20} />
+              </button>
             </div>
         )}
       </div>
@@ -309,7 +319,6 @@ export default function DurationCard({
             onUpdate={handleCardUpdate} 
             onDelete={handleCardDelete} 
             isMasterPricingActive={isMasterPricingActive} 
-            viewOnly={viewOnly}
           />
         ))}
       </div>
@@ -317,10 +326,10 @@ export default function DurationCard({
       {confirmDelete && (
         <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 p-4">
           <div className={cn('w-full max-w-md rounded-2xl border p-6', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
-            <h3 className="text-xl font-black mb-4">{lang === 'de' ? 'Löschen?' : 'Delete?'}</h3>
+            <h3 className="text-xl font-black mb-4">Löschen?</h3>
             <div className="flex justify-end gap-3">
-              <button onClick={() => setConfirm(false)} className="px-4 py-2 font-bold opacity-50">{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
-              <button onClick={() => { onDelete(local.id); setConfirm(false); }} className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold">{lang === 'de' ? 'Löschen' : 'Delete'}</button>
+              <button onClick={() => setConfirm(false)} className="px-4 py-2 font-bold opacity-50">Abbrechen</button>
+              <button onClick={() => { onDelete(local.id); setConfirm(false); }} className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold">Löschen</button>
             </div>
           </div>
         </div>
