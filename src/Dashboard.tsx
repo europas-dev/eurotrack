@@ -422,17 +422,32 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
               <div><p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Hotels</p><p className="text-3xl font-black">{finalFiltered.length}</p></div>
             </div>
             
-            {activeUsers.length > 0 && (
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">{lang === 'de' ? 'Live dabei:' : 'Live now:'}</span>
-                <div className="flex -space-x-3">
-                  {activeUsers.map((u: any, i: number) => (
-                    <div key={i} className="relative group cursor-pointer">
-                      <div className={cn("w-10 h-10 rounded-full border-2 flex items-center justify-center text-white text-sm font-bold shadow-md z-10 relative", dk ? "bg-teal-600 border-[#0F172A]" : "bg-teal-600 border-white")}>{u.name.substring(0, 2).toUpperCase()}</div>
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max px-3 py-2 bg-slate-800 text-white text-xs rounded-xl opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none shadow-xl">{u.name} <br/> <span className="text-slate-400 text-[10px]">{u.email}</span></div>
-                    </div>
-                  ))}
-                </div>
+              {/* FIX: Filter out users who are in Ghost/Invisible mode */}
+{activeUsers.filter((u: any) => !u.is_ghost).length > 0 && (
+  <div className="flex items-center gap-3">
+    <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">
+      {lang === 'de' ? 'Live dabei:' : 'Live now:'}
+    </span>
+    <div className="flex -space-x-3">
+      {activeUsers
+        .filter((u: any) => !u.is_ghost) // <--- CRITICAL FILTER
+        .map((u: any, i: number) => (
+          <div key={i} className="relative group cursor-pointer">
+            <div className={cn(
+              "w-10 h-10 rounded-full border-2 flex items-center justify-center text-white text-sm font-bold shadow-md z-10 relative", 
+              dk ? "bg-teal-600 border-[#0F172A]" : "bg-teal-600 border-white"
+            )}>
+              {u.name.substring(0, 2).toUpperCase()}
+            </div>
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max px-3 py-2 bg-slate-800 text-white text-xs rounded-xl opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none shadow-xl">
+              {u.name} <br/> 
+              <span className="text-slate-400 text-[10px]">{u.email}</span>
+            </div>
+          </div>
+        ))}
+    </div>
+  </div>
+)}
               </div>
             )}
           </div>
