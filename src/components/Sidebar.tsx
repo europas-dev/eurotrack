@@ -1,7 +1,6 @@
-// src/components/Sidebar.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, LayoutDashboard, ChevronUp, ChevronDown } from 'lucide-react';
-import { cn, getDurationCostForMonth, formatCurrency, calcHotelTotalCost } from '../lib/utils';
+import { cn, formatCurrency, calcHotelTotalCost } from '../lib/utils';
 
 interface SidebarProps {
   theme: 'dark' | 'light';
@@ -43,14 +42,11 @@ export default function Sidebar({
   const centerYear = selectedYear + yearOffset;
   const currentDecade = Array.from({ length: 10 }, (_, i) => centerYear - 4 + i);
 
-  // 1. Monthly totals (for the labels next to each month)
+  // FIX: Monthly totals now use the EXACT same logic as the dashboard top bar
   const monthlyTotals = monthNames.map((_, i) =>
-    hotels.reduce((sum, hotel) =>
-      sum + (hotel.durations || []).reduce((inner: number, d: any) =>
-        inner + getDurationCostForMonth(d, selectedYear, i), 0), 0)
+    hotels.reduce((sum, hotel) => sum + calcHotelTotalCost(hotel, i, selectedYear), 0)
   );
 
-  // 2. Yearly Total (EXACT MATCH TO DASHBOARD TOP BAR)
   const yearlyTotal = hotels.reduce((sum, hotel) => 
     sum + calcHotelTotalCost(hotel, null, selectedYear), 0
   );
@@ -144,15 +140,17 @@ export default function Sidebar({
             {monthNames.map((month, index) => (
               <button key={index} onClick={() => setSelectedMonth(index)}
                 className={cn(
-                  'w-full px-3 py-2.5 rounded-lg text-sm font-bold transition-all text-left flex items-center justify-between gap-2',
+                  'w-full px-3 py-2 rounded-lg transition-all text-left flex items-center justify-between gap-2',
                   selectedMonth === index
                     ? 'bg-teal-600 text-white shadow-md'
                     : dk ? 'text-slate-300 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'
                 )}>
-                <span>{collapsed ? month.slice(0, 3) : month}</span>
+                {/* Notion-style sizing: 13px font-medium */}
+                <span className="text-[13px] font-medium">{collapsed ? month.slice(0, 3) : month}</span>
                 {!collapsed && monthlyTotals[index] > 0 && (
-                  <span className={cn('text-[10px] font-black',
-                    selectedMonth === index ? 'text-teal-100' : dk ? 'text-slate-500' : 'text-slate-400')}>
+                  /* Notion-style: Muted color for secondary data */
+                  <span className={cn('text-[12px] font-medium transition-colors',
+                    selectedMonth === index ? 'text-teal-100' : dk ? 'text-[#bcbab6]' : 'text-slate-400')}>
                     {formatCurrency(monthlyTotals[index])}
                   </span>
                 )}
