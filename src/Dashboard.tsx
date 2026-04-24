@@ -624,7 +624,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                   ))
                 ) : (
                   finalFiltered.map((hotel, index) => (
-                    <HotelRow key={hotel.id} entry={hotel} index={index} isDarkMode={dk} lang={lang} searchQuery={searchQuery} companyOptions={allCompanyOptions} cityOptions={uniqueCities} onDelete={hId => setHotels(hotels.filter(h=>h.id!==hId))} onUpdate={(hId, up) => setHotels(hotels.map(h=>h.id===hId?{...h,...up}:h))} onDeleteCompanyOption={handleDeleteGlobalCompany} onAddOption={handleAddGlobalCompany} />
+                    <HotelRow key={hotel.id} entry={hotel} viewOnly={accessLevel?.role === 'viewer'} index={index} isDarkMode={dk} lang={lang} searchQuery={searchQuery} companyOptions={allCompanyOptions} cityOptions={uniqueCities} onDelete={hId => setHotels(hotels.filter(h=>h.id!==hId))} onUpdate={(hId, up) => setHotels(hotels.map(h=>h.id===hId?{...h,...up}:h))} onDeleteCompanyOption={handleDeleteGlobalCompany} onAddOption={handleAddGlobalCompany} />
                   ))
                 )}
                 
