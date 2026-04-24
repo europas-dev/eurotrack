@@ -58,7 +58,7 @@ function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, clas
 
   if (!editing) {
     return (
-      <div className={cn("cursor-text hover:opacity-70 truncate transition-opacity w-full min-h-[20px]", textClass)} onClick={(e) => { e.stopPropagation(); setEditing(true); setDraft(value || ''); setShowOptions(true); }}>
+      <div className={cn("truncate transition-opacity w-full min-h-[20px]", disabled ? "cursor-default" : "cursor-text hover:opacity-70", textClass)} onClick={(e) => { if (disabled) return; e.stopPropagation(); setEditing(true); setDraft(value || ''); setShowOptions(true); }}>
         {value ? <HighlightText text={value} query={searchQuery} /> : <span className="opacity-40">{placeholder}</span>}
       </div>
     );
@@ -104,7 +104,7 @@ function MwstInput({ value, onChange, isDarkMode }: { value: string | null, onCh
   );
 }
 
-export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onAddOption }: any) {
+export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onAddOption, viewOnly }: any) {
   const [open, setOpen] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   
@@ -458,12 +458,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
 
           <div className="flex-[2] py-2 min-w-[200px] pr-2">
-            <SeamlessInput value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-[15px] font-black leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchQuery} />
-            <SeamlessInput value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} className="mt-0.5" textClass={cn("text-[10px] font-bold uppercase tracking-widest gap-1.5", dk ? "text-slate-500" : "text-slate-400")} searchQuery={searchQuery} />
+            <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-[15px] font-black leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchQuery} />
+            <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} className="mt-0.5" textClass={cn("text-[10px] font-bold uppercase tracking-widest gap-1.5", dk ? "text-slate-500" : "text-slate-400")} searchQuery={searchQuery} />
           </div>
 
           <div className="flex-[0.8] px-2 min-w-[120px]" onClick={e => e.stopPropagation()}>
-            <CompanyMultiSelect selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onAddOption={onAddOption} />
+            <CompanyMultiSelect disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onAddOption={onAddOption} />
           </div>
 
           <div className="flex-[1.5] px-2 min-w-[120px]">
@@ -577,7 +577,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                     {formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}
                   </div>
                </div>
-               <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 size={16} /></button>
+               {!viewOnly && (
+                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 size={16} /></button>
+               )}
             </div>
           </div>
         </div>
@@ -854,7 +856,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   );
 }
 
-export function ModernDropdown({ value, options, onChange, isDarkMode, lang, placeholder = 'Select', allowAdd = true }: any) {
+export function ModernDropdown({ value, options, onChange, isDarkMode, lang, placeholder = 'Select', allowAdd = true, disabled }: any) {
   const [open, setOpen] = useState(false);
   const [addingNew, setAddingNew] = useState(false);
   const [newVal, setNewVal] = useState('');
@@ -874,7 +876,7 @@ export function ModernDropdown({ value, options, onChange, isDarkMode, lang, pla
 
   return (
     <div ref={ref} className="relative w-full h-[34px]">
-      <button onClick={() => setOpen(!open)} className={cn('w-full h-full px-3 flex items-center justify-between rounded-lg border text-sm font-bold outline-none transition-all', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white hover:border-teal-500' : 'bg-white border-slate-200 text-slate-900 hover:border-teal-500')}>
+      <button disabled={disabled} onClick={() => setOpen(!open)} className={cn('w-full h-full px-3 flex items-center justify-between rounded-lg border text-sm font-bold outline-none transition-all', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white hover:border-teal-500' : 'bg-white border-slate-200 text-slate-900 hover:border-teal-500', disabled && "opacity-60 cursor-not-allowed")}>
         <span className="truncate">{displayValue(value) || placeholder}</span>
         <ChevronDown size={16} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
       </button>
@@ -907,7 +909,7 @@ export function ModernDropdown({ value, options, onChange, isDarkMode, lang, pla
   );
 }
 
-export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange, onDeleteOption, onAddOption }: any) {
+export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange, onDeleteOption, onAddOption, disabled }: any) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [localMemory, setLocalMemory] = useState<string[]>([]);
@@ -950,7 +952,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
   };
   
   return (
-    <div ref={ref} className="relative cursor-pointer min-h-[30px] flex items-center w-full" onClick={(e) => { e.stopPropagation(); setOpen(true); }}>
+    <div ref={ref} className={cn("relative min-h-[30px] flex items-center w-full", disabled ? "cursor-default" : "cursor-pointer")} onClick={(e) => { if (disabled) return; e.stopPropagation(); setOpen(true); }}>
       <div className="flex flex-wrap gap-1.5 w-full">
         {safeSelected.length > 0 ? safeSelected.map((tag: string) => (
           <span key={tag} className={cn('px-2.5 py-1 rounded-md text-xs font-bold border flex items-center gap-1.5 shadow-sm', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800')}>{tag}</span>
