@@ -19,6 +19,7 @@ interface Props {
   isMasterPricingActive?: boolean
   onUpdate: (id: string, updated: any) => void
   onDelete: (id: string) => void
+  viewOnly?: boolean // ADDED: View-only flag
 }
 
 function addDays(iso: string, days: number): string {
@@ -31,7 +32,7 @@ function addDays(iso: string, days: number): string {
 const ROOM_TYPES = ['EZ', 'DZ', 'TZ', 'WG'] as const
 
 export default function DurationCard({
-  duration, isDarkMode, lang = 'de', isMasterPricingActive, onUpdate, onDelete,
+  duration, isDarkMode, lang = 'de', isMasterPricingActive, onUpdate, onDelete, viewOnly // ADDED
 }: Props) {
   const dk = isDarkMode
   const [local, setLocal]           = useState<Duration>(duration)
@@ -72,6 +73,7 @@ export default function DurationCard({
   const isPast = !!(local.endDate && today > local.endDate);
 
   function queueSave(next: Duration) {
+    if (viewOnly) return; // SURGICAL LOCK
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(async () => {
       try { 
@@ -86,12 +88,14 @@ export default function DurationCard({
   }
 
   function patch(changes: Partial<Duration>) {
+    if (viewOnly) return; // SURGICAL LOCK
     const next = { ...local, ...changes } as Duration
     setLocal(next); 
     queueSave(next);
   }
 
   function handleStartDateChange(newStart: string) {
+    if (viewOnly) return; // SURGICAL LOCK
     let updates: Partial<Duration> = { startDate: newStart };
     if (activePreset === '1W') updates.endDate = addDays(newStart, 7);
     if (activePreset === '1M') updates.endDate = addDays(newStart, 30);
@@ -99,12 +103,13 @@ export default function DurationCard({
   }
 
   function handleEndDateChange(newEnd: string) {
+    if (viewOnly) return; // SURGICAL LOCK
     setActivePreset(null); 
     patch({ endDate: newEnd });
   }
 
   function togglePreset(preset: '1W' | '1M', days: number) {
-    if (!local.startDate) return
+    if (!local.startDate || viewOnly) return // SURGICAL LOCK
     if (activePreset === preset) {
       setActivePreset(null) 
     } else {
@@ -114,7 +119,7 @@ export default function DurationCard({
   }
 
   function shiftEndDate(delta: number) {
-    if (!local.endDate) return
+    if (!local.endDate || viewOnly) return // SURGICAL LOCK
     setActivePreset(null) 
     patch({ endDate: addDays(local.endDate, delta) })
   }
@@ -129,7 +134,7 @@ export default function DurationCard({
   roomCards.forEach(c => { typeCount[c.roomType] = (typeCount[c.roomType] ?? 0) + 1 })
 
   async function handleAddRoomCard(roomType: string, customBedCount?: number) {
-    if (!hasDates) return
+    if (!hasDates || viewOnly) return // SURGICAL LOCK
     setAddingType(roomType)
     try {
       const bedCount = customBedCount ? customBedCount : (roomType === 'EZ' ? 1 : roomType === 'DZ' ? 2 : roomType === 'TZ' ? 3 : 2)
@@ -145,6 +150,7 @@ export default function DurationCard({
   }
 
   async function handleRemoveLastOfType(roomType: string) {
+    if (viewOnly) return; // SURGICAL LOCK
     const cards = roomCards.filter(c => c.roomType === roomType)
     if (!cards.length) return
     const last = cards[cards.length - 1]
@@ -157,11 +163,13 @@ export default function DurationCard({
   }
 
   function handleCardUpdate(id: string, p: Partial<RoomCard>) {
+    if (viewOnly) return; // SURGICAL LOCK
     const n = roomCards.map(c => c.id === id ? { ...c, ...p } : c);
     setRoomCards(n);
     syncRoomCardsToParent(n);
   }
   function handleCardDelete(id: string) {
+    if (viewOnly) return; // SURGICAL LOCK
     const n = roomCards.filter(c => c.id !== id);
     setRoomCards(n);
     syncRoomCardsToParent(n);
@@ -172,7 +180,10 @@ export default function DurationCard({
     const [y, m, d] = isoString.split('-');
     return `${d}/${m}/${y}`;
   }
-  function openPicker(ref: React.RefObject<HTMLInputElement>) { try { ref.current?.showPicker() } catch (e) { ref.current?.focus() } }
+  function openPicker(ref: React.RefObject<HTMLInputElement>) { 
+    if (viewOnly) return; // SURGICAL LOCK
+    try { ref.current?.showPicker() } catch (e) { ref.current?.focus() } 
+  }
 
   return (
     <div className={cn(
@@ -186,15 +197,19 @@ export default function DurationCard({
           {/* DATE PICKERS */}
           <div className={cn("flex items-center rounded-lg border h-[42px] px-2 shrink-0 shadow-sm", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
               <CalendarDays size={16} className="mr-2 opacity-50" />
-              <div className="relative w-[90px] h-full cursor-pointer" onClick={() => openPicker(inDateRef)}>
-                  <input ref={inDateRef} type="date" value={local.startDate || ''} onChange={e => handleStartDateChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
+              {/* SURGICAL FIX: Added cursor logic to prevent pointer if viewOnly */}
+              <div className={cn("relative w-[90px] h-full", viewOnly ? "cursor-default" : "cursor-pointer")} onClick={() => openPicker(inDateRef)}>
+                  {/* SURGICAL FIX: Added disabled={viewOnly} */}
+                  <input disabled={viewOnly} ref={inDateRef} type="date" value={local.startDate || ''} onChange={e => handleStartDateChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
                   <div className="absolute inset-0 flex items-center pointer-events-none">
                       <span className={cn("text-[15px] font-bold", local.startDate ? (dk ? 'text-white' : 'text-slate-900') : 'text-slate-400')}>{forceDMY(local.startDate)}</span>
                   </div>
               </div>
               <ArrowRight size={14} className="mx-2 opacity-30" />
-              <div className="relative w-[90px] h-full cursor-pointer" onClick={() => openPicker(outDateRef)}>
-                  <input ref={outDateRef} type="date" value={local.endDate || ''} min={local.startDate || undefined} onChange={e => handleEndDateChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
+              {/* SURGICAL FIX: Added cursor logic to prevent pointer if viewOnly */}
+              <div className={cn("relative w-[90px] h-full", viewOnly ? "cursor-default" : "cursor-pointer")} onClick={() => openPicker(outDateRef)}>
+                  {/* SURGICAL FIX: Added disabled={viewOnly} */}
+                  <input disabled={viewOnly} ref={outDateRef} type="date" value={local.endDate || ''} min={local.startDate || undefined} onChange={e => handleEndDateChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
                   <div className="absolute inset-0 flex items-center pointer-events-none">
                       <span className={cn("text-[15px] font-bold", local.endDate ? (dk ? 'text-white' : 'text-slate-900') : 'text-slate-400')}>{forceDMY(local.endDate)}</span>
                   </div>
@@ -202,7 +217,8 @@ export default function DurationCard({
           </div>
 
           {/* SMART PRESETS */}
-          {local.startDate && (
+          {/* SURGICAL FIX: Wrap entire preset div in {!viewOnly} */}
+          {!viewOnly && local.startDate && (
               <div className="flex items-center h-[42px] shrink-0">
                 {[{ label: '1W', days: 7 }, { label: '1M', days: 30 }].map(p => (
                   <div key={p.label} className="flex items-center h-full">
@@ -223,7 +239,8 @@ export default function DurationCard({
                   const count = typeCount[rt] ?? 0;
                   
                   // WG Inline Adder
-                  if (rt === 'WG' && isAddingWg) {
+                  // SURGICAL FIX: Only show if NOT viewOnly
+                  if (rt === 'WG' && isAddingWg && !viewOnly) {
                     return (
                       <div key="wg-input" className={cn('flex items-center h-full rounded-lg border overflow-hidden shrink-0 shadow-sm', dk ? 'border-white/10 bg-[#1E293B]' : 'border-slate-300 bg-white')}>
                         <button onClick={() => setWgBeds(Math.max(1, wgBeds - 1))} className={cn("px-3 h-full font-black text-lg transition-colors border-r", dk ? "hover:bg-white/10 border-white/10" : "hover:bg-slate-100 border-slate-200")}>-</button>
@@ -236,21 +253,24 @@ export default function DurationCard({
                   }
 
                   if (count === 0) {
-                    return (
+                    // SURGICAL FIX: Hide the zero-count button if viewOnly
+                    return !viewOnly ? (
                       <button key={rt} onClick={() => rt === 'WG' ? setIsAddingWg(true) : handleAddRoomCard(rt)} disabled={!!addingType} className={cn('px-3 h-full rounded-lg text-sm font-black border transition-all flex items-center gap-1 shrink-0 shadow-sm', dk ? 'border-white/10 text-slate-400 bg-[#1E293B] hover:bg-white/5 hover:text-slate-300' : 'border-slate-300 text-slate-500 bg-white hover:bg-slate-50 hover:text-slate-700')}>
                         <Plus size={14} strokeWidth={3} /> {rt}
                       </button>
-                    );
+                    ) : null;
                   }
                   
                   return (
                     <div key={rt} className="flex items-center h-full shadow-sm rounded-lg overflow-hidden border shrink-0" style={{ borderColor: dk ? 'rgba(255,255,255,0.1)' : '#cbd5e1' }}>
-                      <button onClick={() => handleRemoveLastOfType(rt)} className={cn('px-2.5 h-full border-r transition-all', dk ? 'text-slate-400 hover:bg-red-900/20 hover:text-red-400' : 'text-slate-400 hover:bg-red-50 hover:text-red-600')}><Minus size={14} strokeWidth={3} /></button>
+                      {/* SURGICAL FIX: Hide Minus if viewOnly */}
+                      {!viewOnly && <button onClick={() => handleRemoveLastOfType(rt)} className={cn('px-2.5 h-full border-r transition-all', dk ? 'text-slate-400 hover:bg-red-900/20 hover:text-red-400' : 'text-slate-400 hover:bg-red-50 hover:text-red-600')}><Minus size={14} strokeWidth={3} /></button>}
                       <div className={cn("flex items-center h-full px-2.5", dk ? "bg-[#1E293B]" : "bg-white")}>
                          <span className={cn('text-[13px] font-bold mr-1.5', dk ? 'text-slate-400' : 'text-slate-500')}>{rt}</span>
                          <span className={cn('text-[15px] font-black', dk ? 'text-teal-400' : 'text-teal-600')}>{count}</span>
                       </div>
-                      <button onClick={() => rt === 'WG' ? setIsAddingWg(true) : handleAddRoomCard(rt)} disabled={!!addingType} className={cn('px-2.5 h-full border-l transition-all', dk ? 'text-slate-400 hover:bg-teal-900/20 hover:text-teal-400' : 'text-slate-400 hover:bg-teal-50 hover:text-teal-600')}><Plus size={14} strokeWidth={3} /></button>
+                      {/* SURGICAL FIX: Hide Plus if viewOnly */}
+                      {!viewOnly && <button onClick={() => rt === 'WG' ? setIsAddingWg(true) : handleAddRoomCard(rt)} disabled={!!addingType} className={cn('px-2.5 h-full border-l transition-all', dk ? 'text-slate-400 hover:bg-teal-900/20 hover:text-teal-400' : 'text-slate-400 hover:bg-teal-50 hover:text-teal-600')}><Plus size={14} strokeWidth={3} /></button>}
                     </div>
                   );
                 })}
@@ -299,9 +319,12 @@ export default function DurationCard({
                   <span className="text-xl font-black text-teal-600 dark:text-teal-400">{formatCurrency(roomCardsTotal)}</span>
               )}
               
-              <button onClick={() => setConfirm(true)} className={cn("p-2 rounded-xl flex items-center justify-center transition-colors shrink-0", dk ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-slate-400 hover:text-red-500 hover:bg-red-50")}>
-                <Trash2 size={20} />
-              </button>
+              {/* SURGICAL FIX: Hide Trash if viewOnly */}
+              {!viewOnly && (
+                <button onClick={() => setConfirm(true)} className={cn("p-2 rounded-xl flex items-center justify-center transition-colors shrink-0", dk ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-slate-400 hover:text-red-500 hover:bg-red-50")}>
+                  <Trash2 size={20} />
+                </button>
+              )}
             </div>
         )}
       </div>
@@ -319,6 +342,7 @@ export default function DurationCard({
             onUpdate={handleCardUpdate} 
             onDelete={handleCardDelete} 
             isMasterPricingActive={isMasterPricingActive} 
+            viewOnly={viewOnly} // SURGICAL FIX: Passed down to RoomCardComponent
           />
         ))}
       </div>
