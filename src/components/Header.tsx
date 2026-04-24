@@ -10,48 +10,39 @@ import {
 import {
   Moon, Sun, Settings, LogOut,
   X, Check, Loader2, Users, Search,
-  User, Lock, UserPlus, Trash2, ChevronDown,
+  User, Lock, UserPlus, ChevronDown,
   ChevronRight, Pencil, Shield, Minus, Plus,
   Mail, KeyRound, AtSign, Eye, EyeOff, HelpCircle,
-  FileText, Info, Wifi, WifiOff, Share2
+  FileText, Info, Wifi, WifiOff, Upload
 } from 'lucide-react';
 
 const AVATARS = [
-  { id: 'fox',       emoji: '🦊', bg: '#f97316' },
-  { id: 'wolf',      emoji: '🐺', bg: '#3b82f6' },
-  { id: 'lion',      emoji: '🦁', bg: '#f59e0b' },
-  { id: 'bear',      emoji: '🐻', bg: '#92400e' },
+  { id: 'fox', emoji: ' foxes', bg: '#f97316' },
+  { id: 'wolf', emoji: ' wolves', bg: '#3b82f6' },
+  { id: 'lion', emoji: ' lions', bg: '#f59e0b' },
+  { id: 'bear', emoji: ' bears', bg: '#92400e' },
   { id: 'butterfly', emoji: '🦋', bg: '#a855f7' },
-  { id: 'dolphin',   emoji: '🐬', bg: '#06b6d4' },
-  { id: 'eagle',     emoji: '🦅', bg: '#1e3a5f' },
-  { id: 'cactus',    emoji: '🌵', bg: '#16a34a' },
-  { id: 'fire',      emoji: '🔥', bg: '#dc2626' },
-  { id: 'moon',      emoji: '🌙', bg: '#4f46e5' },
+  { id: 'dolphin', emoji: '🐬', bg: '#06b6d4' },
+  { id: 'eagle', emoji: '🦅', bg: '#1e3a5f' },
+  { id: 'cactus', emoji: '🌵', bg: '#16a34a' },
+  { id: 'fire', emoji: '🔥', bg: '#dc2626' },
+  { id: 'moon', emoji: '🌙', bg: '#4f46e5' },
   { id: 'lightning', emoji: '⚡', bg: '#ca8a04' },
-  { id: 'target',    emoji: '🎯', bg: '#475569' },
+  { id: 'target', emoji: '🎯', bg: '#475569' },
 ];
 
-const FONTS = [
-  { value: 'inter',      label: 'Inter',            family: 'Inter, sans-serif' },
-  { value: 'roboto',     label: 'Roboto',           family: 'Roboto, sans-serif' },
-  { value: 'open-sans',  label: 'Open Sans',        family: '"Open Sans", sans-serif' },
-  { value: 'dm-sans',    label: 'DM Sans',          family: '"DM Sans", sans-serif' },
-  { value: 'nunito',     label: 'Nunito',           family: 'Nunito, sans-serif' },
-  { value: 'poppins',    label: 'Poppins',          family: 'Poppins, sans-serif' },
-  { value: 'georgia',    label: 'Georgia',          family: 'Georgia, serif' },
-  { value: 'playfair',   label: 'Playfair Display', family: '"Playfair Display", serif' },
-  { value: 'lora',       label: 'Lora',             family: 'Lora, serif' },
-  { value: 'jetbrains',  label: 'JetBrains Mono',   family: '"JetBrains Mono", monospace' },
+const FONT_STYLES = [
+  { id: 'sans', label: 'Default', family: 'ui-sans-serif, system-ui, sans-serif' },
+  { id: 'serif', label: 'Serif', family: 'Charter, Georgia, serif' },
+  { id: 'mono', label: 'Mono', family: 'ui-monospace, Menlo, Monaco, monospace' },
 ];
-
-const FONT_SIZES = [12, 13, 14, 15, 16, 17, 18, 19, 20];
 
 function RoleShield({ role }: { role: string }) {
   const cfg: Record<string, { color: string; bg: string; border: string; icon: string; label: string }> = {
     superadmin: { color: 'text-yellow-400', bg: 'bg-yellow-400/10', border: 'border-yellow-400/30', icon: '👑', label: 'Super Admin' },
-    admin:      { color: 'text-blue-400',   bg: 'bg-blue-400/10',   border: 'border-blue-400/30',   icon: '🛡️', label: 'Admin' },
-    editor:     { color: 'text-green-400',  bg: 'bg-green-400/10',  border: 'border-green-400/30',  icon: '✏️', label: 'Editor' },
-    viewer:     { color: 'text-slate-400',  bg: 'bg-slate-400/10',  border: 'border-slate-400/30',  icon: '👁️', label: 'Viewer' },
+    admin: { color: 'text-blue-400', bg: 'bg-blue-400/10', border: 'border-blue-400/30', icon: '🛡️', label: 'Admin' },
+    editor: { color: 'text-green-400', bg: 'bg-green-400/10', border: 'border-green-400/30', icon: '✏️', label: 'Editor' },
+    viewer: { color: 'text-slate-400', bg: 'bg-slate-400/10', border: 'border-slate-400/30', icon: '👁️', label: 'Viewer' },
   };
   const c = cfg[role] ?? cfg.viewer;
   return (
@@ -117,59 +108,59 @@ export default function Header({
   const isAdmin = userRole === 'admin' || userRole === 'superadmin';
 
   const [showSettings, setShowSettings] = useState(false);
-  const [settingsTab,  setSettingsTab]  = useState<'profile' | 'security' | 'access'>('profile');
+  const [settingsTab, setSettingsTab] = useState<'profile' | 'security' | 'access'>('profile');
 
-  const [profile,          setProfile]        = useState<any>(null);
-  const [profileLoading,   setProfileLoading] = useState(false);
-  const [editingName,      setEditingName]    = useState(false);
-  const [editName,         setEditName]       = useState('');
-  const [savingProfile,    setSavingProfile]  = useState(false);
-  const [profileMsg,       setProfileMsg]     = useState('');
+  const [profile, setProfile] = useState<any>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileMsg, setProfileMsg] = useState('');
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
-  const [selectedAvatar,   setSelectedAvatar]   = useState<string | null>(null);
+  const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
 
-  const [fontFamily,       setFontFamilyState] = useState('inter');
-  const [fontSize,         setFontSizeState]   = useState(16);
+  const [fontFamily, setFontFamilyState] = useState('sans');
+  const [fontSize, setFontSizeState] = useState(16);
   const [savingPersonalize, setSavingPersonalize] = useState(false);
-  const [personalizeMsg,    setPersonalizeMsg]   = useState('');
+  const [personalizeMsg, setPersonalizeMsg] = useState('');
 
-  const [newUsername,     setNewUsername]     = useState('');
-  const [usernameMsg,     setUsernameMsg]     = useState('');
-  const [savingUsername,  setSavingUsername]  = useState(false);
-  const [newEmail,        setNewEmail]        = useState('');
-  const [emailMsg,        setEmailMsg]        = useState('');
-  const [savingEmail,     setSavingEmail]     = useState(false);
-  const [currentPass,     setCurrentPass]     = useState('');
-  const [newPass,         setNewPass]         = useState('');
-  const [confirmPass,     setConfirmPass]     = useState('');
+  const [newUsername, setNewUsername] = useState('');
+  const [usernameMsg, setUsernameMsg] = useState('');
+  const [savingUsername, setSavingUsername] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailMsg, setEmailMsg] = useState('');
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [currentPass, setCurrentPass] = useState('');
+  const [newPass, setNewPass] = useState('');
+  const [confirmPass, setConfirmPass] = useState('');
   const [showCurrentPass, setShowCurrentPass] = useState(false);
-  const [showNewPass,     setShowNewPass]     = useState(false);
-  const [passMsg,         setPassMsg]         = useState('');
-  const [savingPass,      setSavingPass]      = useState(false);
-  const [resetMsg,        setResetMsg]        = useState('');
-  const [sendingReset,    setSendingReset]    = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [passMsg, setPassMsg] = useState('');
+  const [savingPass, setSavingPass] = useState(false);
+  const [resetMsg, setResetMsg] = useState('');
+  const [sendingReset, setSendingReset] = useState(false);
 
-  const [accessSearch,    setAccessSearch]    = useState('');
-  const [accessResults,   setAccessResults]   = useState<any[]>([]);
+  const [accessSearch, setAccessSearch] = useState('');
+  const [accessResults, setAccessResults] = useState<any[]>([]);
   const [accessSearching, setAccessSearching] = useState(false);
-  const [selectedUser,    setSelectedUser]    = useState<any>(null);
-  const [grantRole,       setGrantRole]       = useState<'viewer' | 'editor' | 'admin'>('viewer');
-  const [granting,        setGranting]        = useState(false);
-  const [grantMsg,        setGrantMsg]        = useState('');
-  const [collabs,         setCollabs]         = useState<any[]>([]);
-  const [collabsLoading,  setCollabsLoading]  = useState(false);
-  const [pendingRole,     setPendingRole]     = useState<Record<string, string>>({});
-  const [changingRole,    setChangingRole]    = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [grantRole, setGrantRole] = useState<'viewer' | 'editor' | 'admin'>('viewer');
+  const [granting, setGranting] = useState(false);
+  const [grantMsg, setGrantMsg] = useState('');
+  const [collabs, setCollabs] = useState<any[]>([]);
+  const [collabsLoading, setCollabsLoading] = useState(false);
+  const [pendingRole, setPendingRole] = useState<Record<string, string>>({});
+  const [changingRole, setChangingRole] = useState<string | null>(null);
 
-  const surface  = dk ? 'bg-[#0F172A] border-white/5 text-white' : 'bg-white border-slate-200 text-slate-900';
+  const surface = dk ? 'bg-[#0F172A] border-white/5 text-white' : 'bg-white border-slate-200 text-slate-900';
   const drawerBg = dk ? 'bg-[#0F172A]' : 'bg-white';
   const inputCls = cn('w-full px-3 py-2 rounded-lg border text-sm outline-none transition-all',
     dk ? 'bg-[#1E293B] border-white/10 focus:border-blue-500 text-white placeholder-slate-500'
-       : 'bg-white border-slate-200 focus:border-blue-500 text-slate-900 placeholder-slate-400');
+      : 'bg-white border-slate-200 focus:border-blue-500 text-slate-900 placeholder-slate-400');
   const selectCls = cn('w-full px-3 py-2 rounded-lg border text-sm outline-none transition-all cursor-pointer',
     dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-blue-500'
-       : 'bg-white border-slate-200 text-slate-900 focus:border-blue-500');
-  const iconBtn  = cn('p-2.5 rounded-xl border transition-all flex items-center gap-2 group',
+      : 'bg-white border-slate-200 text-slate-900 focus:border-blue-500');
+  const iconBtn = cn('p-2.5 rounded-xl border transition-all flex items-center gap-2 group',
     dk ? 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900');
   const btnPrimary = 'flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-all';
 
@@ -179,13 +170,13 @@ export default function Header({
       if (!p) return;
       setProfile(p); setEditName(p.fullName || p.full_name || ''); setNewUsername(p.username || '');
       setSelectedAvatar(p.avatar ?? null);
-      const fam = p.fontFamily ?? 'inter'; const size = p.fontSize ?? 16;
+      const fam = p.fontFamily ?? 'sans'; const size = p.fontSize ?? 16;
       setFontFamilyState(fam); setFontSizeState(size); applyFont(fam, size);
-    }).catch(() => {}).finally(() => setProfileLoading(false));
+    }).catch(() => { }).finally(() => setProfileLoading(false));
   }, []);
 
-  function applyFont(family: string, size: number) {
-    const font = FONTS.find(f => f.value === family);
+  function applyFont(familyId: string, size: number) {
+    const font = FONT_STYLES.find(f => f.id === familyId);
     if (font) {
       document.body.style.fontFamily = font.family;
       document.documentElement.style.setProperty('--font-body', font.family);
@@ -195,8 +186,8 @@ export default function Header({
   }
 
   function handleFontFamilyChange(value: string) {
-    setFontFamilyState(value); 
-    const font = FONTS.find(f => f.value === value);
+    setFontFamilyState(value);
+    const font = FONT_STYLES.find(f => f.id === value);
     if (font) {
       document.body.style.fontFamily = font.family;
       document.documentElement.style.setProperty('--font-body', font.family);
@@ -204,7 +195,7 @@ export default function Header({
   }
 
   function handleFontSizeChange(value: number) {
-    const clamped = Math.min(20, Math.max(12, value)); 
+    const clamped = Math.min(20, Math.max(12, value));
     setFontSizeState(clamped);
     document.documentElement.style.setProperty('--font-size-base', `${clamped}px`);
     document.documentElement.style.fontSize = `${clamped}px`;
@@ -218,11 +209,11 @@ export default function Header({
 
   useEffect(() => { if (showSettings && settingsTab === 'access') loadCollabs(); }, [showSettings, settingsTab]);
 
-  async function loadCollabs() { setCollabsLoading(true); try { const c = await getCollaborators(); setCollabs(c); setPendingRole(Object.fromEntries(c.map((x: any) => [x.userId, x.role]))); } catch {} finally { setCollabsLoading(false); } }
+  async function loadCollabs() { setCollabsLoading(true); try { const c = await getCollaborators(); setCollabs(c); setPendingRole(Object.fromEntries(c.map((x: any) => [x.userId, x.role]))); } catch { } finally { setCollabsLoading(false); } }
 
   useEffect(() => {
     if (!accessSearch.trim()) { setAccessResults([]); setSelectedUser(null); return; }
-    const t = setTimeout(async () => { setAccessSearching(true); try { setAccessResults(await searchProfiles(accessSearch)); } catch {} finally { setAccessSearching(false); } }, 350);
+    const t = setTimeout(async () => { setAccessSearching(true); try { setAccessResults(await searchProfiles(accessSearch)); } catch { } finally { setAccessSearching(false); } }, 350);
     return () => clearTimeout(t);
   }, [accessSearch]);
 
@@ -232,8 +223,8 @@ export default function Header({
   async function handleSavePassword() { if (newPass !== confirmPass) { setPassMsg(lang === 'de' ? 'Passwörter stimmen nicht überein' : 'Passwords do not match'); return; } setSavingPass(true); setPassMsg(''); try { await updateMyPassword(currentPass, newPass); setCurrentPass(''); setNewPass(''); setConfirmPass(''); setPassMsg(lang === 'de' ? '✓ Passwort geändert' : '✓ Password changed'); setTimeout(() => setPassMsg(''), 3000); } catch (e: any) { setPassMsg(`Error: ${e.message}`); } finally { setSavingPass(false); } }
   async function handleForgotPassword() { if (!profile?.email) return; setSendingReset(true); setResetMsg(''); try { await sendPasswordReset(profile.email); setResetMsg(lang === 'de' ? '✓ Reset-Link gesendet' : '✓ Reset link sent'); setTimeout(() => setResetMsg(''), 4000); } catch (e: any) { setResetMsg(`Error: ${e.message}`); } finally { setSendingReset(false); } }
   async function handleGrantAccess() { if (!selectedUser) return; setGranting(true); setGrantMsg(''); try { await grantUserAccess(selectedUser.id, grantRole); setGrantMsg(lang === 'de' ? `✓ Zugriff erteilt` : `✓ Access granted`); setSelectedUser(null); setAccessSearch(''); setAccessResults([]); await loadCollabs(); setTimeout(() => setGrantMsg(''), 3000); } catch (e: any) { setGrantMsg(`Error: ${e.message}`); } finally { setGranting(false); } }
-  async function handleChangeCollabRole(userId: string) { const role = pendingRole[userId] as any; if (!role) return; setChangingRole(userId); try { await updateCollaboratorPermission(userId, role); setCollabs(p => p.map(c => c.userId === userId ? { ...c, role } : c)); } catch {} finally { setChangingRole(null); } }
-  async function handleRemove(userId: string) { try { await removeCollaborator(userId); setCollabs(p => p.filter(c => c.userId !== userId)); } catch {} }
+  async function handleChangeCollabRole(userId: string) { const role = pendingRole[userId] as any; if (!role) return; setChangingRole(userId); try { await updateCollaboratorPermission(userId, role); setCollabs(p => p.map(c => c.userId === userId ? { ...c, role } : c)); } catch { } finally { setChangingRole(null); } }
+  async function handleRemove(userId: string) { try { await removeCollaborator(userId); setCollabs(p => p.filter(c => c.userId !== userId)); } catch { } }
 
   function AvatarDisplay({ size = 64 }: { size?: number }) {
     const av = AVATARS.find(a => a.id === selectedAvatar);
@@ -251,12 +242,12 @@ export default function Header({
   }
 
   const CollabRow = ({ c }: { c: any }) => (
-    <div className={cn('flex items-center gap-3 px-3 py-2.5 rounded-xl border', dk ? 'bg-white/3 border-white/8' : 'bg-slate-50 border-slate-200')}>
+    <div title={`${c.fullName || ''}\n${c.email}`} className={cn('flex items-center gap-3 px-3 py-2.5 rounded-xl border', dk ? 'bg-white/3 border-white/8' : 'bg-slate-50 border-slate-200')}>
       <div className={cn('w-8 h-8 rounded-full flex items-center justify-center font-black text-xs shrink-0', dk ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600')}>{(c.fullName || c.username || c.email || '?')[0].toUpperCase()}</div>
-      <div className="flex-1 min-w-0"><p className={cn('text-sm font-bold truncate', dk ? 'text-white' : 'text-slate-900')}>{c.fullName || c.username || c.email || 'Unknown'}</p><p className={cn('text-xs truncate', dk ? 'text-slate-500' : 'text-slate-400')}>{c.username ? `@${c.username} · ` : ''}{c.email}</p></div>
-      <select value={pendingRole[c.userId] ?? c.role} onChange={e => setPendingRole(p => ({ ...p, [c.userId]: e.target.value }))} className={cn('text-xs font-bold rounded-lg border px-2 py-1 outline-none transition-all', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}><option value="viewer">👁 Viewer</option><option value="editor">✏️ Editor</option><option value="admin">🛡️ Admin</option></select>
-      <button onClick={() => handleChangeCollabRole(c.userId)} disabled={changingRole === c.userId} className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-all">{changingRole === c.userId ? <Loader2 size={12} className="animate-spin" /> : (lang === 'de' ? 'Ändern' : 'Change')}</button>
-      <button onClick={() => handleRemove(c.userId)} className={cn('p-1.5 rounded-lg transition-all shrink-0', dk ? 'hover:bg-red-500/20 text-slate-500 hover:text-red-400' : 'hover:bg-red-50 text-slate-400 hover:text-red-500')}><Trash2 size={13} /></button>
+      <div className="flex-1 min-w-0"><p className={cn('text-sm font-bold truncate', dk ? 'text-white' : 'text-slate-900')}>{c.fullName || c.username || 'Unknown'}</p><p className={cn('text-xs truncate break-all', dk ? 'text-slate-500' : 'text-slate-400')}>{c.email}</p></div>
+      <select onClick={e => e.stopPropagation()} value={pendingRole[c.userId] ?? c.role} onChange={e => setPendingRole(p => ({ ...p, [c.userId]: e.target.value }))} className={cn('text-xs font-bold rounded-lg border px-2 py-1 outline-none transition-all', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}><option value="viewer">👁 Viewer</option><option value="editor">✏️ Editor</option><option value="admin">🛡️ Admin</option></select>
+      <button onClick={e => { e.stopPropagation(); handleChangeCollabRole(c.userId); }} disabled={changingRole === c.userId} className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-all">{changingRole === c.userId ? <Loader2 size={12} className="animate-spin" /> : (lang === 'de' ? 'Ändern' : 'Change')}</button>
+      <button onClick={e => { e.stopPropagation(); handleRemove(c.userId); }} className={cn('p-1.5 rounded-lg transition-all shrink-0', dk ? 'hover:bg-red-500/20 text-slate-500 hover:text-red-400' : 'hover:bg-red-50 text-slate-400 hover:text-red-500')}><X size={13} /></button>
     </div>
   );
 
@@ -283,12 +274,12 @@ export default function Header({
             </select>
             <div className="relative flex-1 flex items-center">
               <Search size={15} className={cn('absolute left-3 pointer-events-none', dk ? 'text-slate-500' : 'text-slate-400')} />
-              <input 
-                type="text" 
-                value={searchQuery} 
+              <input
+                type="text"
+                value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder={lang === 'de' ? 'Suchen...' : 'Search...'}
-                className={cn('w-full h-9 pl-9 pr-9 text-sm outline-none bg-transparent font-bold', dk ? 'text-white placeholder-slate-600' : 'text-slate-900 placeholder-slate-400')} 
+                className={cn('w-full h-9 pl-9 pr-9 text-sm outline-none bg-transparent font-bold', dk ? 'text-white placeholder-slate-600' : 'text-slate-900 placeholder-slate-400')}
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery('')} className="absolute right-3">
@@ -300,13 +291,12 @@ export default function Header({
         </div>
 
         <div className="flex items-center gap-3 ml-auto">
-          {/* CONSOLIDATED EXPORT STUDIO BUTTON */}
-          <button 
-              onClick={onPrint} 
-              className={iconBtn}
-              title={lang === 'de' ? 'Export Studio' : 'Export Studio'}>
-              <Share2 size={18} className="text-teal-500" />
-              <span className="text-sm font-bold">{lang === 'de' ? 'Export' : 'Export'}</span>
+          {/* UPDATED EXPORT ICON */}
+          <button
+            onClick={onPrint}
+            className={iconBtn}
+            title={lang === 'de' ? 'Exportieren' : 'Export'}>
+            <Upload size={18} className="text-teal-500" />
           </button>
 
           <button onClick={onToggleOfflineMode} className={cn(iconBtn, offlineMode && "bg-amber-500/20 text-amber-500")} title={lang === 'de' ? 'Offline-Modus' : 'Offline Mode'}>
@@ -316,7 +306,7 @@ export default function Header({
           <button onClick={() => setLang(lang === 'de' ? 'en' : 'de')} className={cn(iconBtn, 'text-xs font-black px-3')}>
             {lang.toUpperCase()}
           </button>
-          
+
           <button onClick={toggleTheme} className={iconBtn}>
             {dk ? <Sun size={18} /> : <Moon size={18} />}
           </button>
@@ -331,10 +321,10 @@ export default function Header({
         </div>
       </header>
 
-      {/* SETTINGS DRAWER */}
+      {/* SETTINGS DRAWER WITH NO BLUR FOR LIVE PREVIEW */}
       {showSettings && (
         <div className="fixed inset-0 z-[999] flex pointer-events-none">
-          <div className="flex-1 pointer-events-auto bg-black/40 backdrop-blur-sm" onClick={() => setShowSettings(false)} />
+          <div className="flex-1 pointer-events-auto" onClick={() => setShowSettings(false)} />
           <div className={cn('relative w-full max-w-md h-full flex flex-col shadow-2xl border-l pointer-events-auto', drawerBg, dk ? 'border-white/10' : 'border-slate-200')} style={{ animation: 'slideInRight 220ms cubic-bezier(0.16,1,0.3,1)' }}>
             <div className={cn('flex items-center justify-between px-6 py-4 border-b shrink-0', dk ? 'border-white/10' : 'border-slate-200')}>
               <h2 className={cn('text-lg font-black', dk ? 'text-white' : 'text-slate-900')}>{lang === 'de' ? 'Einstellungen' : 'Settings'}</h2>
@@ -376,12 +366,23 @@ export default function Header({
                           </div>
                         )}
                       </div>
+
+                      {/* PERSONALIZATION BOX */}
                       <div className={cn('rounded-xl border p-4 space-y-4', dk ? 'border-white/10' : 'border-slate-200')}>
                         <SectionLabel dk={dk}>{lang === 'de' ? 'Personalisierung' : 'Personalization'}</SectionLabel>
+                        
+                        {/* FONT STYLE */}
                         <div>
-                          <p className={cn('text-xs font-bold mb-1.5', dk ? 'text-slate-400' : 'text-slate-600')}>{lang === 'de' ? 'Schriftart' : 'Font Family'}</p>
-                          <select value={fontFamily} onChange={e => handleFontFamilyChange(e.target.value)} className={selectCls}>{FONTS.map(f => <option key={f.value} value={f.value} style={{ fontFamily: f.family }}>{f.label}</option>)}</select>
+                          <p className={cn('text-xs font-bold mb-1.5', dk ? 'text-slate-400' : 'text-slate-600')}>{lang === 'de' ? 'Schriftstil' : 'Font Style'}</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {FONT_STYLES.map(s => (
+                              <button key={s.id} onClick={() => handleFontFamilyChange(s.id)} className={cn('py-2.5 rounded-lg border font-bold transition-all flex flex-col items-center justify-center', fontFamily === s.id ? 'border-blue-500 bg-blue-500/10 text-blue-500' : dk ? 'border-white/10 text-slate-400 hover:text-white' : 'border-slate-200 text-slate-600')} style={{ fontFamily: s.family }}>
+                                Ag <span className="text-[10px] uppercase font-normal">{s.label}</span>
+                              </button>
+                            ))}
+                          </div>
                         </div>
+
                         <div>
                           <p className={cn('text-xs font-bold mb-1.5', dk ? 'text-slate-400' : 'text-slate-600')}>{lang === 'de' ? 'Schriftgröße' : 'Font Size'}</p>
                           <div className="flex items-center gap-3">
@@ -390,15 +391,34 @@ export default function Header({
                             <button onClick={() => handleFontSizeChange(fontSize + 1)} className={cn('p-1.5 rounded-lg border transition-all', dk ? 'border-white/10 hover:bg-white/10 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-700')}><Plus size={13} /></button>
                           </div>
                         </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className={cn('text-xs font-bold mb-1.5', dk ? 'text-slate-400' : 'text-slate-600')}>{lang === 'de' ? 'Sprache' : 'Language'}</p>
+                            <div className="flex rounded-lg border overflow-hidden dk ? 'border-white/10' : 'border-slate-200'">
+                              <button onClick={() => setLang('de')} className={cn('flex-1 py-1.5 text-xs font-bold', lang === 'de' ? 'bg-blue-600 text-white' : dk ? 'bg-white/5 text-slate-400' : 'bg-slate-50 text-slate-500')}>DE</button>
+                              <button onClick={() => setLang('en')} className={cn('flex-1 py-1.5 text-xs font-bold', lang === 'en' ? 'bg-blue-600 text-white' : dk ? 'bg-white/5 text-slate-400' : 'bg-slate-50 text-slate-500')}>EN</button>
+                            </div>
+                          </div>
+                          <div>
+                            <p className={cn('text-xs font-bold mb-1.5', dk ? 'text-slate-400' : 'text-slate-600')}>{lang === 'de' ? 'Erscheinungsbild' : 'Appearance'}</p>
+                            <div className="flex rounded-lg border overflow-hidden dk ? 'border-white/10' : 'border-slate-200'">
+                              <button onClick={() => !dk && toggleTheme()} className={cn('flex-1 py-1.5 flex justify-center', dk ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-400')}><Moon size={14} /></button>
+                              <button onClick={() => dk && toggleTheme()} className={cn('flex-1 py-1.5 flex justify-center', !dk ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-400')}><Sun size={14} /></button>
+                            </div>
+                          </div>
+                        </div>
+
                         <div className="flex items-center justify-between pt-1">
                           {personalizeMsg && <p className={cn('text-xs font-bold', personalizeMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{personalizeMsg}</p>}
                           <button onClick={handleSavePersonalization} disabled={savingPersonalize} className={cn('flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ml-auto', dk ? 'border-white/10 hover:bg-white/10 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-700')}>{savingPersonalize ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />} {lang === 'de' ? 'Speichern' : 'Save'}</button>
                         </div>
                       </div>
+
                       <div className="space-y-2">
-                        <Accordion title="FAQ" icon={HelpCircle} dk={dk}><p>{lang === 'de' ? 'Hier finden Sie Antworten auf häufig gestellte Fragen zu EuroTrack.' : 'Find answers to frequently asked questions about EuroTrack here.'}</p></Accordion>
-                        <Accordion title={lang === 'de' ? 'Datenschutz' : 'Privacy Policy'} icon={FileText} dk={dk}><p>{lang === 'de' ? 'Ihre Daten werden sicher gespeichert und nicht an Dritte weitergegeben.' : 'Your data is stored securely and never shared with third parties.'}</p></Accordion>
-                        <Accordion title={lang === 'de' ? 'Über EuroTrack' : 'About EuroTrack'} icon={Info} dk={dk}><p>{lang === 'de' ? 'EuroTrack ist ein internes Hotel-Verwaltungstool für das Europa-Park-Team.' : 'EuroTrack is an internal hotel management tool for the Europa-Park team.'}</p></Accordion>
+                        <Accordion title="FAQ" icon={HelpCircle} dk={dk}><p>{lang === 'de' ? 'Antworten auf häufig gestellte Fragen.' : 'Find answers to FAQs here.'}</p></Accordion>
+                        <Accordion title={lang === 'de' ? 'Datenschutz' : 'Privacy Policy'} icon={FileText} dk={dk}><p>{lang === 'de' ? 'Ihre Daten werden sicher gespeichert.' : 'Data is stored securely.'}</p></Accordion>
+                        <Accordion title={lang === 'de' ? 'Über EuroTrack' : 'About EuroTrack'} icon={Info} dk={dk}><p>{lang === 'de' ? 'EuroTrack ist ein internes Tool.' : 'EuroTrack is an internal tool.'}</p></Accordion>
                       </div>
                     </>
                   )}
@@ -442,8 +462,8 @@ export default function Header({
                   <div>
                     <SectionLabel dk={dk}>{lang === 'de' ? 'Aktueller Zugriff' : 'Current Access'}</SectionLabel>
                     {collabsLoading ? <div className="flex items-center gap-2 py-3"><Loader2 size={14} className="animate-spin text-blue-500" /><span className={cn('text-xs', dk ? 'text-slate-400' : 'text-slate-500')}>Loading...</span></div>
-                    : collabs.length === 0 ? <p className={cn('text-xs py-3', dk ? 'text-slate-500' : 'text-slate-400')}>{lang === 'de' ? 'Noch keine Mitarbeiter' : 'No collaborators yet'}</p>
-                    : <div className="space-y-2">{collabs.map(c => <CollabRow key={c.userId} c={c} />)}</div>}
+                      : collabs.length === 0 ? <p className={cn('text-xs py-3', dk ? 'text-slate-500' : 'text-slate-400')}>{lang === 'de' ? 'Noch keine Mitarbeiter' : 'No collaborators yet'}</p>
+                        : <div className="space-y-2">{collabs.map(c => <CollabRow key={c.userId} c={c} />)}</div>}
                   </div>
                 </>
               )}
