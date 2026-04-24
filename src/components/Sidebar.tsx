@@ -1,3 +1,5 @@
+// src/components/Sidebar.tsx
+
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, LayoutDashboard, ChevronUp, ChevronDown } from 'lucide-react';
 import { cn, formatCurrency, calcHotelTotalCost } from '../lib/utils';
