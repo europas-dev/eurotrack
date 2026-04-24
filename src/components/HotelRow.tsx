@@ -823,6 +823,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               <div className={cn("relative z-0", activeDurationTab === 0 ? "[&>div]:rounded-tl-none" : "")}>
                 <DurationCard duration={localHotel.durations[activeDurationTab]} isDarkMode={dk} lang={lang} 
                   isMasterPricingActive={masterMath.isMasterActive}
+                  viewOnly={viewOnly}
                   onUpdate={(id, upd) => {
                     const next = { ...localHotel, durations: localHotel.durations.map((d: any) => d.id === id ? upd : d) };
                     setLocalHotel(next); onUpdate(localHotel.id, next);
