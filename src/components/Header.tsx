@@ -256,9 +256,9 @@ export default function Header({
         {AVATARS.find(a => a.id === c.avatar)?.emoji || (c.fullName || c.email)[0].toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
-        <p className={cn('text-sm font-bold truncate', dk ? 'text-white' : 'text-slate-900')}>{c.fullName || 'Unknown'}</p>
+        <p className="text-sm font-bold truncate">{c.fullName || 'User'}</p>
         {c.username && <p className="text-[12px] font-semibold text-blue-500">@{c.username}</p>}
-        <p className={cn('text-[11px] truncate opacity-50', dk ? 'text-slate-400' : 'text-slate-500')}>{c.email}</p>
+        <p className="text-[11px] truncate opacity-50 opacity-60">f{c.email}</p>
       </div>
       <select 
         onMouseDown={e => e.stopPropagation()} 
@@ -355,7 +355,9 @@ export default function Header({
                 <button key={id} onClick={() => setSettingsTab(id as any)} className={cn('flex items-center gap-2 px-5 py-3 text-sm font-bold border-b-2 transition-all', settingsTab === id ? 'border-blue-500 text-blue-500' : cn('border-transparent', dk ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'))}><Icon size={14} />{label}</button>
               ))}
             </div>
+            
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {/* PROFILE TAB */}
               {settingsTab === 'profile' && (
                 <>
                   {profileLoading ? <div className="flex items-center justify-center py-12"><Loader2 size={22} className="animate-spin text-blue-500" /></div> : (
@@ -363,7 +365,7 @@ export default function Header({
                       <div className={cn('rounded-xl border p-4', dk ? 'border-white/10 bg-white/2' : 'border-slate-200 bg-slate-50')}>
                         <div className="flex items-center gap-4">
                           <AvatarDisplay size={60} />
-                          <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 group">
                               <span className={cn('text-sm font-black truncate', dk ? 'text-white' : 'text-slate-900')}>{profile?.fullName || profile?.full_name || '—'}</span>
                             </div>
@@ -416,8 +418,8 @@ export default function Header({
                           <div>
                             <p className={cn('text-xs font-bold mb-1.5', dk ? 'text-slate-400' : 'text-slate-600')}>{isDe ? 'Sprache' : 'Language'}</p>
                             <div className="flex rounded-lg border overflow-hidden">
-                              <button onClick={() => handleSetLang('de')} className={cn('flex-1 py-1.5 text-xs font-bold', lang === 'de' ? 'bg-blue-600 text-white' : 'opacity-50')}>DE</button>
-                              <button onClick={() => handleSetLang('en')} className={cn('flex-1 py-1.5 text-xs font-bold', lang === 'en' ? 'bg-blue-600 text-white' : 'opacity-50')}>EN</button>
+                              <button onClick={() => setLang('de')} className={cn('flex-1 py-1.5 text-xs font-bold', lang === 'de' ? 'bg-blue-600 text-white' : 'opacity-50')}>DE</button>
+                              <button onClick={() => setLang('en')} className={cn('flex-1 py-1.5 text-xs font-bold', lang === 'en' ? 'bg-blue-600 text-white' : 'opacity-50')}>EN</button>
                             </div>
                           </div>
                           <div>
@@ -436,22 +438,66 @@ export default function Header({
                       </div>
 
                       <div className="space-y-2">
-                        <Accordion title="FAQ" icon={HelpCircle} dk={dk}><p>{isDe ? 'Häufig gestellte Fragen.' : 'Commonly asked questions.'}</p></Accordion>
-                        <Accordion title={isDe ? 'Datenschutz' : 'Privacy Policy'} icon={FileText} dk={dk}><p>{isDe ? 'Sichere Datenspeicherung.' : 'Secure data storage.'}</p></Accordion>
-                        <Accordion title={isDe ? 'Über EuroTrack' : 'About EuroTrack'} icon={Info} dk={dk}><p>{isDe ? 'Ein Tool für die Hotelverwaltung.' : 'A hotel management tool.'}</p></Accordion>
+                        <Accordion title="FAQ" icon={HelpCircle} dk={dk}><p>{isDe ? 'Antworten auf häufig gestellte Fragen.' : 'Find answers to FAQs here.'}</p></Accordion>
+                        <Accordion title={isDe ? 'Datenschutz' : 'Privacy Policy'} icon={FileText} dk={dk}><p>{isDe ? 'Ihre Daten werden sicher gespeichert.' : 'Data is stored securely.'}</p></Accordion>
+                        <Accordion title={isDe ? 'Über EuroTrack' : 'About EuroTrack'} icon={Info} dk={dk}><p>{isDe ? 'EuroTrack ist ein internes Tool.' : 'EuroTrack is an internal tool.'}</p></Accordion>
                       </div>
                     </>
                   )}
                 </>
               )}
-              {/* security and access tabs remain same... */}
+
+              {/* SECURITY TAB (RESTORING MISSING CONTENT) */}
+              {settingsTab === 'security' && (
+                <div className="space-y-4">
+                  {profile?.email && <div className={cn('rounded-xl border p-4', dk ? 'border-white/10 bg-white/2' : 'border-slate-200 bg-slate-50')}><SectionLabel dk={dk}>{isDe ? 'Aktuelle E-Mail' : 'Current Email'}</SectionLabel><div className="flex items-center gap-2"><Mail size={13} className={dk ? 'text-slate-400' : 'text-slate-500'} /><span className={cn('text-sm font-bold', dk ? 'text-white' : 'text-slate-900')}>{profile.email}</span></div></div>}
+                  <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-white/10' : 'border-slate-200')}><SectionLabel dk={dk}>{isDe ? 'Benutzername ändern' : 'Change Username'}</SectionLabel><div className="relative"><AtSign size={13} className={cn('absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none', dk ? 'text-slate-500' : 'text-slate-400')} /><input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder={isDe ? 'Neuer Benutzername...' : 'New username...'} className={cn(inputCls, 'pl-8')} /></div>{usernameMsg && <p className={cn('text-xs font-bold', usernameMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{usernameMsg}</p>}<button onClick={handleSaveUsername} disabled={savingUsername} className={btnPrimary}>{savingUsername ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} {isDe ? 'Speichern' : 'Save Username'}</button></div>
+                  <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-white/10' : 'border-slate-200')}><SectionLabel dk={dk}>{isDe ? 'E-Mail ändern' : 'Change Email'}</SectionLabel><div className="relative"><Mail size={13} className={cn('absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none', dk ? 'text-slate-500' : 'text-slate-400')} /><input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder={isDe ? 'Neue E-Mail-Adresse...' : 'New email address...'} className={cn(inputCls, 'pl-8')} /></div>{emailMsg && <p className={cn('text-xs font-bold', emailMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{emailMsg}</p>}<button onClick={handleSaveEmail} disabled={savingEmail} className={btnPrimary}>{savingEmail ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />} {isDe ? 'E-Mail aktualisieren' : 'Update Email'}</button></div>
+                  <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-white/10' : 'border-slate-200')}><SectionLabel dk={dk}>{isDe ? 'Passwort ändern' : 'Change Password'}</SectionLabel><div className="relative"><input type={showCurrentPass ? 'text' : 'password'} value={currentPass} onChange={e => setCurrentPass(e.target.value)} placeholder={isDe ? 'Aktuelles Passwort' : 'Current password'} className={inputCls} /><button onClick={() => setShowCurrentPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2">{showCurrentPass ? <EyeOff size={13} className={dk ? 'text-slate-500' : 'text-slate-400'} /> : <Eye size={13} className={dk ? 'text-slate-500' : 'text-slate-400'} />}</button></div><div className="relative"><input type={showNewPass ? 'text' : 'password'} value={newPass} onChange={e => setNewPass(e.target.value)} placeholder={isDe ? 'Neues Passwort' : 'New password'} className={inputCls} /><button onClick={() => setShowNewPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2">{showNewPass ? <EyeOff size={13} className={dk ? 'text-slate-500' : 'text-slate-400'} /> : <Eye size={13} className={dk ? 'text-slate-500' : 'text-slate-400'} />}</button></div><input type="password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)} placeholder={isDe ? 'Passwort bestätigen' : 'Confirm password'} className={inputCls} />{passMsg && <p className={cn('text-xs font-bold', passMsg.startsWith('Error') || passMsg.includes('match') ? 'text-red-400' : 'text-green-400')}>{passMsg}</p>}<div className="flex items-center justify-between flex-wrap gap-2"><button onClick={handleForgotPassword} disabled={sendingReset} className={cn('text-xs font-bold transition-all', dk ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-800')}>{sendingReset ? '...' : (isDe ? 'Passwort vergessen?' : 'Forgot password?')}</button>{resetMsg && <p className={cn('text-xs font-bold', resetMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{resetMsg}</p>}<button onClick={handleSavePassword} disabled={savingPass} className={btnPrimary}>{savingPass ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />} {isDe ? 'Passwort ändern' : 'Change Password'}</button></div></div>
+                </div>
+              )}
+
+              {/* ACCESS TAB (RESTORING MISSING CONTENT) */}
+              {settingsTab === 'access' && isAdmin && (
+                <div className="space-y-4">
+                  <div>
+                    <SectionLabel dk={dk}>{isDe ? 'Nutzer suchen & Zugriff erteilen' : 'Find user & grant access'}</SectionLabel>
+                    <div className="relative mb-3"><Search size={13} className={cn('absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none', dk ? 'text-slate-500' : 'text-slate-400')} /><input type="text" value={accessSearch} onChange={e => setAccessSearch(e.target.value)} placeholder={isDe ? 'Benutzername oder E-Mail...' : 'Username or email...'} className={cn(inputCls, 'pl-9')} /></div>
+                    {accessSearching && <div className="flex items-center gap-2 py-2"><Loader2 size={13} className="animate-spin text-blue-500" /><span className={cn('text-xs', dk ? 'text-slate-400' : 'text-slate-500')}>{isDe ? 'Suche...' : 'Searching...'}</span></div>}
+                    {accessResults.length > 0 && !selectedUser && (
+                      <div className="space-y-1 mb-3">
+                        {accessResults.map(u => (
+                          <button key={u.id} onClick={() => setSelectedUser(u)} className={cn('w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all', dk ? 'bg-white/3 border-white/8 hover:bg-white/8' : 'bg-slate-50 border-slate-200 hover:bg-slate-100')}>
+                            <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0', dk ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-700')}>{(u.fullName || u.username || u.email || '?')[0].toUpperCase()}</div>
+                            <div className="flex-1 min-w-0"><p className={cn('text-sm font-bold truncate', dk ? 'text-white' : 'text-slate-900')}>{u.fullName || u.username || 'Unknown'}</p><p className={cn('text-xs truncate', dk ? 'text-slate-500' : 'text-slate-400')}>{u.username ? `@${u.username}` : u.email}</p></div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {selectedUser && (
+                      <div className={cn('rounded-xl border p-4 space-y-3 mb-3', dk ? 'border-blue-500/40 bg-blue-500/5' : 'border-blue-300 bg-blue-50')}>
+                        <div className="flex items-center justify-between"><p className={cn('text-sm font-black', dk ? 'text-white' : 'text-slate-900')}>{selectedUser.fullName || selectedUser.username || selectedUser.email}</p><button onClick={() => setSelectedUser(null)} className={cn('p-1 rounded', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-blue-100 text-slate-500')}><X size={13} /></button></div>
+                        <select value={grantRole} onChange={e => setGrantRole(e.target.value as any)} className={selectCls}><option value="viewer">👁 Viewer</option><option value="editor">✏️ Editor</option><option value="admin">🛡️ Admin</option></select>
+                        {grantMsg && <p className={cn('text-xs font-bold', grantMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{grantMsg}</p>}
+                        <button onClick={handleGrantAccess} disabled={granting} className={btnPrimary}>{granting ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />} {isDe ? 'Zugriff erteilen' : 'Grant Access'}</button>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <SectionLabel dk={dk}>{isDe ? 'Aktueller Zugriff' : 'Current Access'}</SectionLabel>
+                    {collabsLoading ? <div className="flex items-center gap-2 py-3"><Loader2 size={14} className="animate-spin text-blue-500" /><span className={cn('text-xs', dk ? 'text-slate-400' : 'text-slate-500')}>Loading...</span></div>
+                      : collabs.length === 0 ? <p className={cn('text-xs py-3', dk ? 'text-slate-500' : 'text-slate-400')}>{isDe ? 'Noch keine Mitarbeiter' : 'No collaborators yet'}</p>
+                        : <div className="space-y-2">{collabs.map(c => <CollabRow key={c.userId} c={c} />)}</div>}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
       <style>{`
-        /* UNIVERSAL FIX: Force lining figures globally for all text */
+        /* FINAL GLOBAL STABILIZER: Lining figures for all fonts */
         * {
           font-variant-numeric: lining-nums tabular-nums !important;
           -webkit-font-feature-settings: "lnum", "tnum";
