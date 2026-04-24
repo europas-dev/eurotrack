@@ -38,7 +38,6 @@ const HighlightText = ({ text, query }: { text: string; query?: string }) => {
 };
 
 // --- SEAMLESS AUTOCOMPLETE INPUT ---
-// FIX: Added 'disabled' to the prop destructuring so it doesn't crash
 function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, className, textClass, searchQuery, disabled }: any) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value || '');
@@ -57,7 +56,7 @@ function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, clas
 
   const filtered = (options || []).filter((o: string) => o.toLowerCase().includes(draft.toLowerCase()) && o.toLowerCase() !== draft.toLowerCase()).slice(0, 5);
 
-  if (!editing) {
+  if (!editing || disabled) {
     return (
       <div className={cn("truncate transition-opacity w-full min-h-[20px]", disabled ? "cursor-default" : "cursor-text hover:opacity-70", textClass)} onClick={(e) => { if (disabled) return; e.stopPropagation(); setEditing(true); setDraft(value || ''); setShowOptions(true); }}>
         {value ? <HighlightText text={value} query={searchQuery} /> : <span className="opacity-40">{placeholder}</span>}
@@ -80,7 +79,6 @@ function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, clas
 }
 
 // --- MINI DROPDOWN COMPONENT FOR MWST ---
-// FIX: Added 'disabled' to the props to prevent crashes when locked
 function MwstInput({ value, onChange, isDarkMode, disabled }: { value: string | null, onChange: (v: string | null) => void, isDarkMode: boolean, disabled?: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -93,7 +91,7 @@ function MwstInput({ value, onChange, isDarkMode, disabled }: { value: string | 
 
   return (
     <div ref={ref} className="relative flex items-center h-[34px]">
-      <input type="number" disabled={disabled} value={value ?? ''} onChange={e => onChange(e.target.value === '' ? null : e.target.value)} className={cn('w-16 px-2 py-1.5 rounded-l-lg text-sm font-bold outline-none border transition-all h-full text-center', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900', disabled && "opacity-50")} placeholder="--" />
+      <input type="number" disabled={disabled} value={value ?? ''} onChange={e => onChange(e.target.value === '' ? null : e.target.value)} className={cn('w-16 px-2 py-1.5 rounded-l-lg text-sm font-bold outline-none border transition-all h-full text-center', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900', disabled && "opacity-50 cursor-not-allowed")} placeholder="--" />
       <button disabled={disabled} onClick={() => setOpen(!open)} className={cn('px-1.5 h-full rounded-r-lg border border-l-0 transition-all flex items-center justify-center', isDarkMode ? 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100', disabled && "hidden")}><ChevronDown size={14} /></button>
       {open && !disabled && (
         <div className={cn("absolute top-full right-0 mt-1 w-20 z-[999] rounded-lg shadow-xl overflow-hidden border", isDarkMode ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
@@ -343,7 +341,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const hiddenEmpsCount = masterMath.employees.length > 6 ? masterMath.employees.length - 6 : 0;
 
   function patchHotel(changes: any) {
-    if (viewOnly) return;
+    if (viewOnly) return; // FIX: Lock save function for viewer
     const next = { ...localHotel, ...changes };
     setLocalHotel(next);
     clearTimeout(saveTimer.current);
@@ -445,7 +443,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const handleEnterBlur = (e: React.KeyboardEvent) => { if (e.key === 'Enter') (e.target as HTMLElement).blur(); };
   
   const labelCls = cn('flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500', dk && 'text-slate-400');
-  const inputCls = cn('w-full px-2 py-1.5 rounded-lg text-sm font-bold outline-none border transition-all h-[34px]', dk ? 'bg-[#1E293B] border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400');
+  const inputCls = cn('w-full px-2 py-1.5 rounded-lg text-sm font-bold outline-none border transition-all h-[34px]', dk ? 'bg-[#1E293B] border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400', viewOnly && "opacity-60 cursor-default");
 
   const targetOptions = lang === 'de' ? ['Gesamt Netto', 'Gesamt Brutto'] : ['Total Netto', 'Total Brutto'];
   const currentTarget = localHotel.global_discount_target === 'brutto' ? targetOptions[1] : targetOptions[0];
@@ -627,13 +625,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
                 {/* COL 2: Action Center */}
                 <div className="flex-1 p-5 flex flex-col gap-5 min-w-[320px]">
-                   {!viewOnly && (
-                     <div className="flex items-center gap-2 flex-wrap">
-                        <button onClick={() => setShowMasterBase(!showMasterBase)} className={cn("px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5", showMasterBase ? (dk ? "bg-teal-600 text-white border-teal-500" : "bg-teal-600 text-white border-teal-700") : (dk ? "bg-[#1E293B] text-slate-400 border-white/10 hover:text-white" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"))}><Calculator size={12}/> Brutto / Netto</button>
-                        <button onClick={() => patchHotel({has_global_discount: !localHotel.has_global_discount})} className={cn("px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5", localHotel.has_global_discount ? (dk ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" : "bg-indigo-50 text-indigo-600 border-indigo-200") : (dk ? "bg-[#1E293B] text-slate-400 border-white/10 hover:text-white" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"))}><Tag size={12} /> {lang === 'de' ? 'Gesamtrabatt' : 'Global Disc'}</button>
-                        <button onClick={toggleExtras} className={cn("px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5", showExtras ? (dk ? "bg-amber-500/20 text-amber-400 border-amber-500/30" : "bg-amber-50 text-amber-600 border-amber-200") : (dk ? "bg-[#1E293B] text-slate-400 border-white/10 hover:text-white" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"))}><PlusCircle size={12} /> {lang === 'de' ? 'Extra' : 'Extra'}</button>
-                     </div>
-                   )}
+                   <div className="flex items-center gap-2 flex-wrap">
+                      {!viewOnly && <button onClick={() => setShowMasterBase(!showMasterBase)} className={cn("px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5", showMasterBase ? (dk ? "bg-teal-600 text-white border-teal-500" : "bg-teal-600 text-white border-teal-700") : (dk ? "bg-[#1E293B] text-slate-400 border-white/10 hover:text-white" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"))}><Calculator size={12}/> Brutto / Netto</button>}
+                      {!viewOnly && <button onClick={() => patchHotel({has_global_discount: !localHotel.has_global_discount})} className={cn("px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5", localHotel.has_global_discount ? (dk ? "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" : "bg-indigo-50 text-indigo-600 border-indigo-200") : (dk ? "bg-[#1E293B] text-slate-400 border-white/10 hover:text-white" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"))}><Tag size={12} /> {lang === 'de' ? 'Gesamtrabatt' : 'Global Disc'}</button>}
+                      {!viewOnly && <button onClick={toggleExtras} className={cn("px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5", showExtras ? (dk ? "bg-amber-500/20 text-amber-400 border-amber-500/30" : "bg-amber-50 text-amber-600 border-amber-200") : (dk ? "bg-[#1E293B] text-slate-400 border-white/10 hover:text-white" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"))}><PlusCircle size={12} /> {lang === 'de' ? 'Extra' : 'Extra'}</button>}
+                   </div>
 
                    <div className="flex flex-col gap-3">
                       {showMasterBase && (
@@ -649,9 +645,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                     <div className="flex flex-col gap-1">
                                        <div className="flex items-center gap-1.5">
                                           <span className={labelCls}>Netto</span>
-                                          <input type="number" disabled={viewOnly} value={bc.netto != null ? bc.netto : bc.bNettoDisplay} onChange={e => updateBaseCost(bc.id, {netto: e.target.value === '' ? null : e.target.value, brutto: null})} className={cn(inputCls, 'w-full max-w-[120px] min-w-[80px]', bc.brutto != null && "opacity-50 pointer-events-none")} placeholder="Auto" />
+                                          <input disabled={viewOnly} type="number" value={bc.netto != null ? bc.netto : bc.bNettoDisplay} onChange={e => updateBaseCost(bc.id, {netto: e.target.value === '' ? null : e.target.value, brutto: null})} className={cn(inputCls, 'w-full max-w-[120px] min-w-[80px]', bc.brutto != null && "opacity-50 pointer-events-none")} placeholder="Auto" />
                                           
-                                          {!(bc.showDiscount || Boolean(bc.discountValue)) && !viewOnly ? (
+                                          {!(bc.showDiscount || Boolean(bc.discountValue)) && (!viewOnly) ? (
                                              <button onClick={() => updateBaseCost(bc.id, {showDiscount: true})} title="Rabatt hinzufügen" className={cn("p-1.5 rounded-lg border transition-all flex items-center justify-center shrink-0", dk ? "bg-[#1E293B] border-white/10 text-slate-400 hover:text-teal-400" : "bg-white border-slate-200 text-slate-400 hover:text-teal-500 hover:bg-slate-50")}>
                                                <Ticket size={14} />
                                              </button>
@@ -667,7 +663,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                       <div className="flex items-center gap-1.5 shrink-0 animate-in fade-in zoom-in-95 duration-200">
                                         <span className={labelCls}>{lang === 'de' ? 'Rabatt' : 'Discount'}</span>
                                         <div className="relative flex items-center h-[34px] w-[90px]">
-                                          <input type="number" disabled={viewOnly} value={bc.discountValue || ''} onChange={e => updateBaseCost(bc.id, {discountValue: e.target.value === '' ? null : e.target.value})} className={cn(inputCls, 'w-full pr-7 h-full')} placeholder="0" />
+                                          <input disabled={viewOnly} type="number" value={bc.discountValue || ''} onChange={e => updateBaseCost(bc.id, {discountValue: e.target.value === '' ? null : e.target.value})} className={cn(inputCls, 'w-full pr-7 h-full')} placeholder="0" />
                                           <button disabled={viewOnly} onClick={() => updateBaseCost(bc.id, {discountType: bc.discountType === 'percentage' ? 'fixed' : 'percentage'})} className={cn("absolute right-1 w-5 h-5 rounded flex items-center justify-center text-xs font-bold transition-all", dk ? "bg-white/10 hover:bg-white/20 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-700")}>{bc.discountType === 'percentage' ? '%' : '€'}</button>
                                         </div>
                                         {!viewOnly && <button onClick={() => updateBaseCost(bc.id, {showDiscount: false, discountValue: null})} className="text-slate-400 hover:text-red-500 transition-colors"><X size={14} /></button>}
@@ -678,7 +674,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                     
                                     <div className="flex items-center gap-1.5">
                                        <span className={labelCls}>Brutto</span>
-                                       <input type="number" disabled={viewOnly} value={bc.brutto != null ? bc.brutto : bc.bBruttoDisplay} onChange={e => updateBaseCost(bc.id, {brutto: e.target.value === '' ? null : e.target.value, netto: null})} className={cn(inputCls, 'w-full max-w-[120px] min-w-[80px]', bc.netto != null && "opacity-50 pointer-events-none")} placeholder="Auto" />
+                                       <input disabled={viewOnly} type="number" value={bc.brutto != null ? bc.brutto : bc.bBruttoDisplay} onChange={e => updateBaseCost(bc.id, {brutto: e.target.value === '' ? null : e.target.value, netto: null})} className={cn(inputCls, 'w-full max-w-[120px] min-w-[80px]', bc.netto != null && "opacity-50 pointer-events-none")} placeholder="Auto" />
                                     </div>
 
                                     {!viewOnly && localHotel.baseCosts.length > 1 ? (
@@ -696,7 +692,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                            <div className="flex items-center gap-3 flex-wrap justify-end">
                               <div className="flex items-center gap-1.5"><span className={labelCls}>{lang === 'de' ? 'Wert' : 'Value'}</span>
                                 <div className="relative flex items-center h-[34px] w-[100px]">
-                                  <input type="number" disabled={viewOnly} value={localHotel.global_discount_value || ''} onChange={e => patchHotel({global_discount_value: e.target.value === '' ? null : e.target.value})} className={cn(inputCls, 'w-full pr-7 h-full')} placeholder="0" />
+                                  <input disabled={viewOnly} type="number" value={localHotel.global_discount_value || ''} onChange={e => patchHotel({global_discount_value: e.target.value === '' ? null : e.target.value})} className={cn(inputCls, 'w-full pr-7 h-full')} placeholder="0" />
                                   <button disabled={viewOnly} onClick={() => patchHotel({global_discount_type: localHotel.global_discount_type === 'percentage' ? 'fixed' : 'percentage'})} className={cn("absolute right-1 w-5 h-5 rounded flex items-center justify-center text-xs font-bold transition-all", dk ? "bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-400" : "bg-indigo-100 hover:bg-indigo-200 text-indigo-700")}>{localHotel.global_discount_type === 'percentage' ? '%' : '€'}</button>
                                 </div>
                               </div>
@@ -718,9 +714,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                      {!viewOnly && <button onClick={addExtra} className={cn("p-1.5 h-[34px] rounded-lg transition-all flex items-center justify-center shrink-0 border", dk ? "bg-[#1E293B] border-white/10 text-teal-400 hover:bg-white/10" : "bg-white border-slate-200 text-teal-600 hover:bg-slate-100")}><Plus size={16}/></button>}
                                      <input disabled={viewOnly} value={ec.note} onChange={e => updateExtra(ec.id, {note: e.target.value})} className={cn(inputCls, 'flex-1 min-w-[140px]')} placeholder={lang === 'de' ? "Notiz..." : "Note..."} />
                                      
-                                     <div className="flex items-center gap-1.5"><span className={labelCls}>Netto</span><input type="number" disabled={viewOnly} value={ec.netto != null ? ec.netto : ec.eNettoDisplay} onChange={e => updateExtra(ec.id, {netto: e.target.value === '' ? null : e.target.value, brutto: null})} className={cn(inputCls, 'w-full max-w-[100px] min-w-[70px]', ec.brutto != null && "opacity-50 pointer-events-none")} placeholder="Auto" /></div>
+                                     <div className="flex items-center gap-1.5"><span className={labelCls}>Netto</span><input disabled={viewOnly} type="number" value={ec.netto != null ? ec.netto : ec.eNettoDisplay} onChange={e => updateExtra(ec.id, {netto: e.target.value === '' ? null : e.target.value, brutto: null})} className={cn(inputCls, 'w-full max-w-[100px] min-w-[70px]', ec.brutto != null && "opacity-50 pointer-events-none")} placeholder="Auto" /></div>
                                      <div className="flex items-center gap-1.5 shrink-0"><span className={labelCls}>MwSt</span><MwstInput disabled={viewOnly} value={ec.mwst} onChange={(v:any) => updateExtra(ec.id, {mwst: v})} isDarkMode={dk} /></div>
-                                     <div className="flex items-center gap-1.5"><span className={labelCls}>Brutto</span><input type="number" disabled={viewOnly} value={ec.brutto != null ? ec.brutto : ec.eBruttoDisplay} onChange={e => updateExtra(ec.id, {brutto: e.target.value === '' ? null : e.target.value, netto: null})} className={cn(inputCls, 'w-full max-w-[100px] min-w-[70px]', ec.netto != null && "opacity-50 pointer-events-none")} placeholder="Auto" /></div>
+                                     <div className="flex items-center gap-1.5"><span className={labelCls}>Brutto</span><input disabled={viewOnly} type="number" value={ec.brutto != null ? ec.brutto : ec.eBruttoDisplay} onChange={e => updateExtra(ec.id, {brutto: e.target.value === '' ? null : e.target.value, netto: null})} className={cn(inputCls, 'w-full max-w-[100px] min-w-[70px]', ec.netto != null && "opacity-50 pointer-events-none")} placeholder="Auto" /></div>
                                      {!viewOnly && <button onClick={() => removeExtra(ec.id)} className={cn("p-1.5 h-[34px] rounded-lg transition-all flex items-center justify-center shrink-0 border", dk ? "bg-[#1E293B] border-white/10 text-red-400 hover:bg-white/10" : "bg-white border-slate-200 text-red-500 hover:bg-slate-100")}><X size={16}/></button>}
                                   </div>
                                ))}
@@ -736,7 +732,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       <div className="flex items-center gap-1.5 flex-1 max-w-[160px]">
                          <button disabled={viewOnly} onClick={() => patchHotel({depositEnabled: !localHotel.depositEnabled})} className={cn("px-3 py-1.5 text-[11px] font-black uppercase rounded-lg border transition-all h-[34px]", localHotel.depositEnabled ? "bg-amber-500/20 text-amber-500 border-amber-500/30" : dk ? "border-white/10 text-slate-500 hover:text-white" : "border-slate-200 text-slate-400")}>{lang === 'de' ? 'Kaution' : 'Deposit'}</button>
                          {localHotel.depositEnabled ? (
-                            <input type="number" disabled={viewOnly} value={localHotel.depositAmount || ''} onChange={e => patchHotel({depositAmount: e.target.value === '' ? null : e.target.value})} className={cn(inputCls, 'w-[100px] h-[34px] px-2 text-xs text-amber-500 border-amber-500/30')} placeholder="0.00" />
+                            <input disabled={viewOnly} type="number" value={localHotel.depositAmount || ''} onChange={e => patchHotel({depositAmount: e.target.value === '' ? null : e.target.value})} className={cn(inputCls, 'w-[100px] h-[34px] px-2 text-xs text-amber-500 border-amber-500/30')} placeholder="0.00" />
                          ) : null}
                       </div>
                       <button disabled={viewOnly} onClick={() => patchHotel({isPaid: !localHotel.isPaid})} className={cn("px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all border h-[34px]", localHotel.isPaid ? "bg-emerald-500/20 text-emerald-500 border-emerald-500/40" : "bg-red-500/10 text-red-500 border-red-500/30")}>
@@ -769,7 +765,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                          {!viewOnly && editingOBrutto ? (
                            <input autoFocus type="number" value={editBruttoValue} onChange={e => setEditBruttoValue(e.target.value)} onBlur={() => {patchHotel({override_total_brutto: editBruttoValue === '' ? null : editBruttoValue}); setEditingOBrutto(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-32 text-right px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-600 font-black text-xl outline-none ml-auto")} />
                          ) : (
-                           <span onClick={() => {!viewOnly && setEditingOBrutto(true);}} className={cn("text-[22px] font-black", masterMath.isOverriddenBrutto && "text-yellow-500")}>{formatCurrency(masterMath.displayBrutto)} {!viewOnly && <Edit3 size={14} className="opacity-0 group-hover:opacity-100"/>}</span>
+                           <span onClick={() => {!viewOnly && setEditingOBrutto(true);}} className={cn("text-[22px] font-black", masterMath.isOverriddenBrutto && "text-yellow-500", !viewOnly && "cursor-pointer rounded px-1 -mr-1 transition-colors group-hover:bg-black/5")}>{formatCurrency(masterMath.displayBrutto)} {!viewOnly && <Edit3 size={14} className="opacity-0 group-hover:opacity-100 ml-2 inline-block"/>}</span>
                          )}
                       </div>
                       
@@ -778,8 +774,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                         {!viewOnly && editingPriceBed ? (
                            <input autoFocus type="number" value={editPriceBedValue} onChange={e => setEditPriceBedValue(e.target.value)} onBlur={() => {patchHotel({override_price_per_bed: editPriceBedValue === '' ? null : editPriceBedValue}); setEditingPriceBed(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-20 text-right px-1 rounded bg-yellow-500/20 text-yellow-600 font-bold text-[14px] outline-none ml-auto")} />
                         ) : (
-                           <span onClick={() => {!viewOnly && setEditingPriceBed(true);}} className={cn("text-[14px] font-bold cursor-pointer rounded px-1 -mr-1 transition-colors flex items-center gap-1.5 text-right ml-auto", masterMath.isOverriddenBed ? "text-yellow-600 bg-yellow-500/10" : dk ? "text-slate-300 group-hover:bg-white/10" : "text-slate-600 group-hover:bg-slate-200")}>
-                             {!masterMath.isOverriddenBed && masterMath.pricePerBed > 0 ? 'ab ' : ''}{formatCurrency(masterMath.pricePerBed)} / N {!viewOnly && <Edit3 size={11} className="opacity-0 group-hover:opacity-100"/>}
+                           <span onClick={() => {!viewOnly && setEditingPriceBed(true);}} className={cn("text-[14px] font-bold", masterMath.isOverriddenBed && "text-yellow-600", !viewOnly && "cursor-pointer rounded px-1 -mr-1 transition-colors group-hover:bg-black/5 text-right ml-auto")}>
+                             {!masterMath.isOverriddenBed && masterMath.pricePerBed > 0 ? 'ab ' : ''}{formatCurrency(masterMath.pricePerBed)} / N {!viewOnly && <Edit3 size={11} className="opacity-0 group-hover:opacity-100 ml-1 inline-block"/>}
                            </span>
                         )}
                       </div>
@@ -825,7 +821,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             {/* FIX: Remove top-left border radius of card so it perfectly connects to the first tab */}
             {localHotel.durations[activeDurationTab] ? (
               <div className={cn("relative z-0", activeDurationTab === 0 ? "[&>div]:rounded-tl-none" : "")}>
-                <DurationCard viewOnly={viewOnly} duration={localHotel.durations[activeDurationTab]} isDarkMode={dk} lang={lang} 
+                <DurationCard duration={localHotel.durations[activeDurationTab]} isDarkMode={dk} lang={lang} 
                   isMasterPricingActive={masterMath.isMasterActive}
                   onUpdate={(id, upd) => {
                     const next = { ...localHotel, durations: localHotel.durations.map((d: any) => d.id === id ? upd : d) };
@@ -942,11 +938,13 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
   const isAlreadySelected = safeSelected.some((o: string) => o.toLowerCase() === query.trim().toLowerCase());
   
   const handleToggle = (opt: string) => {
+    if (disabled) return;
     onChange(safeSelected.includes(opt) ? safeSelected.filter((t: any) => t !== opt) : [...safeSelected, opt]);
     setQuery('');
   };
 
   const handleAddNew = async () => {
+    if (disabled) return;
     const val = query.trim();
     if (val && !isAlreadySelected) {
       setLocalMemory(prev => Array.from(new Set([...prev, val]))); 
