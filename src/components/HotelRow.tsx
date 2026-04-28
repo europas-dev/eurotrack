@@ -151,6 +151,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const saveTimer = useRef<any>(null);
 
   // --- SURGICAL FIX: INDICATOR FOR HIDDEN MATCHES ---
+  // src/components/HotelRow.tsx
   const hiddenMatchText = useMemo(() => {
     if (!searchQuery) return null;
     const q = searchQuery.toLowerCase();
@@ -159,14 +160,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     const invoiceMatch = localHotel.rechnungNr?.toLowerCase().includes(q) || 
                        localHotel.durations?.some((d:any) => d.rechnungNr?.toLowerCase().includes(q));
     if (invoiceMatch && (searchScope === 'all' || searchScope === 'invoice')) return lang === 'de' ? `Treffer: Rechnung` : `Invoice Match`;
-
-    // Check Employee match only if they are not in the first 6 visible ones or if it's a specific employee search
-    const employeeMatch = localHotel.durations?.some((d:any) => 
-      (d.roomCards || []).some((rc:any) => 
-        (rc.employees || []).some((emp:any) => emp.name?.toLowerCase().includes(q))
-      )
-    );
-    if (employeeMatch && (searchScope === 'all' || searchScope === 'employee')) return lang === 'de' ? `Treffer: Mitarbeiter` : `Employee Match`;
 
     return null;
   }, [localHotel, searchQuery, searchScope, lang]);
