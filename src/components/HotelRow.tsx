@@ -105,7 +105,7 @@ function MwstInput({ value, onChange, isDarkMode, disabled }: { value: string | 
   );
 }
 
-export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onAddOption, viewOnly }: any) {
+export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onAddOption, viewOnly }: any) {
   const [open, setOpen] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   
@@ -793,6 +793,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                   viewOnly={viewOnly} 
                   searchQuery={searchQuery}
                   searchScope={searchScope}
+                  employeeOptions={employeeOptions}
                   onUpdate={(id, upd) => { 
                     const next = { ...localHotel, durations: localHotel.durations.map((d: any) => d.id === id ? upd : d) }; 
                     setLocalHotel(next); 
