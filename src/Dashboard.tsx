@@ -1,7 +1,7 @@
 // src/Dashboard.tsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase, deleteHotel, createHotel } from './lib/supabase';
-// SURGICAL FIX: Added calculateNights and calcRoomCardNettoSum to imports to stop the CRASH
+// FIXED: Added missing imports for sorting and nights calculation to prevent CRASH
 import { 
   cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, 
   calcHotelFreeBedsToday, calculateNights 
@@ -14,7 +14,7 @@ import Sidebar from './components/Sidebar';
 import { HotelRow, ModernDropdown, CompanyMultiSelect, getCountryOptions } from './components/HotelRow';
 import ExportStudio from './components/ExportStudio';
 
-// ... (getSystemCompanies, addSystemCompany, deleteSystemCompany functions stay exactly the same)
+// --- SYSTEM COMPANIES API ---
 async function getSystemCompanies(): Promise<string[]> {
   const { data, error } = await supabase.from('global_companies').select('name').order('name');
   if (error) { console.error("Global Companies Fetch Error:", error); return []; }
@@ -126,9 +126,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       const users = Object.values(state).flat().map((p: any) => p.user);
       const uniqueUsers = Array.from(new Map(users.map(u => [u.id, u])).values());
       
-      // SURGICAL FIX: Invisible Mode - filter out superadmins who have invisible toggle active
+      // SURGICAL FIX: Invisible Mode - Hide Superadmin if toggle is active in settings
       const filteredUsers = uniqueUsers.filter((u: any) => {
-          // If the user being checked is YOU and you are invisible, don't show YOU
           if (u.id === accessLevel?.id && accessLevel?.role === 'superadmin' && accessLevel?.invisible) return false;
           return true;
       });
@@ -264,15 +263,16 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     return hotels.filter(h => {
       if (showBookmarks && !bookmarks.includes(h.id)) return false;
       
-      // SURGICAL FIX: Proper Targeted Search Filter
+      // SURGICAL FIX: Improved Targeted Search Engine
       if (searchQuery) {
           const q = searchQuery.toLowerCase();
           if (searchScope === 'hotel') { if (!h.name?.toLowerCase().includes(q)) return false; }
           else if (searchScope === 'city') { if (!h.city?.toLowerCase().includes(q)) return false; }
           else if (searchScope === 'company') { if (!h.companyTag?.some((t:any) => t.toLowerCase().includes(q))) return false; }
           else if (searchScope === 'invoice') { 
-              const match = h.rechnungNr?.toLowerCase().includes(q) || h.durations?.some((d:any) => d.rechnungNr?.toLowerCase().includes(q));
-              if (!match) return false;
+              const hotelInvMatch = h.rechnungNr?.toLowerCase().includes(q);
+              const durationInvMatch = h.durations?.some((d:any) => d.rechnungNr?.toLowerCase().includes(q));
+              if (!hotelInvMatch && !durationInvMatch) return false;
           }
           else if (searchScope === 'employee') {
               const hasEmp = h.durations?.some((d:any) => d.roomCards?.some((rc:any) => rc.employees?.some((e:any) => e.name?.toLowerCase().includes(q))));
@@ -322,10 +322,10 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     }).sort((a, b) => {
       let va: any; let vb: any;
       
-      // SURGICAL FIX: Improved Price/Bed numeric sorting
+      // SURGICAL FIX: Improved Price/Bed numeric sorting ( Cheaper stays first )
       if (sortBy === 'bed_price') {
           const getMinPrice = (hotel: any) => {
-              if (hotel.override_price_per_bed != null) return parseFloat(hotel.override_price_per_bed);
+              if (hotel.override_price_per_bed != null && hotel.override_price_per_bed > 0) return parseFloat(hotel.override_price_per_bed);
               let min = Infinity;
               hotel.durations?.forEach((d:any) => {
                   const nights = calculateNights(d.startDate, d.endDate);
@@ -376,13 +376,14 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     if (filterDeposit !== 'all') badges.push({ id: 'dep', label: lang === 'de' ? 'Kaution' : 'Deposit', val: filterDeposit, clear: () => setFilterDeposit('all') });
     if (groupBy !== 'none') badges.push({ id: 'grp', label: lang === 'de' ? 'Gruppe' : 'Group', val: groupBy, clear: () => setGroupBy('none') });
     
-    // SURGICAL FIX: Translate sort chips into German
+    // SURGICAL FIX: Language Translation for Sort Chips
     if (sortBy !== 'created_at' || sortDir !== 'desc') {
         let sortLabel = sortBy.replace('_', ' ').toUpperCase();
         if (lang === 'de') {
             if (sortBy === 'bed_price') sortLabel = 'BETTPREIS';
-            else if (sortBy === 'cost') sortLabel = 'GESAMTRABATT';
+            else if (sortBy === 'cost') sortLabel = 'GESAMTKOSTEN';
             else if (sortBy === 'free_beds') sortLabel = 'FREIE BETTEN';
+            else if (sortBy === 'name') sortLabel = 'HOTELNAME';
         }
         badges.push({ id: 'srt', label: lang === 'de' ? 'Sortierung' : 'Sort', val: `${sortLabel} (${sortDir === 'asc' ? (lang === 'de' ? 'AUF' : 'ASC') : (lang === 'de' ? 'AB' : 'DESC')})`, clear: () => { setSortBy('created_at'); setSortDir('desc'); } });
     }
@@ -418,7 +419,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           <div className="flex items-center justify-between flex-wrap gap-4 w-full">
             <div className="flex items-center gap-12 flex-wrap">
               <div><p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">{lang === 'de' ? 'Freie Betten Heute' : 'Free Beds Today'}</p><p className={cn('text-3xl font-black', freeBedsTotal > 0 ? 'text-red-500' : 'text-slate-400')}>{freeBedsTotal}</p></div>
-              <div><p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">{lang === 'de' ? 'Gesamtkosten' : 'Total Spent'}</p><p className="text-3xl font-black text-teal-600 dark:text-teal-400">{formatCurrency(totalSpend)}</p></div>
+              <div><p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">{lang === 'de' ? 'GesamtKOSTEN' : 'Total Spent'}</p><p className="text-3xl font-black text-teal-600 dark:text-teal-400">{formatCurrency(totalSpend)}</p></div>
               <div><p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Hotels</p><p className="text-3xl font-black">{finalFiltered.length}</p></div>
             </div>
             
@@ -454,7 +455,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             <div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative z-[100]">
               <h2 className="text-2xl font-bold tracking-tight">{displayTitle}</h2>
               <div className="flex items-center gap-2">
-                {/* SURGICAL FIX: Improved Redo/Undo buttons styling */}
                 <div className={cn("flex items-center mr-2 rounded-xl p-1 border", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200 shadow-sm")}>
                   <button onClick={handleUndo} disabled={historyIndex <= 0} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 disabled:opacity-30 transition-all" title="Undo"><Undo2 size={18}/></button>
                   <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 disabled:opacity-30 transition-all" title="Redo"><Redo2 size={18}/></button>
@@ -473,6 +473,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                         <div className="flex items-center gap-3">
                            <input type="date" value={tlStart} onChange={e => {setTlStart(e.target.value); setTlType('range');}} className={cn("flex-1 p-2 rounded-lg outline-none text-sm font-medium", dk ? "bg-transparent border border-white/10" : "bg-white border border-slate-200")} />
                            <span className="text-slate-400">➔</span>
+                           {/* SURGICAL FIX: Timeline date format logic in input min/max */}
                            <input type="date" min={tlStart} value={tlEnd} onChange={e => {if(tlStart && e.target.value < tlStart) return; setTlEnd(e.target.value); setTlType('range');}} className={cn("flex-1 p-2 rounded-lg outline-none text-sm font-medium", dk ? "bg-transparent border border-white/10" : "bg-white border border-slate-200")} />
                         </div>
                       </div>
@@ -517,8 +518,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                       </div>
                       <p className={sectionTitle}>{lang === 'de' ? 'Sortierreihenfolge' : 'Sort Direction'}</p>
                       <div className="grid grid-cols-2 gap-3 mb-6">
-                        <button onClick={() => setSortDir('asc')} className={cn("py-3 rounded-lg border text-left px-4 transition-all", sortDir === 'asc' ? btnActive : btnInactive)}><span className="block text-sm font-medium">{lang === 'de' ? 'Aufsteigend' : 'Ascending'}</span><span className={cn("block text-[10px] mt-1 font-normal", sortDir === 'asc' ? 'opacity-90' : 'opacity-50')}>{lang === 'de' ? 'Aufsteigend, A-Z, Älteste' : 'Low to High, A-Z, Oldest'}</span></button>
-                        <button onClick={() => setSortDir('desc')} className={cn("py-3 rounded-lg border text-left px-4 transition-all", sortDir === 'desc' ? btnActive : btnInactive)}><span className="block text-sm font-medium">{lang === 'de' ? 'Absteigend' : 'Descending'}</span><span className={cn("block text-[10px] mt-1 font-normal", sortDir === 'desc' ? 'opacity-90' : 'opacity-50')}>{lang === 'de' ? 'Absteigend, Z-A, Neueste' : 'High to Low, Z-A, Newest'}</span></button>
+                        <button onClick={() => setSortDir('asc')} className={cn("py-3 rounded-lg border text-left px-4 transition-all", sortDir === 'asc' ? btnActive : btnInactive)}><span className="block text-sm font-medium">{lang === 'de' ? 'Aufsteigend' : 'Ascending'}</span><span className={cn("block text-[10px] mt-1 font-normal", sortDir === 'asc' ? 'opacity-90' : 'opacity-50')}>{lang === 'de' ? 'Low to High, A-Z, Oldest' : 'Low to High, A-Z, Oldest'}</span></button>
+                        <button onClick={() => setSortDir('desc')} className={cn("py-3 rounded-lg border text-left px-4 transition-all", sortDir === 'desc' ? btnActive : btnInactive)}><span className="block text-sm font-medium">{lang === 'de' ? 'Absteigend' : 'Descending'}</span><span className={cn("block text-[10px] mt-1 font-normal", sortDir === 'desc' ? 'opacity-90' : 'opacity-50')}>{lang === 'de' ? 'High to Low, Z-A, Newest' : 'High to Low, Z-A, Newest'}</span></button>
                       </div>
                       <div className="flex items-center justify-between border-t border-slate-200 dark:border-white/10 pt-4">
                         <button onClick={() => { setSortBy('created_at'); setSortDir('desc'); }} className={actionSecondary}>{lang === 'de' ? 'Sortierung zurücksetzen' : 'Reset Sorting'}</button>
@@ -567,12 +568,27 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                           <div className="flex items-center gap-4"><span className="text-xs font-bold uppercase tracking-wider text-slate-500">{lang === 'de' ? 'Gruppe' : 'Group'}: {groupBy}</span><h3 className="text-xl font-bold">{gName}</h3><span className="px-3 py-1 rounded-full bg-teal-500/10 text-teal-600 text-xs font-bold">{hList.length} Hotels</span></div>
                           <div className="text-right"><p className="text-[10px] font-bold text-slate-500 uppercase">{lang === 'de' ? 'Gesamtwert' : 'Total Value'}</p><p className="text-lg font-bold text-teal-600 dark:text-teal-400">{formatCurrency(hList.reduce((s,h)=>s+calcHotelTotalCost(h),0))}</p></div>
                        </div>
-                       <div className="flex flex-col gap-4 pl-4 border-l-2 border-teal-500/30">{hList.map((h, i) => <HotelRow key={h.id} entry={h} index={i} isDarkMode={dk} lang={lang} searchQuery={searchQuery} companyOptions={allCompanyOptions} cityOptions={uniqueCities} onDelete={hId => setHotels(hotels.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(hotels.map(ho=>ho.id===hId?{...ho,...up}:ho))} onDeleteCompanyOption={handleDeleteGlobalCompany} onAddOption={handleAddGlobalCompany} />)}</div>
+                       <div className="flex flex-col gap-4 pl-4 border-l-2 border-teal-500/30">{hList.map((h, i) => <HotelRow key={h.id} entry={h} index={i} isDarkMode={dk} lang={lang} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} companyOptions={allCompanyOptions} cityOptions={uniqueCities} onDelete={hId => setHotels(hotels.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(hotels.map(ho=>ho.id===hId?{...ho,...up}:ho))} onDeleteCompanyOption={handleDeleteGlobalCompany} onAddOption={handleAddGlobalCompany} />)}</div>
                     </div>
                   ))
                 ) : (
                   finalFiltered.map((hotel, index) => (
-                    <HotelRow key={hotel.id} entry={hotel} viewOnly={accessLevel?.role === 'viewer'} index={index} isDarkMode={dk} lang={lang} searchQuery={searchQuery} companyOptions={allCompanyOptions} cityOptions={uniqueCities} onDelete={hId => setHotels(hotels.filter(h=>h.id!==hId))} onUpdate={(hId, up) => setHotels(hotels.map(h=>h.id===hId?{...h,...up}:h))} onDeleteCompanyOption={handleDeleteGlobalCompany} onAddOption={handleAddGlobalCompany} />
+                    // SURGICAL FIX: Passing correct searchQuery based on scope to avoid wrong highlights
+                    <HotelRow 
+                      key={hotel.id} 
+                      entry={hotel} 
+                      viewOnly={accessLevel?.role === 'viewer'} 
+                      index={index} 
+                      isDarkMode={dk} 
+                      lang={lang} 
+                      searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} 
+                      companyOptions={allCompanyOptions} 
+                      cityOptions={uniqueCities} 
+                      onDelete={hId => setHotels(hotels.filter(h=>h.id!==hId))} 
+                      onUpdate={(hId, up) => setHotels(hotels.map(h=>h.id===hId?{...h,...up}:h))} 
+                      onDeleteCompanyOption={handleDeleteGlobalCompany} 
+                      onAddOption={handleAddGlobalCompany} 
+                    />
                   ))
                 )}
                 {!loading && finalFiltered.length === 0 && (
