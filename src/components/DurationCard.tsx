@@ -20,6 +20,7 @@ interface Props {
   onUpdate: (id: string, updated: any) => void
   onDelete: (id: string) => void
   viewOnly?: boolean // ADDED: View-only flag
+  employeeOptions?: string[]
 }
 
 function addDays(iso: string, days: number): string {
@@ -32,7 +33,7 @@ function addDays(iso: string, days: number): string {
 const ROOM_TYPES = ['EZ', 'DZ', 'TZ', 'WG'] as const
 
 export default function DurationCard({
-  duration, isDarkMode, lang = 'de', isMasterPricingActive, onUpdate, onDelete, viewOnly // ADDED
+  duration, isDarkMode, lang = 'de', isMasterPricingActive, onUpdate, onDelete, viewOnly, employeeOptions // ADDED
 }: Props) {
   const dk = isDarkMode
   const [local, setLocal]           = useState<Duration>(duration)
@@ -362,6 +363,7 @@ export default function DurationCard({
             onDelete={handleCardDelete} 
             isMasterPricingActive={isMasterPricingActive} 
             viewOnly={viewOnly} 
+            employeeOptions={employeeOptions}
           />
         ))}
       </div>
