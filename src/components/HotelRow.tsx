@@ -28,32 +28,37 @@ function formatCurrency(amount: number): string {
   return (amount || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 }
 
-// FILE: src/components/HotelRow.tsx
-
 const HighlightText = ({ text, query }: { text: string; query?: string }) => {
   if (!query || !text) return <>{text}</>;
   
   // Use a case-insensitive regex to split the text by the query match
-  const parts = text.split(new RegExp(`(${query})`, 'gi'));
+  const parts = text.split(new RegExp(`(${query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi'));
   
   return (
-    <>
+    <span style={{ display: 'inline', whiteSpace: 'pre' }}>
       {parts.map((part, i) => 
         part.toLowerCase() === query.toLowerCase() ? (
-          <mark 
+          <span 
             key={i} 
-            className="bg-teal-400 text-black px-0" 
-            style={{ fontWeight: 'inherit' }}
+            className="bg-teal-400 text-black" 
+            style={{ 
+              fontWeight: 'inherit',
+              padding: 0,
+              margin: 0,
+              display: 'inline'
+            }}
           >
             {part}
-          </mark>
+          </span>
         ) : (
-          part
+          <span key={i} style={{ display: 'inline' }}>{part}</span>
         )
       )}
-    </>
+    </span>
   );
 };
+
+
 
 // --- SEAMLESS AUTOCOMPLETE INPUT ---
 function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, className, textClass, searchQuery, disabled }: any) {
