@@ -187,6 +187,53 @@ export async function updateHotel(id: string, data: any) {
   if (error) throw error
 }
 
+// --- NEW BULK FUNCTIONS ---
+
+/**
+ * Bulk deletes hotels by their IDs
+ */
+export async function bulkDeleteHotels(ids: string[]) {
+  const { error } = await supabase
+    .from('hotels')
+    .delete()
+    .in('id', ids);
+  if (error) throw error;
+}
+
+/**
+ * Duplicates hotel metadata only (no durations/employees)
+ */
+export async function duplicateHotelsMetadata(hotels: any[]) {
+  // Map the local state fields to the database column names
+  const clones = hotels.map(h => ({
+    name: h.name,
+    city: h.city,
+    company_tag: h.companyTag || h.company_tag || [],
+    address: h.address,
+    contactperson: h.contactPerson || h.contactperson,
+    phone: h.phone,
+    email: h.email,
+    weblink: h.website || h.weblink,
+    country: h.country,
+    notes: h.notes,
+    year: h.year,
+    is_paid: false,
+    rechnung_nr: '',
+    booking_id: '',
+    deposit_enabled: false,
+    deposit_amount: 0
+  }));
+
+  const { data, error } = await supabase
+    .from('hotels')
+    .insert(clones)
+    .select();
+
+  if (error) throw error;
+  return data;
+}
+
+// ---------------------------
 export async function deleteHotel(id: string) {
   await supabase.from('hotels').delete().eq('id', id)
 }
