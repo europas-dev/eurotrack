@@ -53,7 +53,9 @@ function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, clas
     return () => document.removeEventListener('mousedown', handle);
   }, [draft, value, onChange]);
 
-  const filtered = (options || []).filter((o: string) => o.toLowerCase().includes(draft.toLowerCase()) && o.toLowerCase() !== draft.toLowerCase()).slice(0, 5);
+  const filtered = draft.trim().length > 0 
+    ? (options || []).filter((o: string) => o.toLowerCase().includes(draft.toLowerCase()) && o.toLowerCase() !== draft.toLowerCase()).slice(0, 5)
+    : [];
 
   if (!editing || disabled) {
     return (
