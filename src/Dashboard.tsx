@@ -1006,8 +1006,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                   finalFiltered.map((hotel, index) => (
                     <HotelRow 
                       key={hotel.id} 
-                      isSelected={selectedIds.has(h.id)}
-                      onSelect={() => toggleSelect(h.id)}
+                      isSelected={selectedIds.has(hotel.id)}
+                      onSelect={() => toggleSelect(hotel.id)}
                       isBulkActive={selectedIds.size > 0}
                       entry={hotel} 
                       viewOnly={accessLevel?.role === 'viewer'} 
