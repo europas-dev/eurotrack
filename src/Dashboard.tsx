@@ -1,7 +1,12 @@
 // src/Dashboard.tsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase, deleteHotel, createHotel } from './lib/supabase';
-import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday } from './lib/utils';
+// SURGICAL FIX: Added calculateNights and calcRoomCardNettoSum to imports to stop the CRASH
+import { 
+  cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, 
+  calcHotelFreeBedsToday, calculateNights 
+} from './lib/utils';
+import { calcRoomCardNettoSum } from './lib/roomCardUtils';
 import type { AccessLevel } from './lib/supabase';
 import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Undo2, Redo2, Star, Calendar, MapPin, Building, Building2, CloudOff, Globe, Trash2 } from 'lucide-react';
 import Header from './components/Header';
@@ -9,7 +14,7 @@ import Sidebar from './components/Sidebar';
 import { HotelRow, ModernDropdown, CompanyMultiSelect, getCountryOptions } from './components/HotelRow';
 import ExportStudio from './components/ExportStudio';
 
-// --- SYSTEM COMPANIES API ---
+// ... (getSystemCompanies, addSystemCompany, deleteSystemCompany functions stay exactly the same)
 async function getSystemCompanies(): Promise<string[]> {
   const { data, error } = await supabase.from('global_companies').select('name').order('name');
   if (error) { console.error("Global Companies Fetch Error:", error); return []; }
@@ -54,12 +59,10 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     status: false, deposit: false
   });
   
-  // MENU VISIBILITY
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showTimelineMenu, setShowTimelineMenu] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
   
-  // OPERATIONAL STATE
   const [tlType, setTlType] = useState<'all'|'today'|'tomorrow'|'3days'|'7days'|'range'>('all');
   const [tlStart, setTlStart] = useState('');
   const [tlEnd, setTlEnd] = useState('');
@@ -90,7 +93,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
 
-  // Dynamic Title Logic
   const monthNamesEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const monthNamesDe = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
   const displayTitle = selectedMonth !== null 
@@ -124,8 +126,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       const users = Object.values(state).flat().map((p: any) => p.user);
       const uniqueUsers = Array.from(new Map(users.map(u => [u.id, u])).values());
       
-      // SURGICAL FIX: Invisible Mode for Superadmin
+      // SURGICAL FIX: Invisible Mode - filter out superadmins who have invisible toggle active
       const filteredUsers = uniqueUsers.filter((u: any) => {
+          // If the user being checked is YOU and you are invisible, don't show YOU
           if (u.id === accessLevel?.id && accessLevel?.role === 'superadmin' && accessLevel?.invisible) return false;
           return true;
       });
@@ -143,17 +146,13 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     });
 
     return () => { isMounted = false; channel.unsubscribe(); supabase.removeChannel(channel); };
-  }, [accessLevel]); // Added accessLevel to deps for invisible check
+  }, [accessLevel]);
 
-  // --- FIXED DATA FETCHING LOGIC WITH NEW MASTER FIELDS ---
   useEffect(() => { 
     let isMounted = true;
     setLoading(true);
     setError(''); 
-    
-    const safetyTimer = setTimeout(() => {
-      if (isMounted) setLoading(false);
-    }, 5000);
+    const safetyTimer = setTimeout(() => { if (isMounted) setLoading(false); }, 5000);
 
     async function fetchAllData() {
       try {
@@ -169,8 +168,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         const normalized = (data || []).map((h: any) => ({
           ...h, 
           companyTag: h.company_tag ?? [],
-          
-          // MAP MASTER INVOICE FIELDS TO REACT
           isPaid: h.is_paid ?? false,
           rechnungNr: h.rechnung_nr ?? '',
           bookingId: h.booking_id ?? '',
@@ -180,7 +177,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           hasDiscount: h.has_discount ?? false,
           discountType: h.discount_type ?? 'percentage',
           discountValue: h.discount_value ?? 0,
-
           durations: (h.durations || []).map((d: any) => ({
             ...d, hotelId: d.hotel_id, startDate: d.start_date, endDate: d.end_date, roomType: d.room_type, numberOfRooms: d.number_of_rooms,
             pricePerNightPerRoom: d.price_per_night_per_room, useManualPrices: d.use_manual_prices, nightlyPrices: d.nightly_prices, useBruttoNetto: d.use_brutto_netto,
@@ -210,12 +206,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         if (isMounted) setLoading(false);
       }
     }
-    
     fetchAllData(); 
-    return () => { 
-        isMounted = false; 
-        clearTimeout(safetyTimer);
-    };
+    return () => { isMounted = false; clearTimeout(safetyTimer); };
   }, [selectedYear]);
 
   const allCompanyOptions = useMemo(() => {
@@ -225,19 +217,11 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
   const uniqueCities = useMemo(() => Array.from(new Set(hotels.map(h => h.city).filter(Boolean))), [hotels]);
 
-  // DB HANDLERS
   const handleAddGlobalCompany = async (name: string) => {
-    try {
-      await addSystemCompany(name);
-      setSystemCompanies(prev => Array.from(new Set([...prev, name])));
-    } catch (err) { console.error("Failed to add company globally", err); }
+    try { await addSystemCompany(name); setSystemCompanies(prev => Array.from(new Set([...prev, name]))); } catch (err) { console.error(err); }
   };
-
   const handleDeleteGlobalCompany = async (name: string) => {
-    try {
-      await deleteSystemCompany(name);
-      setSystemCompanies(prev => prev.filter(c => c !== name));
-    } catch (err) { console.error("Failed to delete company from system", err); }
+    try { await deleteSystemCompany(name); setSystemCompanies(prev => prev.filter(c => c !== name)); } catch (err) { console.error(err); }
   };
 
   function pushToHistory(next: any[]) { const nH = history.slice(0, historyIndex + 1); nH.push(next); setHistory(nH); setHistoryIndex(nH.length - 1); }
@@ -248,34 +232,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     if (!newHotelName.trim()) return; 
     setNewHotelSaving(true);
     try {
-      const h = await createHotel({ 
-        name: newHotelName.trim(), 
-        city: newHotelCity.trim() || null, 
-        company_tag: newHotelCompanyTags, 
-        country: newHotelCountry, 
-        year: selectedYear 
-      });
-      
-      const next = [{ 
-        ...h, 
-        companyTag: newHotelCompanyTags, 
-        durations: [],
-        // ADDED DEFAULT MASTER FIELDS FOR NEW HOTELS
-        isPaid: false,
-        rechnungNr: '',
-        bookingId: '',
-        depositEnabled: false,
-        depositAmount: 0,
-        useBruttoNetto: true,
-        hasDiscount: false,
-        discountType: 'percentage',
-        discountValue: 0
-      }, ...hotels]; 
-      
-      setHotels(next); 
-      pushToHistory(next); 
-      
-      setAddingHotel(false); setNewHotelName(''); setNewHotelCity(''); setNewHotelCompanyTags([]); setNewHotelCountry('Germany');
+      const h = await createHotel({ name: newHotelName.trim(), city: newHotelCity.trim() || null, company_tag: newHotelCompanyTags, country: newHotelCountry, year: selectedYear });
+      const next = [{ ...h, companyTag: newHotelCompanyTags, durations: [], isPaid: false, rechnungNr: '', bookingId: '', depositEnabled: false, depositAmount: 0, useBruttoNetto: true, hasDiscount: false, discountType: 'percentage', discountValue: 0 }, ...hotels]; 
+      setHotels(next); pushToHistory(next); setAddingHotel(false); setNewHotelName(''); setNewHotelCity(''); setNewHotelCompanyTags([]); setNewHotelCountry('Germany');
     } catch (e: any) { alert(e.message); } finally { setNewHotelSaving(false); }
   }
 
@@ -305,7 +264,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     return hotels.filter(h => {
       if (showBookmarks && !bookmarks.includes(h.id)) return false;
       
-      // SURGICAL FIX: Targeted Search Logic
+      // SURGICAL FIX: Proper Targeted Search Filter
       if (searchQuery) {
           const q = searchQuery.toLowerCase();
           if (searchScope === 'hotel') { if (!h.name?.toLowerCase().includes(q)) return false; }
@@ -340,7 +299,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
       if (filterPaid === 'paid' && !h.isPaid) return false;
       if (filterPaid === 'unpaid' && h.isPaid) return false;
-      
       if (filterDeposit === 'yes' && !h.depositEnabled) return false;
       if (filterDeposit === 'no' && h.depositEnabled) return false;
       
@@ -349,7 +307,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
          if (fbType === 'tomorrow') { const d = new Date(); d.setDate(d.getDate()+1); targetDate = d.toISOString().split('T')[0]; }
          if (fbType === '3days') { const d = new Date(); d.setDate(d.getDate()+3); targetDate = d.toISOString().split('T')[0]; }
          if (fbType === '7days') { const d = new Date(); d.setDate(d.getDate()+7); targetDate = d.toISOString().split('T')[0]; }
-         
          let hasFree = false;
          (h.durations || []).forEach((dur: any) => {
             if (dur.startDate <= targetDate && dur.endDate >= targetDate) {
@@ -361,7 +318,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
          });
          if (!hasFree) return false;
       }
-
       return true;
     }).sort((a, b) => {
       let va: any; let vb: any;
@@ -391,7 +347,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       else if (sortBy === 'created_at') { va = new Date(a.created_at).getTime(); vb = new Date(b.created_at).getTime(); }
       else if (sortBy === 'updated_at') { va = new Date(a.last_updated_at || a.lastUpdatedAt || 0).getTime(); vb = new Date(b.last_updated_at || b.lastUpdatedAt || 0).getTime(); }
       else { va = a.name?.toLowerCase(); vb = b.name?.toLowerCase(); }
-
       return (va < vb ? -1 : va > vb ? 1 : 0) * (sortDir === 'asc' ? 1 : -1);
     });
   }, [hotels, searchQuery, searchScope, showBookmarks, bookmarks, sortBy, sortDir, tlType, tlStart, tlEnd, fbType, filterPaid, filterDeposit, selectedMonth, selectedYear]);
@@ -413,7 +368,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
   const activeFilters = useMemo(() => {
     const badges = [];
-    // SURGICAL FIX: Translate chips
     const fmt = (iso:string) => { if(!iso) return ''; const [y,m,d] = iso.split('-'); return `${d}.${m}.${y}`; };
     
     if (tlType !== 'all') badges.push({ id: 'tl', label: lang === 'de' ? 'Zeitraum' : 'Timeline', val: tlType === 'range' ? `${fmt(tlStart)} ➔ ${fmt(tlEnd)}` : tlType, clear: () => { setTlType('all'); setTlStart(''); setTlEnd(''); } });
@@ -422,6 +376,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     if (filterDeposit !== 'all') badges.push({ id: 'dep', label: lang === 'de' ? 'Kaution' : 'Deposit', val: filterDeposit, clear: () => setFilterDeposit('all') });
     if (groupBy !== 'none') badges.push({ id: 'grp', label: lang === 'de' ? 'Gruppe' : 'Group', val: groupBy, clear: () => setGroupBy('none') });
     
+    // SURGICAL FIX: Translate sort chips into German
     if (sortBy !== 'created_at' || sortDir !== 'desc') {
         let sortLabel = sortBy.replace('_', ' ').toUpperCase();
         if (lang === 'de') {
@@ -437,9 +392,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const btnActive = dk ? 'bg-teal-600 text-white border-transparent' : 'bg-white border-teal-600 text-teal-700 shadow-sm';
   const btnInactive = dk ? 'bg-white/5 text-slate-300 border-transparent hover:bg-white/10' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50';
   
-  // SURGICAL FIX: Popup overflow fix
   const popupCls = cn('absolute z-[1000] mt-3 p-5 rounded-2xl border shadow-2xl w-[380px] text-sm animate-in fade-in slide-in-from-top-2 duration-200 right-0 lg:right-auto', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900');
-  
   const popupHeader = "flex items-center justify-between mb-5";
   const popupTitle = "text-lg font-bold";
   const sectionTitle = "text-sm text-slate-400 mb-2";
@@ -453,18 +406,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       <Sidebar theme={theme} lang={lang} selectedYear={selectedYear} setSelectedYear={setSelectedYear} selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} hotels={hotels} />
       
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        <Header 
-          theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} 
-          searchQuery={searchQuery} setSearchQuery={setSearchQuery} 
-          searchScope={searchScope} setSearchScope={setSearchScope} 
-          onSignOut={onSignOut} 
-          
-          onExportCsv={() => exportToCSV(finalFiltered, calcHotelTotalCost, totalSpend, `Report: Period ${displayTitle}`, lang, filterPaid !== 'all', filterDeposit !== 'all')} 
-          onPrint={() => setShowStudio(true)}
-          
-          viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} 
-          offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} 
-        />
+        <Header theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} searchQuery={searchQuery} setSearchQuery={setSearchQuery} searchScope={searchScope} setSearchScope={setSearchScope} onSignOut={onSignOut} onExportCsv={() => exportToCSV(finalFiltered, calcHotelTotalCost, totalSpend, `Report: Period ${displayTitle}`, lang, filterPaid !== 'all', filterDeposit !== 'all')} onPrint={() => setShowStudio(true)} viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} />
         
         {(!isOnline || offlineMode) && (
           <div className="bg-amber-500 border-b border-amber-600 text-white px-6 py-2.5 text-sm font-bold flex items-center justify-center gap-2 z-[60] relative">
@@ -511,38 +453,26 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           <main className="flex-1 overflow-y-auto p-8 relative no-scrollbar pb-64">
             <div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative z-[100]">
               <h2 className="text-2xl font-bold tracking-tight">{displayTitle}</h2>
-              
               <div className="flex items-center gap-2">
+                {/* SURGICAL FIX: Improved Redo/Undo buttons styling */}
                 <div className={cn("flex items-center mr-2 rounded-xl p-1 border", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200 shadow-sm")}>
-                  <button onClick={handleUndo} disabled={historyIndex <= 0} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 disabled:opacity-30 transition-all"><Undo2 size={18}/></button>
-                  <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 disabled:opacity-30 transition-all"><Redo2 size={18}/></button>
+                  <button onClick={handleUndo} disabled={historyIndex <= 0} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 disabled:opacity-30 transition-all" title="Undo"><Undo2 size={18}/></button>
+                  <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 disabled:opacity-30 transition-all" title="Redo"><Redo2 size={18}/></button>
                 </div>
-
-                {/* TIMELINE MENU */}
                 <div className="relative">
                   <button onClick={() => { closeMenu(); setShowTimelineMenu(!showTimelineMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", tlType !== 'all' ? btnActive : btnInactive)}><Calendar size={16} /> {lang === 'de' ? 'Zeitraum' : 'Timeline'}</button>
                   {showTimelineMenu && (
                     <div className={cn(popupCls, 'right-0 w-[400px]')}>
                       <div className={popupHeader}><h3 className={popupTitle}>{lang === 'de' ? 'Zeitraum' : 'Timeline Card (Stay Overlap)'}</h3><button onClick={closeMenu} className="text-slate-400 hover:text-white"><X size={20}/></button></div>
                       <div className="grid grid-cols-4 gap-2 mb-4">
-                        {[
-                          { id: 'today', lEn: 'Today', lDe: 'Heute', off: 0 }, { id: 'tomorrow', lEn: 'Tomorrow', lDe: 'Morgen', off: 1 },
-                          { id: '3days', lEn: '3 Days', lDe: '3 Tage', off: 3 }, { id: '7days', lEn: '7 Days', lDe: '7 Tage', off: 7 }
-                        ].map(t => (
-                          <button key={t.id} onClick={() => {
-                            const s = new Date(); if (t.off > 0 && t.id !== '3days' && t.id !== '7days') s.setDate(s.getDate() + t.off);
-                            const e = new Date(); e.setDate(e.getDate() + t.off);
-                            setTlStart(s.toISOString().split('T')[0]); setTlEnd(e.toISOString().split('T')[0]); setTlType(t.id as any);
-                          }} className={cn("py-2 rounded-lg text-xs font-medium border transition-all", tlType === t.id ? btnActive : btnInactive)}>
-                            {lang === 'de' ? t.lDe : t.lEn}
-                          </button>
+                        {[{ id: 'today', lEn: 'Today', lDe: 'Heute', off: 0 }, { id: 'tomorrow', lEn: 'Tomorrow', lDe: 'Morgen', off: 1 }, { id: '3days', lEn: '3 Days', lDe: '3 Tage', off: 3 }, { id: '7days', lEn: '7 Days', lDe: '7 Tage', off: 7 }].map(t => (
+                          <button key={t.id} onClick={() => { const s = new Date(); if (t.off > 0 && t.id !== '3days' && t.id !== '7days') s.setDate(s.getDate() + t.off); const e = new Date(); e.setDate(e.getDate() + t.off); setTlStart(s.toISOString().split('T')[0]); setTlEnd(e.toISOString().split('T')[0]); setTlType(t.id as any); }} className={cn("py-2 rounded-lg text-xs font-medium border transition-all", tlType === t.id ? btnActive : btnInactive)}>{lang === 'de' ? t.lDe : t.lEn}</button>
                         ))}
                       </div>
                       <div className={cn("p-4 rounded-xl border mb-4", dk ? "bg-black/20 border-white/5" : "bg-slate-50 border-slate-200")}>
                         <div className="flex items-center gap-3">
                            <input type="date" value={tlStart} onChange={e => {setTlStart(e.target.value); setTlType('range');}} className={cn("flex-1 p-2 rounded-lg outline-none text-sm font-medium", dk ? "bg-transparent border border-white/10" : "bg-white border border-slate-200")} />
                            <span className="text-slate-400">➔</span>
-                           {/* SURGICAL FIX: Prevent end date before start date */}
                            <input type="date" min={tlStart} value={tlEnd} onChange={e => {if(tlStart && e.target.value < tlStart) return; setTlEnd(e.target.value); setTlType('range');}} className={cn("flex-1 p-2 rounded-lg outline-none text-sm font-medium", dk ? "bg-transparent border border-white/10" : "bg-white border border-slate-200")} />
                         </div>
                       </div>
@@ -553,30 +483,21 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                     </div>
                   )}
                 </div>
-
-                {/* FILTER MENU */}
                 <div className="relative">
                   <button onClick={() => { setShowTimelineMenu(false); setShowSortMenu(false); setShowFilterMenu(!showFilterMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", (fbType !== 'all' || filterPaid !== 'all' || filterDeposit !== 'all' || groupBy !== 'none') ? btnActive : btnInactive)}><Filter size={16} /> Filter</button>
                   {showFilterMenu && (
                     <div className={popupCls}>
                       <div className={popupHeader}><h3 className={popupTitle}>Filter</h3><button onClick={closeMenu} className="text-slate-400"><X size={20}/></button></div>
                       <div className="space-y-5">
-                         <div>
-                           <p className={sectionTitle}>{lang === 'de' ? 'Verfügbare freie Betten' : 'Free Beds Availability'}</p>
+                         <div><p className={sectionTitle}>{lang === 'de' ? 'Verfügbare freie Betten' : 'Free Beds Availability'}</p>
                            <div className="grid grid-cols-2 gap-2 mb-2">
                              {[ { id: 'today', lEn: `Today (${fbCountToday})`, lDe: `Heute (${fbCountToday})` }, { id: 'tomorrow', lEn: `Tomorrow (${fbCountTomorrow})`, lDe: `Morgen (${fbCountTomorrow})` }, { id: '3days', lEn: `in 3 days (${fbCount3})`, lDe: `in 3 Tagen (${fbCount3})` }, { id: '7days', lEn: `in 7 days (${fbCount7})`, lDe: `in 7 Tagen (${fbCount7})` }
                              ].map(f => <button key={f.id} onClick={() => setFbType(f.id as any)} className={cn("py-2 rounded-lg text-sm font-medium transition-all border", fbType === f.id ? btnActive : btnInactive)}>{lang === 'de' ? f.lDe : f.lEn}</button>)}
                            </div>
                          </div>
-                         <div><p className={sectionTitle}>{lang === 'de' ? 'Zahlung' : 'Payment'}</p>
-                           <div className={segmentContainer}>{[{id:'all', lEn:'All', lDe:'Alle'}, {id:'paid', lEn:'Paid', lDe:'Bezahlt'}, {id:'unpaid', lEn:'Unpaid', lDe:'Unbezahlt'}].map(p => <button key={p.id} onClick={() => setFilterPaid(p.id as any)} className={segmentBtn(filterPaid === p.id)}>{lang === 'de' ? p.lDe : p.lEn}</button>)}</div>
-                         </div>
-                         <div><p className={sectionTitle}>{lang === 'de' ? 'Kaution' : 'Deposit'}</p>
-                           <div className={segmentContainer}>{[{id:'all', lEn:'All', lDe:'Alle'}, {id:'yes', lEn:'Yes', lDe:'Ja'}, {id:'no', lEn:'No', lDe:'Nein'}].map(d => <button key={d.id} onClick={() => setFilterDeposit(d.id as any)} className={segmentBtn(filterDeposit === d.id)}>{lang === 'de' ? d.lDe : d.lEn}</button>)}</div>
-                         </div>
-                         <div><p className={sectionTitle}>{lang === 'de' ? 'Gruppieren nach' : 'Group by'}</p>
-                           <div className={segmentContainer}>{[{id:'none', lEn:'None', lDe:'Keine'}, {id:'hotel', lEn:'Hotel', lDe:'Hotel'}, {id:'company', lEn:'Company', lDe:'Firma'}, {id:'city', lEn:'City', lDe:'Stadt'}].map(g => <button key={g.id} onClick={() => setGroupBy(g.id as any)} className={segmentBtn(groupBy === g.id)}>{lang === 'de' ? g.lDe : g.lEn}</button>)}</div>
-                         </div>
+                         <div><p className={sectionTitle}>{lang === 'de' ? 'Zahlung' : 'Payment'}</p><div className={segmentContainer}>{[{id:'all', lEn:'All', lDe:'Alle'}, {id:'paid', lEn:'Paid', lDe:'Bezahlt'}, {id:'unpaid', lEn:'Unpaid', lDe:'Unbezahlt'}].map(p => <button key={p.id} onClick={() => setFilterPaid(p.id as any)} className={segmentBtn(filterPaid === p.id)}>{lang === 'de' ? p.lDe : p.lEn}</button>)}</div></div>
+                         <div><p className={sectionTitle}>{lang === 'de' ? 'Kaution' : 'Deposit'}</p><div className={segmentContainer}>{[{id:'all', lEn:'All', lDe:'Alle'}, {id:'yes', lEn:'Yes', lDe:'Ja'}, {id:'no', lEn:'No', lDe:'Nein'}].map(d => <button key={d.id} onClick={() => setFilterDeposit(d.id as any)} className={segmentBtn(filterDeposit === d.id)}>{lang === 'de' ? d.lDe : d.lEn}</button>)}</div></div>
+                         <div><p className={sectionTitle}>{lang === 'de' ? 'Gruppieren nach' : 'Group by'}</p><div className={segmentContainer}>{[{id:'none', lEn:'None', lDe:'Keine'}, {id:'hotel', lEn:'Hotel', lDe:'Hotel'}, {id:'company', lEn:'Company', lDe:'Firma'}, {id:'city', lEn:'City', lDe:'Stadt'}].map(g => <button key={g.id} onClick={() => setGroupBy(g.id as any)} className={segmentBtn(groupBy === g.id)}>{lang === 'de' ? g.lDe : g.lEn}</button>)}</div></div>
                       </div>
                       <div className="flex items-center justify-between border-t border-slate-200 dark:border-white/10 mt-6 pt-4">
                         <button onClick={() => { setFilterPaid('all'); setFilterDeposit('all'); setGroupBy('none'); setFbType('all'); }} className={actionSecondary}>{lang === 'de' ? 'Alle Filter löschen' : 'Clear All filters'}</button>
@@ -585,8 +506,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                     </div>
                   )}
                 </div>
-
-                {/* SORT MENU */}
                 <div className="relative">
                   <button onClick={() => { setShowTimelineMenu(false); setShowFilterMenu(false); setShowSortMenu(!showSortMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", (sortBy !== 'created_at' || sortDir !== 'desc') ? btnActive : btnInactive)}><ArrowUpDown size={16} /> {lang === 'de' ? 'Sortieren' : 'Sort'}</button>
                   {showSortMenu && (
@@ -594,8 +513,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                       <div className={popupHeader}><h3 className={popupTitle}>{lang === 'de' ? 'Sortieren' : 'Sort'}</h3><button onClick={closeMenu} className="text-slate-400"><X size={20}/></button></div>
                       <p className={sectionTitle}>{lang === 'de' ? 'Sortieren nach' : 'Sort By'}</p>
                       <div className="grid grid-cols-2 gap-3 mb-6">
-                        {[ { id: 'name', lEn: 'Hotel Name', lDe: 'Hotelname' }, { id: 'cost', lEn: 'Total Cost', lDe: 'Gesamtkosten' }, { id: 'bed_price', lEn: 'Price/Bed', lDe: 'Preis/Bett' }, { id: 'free_beds', lEn: 'Free Beds', lDe: 'Freie Betten' }, { id: 'created_at', lEn: 'Last Added', lDe: 'Zuletzt Hinzugefügt' }, { id: 'updated_at', lEn: 'Last Updated', lDe: 'Zuletzt Aktualisiert' }
-                        ].map(s => <button key={s.id} onClick={() => setSortBy(s.id as any)} className={cn("py-3 rounded-lg text-sm font-medium border transition-all", sortBy === s.id ? btnActive : btnInactive)}>{lang === 'de' ? s.lDe : s.lEn}</button>)}
+                        {[{ id: 'name', lEn: 'Hotel Name', lDe: 'Hotelname' }, { id: 'cost', lEn: 'Total Cost', lDe: 'Gesamtkosten' }, { id: 'bed_price', lEn: 'Price/Bed', lDe: 'Preis/Bett' }, { id: 'free_beds', lEn: 'Free Beds', lDe: 'Freie Betten' }, { id: 'created_at', lEn: 'Last Added', lDe: 'Zuletzt Hinzugefügt' }, { id: 'updated_at', lEn: 'Last Updated', lDe: 'Zuletzt Aktualisiert' }].map(s => <button key={s.id} onClick={() => setSortBy(s.id as any)} className={cn("py-3 rounded-lg text-sm font-medium border transition-all", sortBy === s.id ? btnActive : btnInactive)}>{lang === 'de' ? s.lDe : s.lEn}</button>)}
                       </div>
                       <p className={sectionTitle}>{lang === 'de' ? 'Sortierreihenfolge' : 'Sort Direction'}</p>
                       <div className="grid grid-cols-2 gap-3 mb-6">
@@ -609,18 +527,13 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                     </div>
                   )}
                 </div>
-
                 <button onClick={() => setShowBookmarks(!showBookmarks)} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", showBookmarks ? btnActive : btnInactive)}><Star size={16} className={showBookmarks ? 'fill-white' : ''} /> {lang === 'de' ? 'Lesezeichen' : 'Bookmarks'}</button>
-                
                 {!isStrictViewer && (
-                  <button onClick={() => setAddingHotel(true)} className="ml-4 px-6 py-2.5 bg-[#0D9488] hover:bg-[#0f766e] text-white font-bold rounded-xl flex items-center gap-2 text-sm transition-all shadow-md active:scale-95">
-                    <Plus size={18} strokeWidth={2.5} /> {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
-                  </button>
+                  <button onClick={() => setAddingHotel(true)} className="ml-4 px-6 py-2.5 bg-[#0D9488] hover:bg-[#0f766e] text-white font-bold rounded-xl flex items-center gap-2 text-sm transition-all shadow-md active:scale-95"><Plus size={18} strokeWidth={2.5} /> {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}</button>
                 )}
               </div>
             </div>
 
-            {/* ACTIVE FILTERS ROW */}
             {activeFilters.length > 0 && (
               <div className="flex flex-wrap items-center gap-2 mb-6 animate-in fade-in duration-200">
                 <span className="text-xs font-bold text-slate-500 mr-2">{lang === 'de' ? 'Aktive Filter:' : 'Active Filters:'}</span>
@@ -635,38 +548,14 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             )}
 
             <div className="flex flex-col gap-6">
-                {/* ADD HOTEL FORM */}
                 {addingHotel && !isStrictViewer && (
                   <div className={cn('rounded-2xl border p-5 shadow-xl mb-4 animate-in slide-in-from-top duration-300', dk ? 'bg-[#1E293B] border-teal-500/30' : 'bg-white border-teal-500/30')}>
                     <div className="flex flex-wrap lg:flex-nowrap items-end gap-4 w-full">
-                      
-                      <div className="flex-1 min-w-[200px]">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">{lang === 'de' ? 'Hotelname' : 'Hotel Name'}</label>
-                        <input autoFocus className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold transition-all focus:border-teal-500', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder="Riveria..." />
-                      </div>
-                      
-                      <div className="flex-[0.8] min-w-[140px]">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block"><MapPin size={10} className="inline mr-1"/> {lang === 'de' ? 'Stadt' : 'City'}</label>
-                        <input className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold transition-all focus:border-teal-500', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder="Essen..." />
-                      </div>
-                      
-                      <div className="flex-1 min-w-[160px]">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block"><Building2 size={10} className="inline mr-1"/> {lang === 'de' ? 'Firma' : 'Company'}</label>
-                        <div className={cn('w-full min-h-[38px] rounded-lg border px-2 flex items-center transition-all', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')}>
-                          <CompanyMultiSelect selected={newHotelCompanyTags} options={allCompanyOptions} onChange={(v: string[]) => setNewHotelCompanyTags(v)} isDarkMode={dk} lang={lang} onDeleteOption={handleDeleteGlobalCompany} onAddOption={handleAddGlobalCompany} />
-                        </div>
-                      </div>
-
-                      <div className="flex-[0.8] min-w-[120px]">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block"><Globe size={10} className="inline mr-1"/> {lang === 'de' ? 'Land' : 'Country'}</label>
-                        <ModernDropdown value={newHotelCountry} options={getCountryOptions()} onChange={(v: string) => setNewHotelCountry(v)} isDarkMode={dk} lang={lang} />
-                      </div>
-                      
-                      <div className="flex gap-2 shrink-0">
-                        <button onClick={handleSaveNewHotel} disabled={newHotelSaving || !newHotelName.trim()} className="px-5 h-[38px] bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-sm disabled:opacity-50 font-bold">{newHotelSaving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}</button>
-                        <button onClick={() => setAddingHotel(false)} className={cn("px-4 h-[38px] rounded-lg flex items-center justify-center transition-all border", dk ? "border-white/10 hover:bg-white/10 text-slate-300" : "border-slate-200 hover:bg-slate-100 text-slate-600")}><X size={18} /></button>
-                      </div>
-
+                      <div className="flex-1 min-w-[200px]"><label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">{lang === 'de' ? 'Hotelname' : 'Hotel Name'}</label><input autoFocus className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold transition-all focus:border-teal-500', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder="Riveria..." /></div>
+                      <div className="flex-[0.8] min-w-[140px]"><label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block"><MapPin size={10} className="inline mr-1"/> {lang === 'de' ? 'Stadt' : 'City'}</label><input className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold transition-all focus:border-teal-500', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder="Essen..." /></div>
+                      <div className="flex-1 min-w-[160px]"><label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block"><Building2 size={10} className="inline mr-1"/> {lang === 'de' ? 'Firma' : 'Company'}</label><div className={cn('w-full min-h-[38px] rounded-lg border px-2 flex items-center transition-all', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')}><CompanyMultiSelect selected={newHotelCompanyTags} options={allCompanyOptions} onChange={(v: string[]) => setNewHotelCompanyTags(v)} isDarkMode={dk} lang={lang} onDeleteOption={handleDeleteGlobalCompany} onAddOption={handleAddGlobalCompany} /></div></div>
+                      <div className="flex-[0.8] min-w-[120px]"><label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block"><Globe size={10} className="inline mr-1"/> {lang === 'de' ? 'Land' : 'Country'}</label><ModernDropdown value={newHotelCountry} options={getCountryOptions()} onChange={(v: string) => setNewHotelCountry(v)} isDarkMode={dk} lang={lang} /></div>
+                      <div className="flex gap-2 shrink-0"><button onClick={handleSaveNewHotel} disabled={newHotelSaving || !newHotelName.trim()} className="px-5 h-[38px] bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-sm disabled:opacity-50 font-bold">{newHotelSaving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}</button><button onClick={() => setAddingHotel(false)} className={cn("px-4 h-[38px] rounded-lg flex items-center justify-center transition-all border", dk ? "border-white/10 hover:bg-white/10 text-slate-300" : "border-slate-200 hover:bg-slate-100 text-slate-600")}><X size={18} /></button></div>
                     </div>
                   </div>
                 )}
@@ -686,31 +575,15 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                     <HotelRow key={hotel.id} entry={hotel} viewOnly={accessLevel?.role === 'viewer'} index={index} isDarkMode={dk} lang={lang} searchQuery={searchQuery} companyOptions={allCompanyOptions} cityOptions={uniqueCities} onDelete={hId => setHotels(hotels.filter(h=>h.id!==hId))} onUpdate={(hId, up) => setHotels(hotels.map(h=>h.id===hId?{...h,...up}:h))} onDeleteCompanyOption={handleDeleteGlobalCompany} onAddOption={handleAddGlobalCompany} />
                   ))
                 )}
-                
-{!loading && finalFiltered.length === 0 && (
-                  <div className="text-center py-20 opacity-50 flex flex-col items-center">
-                    <Building size={48} className="mb-4 text-slate-400" />
-                    <p className="text-lg font-bold">{lang === 'de' ? 'Keine Hotels gefunden' : 'No hotels found'}</p>
-                    <p className="text-sm">{lang === 'de' ? 'Versuchen Sie, Ihre Filter anzupassen oder ein neues hinzuzufügen.' : 'Try adjusting your filters or adding a new one.'}</p>
-                  </div>
+                {!loading && finalFiltered.length === 0 && (
+                  <div className="text-center py-20 opacity-50 flex flex-col items-center"><Building size={48} className="mb-4 text-slate-400" /><p className="text-lg font-bold">{lang === 'de' ? 'Keine Hotels gefunden' : 'No hotels found'}</p><p className="text-sm">{lang === 'de' ? 'Versuchen Sie, Ihre Filter anzupassen oder ein neues hinzuzufügen.' : 'Try adjusting your filters or adding a new one.'}</p></div>
                 )}
             </div>
           </main>
         )}
 
-        {/* --- THE EXPORT STUDIO (LIVE PREVIEW & CONTROL CENTER) --- */}
         {showStudio && (
-          <ExportStudio 
-            hotels={finalFiltered} 
-            calcCost={calcHotelTotalCost} 
-            lang={lang} 
-            total={totalSpend}
-            title={selectedMonth !== null 
-              ? `Period: ${lang === 'de' ? monthNamesDe[selectedMonth] : monthNamesEn[selectedMonth]} ${selectedYear}` 
-              : `Period: ${selectedYear}`}
-            onClose={() => setShowStudio(false)}
-            dk={dk}
-          />
+          <ExportStudio hotels={finalFiltered} calcCost={calcHotelTotalCost} lang={lang} total={totalSpend} title={selectedMonth !== null ? `Period: ${lang === 'de' ? monthNamesDe[selectedMonth] : monthNamesEn[selectedMonth]} ${selectedYear}` : `Period: ${selectedYear}`} onClose={() => setShowStudio(false)} dk={dk} />
         )}
       </div>
     </div>
