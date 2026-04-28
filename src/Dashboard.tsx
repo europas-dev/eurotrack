@@ -222,6 +222,12 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   }, [hotels, systemCompanies]);
 
   const uniqueCities = useMemo(() => Array.from(new Set(hotels.map(h => h.city).filter(Boolean))), [hotels]);
+  const uniqueHotelNames = useMemo(() => Array.from(new Set(hotels.map(h => h.name).filter(Boolean))), [hotels]);
+  const uniqueEmployeeNames = useMemo(() => {
+    const names = new Set<string>();
+    hotels.forEach(h => h.durations?.forEach((d:any) => d.roomCards?.forEach((rc:any) => rc.employees?.forEach((e:any) => { if (e.name) names.add(e.name); }))));
+    return Array.from(names);
+  }, [hotels]);
 
   // DB HANDLERS
   const handleAddGlobalCompany = async (name: string) => {
@@ -838,12 +844,18 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                       
                       <div className="flex-1 min-w-[200px]">
                         <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">{lang === 'de' ? 'Hotelname' : 'Hotel Name'}</label>
-                        <input autoFocus className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold transition-all focus:border-teal-500', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder="Riveria..." />
+                        <input autoFocus list="hotel-suggestions" className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold transition-all focus:border-teal-500', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder="Riveria..." />
+                        <datalist id="hotel-suggestions">
+                           {uniqueHotelNames.map(n => <option key={n} value={n} />)}
+                        </datalist>
                       </div>
                       
                       <div className="flex-[0.8] min-w-[140px]">
                         <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block"><MapPin size={10} className="inline mr-1"/> {lang === 'de' ? 'Stadt' : 'City'}</label>
-                        <input className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold transition-all focus:border-teal-500', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder="Essen..." />
+                        <input list="city-suggestions" className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold transition-all focus:border-teal-500', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder="Essen..." />
+                        <datalist id="city-suggestions">
+                           {uniqueCities.map(c => <option key={c} value={c} />)}
+                        </datalist>
                       </div>
                       
                       <div className="flex-1 min-w-[160px]">
