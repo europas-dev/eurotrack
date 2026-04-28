@@ -129,7 +129,7 @@ function MwstInput({ value, onChange, isDarkMode, disabled }: { value: string | 
   );
 }
 
-export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onAddOption, viewOnly }: any) {
+export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onAddOption, viewOnly, isSelected, onSelect, isBulkActive, }: any) {
   const [open, setOpen] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   
@@ -469,15 +469,31 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const currentTarget = localHotel.global_discount_target === 'brutto' ? targetOptions[1] : targetOptions[0];
 
   return (
-    <div className="space-y-1 relative" style={{ zIndex: 40 - (index % 30) }}>
-      <div className={cn('rounded-2xl border transition-all duration-200 shadow-sm relative', dk ? 'bg-[#1E293B] border-white/5 hover:border-white/10' : 'bg-white border-slate-200 hover:border-slate-300')}>
+    <div className="group space-y-1 relative" style={{ zIndex: 40 - (index % 30) }}>
+      
+      {/* --- SURGICAL FIX: GHOST CHECKBOX (Sits outside the card for better hover) --- */}
+      <div className={cn(
+        "absolute -left-8 top-5 transition-all duration-200 z-[100]",
+        isSelected || isBulkActive ? "opacity-100 translate-x-2" : "opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-2"
+      )}>
+        <input 
+          type="checkbox" 
+          checked={isSelected} 
+          onChange={(e) => { e.stopPropagation(); onSelect(); }} 
+          className="w-5 h-5 rounded-md border-slate-400 accent-teal-600 cursor-pointer shadow-md transition-transform active:scale-90"
+        />
+      </div>
+
+      <div className={cn(
+        'rounded-2xl border transition-all duration-200 shadow-sm relative overflow-hidden', 
+        isSelected ? (dk ? 'bg-teal-500/10 border-teal-500/50' : 'bg-teal-50 border-teal-500/40') : (dk ? 'bg-[#1E293B] border-white/5 hover:border-white/10' : 'bg-white border-slate-200 hover:border-slate-300')
+      )}>
         
         {/* MAIN ROW */}
         <div className={cn('flex flex-wrap md:flex-nowrap items-center gap-0 cursor-pointer p-2', dk ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/70', open && 'border-b', open && (dk ? 'border-white/5 bg-black/20' : 'border-slate-100 bg-slate-50/50'))} onClick={() => setOpen(!open)}>
           <div className="flex items-center justify-center w-10 shrink-0">
             {open ? <ChevronDown size={18} className="text-teal-500" /> : <ChevronRight size={18} className="text-slate-500" />}
           </div>
-
           <div className="flex-[2] py-2 min-w-[200px] pr-2">
             {/* SURGICAL FIX: Scoped Highlighting for Hotel Name */}
             <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-[15px] font-black leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} />
