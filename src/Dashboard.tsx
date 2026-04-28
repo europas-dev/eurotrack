@@ -842,19 +842,23 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                   <div className={cn('rounded-2xl border p-5 shadow-xl mb-4 animate-in slide-in-from-top duration-300', dk ? 'bg-[#1E293B] border-teal-500/30' : 'bg-white border-teal-500/30')}>
                     <div className="flex flex-wrap lg:flex-nowrap items-end gap-4 w-full">
                       
+                      {/* HOTEL NAME INPUT */}
                       <div className="flex-1 min-w-[200px]">
                         <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">{lang === 'de' ? 'Hotelname' : 'Hotel Name'}</label>
                         <input autoFocus list="hotel-suggestions" className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold transition-all focus:border-teal-500', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder="Riveria..." />
                         <datalist id="hotel-suggestions">
-                           {uniqueHotelNames.map(n => <option key={n} value={n} />)}
+                           {/* SURGICAL FIX: Only populate suggestions if user typed something */}
+                           {newHotelName.trim().length > 0 && uniqueHotelNames.map(n => <option key={n} value={n} />)}
                         </datalist>
                       </div>
                       
+                      {/* CITY INPUT */}
                       <div className="flex-[0.8] min-w-[140px]">
                         <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block"><MapPin size={10} className="inline mr-1"/> {lang === 'de' ? 'Stadt' : 'City'}</label>
                         <input list="city-suggestions" className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold transition-all focus:border-teal-500', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder="Essen..." />
                         <datalist id="city-suggestions">
-                           {uniqueCities.map(c => <option key={c} value={c} />)}
+                           {/* SURGICAL FIX: Only populate suggestions if user typed something */}
+                           {newHotelCity.trim().length > 0 && uniqueCities.map(c => <option key={c} value={c} />)}
                         </datalist>
                       </div>
                       
