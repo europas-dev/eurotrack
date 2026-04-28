@@ -1,3 +1,4 @@
+// src/components/HotelRow.tsx
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, ChevronRight, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, FileText, Tag, Calculator, Edit3, PlusCircle, Ticket } from 'lucide-react';
@@ -176,8 +177,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [activeDurationTab, setActiveDurationTab] = useState(0);
   const saveTimer = useRef<any>(null);
 
-  // --- SURGICAL FIX: INDICATOR FOR HIDDEN MATCHES ---
-  // src/components/HotelRow.tsx
+  // --- INDICATOR FOR HIDDEN MATCHES ---
   const hiddenMatchText = useMemo(() => {
     if (!searchQuery) return null;
     const q = searchQuery.toLowerCase();
@@ -467,20 +467,19 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
   const targetOptions = lang === 'de' ? ['Gesamt Netto', 'Gesamt Brutto'] : ['Total Netto', 'Total Brutto'];
   const currentTarget = localHotel.global_discount_target === 'brutto' ? targetOptions[1] : targetOptions[0];
-
   return (
-    <div className="group space-y-1 relative" style={{ zIndex: 40 - (index % 30) }}>
+    <div className="space-y-1 relative" style={{ zIndex: 40 - (index % 30) }}>
       
-      {/* --- SURGICAL FIX: GHOST CHECKBOX (Sits outside the card for better hover) --- */}
+      {/* --- SURGICAL UI FIX: REFINED GHOST CHECKBOX (Far Left trigger only) --- */}
       <div className={cn(
-        "absolute -left-8 top-5 transition-all duration-200 z-[100]",
-        isSelected || isBulkActive ? "opacity-100 translate-x-2" : "opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-2"
+        "absolute -left-10 top-0 bottom-0 w-10 flex items-center justify-center transition-all duration-300 z-[100]",
+        isSelected || isBulkActive ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 hover:opacity-100"
       )}>
         <input 
           type="checkbox" 
           checked={isSelected} 
           onChange={(e) => { e.stopPropagation(); onSelect(); }} 
-          className="w-5 h-5 rounded-md border-slate-400 accent-teal-600 cursor-pointer shadow-md transition-transform active:scale-90"
+          className="w-4 h-4 rounded border-slate-300 accent-teal-600 cursor-pointer shadow-sm transition-transform active:scale-90"
         />
       </div>
 
@@ -495,14 +494,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             {open ? <ChevronDown size={18} className="text-teal-500" /> : <ChevronRight size={18} className="text-slate-500" />}
           </div>
           <div className="flex-[2] py-2 min-w-[200px] pr-2">
-            {/* SURGICAL FIX: Scoped Highlighting for Hotel Name */}
             <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-[15px] font-black leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} />
-            {/* SURGICAL FIX: Scoped Highlighting for City */}
             <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} className="mt-0.5" textClass={cn("text-[10px] font-bold uppercase tracking-widest gap-1.5", dk ? "text-slate-500" : "text-slate-400")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
           </div>
 
           <div className="flex-[0.8] px-2 min-w-[120px]" onClick={e => e.stopPropagation()}>
-            {/* SURGICAL FIX: Scoped Highlighting for Company Tags */}
             <CompanyMultiSelect disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onAddOption={onAddOption} searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} />
           </div>
 
@@ -574,7 +570,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                   ) : (
                     <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
                   )}
-                  {/* SURGICAL FIX: Scoped Highlighting for Employees */}
                   <HighlightText text={emp.name || '_ _ _'} query={searchScope === 'all' || searchScope === 'employee' ? searchQuery : ''} />
                </button>
                 );
@@ -584,7 +579,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
 
           <div className="ml-auto flex items-center gap-6 pr-3 shrink-0 min-w-[280px] justify-end">
-            {/* SURGICAL FIX: Hidden Match indicator replaces the ugly badges */}
             {hiddenMatchText && (
                <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-teal-500/10 border border-teal-500/20 text-teal-500 text-[9px] font-black uppercase tracking-tighter animate-pulse">
                   <Search size={10} strokeWidth={3} /> {hiddenMatchText}
@@ -610,7 +604,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                </button>
                <div className="relative group">
                   <button onClick={(e) => e.stopPropagation()} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-all"><Clock size={16} /></button>
-                  <div className="absolute right-0 bottom-full mb-2 w-max px-3 py-1.5 bg-slate-800 text-white text-[10px] font-bold rounded-lg opacity-0 group-hover:opacity-100 z-[100] whitespace-nowrap pointer-events-none shadow-xl border border-white/10">
+                  {/* --- SURGICAL UI FIX: TOOLTIP DEPTH & COLOR --- */}
+                  <div className={cn(
+                    "absolute right-0 bottom-full mb-2 w-max px-3 py-1.5 text-[10px] font-bold rounded-lg opacity-0 group-hover:opacity-100 z-[200] whitespace-nowrap pointer-events-none shadow-xl border transition-opacity",
+                    dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-700 border-slate-200"
+                  )}>
                     {formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}
                   </div>
                </div>
@@ -621,7 +619,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
         </div>
 
-        {/* EXPANDED BREAKDOWN stays exactly the same */}
         {open && (
           <div className={cn('p-6 space-y-6 rounded-b-2xl border-t', dk ? 'bg-[#0B1224] border-white/5' : 'bg-slate-50 border-slate-200')} onClick={e => e.stopPropagation()}>
             <div className="flex flex-wrap xl:flex-nowrap gap-4 items-end">
@@ -646,7 +643,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 <div className={cn("w-full xl:w-[240px] shrink-0 p-5 flex flex-col gap-4 border-b xl:border-b-0 xl:border-r rounded-tl-2xl", dk ? "border-white/10 bg-[#0F172A]/50" : "border-slate-200 bg-slate-50/50")}>
                     <div>
                        <label className={cn(labelCls, 'mb-1.5')}><Receipt size={12}/> {lang === 'de' ? 'Rechnungsnr.' : 'Invoice No.'}</label>
-                       {/* SURGICAL FIX: Highlight Search Query in Invoice Field if active */}
                        <div className="relative">
                           <input disabled={viewOnly} value={localHotel.rechnungNr || ''} onChange={e => patchHotel({ rechnungNr: e.target.value })} className={cn(inputCls, searchQuery && (searchScope==='all'||searchScope==='invoice') && localHotel.rechnungNr?.toLowerCase().includes(searchQuery.toLowerCase()) && "border-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.3)]")} placeholder="RE-2026-..." />
                        </div>
@@ -825,7 +821,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             </div>
             {localHotel.durations[activeDurationTab] ? (
               <div className={cn("relative z-0", activeDurationTab === 0 ? "[&>div]:rounded-tl-none" : "")}>
-                {/* SURGICAL FIX: Passing scope and query to DurationCard for deep highlighting */}
                 <DurationCard 
                   duration={localHotel.durations[activeDurationTab]} 
                   isDarkMode={dk} lang={lang} 
@@ -931,13 +926,12 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
       <div className="flex flex-wrap gap-1.5 w-full">
         {safeSelected.length > 0 ? safeSelected.map((tag: string) => (
           <span key={tag} className={cn('px-2.5 py-1 rounded-md text-xs font-bold border flex items-center gap-1.5 shadow-sm', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800')}>
-            {/* SURGICAL FIX: Scoped Highlighting for tags */}
             <HighlightText text={tag} query={searchQuery} />
           </span>
         )) : <span className={cn("text-xs font-bold border border-dashed px-3 py-1 rounded-md transition-colors w-full flex items-center", isDarkMode ? "text-slate-500 border-white/20 hover:text-teal-400 hover:border-teal-400" : "text-slate-400 border-slate-300 hover:text-teal-600 hover:border-teal-500")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
       </div>
       {open && !disabled && (
-        <div className={cn('absolute top-full mt-2 left-0 z-[200] rounded-xl border shadow-2xl min-w-[240px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')} onClick={e => e.stopPropagation()}>
+        <div className={cn('absolute top-full mt-2 left-0 z-[200] rounded-xl border shadow-xl min-w-[240px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')} onClick={e => e.stopPropagation()}>
           <div className={cn("flex items-center px-3 py-2 border-b", isDarkMode ? "border-white/10 bg-[#1E293B]" : "border-slate-100 bg-slate-50")}>
             <Search size={14} className={isDarkMode ? "text-slate-400" : "text-slate-500"} />
             <input autoFocus value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAddNew(); }} placeholder={lang === 'de' ? "Suchen..." : "Search..."} className={cn("ml-2 bg-transparent text-sm font-bold outline-none w-full", isDarkMode ? "text-white placeholder:text-slate-500" : "text-slate-900 placeholder:text-slate-400")} />
