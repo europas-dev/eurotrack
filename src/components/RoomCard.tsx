@@ -80,13 +80,14 @@ function CompactEmployeePill({ emp, dk, durationStart, durationEnd, isSubstitute
 
 function BedSlot({
   slotIndex, employee, durationStart, durationEnd, gapStart, gapEnd,
-  roomCardId, durationId, dk, lang, isSubstitute, onUpdated, viewOnly // ADDED viewOnly
+  roomCardId, durationId, dk, lang, isSubstitute, onUpdated, viewOnly, employeeOptions // ADDED viewOnly
 }: {
   slotIndex: number; employee: Employee | null; durationStart: string; durationEnd: string;
   gapStart?: string; gapEnd?: string; roomCardId: string; durationId: string;
   dk: boolean; lang: 'de' | 'en'; isSubstitute?: boolean;
   onUpdated: (slotIndex: number, emp: Employee | null, isGapFill?: boolean, deletedId?: string) => void;
-  viewOnly?: boolean; // ADDED
+  viewOnly?: boolean;
+  employeeOptions?: string[];
 }) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(employee?.name ?? '')
@@ -202,8 +203,10 @@ function BedSlot({
   return (
     <div className={cn('flex flex-col gap-3 p-4 rounded-xl border shadow-sm', dk ? 'bg-[#0F172A] border-white/10' : 'bg-slate-50 border-slate-200')}>
       <div className="flex items-center gap-3 w-full">
-        <IconToUse size={18} className={dk ? 'text-blue-400 shrink-0 hidden sm:block' : 'text-blue-500 shrink-0 hidden sm:block'} />
-        <input disabled={viewOnly} ref={inputRef} type="text" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder={lang === 'de' ? 'Name...' : 'Name...'} className={cn(inputCls, 'flex-[6] min-w-0 text-base', viewOnly && "opacity-60")} />
+        <input disabled={viewOnly} ref={inputRef} type="text" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder={lang === 'de' ? 'Name...' : 'Name...'} className={cn(inputCls, 'flex-[6] min-w-0 text-base', viewOnly && "opacity-60")} list={`emp-list-${roomCardId}-${slotIndex}`} />
+        <datalist id={`emp-list-${roomCardId}-${slotIndex}`}>
+            {name.trim().length > 0 && employeeOptions?.map(opt => <option key={opt} value={opt} />)}
+        </datalist>
         <div className="relative flex items-center flex-[4] min-w-0">
           <Phone size={14} className={cn("absolute left-2.5", dk ? "text-slate-500" : "text-slate-400")} />
           <input disabled={viewOnly} type="text" value={phone} onChange={e => setPhone(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder="+49" className={cn(inputCls, 'w-full pl-8 text-base', viewOnly && "opacity-60")} />
@@ -546,12 +549,13 @@ function InlineNMBRow({
 
 export default function RoomCard({
   card, durationStart, durationEnd, dk, lang, allCardsOfSameType, isMasterPricingActive = false,
-  onUpdate, onDelete, onApplyToSameType, viewOnly // ADDED viewOnly
+  onUpdate, onDelete, onApplyToSameType, viewOnly, employeeOptions // ADDED viewOnly
 }: {
   card: RoomCardType; durationStart: string; durationEnd: string; dk: boolean; lang: 'de'|'en';
   allCardsOfSameType: RoomCardType[]; isMasterPricingActive?: boolean;
   onUpdate: (id: string, patch: Partial<RoomCardType>) => void; onDelete: (id: string) => void; onApplyToSameType: (source: RoomCardType) => void;
-  viewOnly?: boolean; // ADDED
+  viewOnly?: boolean;
+  employeeOptions?: string[];
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [showPricing, setShowPricing] = useState(false)
@@ -824,6 +828,7 @@ export default function RoomCard({
              </div>
            )}
            
+           {/* --- SURGICAL FIX: PASSING EMPLOYEE OPTIONS TO ALL 3 BED SCENARIOS --- */}
            <div className="grid gap-6 items-start" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(400px, 1fr))` }}>
               {Array.from({ length: beds }).map((_, i) => {
                  const slotE = employees.filter(e => (e.slotIndex ?? 0) === i).sort((a,b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
@@ -831,23 +836,78 @@ export default function RoomCard({
                    <div key={i} className="space-y-3">
                      <div className="flex items-center justify-between pb-1.5 px-1"><span className={cn('text-[11px] font-black tracking-widest flex items-center gap-1.5', dk ? 'text-slate-400' : 'text-slate-500')}><Bed size={14} /> BED {i + 1}</span></div>
                      <div className="space-y-3">
-                       {slotE.length === 0 ? (<BedSlot viewOnly={viewOnly} slotIndex={i} employee={null} durationStart={durationStart} durationEnd={durationEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} onUpdated={(idx, emp) => {
-                         const next = emp === null ? employees.filter(e => e.slotIndex !== idx) : employees.some(e => e.id === emp.id) ? employees.map(e => e.id === emp.id ? emp : e) : [...employees, emp];
-                         onUpdate(card.id, { employees: next });
-                       }} />) : (slotE.map((emp, empIdx) => (<BedSlot viewOnly={viewOnly} key={emp.id} slotIndex={i} employee={emp} durationStart={durationStart} durationEnd={durationEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} isSubstitute={empIdx > 0} onUpdated={(idx, e) => {
-                         const next = e === null ? employees.filter(empItem => empItem.id !== emp.id) : employees.map(empItem => empItem.id === e.id ? e : empItem);
-                         onUpdate(card.id, { employees: next });
-                       }} />)))}
-                       {getGapSlots(beds, employees, durationStart, durationEnd).filter(g => g.slotIndex === i).map((gap, gi) => (<BedSlot viewOnly={viewOnly} key={`gap-${i}-${gi}`} slotIndex={i} employee={null} durationStart={durationStart} durationEnd={durationEnd} gapStart={gap.gapStart} gapEnd={gap.gapEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} onUpdated={(idx, emp) => {
-                         const next = emp === null ? employees : [...employees, emp];
-                         onUpdate(card.id, { employees: next });
-                       }} />))}
+                       
+                       {/* SCENARIO 1: COMPLETELY EMPTY BED */}
+                       {slotE.length === 0 ? (
+                         <BedSlot 
+                           viewOnly={viewOnly} 
+                           employeeOptions={employeeOptions} 
+                           slotIndex={i} 
+                           employee={null} 
+                           durationStart={durationStart} 
+                           durationEnd={durationEnd} 
+                           roomCardId={card.id} 
+                           durationId={card.durationId} 
+                           dk={dk} 
+                           lang={lang} 
+                           onUpdated={(idx, emp) => {
+                             const next = emp === null ? employees.filter(e => e.slotIndex !== idx) : employees.some(e => e.id === emp.id) ? employees.map(e => e.id === emp.id ? emp : e) : [...employees, emp];
+                             onUpdate(card.id, { employees: next });
+                           }} 
+                         />
+                       ) : (
+                         /* SCENARIO 2: OCCUPIED BED */
+                         slotE.map((emp, empIdx) => (
+                           <BedSlot 
+                             viewOnly={viewOnly} 
+                             employeeOptions={employeeOptions} 
+                             key={emp.id} 
+                             slotIndex={i} 
+                             employee={emp} 
+                             durationStart={durationStart} 
+                             durationEnd={durationEnd} 
+                             roomCardId={card.id} 
+                             durationId={card.durationId} 
+                             dk={dk} 
+                             lang={lang} 
+                             isSubstitute={empIdx > 0} 
+                             onUpdated={(idx, e) => {
+                               const next = e === null ? employees.filter(empItem => empItem.id !== emp.id) : employees.map(empItem => empItem.id === e.id ? e : empItem);
+                               onUpdate(card.id, { employees: next });
+                             }} 
+                           />
+                         ))
+                       )}
+                       
+                       {/* SCENARIO 3: GAPS BETWEEN EMPLOYEES */}
+                       {getGapSlots(beds, employees, durationStart, durationEnd).filter(g => g.slotIndex === i).map((gap, gi) => (
+                         <BedSlot 
+                           viewOnly={viewOnly} 
+                           employeeOptions={employeeOptions} 
+                           key={`gap-${i}-${gi}`} 
+                           slotIndex={i} 
+                           employee={null} 
+                           durationStart={durationStart} 
+                           durationEnd={durationEnd} 
+                           gapStart={gap.gapStart} 
+                           gapEnd={gap.gapEnd} 
+                           roomCardId={card.id} 
+                           durationId={card.durationId} 
+                           dk={dk} 
+                           lang={lang} 
+                           onUpdated={(idx, emp) => {
+                             const next = emp === null ? employees : [...employees, emp];
+                             onUpdate(card.id, { employees: next });
+                           }} 
+                         />
+                       ))}
+
                      </div>
                    </div>
                  )
               })}
            </div>
-        </div>
+           {/* --- END OF SURGICAL FIX --- */}
       )}
       {confirmDelete && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
