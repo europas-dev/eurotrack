@@ -54,6 +54,38 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     phone: true, invoice: true, durations: true, employees: true, 
     status: false, deposit: false
   });
+
+  // --- SELECTION SYSTEM ---
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Check if everything on the current screen is selected
+  const isAllSelected = useMemo(() => {
+    // Standard: Only select what the user actually sees right now
+    const visible = groupBy !== 'none' && activeGroupTab && groupData 
+      ? groupData[activeGroupTab] 
+      : finalFiltered;
+    return visible.length > 0 && visible.every(h => selectedIds.has(h.id));
+  }, [selectedIds, finalFiltered, groupData, activeGroupTab, groupBy]);
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const toggleSelectAll = () => {
+    const visible = groupBy !== 'none' && activeGroupTab && groupData 
+      ? groupData[activeGroupTab] 
+      : finalFiltered;
+    const next = new Set(selectedIds);
+    if (isAllSelected) {
+      visible.forEach(h => next.delete(h.id));
+    } else {
+      visible.forEach(h => next.add(h.id));
+    }
+    setSelectedIds(next);
+  };
   
   // MENU VISIBILITY
   const [showFilterMenu, setShowFilterMenu] = useState(false);
@@ -564,6 +596,39 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           onToggleOfflineMode={onToggleOfflineMode} 
           isOnline={isOnline} 
         />
+
+        {/* --- BULK ACTION BAR (Only shows when items are selected) --- */}
+        {selectedIds.size > 0 && (
+          <div className={cn(
+            "sticky top-0 z-[60] w-full border-b flex items-center justify-between px-8 py-3 animate-in slide-in-from-top duration-300",
+            dk ? "bg-[#1E293B]/95 border-teal-500/30 text-white backdrop-blur-md" : "bg-teal-600 border-teal-700 text-white shadow-lg"
+          )}>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3">
+                {/* Global Select All Checkbox */}
+                <input 
+                  type="checkbox" 
+                  checked={isAllSelected} 
+                  onChange={toggleSelectAll} 
+                  className="w-5 h-5 rounded border-white/20 accent-white cursor-pointer" 
+                />
+                <span className="font-black text-sm uppercase tracking-widest">{selectedIds.size} {lang === 'de' ? 'Ausgewählt' : 'Selected'}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button className="p-2.5 rounded-xl hover:bg-white/10 transition-all flex items-center gap-2 font-bold text-sm">
+                <Copy size={18} /> {lang === 'de' ? 'Duplizieren' : 'Duplicate'}
+              </button>
+              <button className="p-2.5 rounded-xl hover:bg-red-500 bg-red-500/20 transition-all flex items-center gap-2 font-bold text-sm">
+                <Trash2 size={18} /> {lang === 'de' ? 'Löschen' : 'Delete'}
+              </button>
+              <button onClick={() => setSelectedIds(new Set())} className="ml-4 p-2 hover:bg-white/10 rounded-full transition-all">
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {(!isOnline || offlineMode) && (
           <div className="bg-amber-500 border-b border-amber-600 text-white px-6 py-2.5 text-sm font-bold flex items-center justify-center gap-2 z-[60] relative">
