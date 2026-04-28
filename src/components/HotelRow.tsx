@@ -468,10 +468,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const targetOptions = lang === 'de' ? ['Gesamt Netto', 'Gesamt Brutto'] : ['Total Netto', 'Total Brutto'];
   const currentTarget = localHotel.global_discount_target === 'brutto' ? targetOptions[1] : targetOptions[0];
   return (
-    /* SURGICAL FIX: Added hover:z-[110] so tooltip floats on top layer */
-    <div className="space-y-1 relative hover:z-[110]" style={{ zIndex: 40 - (index % 30) }}>
+    /* FIXED: Removed hover:z-[110] to stop internal dropdown conflicts */
+    <div className="space-y-1 relative" style={{ zIndex: 40 - (index % 30) }}>
       
-      {/* --- SURGICAL UI FIX: REFINED GHOST CHECKBOX (Brought closer from -left-10 to -left-7) --- */}
+      {/* --- SURGICAL UI FIX: REFINED GHOST CHECKBOX (Far Left trigger at -left-7) --- */}
       <div className={cn(
         "absolute -left-7 top-0 bottom-0 w-10 flex items-center justify-center transition-all duration-300 z-[100]",
         isSelected || isBulkActive ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 hover:opacity-100"
@@ -485,7 +485,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       </div>
 
       <div className={cn(
-        'rounded-2xl border transition-all duration-200 shadow-sm relative overflow-hidden', 
+        'rounded-2xl border transition-all duration-200 shadow-sm relative overflow-visible', 
         isSelected ? (dk ? 'bg-teal-500/10 border-teal-500/50' : 'bg-teal-50 border-teal-500/40') : (dk ? 'bg-[#1E293B] border-white/5 hover:border-white/10' : 'bg-white border-slate-200 hover:border-slate-300')
       )}>
         
@@ -932,7 +932,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
         )) : <span className={cn("text-xs font-bold border border-dashed px-3 py-1 rounded-md transition-colors w-full flex items-center", isDarkMode ? "text-slate-500 border-white/20 hover:text-teal-400 hover:border-teal-400" : "text-slate-400 border-slate-300 hover:text-teal-600 hover:border-teal-500")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
       </div>
       {open && !disabled && (
-        <div className={cn('absolute top-full mt-2 left-0 z-[200] rounded-xl border shadow-2xl min-w-[240px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')} onClick={e => e.stopPropagation()}>
+        <div className={cn('absolute top-full mt-2 left-0 z-[200] rounded-xl border shadow-xl min-w-[240px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')} onClick={e => e.stopPropagation()}>
           <div className={cn("flex items-center px-3 py-2 border-b", isDarkMode ? "border-white/10 bg-[#1E293B]" : "border-slate-100 bg-slate-50")}>
             <Search size={14} className={isDarkMode ? "text-slate-400" : "text-slate-500"} />
             <input autoFocus value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAddNew(); }} placeholder={lang === 'de' ? "Suchen..." : "Search..."} className={cn("ml-2 bg-transparent text-sm font-bold outline-none w-full", isDarkMode ? "text-white placeholder:text-slate-500" : "text-slate-900 placeholder:text-slate-400")} />
