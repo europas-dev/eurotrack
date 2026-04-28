@@ -272,7 +272,12 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       const h = await createHotel({ 
         name: newHotelName.trim(), 
         city: newHotelCity.trim() || null, 
-        company_tag: newHotelCompanyTags, 
+        
+        // --- SURGICAL FIX: BULLETPROOF COMPANY TAGS ---
+        companyTag: newHotelCompanyTags,  // The database API expects camelCase!
+        company_tag: newHotelCompanyTags, // Passing snake_case as a backup just in case
+        // ----------------------------------------------
+        
         country: newHotelCountry, 
         year: selectedYear 
       });
