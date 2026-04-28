@@ -468,11 +468,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const targetOptions = lang === 'de' ? ['Gesamt Netto', 'Gesamt Brutto'] : ['Total Netto', 'Total Brutto'];
   const currentTarget = localHotel.global_discount_target === 'brutto' ? targetOptions[1] : targetOptions[0];
   return (
-    <div className="space-y-1 relative" style={{ zIndex: 40 - (index % 30) }}>
+    /* SURGICAL FIX: Added hover:z-[110] so tooltip floats on top layer */
+    <div className="space-y-1 relative hover:z-[110]" style={{ zIndex: 40 - (index % 30) }}>
       
-      {/* --- SURGICAL UI FIX: REFINED GHOST CHECKBOX (Far Left trigger only) --- */}
+      {/* --- SURGICAL UI FIX: REFINED GHOST CHECKBOX (Brought closer from -left-10 to -left-7) --- */}
       <div className={cn(
-        "absolute -left-10 top-0 bottom-0 w-10 flex items-center justify-center transition-all duration-300 z-[100]",
+        "absolute -left-7 top-0 bottom-0 w-10 flex items-center justify-center transition-all duration-300 z-[100]",
         isSelected || isBulkActive ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 hover:opacity-100"
       )}>
         <input 
@@ -604,7 +605,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                </button>
                <div className="relative group">
                   <button onClick={(e) => e.stopPropagation()} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-all"><Clock size={16} /></button>
-                  {/* --- SURGICAL UI FIX: TOOLTIP DEPTH & COLOR --- */}
+                  {/* --- SURGICAL UI FIX: TOOLTIP DEPTH & COLOR (Fixed black-in-light-mode) --- */}
                   <div className={cn(
                     "absolute right-0 bottom-full mb-2 w-max px-3 py-1.5 text-[10px] font-bold rounded-lg opacity-0 group-hover:opacity-100 z-[200] whitespace-nowrap pointer-events-none shadow-xl border transition-opacity",
                     dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-700 border-slate-200"
@@ -931,7 +932,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
         )) : <span className={cn("text-xs font-bold border border-dashed px-3 py-1 rounded-md transition-colors w-full flex items-center", isDarkMode ? "text-slate-500 border-white/20 hover:text-teal-400 hover:border-teal-400" : "text-slate-400 border-slate-300 hover:text-teal-600 hover:border-teal-500")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
       </div>
       {open && !disabled && (
-        <div className={cn('absolute top-full mt-2 left-0 z-[200] rounded-xl border shadow-xl min-w-[240px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')} onClick={e => e.stopPropagation()}>
+        <div className={cn('absolute top-full mt-2 left-0 z-[200] rounded-xl border shadow-2xl min-w-[240px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')} onClick={e => e.stopPropagation()}>
           <div className={cn("flex items-center px-3 py-2 border-b", isDarkMode ? "border-white/10 bg-[#1E293B]" : "border-slate-100 bg-slate-50")}>
             <Search size={14} className={isDarkMode ? "text-slate-400" : "text-slate-500"} />
             <input autoFocus value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAddNew(); }} placeholder={lang === 'de' ? "Suchen..." : "Search..."} className={cn("ml-2 bg-transparent text-sm font-bold outline-none w-full", isDarkMode ? "text-white placeholder:text-slate-500" : "text-slate-900 placeholder:text-slate-400")} />
