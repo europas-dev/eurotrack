@@ -915,6 +915,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                           onUpdate={(hId, up) => setHotels(hotels.map(ho=>ho.id===hId?{...ho,...up}:ho))} 
                           onDeleteCompanyOption={handleDeleteGlobalCompany} 
                           onAddOption={handleAddGlobalCompany} 
+                          hotelOptions={uniqueHotelNames}
+                          employeeOptions={uniqueEmployeeNames}
                         />
                       ))}
                     </div>
@@ -940,6 +942,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                       onUpdate={(hId, up) => setHotels(hotels.map(h=>h.id===hId?{...h,...up}:h))} 
                       onDeleteCompanyOption={handleDeleteGlobalCompany} 
                       onAddOption={handleAddGlobalCompany} 
+                      hotelOptions={uniqueHotelNames}
+                      employeeOptions={uniqueEmployeeNames}
                     />
                   ))
                 )}
