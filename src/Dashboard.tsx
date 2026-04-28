@@ -435,6 +435,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const freeBedsTotal = finalFiltered.reduce((s, h) => s + calcHotelFreeBedsToday(h), 0);
 
   const closeMenu = () => { setShowFilterMenu(false); setShowTimelineMenu(false); setShowSortMenu(false); };
+  // src/Dashboard.tsx
+
   const activeFilters = useMemo(() => {
     const badges = [];
     const fmt = (iso:string) => { 
@@ -500,6 +502,18 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     }
     return badges;
   }, [tlType, tlStart, tlEnd, fbType, filterPaid, filterDeposit, groupBy, sortBy, sortDir, lang]);
+
+  // --- RESTORED: UI STYLING VARIABLES ---
+  const btnActive = dk ? 'bg-teal-600 text-white border-transparent' : 'bg-white border-teal-600 text-teal-700 shadow-sm';
+  const btnInactive = dk ? 'bg-white/5 text-slate-300 border-transparent hover:bg-white/10' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50';
+  const popupCls = cn('absolute z-[1000] mt-3 p-5 rounded-2xl border shadow-2xl w-[420px] text-sm animate-in fade-in slide-in-from-top-2 duration-200 right-0 lg:-right-10', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900');
+  const popupHeader = "flex items-center justify-between mb-5";
+  const popupTitle = "text-lg font-bold";
+  const sectionTitle = "text-sm text-slate-400 mb-2";
+  const segmentContainer = cn("flex p-1 rounded-xl", dk ? "bg-black/20" : "bg-slate-100");
+  const segmentBtn = (active: boolean) => cn("flex-1 py-1.5 text-sm font-medium rounded-lg transition-all", active ? (dk ? "bg-teal-600 text-white shadow-sm" : "bg-white text-teal-700 shadow-sm") : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300");
+  const actionPrimary = cn("px-5 py-2 rounded-lg font-bold transition-all", dk ? "bg-teal-600 text-white hover:bg-teal-500" : "bg-teal-700 text-white hover:bg-teal-800");
+  const actionSecondary = "text-teal-600 dark:text-teal-400 text-sm font-medium hover:underline";
 
   return (
     <div className={cn('flex h-screen overflow-hidden', dk ? 'bg-[#0F172A]' : 'bg-slate-50')}>
@@ -600,8 +614,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                   <button onClick={() => { closeMenu(); setShowTimelineMenu(!showTimelineMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", tlType !== 'all' ? btnActive : btnInactive)}><Calendar size={16} /> {lang === 'de' ? 'Zeitraum' : 'Timeline'}</button>
                   {showTimelineMenu && (
                     <div className={cn(popupCls, 'right-0 w-[400px]')}>
-                      <div className="flex items-center justify-between mb-5">
-                        <h3 className="text-lg font-bold">{lang === 'de' ? 'Zeitraum' : 'Timeline Card (Stay Overlap)'}</h3>
+                      <div className={popupHeader}>
+                        <h3 className={popupTitle}>{lang === 'de' ? 'Zeitraum' : 'Timeline Card (Stay Overlap)'}</h3>
                         <button onClick={closeMenu} className="text-slate-400 hover:text-white"><X size={20}/></button>
                       </div>
                       <div className="grid grid-cols-4 gap-2 mb-4">
@@ -641,20 +655,20 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                   <button onClick={() => { setShowTimelineMenu(false); setShowSortMenu(false); setShowFilterMenu(!showFilterMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", (fbType !== 'all' || filterPaid !== 'all' || filterDeposit !== 'all' || groupBy !== 'none') ? btnActive : btnInactive)}><Filter size={16} /> Filter</button>
                   {showFilterMenu && (
                     <div className={popupCls}>
-                      <div className="flex items-center justify-between mb-5">
-                        <h3 className="text-lg font-bold">Filter</h3>
+                      <div className={popupHeader}>
+                        <h3 className={popupTitle}>Filter</h3>
                         <button onClick={closeMenu} className="text-slate-400"><X size={20}/></button>
                       </div>
                       <div className="space-y-5">
                          <div>
-                           <p className="text-sm text-slate-400 mb-2">{lang === 'de' ? 'Verfügbare freie Betten' : 'Free Beds Availability'}</p>
+                           <p className={sectionTitle}>{lang === 'de' ? 'Verfügbare freie Betten' : 'Free Beds Availability'}</p>
                            <div className="grid grid-cols-2 gap-2 mb-2">
                              {[ { id: 'today', lEn: `Today (${fbCountToday})`, lDe: `Heute (${fbCountToday})` }, { id: 'tomorrow', lEn: `Tomorrow (${fbCountTomorrow})`, lDe: `Morgen (${fbCountTomorrow})` }, { id: '3days', lEn: `in 3 days (${fbCount3})`, lDe: `in 3 Tagen (${fbCount3})` }, { id: '7days', lEn: `in 7 days (${fbCount7})`, lDe: `in 7 Tagen (${fbCount7})` }
                              ].map(f => <button key={f.id} onClick={() => setFbType(f.id as any)} className={cn("py-2 rounded-lg text-sm font-medium transition-all border", fbType === f.id ? btnActive : btnInactive)}>{lang === 'de' ? f.lDe : f.lEn}</button>)}
                            </div>
                          </div>
                          <div>
-                           <p className="text-sm text-slate-400 mb-2">{lang === 'de' ? 'Zahlung' : 'Payment'}</p>
+                           <p className={sectionTitle}>{lang === 'de' ? 'Zahlung' : 'Payment'}</p>
                            <div className={segmentContainer}>
                              {[{id:'all', lEn:'All', lDe:'Alle'}, {id:'paid', lEn:'Paid', lDe:'Bezahlt'}, {id:'unpaid', lEn:'Unpaid', lDe:'Unbezahlt'}].map(p => (
                                <button key={p.id} onClick={() => setFilterPaid(p.id as any)} className={segmentBtn(filterPaid === p.id)}>{lang === 'de' ? p.lDe : p.lEn}</button>
@@ -662,7 +676,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                            </div>
                          </div>
                          <div>
-                           <p className="text-sm text-slate-400 mb-2">{lang === 'de' ? 'Kaution' : 'Deposit'}</p>
+                           <p className={sectionTitle}>{lang === 'de' ? 'Kaution' : 'Deposit'}</p>
                            <div className={segmentContainer}>
                              {[{id:'all', lEn:'All', lDe:'Alle'}, {id:'yes', lEn:'Yes', lDe:'Ja'}, {id:'no', lEn:'No', lDe:'Nein'}].map(d => (
                                <button key={d.id} onClick={() => setFilterDeposit(d.id as any)} className={segmentBtn(filterDeposit === d.id)}>{lang === 'de' ? d.lDe : d.lEn}</button>
@@ -670,7 +684,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                            </div>
                          </div>
                          <div>
-                           <p className="text-sm text-slate-400 mb-2">{lang === 'de' ? 'Gruppieren nach' : 'Group by'}</p>
+                           <p className={sectionTitle}>{lang === 'de' ? 'Gruppieren nach' : 'Group by'}</p>
                            <div className={segmentContainer}>
                              {[{id:'none', lEn:'None', lDe:'Keine'}, {id:'hotel', lEn:'Hotel', lDe:'Hotel'}, {id:'company', lEn:'Company', lDe:'Firma'}, {id:'city', lEn:'City', lDe:'Stadt'}].map(g => (
                                <button key={g.id} onClick={() => setGroupBy(g.id as any)} className={segmentBtn(groupBy === g.id)}>{lang === 'de' ? g.lDe : g.lEn}</button>
@@ -690,11 +704,11 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                   <button onClick={() => { setShowTimelineMenu(false); setShowFilterMenu(false); setShowSortMenu(!showSortMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", (sortBy !== 'created_at' || sortDir !== 'desc') ? btnActive : btnInactive)}><ArrowUpDown size={16} /> {lang === 'de' ? 'Sortieren' : 'Sort'}</button>
                   {showSortMenu && (
                     <div className={cn(popupCls, 'w-[420px]')}>
-                      <div className="flex items-center justify-between mb-5">
-                        <h3 className="text-lg font-bold">{lang === 'de' ? 'Sortieren' : 'Sort'}</h3>
+                      <div className={popupHeader}>
+                        <h3 className={popupTitle}>{lang === 'de' ? 'Sortieren' : 'Sort'}</h3>
                         <button onClick={closeMenu} className="text-slate-400"><X size={20}/></button>
                       </div>
-                      <p className="text-sm text-slate-400 mb-2">{lang === 'de' ? 'Sortieren nach' : 'Sort By'}</p>
+                      <p className={sectionTitle}>{lang === 'de' ? 'Sortieren nach' : 'Sort By'}</p>
                       <div className="grid grid-cols-2 gap-3 mb-6">
                         {[ { id: 'name', lEn: 'Hotel Name', lDe: 'Hotelname' }, { id: 'cost', lEn: 'Total Cost', lDe: 'Gesamtkosten' }, { id: 'bed_price', lEn: 'Price/Bed', lDe: 'Preis/Bett' }, { id: 'free_beds', lEn: 'Free Beds', lDe: 'Freie Betten' }, { id: 'created_at', lEn: 'Last Added', lDe: 'Zuletzt Hinzugefügt' }, { id: 'updated_at', lEn: 'Last Updated', lDe: 'Zuletzt Aktualisiert' }
                         ].map(s => (
@@ -703,7 +717,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                           </button>
                         ))}
                       </div>
-                      <p className="text-sm text-slate-400 mb-2">{lang === 'de' ? 'Sortierreihenfolge' : 'Sort Direction'}</p>
+                      <p className={sectionTitle}>{lang === 'de' ? 'Sortierreihenfolge' : 'Sort Direction'}</p>
                       
                       <div className="grid grid-cols-2 gap-3 mb-6">
                         <button onClick={() => setSortDir('asc')} className={cn("py-3 px-4 rounded-lg border text-left transition-all", sortDir === 'asc' ? btnActive : btnInactive)}>
