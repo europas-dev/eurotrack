@@ -1,3 +1,4 @@
+// src/Dashboard.tsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase, deleteHotel, createHotel } from './lib/supabase';
 import { 
