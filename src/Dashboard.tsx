@@ -58,7 +58,7 @@ export default function Dashboard({
   const dk = theme === 'dark';
   const isStrictViewer = viewOnly || accessLevel?.role === 'viewer' || accessLevel?.role === 'pending';
 
-  // --- UI CONSTANTS (Defined early to prevent Crash) ---
+  // --- UI CONSTANTS ---
   const btnActive = dk ? 'bg-teal-600 text-white border-transparent' : 'bg-white border-teal-600 text-teal-700 shadow-sm';
   const btnInactive = dk ? 'bg-white/5 text-slate-300 border-transparent hover:bg-white/10' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50';
   const popupCls = cn('absolute z-[1000] mt-3 p-5 rounded-2xl border shadow-2xl w-[380px] text-sm animate-in fade-in slide-in-from-top-2 duration-200 right-0 lg:right-auto', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900');
@@ -96,7 +96,11 @@ export default function Dashboard({
 
   const [showBookmarks, setShowBookmarks] = useState(false);
   const [bookmarks, setBookmarks] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]'); } catch { return []; }
+    try { 
+      return JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]'); 
+    } catch { 
+      return []; 
+    }
   });
   
   const [history, setHistory] = useState<any[][]>([]);
@@ -112,8 +116,10 @@ export default function Dashboard({
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
 
+  // Dynamic Title Logic
   const monthNamesEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const monthNamesDe = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+  
   const displayTitle = selectedMonth !== null 
     ? `${lang === 'de' ? monthNamesDe[selectedMonth] : monthNamesEn[selectedMonth]} ${selectedYear}`
     : `${lang === 'de' ? 'Dashboard' : 'Dashboard'} ${selectedYear}`;
@@ -131,7 +137,9 @@ export default function Dashboard({
 
   useEffect(() => {
     const handleStorage = () => {
-      try { setBookmarks(JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]')); } catch {}
+      try { 
+        setBookmarks(JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]')); 
+      } catch {}
     };
     window.addEventListener('storage', handleStorage);
     const interval = setInterval(handleStorage, 1000); 
@@ -143,7 +151,9 @@ export default function Dashboard({
 
   useEffect(() => {
     let isMounted = true;
-    const channel = supabase.channel('dashboard_presence', { config: { presence: { key: 'user' } } });
+    const channel = supabase.channel('dashboard_presence', { 
+      config: { presence: { key: 'user' } } 
+    });
     
     channel.on('presence', { event: 'sync' }, () => {
       if (!isMounted) return;
@@ -152,8 +162,10 @@ export default function Dashboard({
       const uniqueUsers = Array.from(new Map(users.map(u => [u.id, u])).values());
       
       const filteredUsers = uniqueUsers.filter((u: any) => {
-          if (u.id === accessLevel?.id && accessLevel?.role === 'superadmin' && accessLevel?.invisible) return false;
-          return true;
+        if (u.id === accessLevel?.id && accessLevel?.role === 'superadmin' && accessLevel?.invisible) {
+          return false;
+        }
+        return true;
       });
       setActiveUsers(filteredUsers);
     });
@@ -163,19 +175,29 @@ export default function Dashboard({
         const { data: { user } } = await supabase.auth.getUser();
         if (user && isMounted) {
           const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
-          await channel.track({ user: { id: user.id, name, email: user.email } });
+          await channel.track({ 
+            user: { id: user.id, name, email: user.email } 
+          });
         }
       }
     });
 
-    return () => { isMounted = false; channel.unsubscribe(); supabase.removeChannel(channel); };
+    return () => { 
+      isMounted = false; 
+      channel.unsubscribe(); 
+      supabase.removeChannel(channel); 
+    };
   }, [accessLevel]);
 
+  // --- DATA FETCHING LOGIC ---
   useEffect(() => { 
     let isMounted = true;
     setLoading(true);
     setError(''); 
-    const safetyTimer = setTimeout(() => { if (isMounted) setLoading(false); }, 5000);
+    
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 5000);
 
     async function fetchAllData() {
       try {
@@ -200,34 +222,18 @@ export default function Dashboard({
           hasDiscount: h.has_discount ?? false,
           discountType: h.discount_type ?? 'percentage',
           discountValue: h.discount_value ?? 0,
+
           durations: (h.durations || []).map((d: any) => ({
-            ...d, 
-            hotelId: d.hotel_id, 
-            startDate: d.start_date, 
-            endDate: d.end_date,
-            roomType: d.room_type, 
-            numberOfRooms: d.number_of_rooms,
-            pricePerNightPerRoom: d.price_per_night_per_room, 
-            useManualPrices: d.use_manual_prices, 
-            nightlyPrices: d.nightly_prices, 
-            useBruttoNetto: d.use_brutto_netto,
-            hasDiscount: d.has_discount, 
-            discountType: d.discount_type, 
-            discountValue: d.discount_value, 
-            isPaid: d.is_paid, 
-            rechnungNr: d.rechnung_nr,
-            bookingId: d.booking_id, 
-            depositEnabled: d.deposit_enabled, 
-            depositAmount: d.deposit_amount,
+            ...d, hotelId: d.hotel_id, startDate: d.start_date, endDate: d.end_date, roomType: d.room_type, numberOfRooms: d.number_of_rooms,
+            pricePerNightPerRoom: d.price_per_night_per_room, useManualPrices: d.use_manual_prices, nightlyPrices: d.nightly_prices, useBruttoNetto: d.use_brutto_netto,
+            hasDiscount: d.has_discount, discountType: d.discount_type, discountValue: d.discount_value, isPaid: d.is_paid, rechnungNr: d.rechnung_nr,
+            bookingId: d.booking_id, depositEnabled: d.deposit_enabled, depositAmount: d.deposit_amount,
             roomCards: (d.room_cards || []).map((rc: any) => ({
-              ...rc, 
-              durationId: rc.duration_id, 
-              employees: (rc.employees || []).map((e: any) => ({ 
-                ...e, 
-                slotIndex: e.slot_index ?? 0, 
-                checkIn: e.checkin, 
-                checkOut: e.checkout 
-              }))
+              ...rc, durationId: rc.duration_id, roomNo: rc.room_no, roomType: rc.room_type, bedCount: rc.bed_count, pricingTab: rc.pricing_tab ?? 'per_room',
+              roomNetto: rc.room_netto, roomMwst: rc.room_mwst, roomBrutto: rc.room_brutto, bedNetto: rc.bed_netto, bedMwst: rc.bed_mwst, bedBrutto: rc.bed_brutto, totalNetto: rc.total_netto, totalMwst: rc.total_mwst, totalBrutto: rc.total_brutto,
+              roomEnergyNetto: rc.room_energy_netto, roomEnergyMwst: rc.room_energy_mwst, roomEnergyBrutto: rc.room_energy_brutto, bedEnergyNetto: rc.bed_energy_netto, bedEnergyMwst: rc.bed_energy_mwst, bedEnergyBrutto: rc.bed_energy_brutto, totalEnergyNetto: rc.total_energy_netto, totalEnergyMwst: rc.total_energy_mwst, totalEnergyBrutto: rc.total_energy_brutto,
+              hasDiscount: rc.has_discount, discountType: rc.discount_type, discountValue: rc.discount_value,
+              employees: (rc.employees || []).map((e: any) => ({ ...e, slotIndex: e.slot_index ?? 0, checkIn: e.checkin, checkOut: e.checkout }))
             }))
           }))
         }));
@@ -245,8 +251,12 @@ export default function Dashboard({
         if (isMounted) setLoading(false);
       }
     }
+    
     fetchAllData(); 
-    return () => { isMounted = false; clearTimeout(safetyTimer); };
+    return () => { 
+        isMounted = false; 
+        clearTimeout(safetyTimer);
+    };
   }, [selectedYear]);
 
   const allCompanyOptions = useMemo(() => {
@@ -255,6 +265,21 @@ export default function Dashboard({
   }, [hotels, systemCompanies]);
 
   const uniqueCities = useMemo(() => Array.from(new Set(hotels.map(h => h.city).filter(Boolean))), [hotels]);
+
+  // --- FIXED: ADDED MISSING HANDLERS ---
+  const handleAddGlobalCompany = async (name: string) => {
+    try {
+      await addSystemCompany(name);
+      setSystemCompanies(prev => Array.from(new Set([...prev, name])));
+    } catch (err) { console.error(err); }
+  };
+
+  const handleDeleteGlobalCompany = async (name: string) => {
+    try {
+      await deleteSystemCompany(name);
+      setSystemCompanies(prev => prev.filter(c => c !== name));
+    } catch (err) { console.error(err); }
+  };
 
   const handleUndo = () => { 
     if (historyIndex > 0) { 
@@ -291,24 +316,10 @@ export default function Dashboard({
       const next = [{ 
         ...h, 
         companyTag: newHotelCompanyTags, 
-        durations: [], 
-        isPaid: false, 
-        rechnungNr: '', 
-        bookingId: '', 
-        depositEnabled: false, 
-        depositAmount: 0, 
-        useBruttoNetto: true, 
-        hasDiscount: false, 
-        discountType: 'percentage', 
-        discountValue: 0 
+        durations: [],
+        isPaid: false, rechnungNr: '', bookingId: '', depositEnabled: false, depositAmount: 0, useBruttoNetto: true, hasDiscount: false, discountType: 'percentage', discountValue: 0
       }, ...hotels]; 
-      setHotels(next); 
-      pushToHistory(next); 
-      setAddingHotel(false); 
-      setNewHotelName(''); 
-      setNewHotelCity(''); 
-      setNewHotelCompanyTags([]); 
-      setNewHotelCountry('Germany');
+      setHotels(next); pushToHistory(next); setAddingHotel(false); setNewHotelName(''); setNewHotelCity(''); setNewHotelCompanyTags([]); setNewHotelCountry('Germany');
     } catch (e: any) { alert(e.message); } finally { setNewHotelSaving(false); }
   }
 
@@ -340,13 +351,10 @@ export default function Dashboard({
       
       if (searchQuery) {
           const q = searchQuery.toLowerCase();
-          if (searchScope === 'hotel') { 
-              if (!h.name?.toLowerCase().includes(q)) return false; 
-          } else if (searchScope === 'city') { 
-              if (!h.city?.toLowerCase().includes(q)) return false; 
-          } else if (searchScope === 'company') { 
-              if (!h.companyTag?.some((t:any) => t.toLowerCase().includes(q))) return false; 
-          } else if (searchScope === 'invoice') { 
+          if (searchScope === 'hotel') { if (!h.name?.toLowerCase().includes(q)) return false; } 
+          else if (searchScope === 'city') { if (!h.city?.toLowerCase().includes(q)) return false; } 
+          else if (searchScope === 'company') { if (!h.companyTag?.some((t:any) => t.toLowerCase().includes(q))) return false; } 
+          else if (searchScope === 'invoice') { 
               const hotelInvMatch = h.rechnungNr?.toLowerCase().includes(q);
               const durationInvMatch = (h.durations || []).some((d:any) => d.rechnungNr?.toLowerCase().includes(q));
               if (!hotelInvMatch && !durationInvMatch) return false;
@@ -361,8 +369,7 @@ export default function Dashboard({
       if (selectedMonth !== null) {
         const overlap = (h.durations || []).some((d: any) => {
           if (!d.startDate || !d.endDate) return false;
-          const dStart = new Date(d.startDate); 
-          const dEnd = new Date(d.endDate);
+          const dStart = new Date(d.startDate); const dEnd = new Date(d.endDate);
           const mStart = new Date(selectedYear, selectedMonth, 1);
           const mEnd = new Date(selectedYear, selectedMonth + 1, 0);
           return dStart <= mEnd && dEnd >= mStart;
@@ -432,8 +439,7 @@ export default function Dashboard({
     const groups: Record<string, any[]> = {};
     finalFiltered.forEach(h => {
       const key = groupBy === 'company' ? (h.companyTag?.[0] || 'Unassigned') : groupBy === 'city' ? (h.city || 'Other') : groupBy === 'country' ? (h.country || 'Other') : h.name;
-      if (!groups[key]) groups[key] = []; 
-      groups[key].push(h);
+      if (!groups[key]) groups[key] = []; groups[key].push(h);
     });
     return groups;
   }, [finalFiltered, groupBy]);
@@ -441,28 +447,16 @@ export default function Dashboard({
   const totalSpend = finalFiltered.reduce((s, h) => s + calcHotelTotalCost(h, selectedMonth, selectedYear), 0);
   const freeBedsTotal = finalFiltered.reduce((s, h) => s + calcHotelFreeBedsToday(h), 0);
 
-  const closeMenu = () => { 
-    setShowFilterMenu(false); 
-    setShowTimelineMenu(false); 
-    setShowSortMenu(false); 
-  };
+  const closeMenu = () => { setShowFilterMenu(false); setShowTimelineMenu(false); setShowSortMenu(false); };
 
   const activeFilters = useMemo(() => {
     const badges = [];
     const fmt = (iso:string) => { if(!iso) return ''; const [y,m,d] = iso.split('-'); return `${d}.${m}.${y}`; };
-    
-    if (tlType !== 'all') {
-      badges.push({ 
-        id: 'tl', label: lang === 'de' ? 'Zeitraum' : 'Timeline', 
-        val: tlType === 'range' ? `${fmt(tlStart)} ➔ ${fmt(tlEnd)}` : tlType, 
-        clear: () => { setTlType('all'); setTlStart(''); setTlEnd(''); } 
-      });
-    }
+    if (tlType !== 'all') { badges.push({ id: 'tl', label: lang === 'de' ? 'Zeitraum' : 'Timeline', val: tlType === 'range' ? `${fmt(tlStart)} ➔ ${fmt(tlEnd)}` : tlType, clear: () => { setTlType('all'); setTlStart(''); setTlEnd(''); } }); }
     if (fbType !== 'all') badges.push({ id: 'fb', label: lang === 'de' ? 'Freie Betten' : 'Free Beds', val: fbType, clear: () => setFbType('all') });
     if (filterPaid !== 'all') badges.push({ id: 'paid', label: lang === 'de' ? 'Zahlung' : 'Payment', val: filterPaid, clear: () => setFilterPaid('all') });
     if (filterDeposit !== 'all') badges.push({ id: 'dep', label: lang === 'de' ? 'Kaution' : 'Deposit', val: filterDeposit, clear: () => setFilterDeposit('all') });
     if (groupBy !== 'none') badges.push({ id: 'grp', label: lang === 'de' ? 'Gruppe' : 'Group', val: groupBy, clear: () => setGroupBy('none') });
-    
     if (sortBy !== 'created_at' || sortDir !== 'desc') {
         let sortLabel = sortBy.replace('_', ' ').toUpperCase();
         if (lang === 'de') {
@@ -471,11 +465,7 @@ export default function Dashboard({
             else if (sortBy === 'free_beds') sortLabel = 'FREIE BETTEN';
             else if (sortBy === 'name') sortLabel = 'HOTELNAME';
         }
-        badges.push({ 
-          id: 'srt', label: lang === 'de' ? 'Sortierung' : 'Sort', 
-          val: `${sortLabel} (${sortDir === 'asc' ? (lang === 'de' ? 'AUF' : 'ASC') : (lang === 'de' ? 'AB' : 'DESC')})`, 
-          clear: () => { setSortBy('created_at'); setSortDir('desc'); } 
-        });
+        badges.push({ id: 'srt', label: lang === 'de' ? 'Sortierung' : 'Sort', val: `${sortLabel} (${sortDir === 'asc' ? (lang === 'de' ? 'AUF' : 'ASC') : (lang === 'de' ? 'AB' : 'DESC')})`, clear: () => { setSortBy('created_at'); setSortDir('desc'); } });
     }
     return badges;
   }, [tlType, tlStart, tlEnd, fbType, filterPaid, filterDeposit, groupBy, sortBy, sortDir, lang]);
@@ -500,7 +490,6 @@ export default function Dashboard({
               <div><p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">{lang === 'de' ? 'GesamtKOSTEN' : 'Total Spent'}</p><p className="text-3xl font-black text-teal-600 dark:text-teal-400">{formatCurrency(totalSpend)}</p></div>
               <div><p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Hotels</p><p className="text-3xl font-black">{finalFiltered.length}</p></div>
             </div>
-            
             {activeUsers.length > 0 && (
               <div className="flex items-center gap-3">
                 <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">{lang === 'de' ? 'Live dabei:' : 'Live now:'}</span>
@@ -532,12 +521,10 @@ export default function Dashboard({
             <div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative z-[100]">
               <h2 className="text-2xl font-bold tracking-tight">{displayTitle}</h2>
               <div className="flex items-center gap-2">
-                
                 <div className={cn("flex items-center mr-2 rounded-xl p-1 border", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200 shadow-sm")}>
                   <button onClick={handleUndo} disabled={historyIndex <= 0} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 disabled:opacity-30 transition-all" title="Undo"><Undo2 size={18}/></button>
                   <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 disabled:opacity-30 transition-all" title="Redo"><Redo2 size={18}/></button>
                 </div>
-
                 <div className="relative">
                   <button onClick={() => { closeMenu(); setShowTimelineMenu(!showTimelineMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", tlType !== 'all' ? btnActive : btnInactive)}><Calendar size={16} /> {lang === 'de' ? 'Zeitraum' : 'Timeline'}</button>
                   {showTimelineMenu && (
@@ -598,8 +585,8 @@ export default function Dashboard({
                       </div>
                       <p className="text-sm text-slate-400 mb-2">{lang === 'de' ? 'Sortierreihenfolge' : 'Sort Direction'}</p>
                       <div className="grid grid-cols-2 gap-3 mb-6">
-                        <button onClick={() => setSortDir('asc')} className={cn("py-3 rounded-lg border text-left px-4 transition-all", sortDir === 'asc' ? btnActive : btnInactive)}><span className="block text-sm font-medium">{lang === 'de' ? 'Aufsteigend' : 'Ascending'}</span><span className={cn("block text-[10px] mt-1 font-normal", sortDir === 'asc' ? 'opacity-90' : 'opacity-50')}>{lang === 'de' ? 'Aufsteigend' : 'Low to High'}</span></button>
-                        <button onClick={() => setSortDir('desc')} className={cn("py-3 rounded-lg border text-left px-4 transition-all", sortDir === 'desc' ? btnActive : btnInactive)}><span className="block text-sm font-medium">{lang === 'de' ? 'Absteigend' : 'Descending'}</span><span className={cn("block text-[10px] mt-1 font-normal", sortDir === 'desc' ? 'opacity-90' : 'opacity-50')}>{lang === 'de' ? 'Absteigend' : 'High to Low'}</span></button>
+                        <button onClick={() => setSortDir('asc')} className={cn("py-3 rounded-lg border text-left px-4 transition-all", sortDir === 'asc' ? btnActive : btnInactive)}><span className="block text-sm font-medium">{lang === 'de' ? 'Aufsteigend' : 'Ascending'}</span><span className={cn("block text-[10px] mt-1 font-normal", sortDir === 'asc' ? 'opacity-90' : 'opacity-50')}>{lang === 'de' ? 'Low to High' : 'Low to High'}</span></button>
+                        <button onClick={() => setSortDir('desc')} className={cn("py-3 rounded-lg border text-left px-4 transition-all", sortDir === 'desc' ? btnActive : btnInactive)}><span className="block text-sm font-medium">{lang === 'de' ? 'Absteigend' : 'Descending'}</span><span className={cn("block text-[10px] mt-1 font-normal", sortDir === 'desc' ? 'opacity-90' : 'opacity-50')}>{lang === 'de' ? 'High to Low' : 'High to Low'}</span></button>
                       </div>
                       <div className="flex items-center justify-between border-t border-slate-200 dark:border-white/10 pt-4">
                         <button onClick={() => { setSortBy('created_at'); setSortDir('desc'); }} className={actionSecondary}>{lang === 'de' ? 'Sortierung zurücksetzen' : 'Reset Sorting'}</button>
@@ -608,6 +595,7 @@ export default function Dashboard({
                     </div>
                   )}
                 </div>
+
                 <button onClick={() => setShowBookmarks(!showBookmarks)} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", showBookmarks ? btnActive : btnInactive)}><Star size={16} className={showBookmarks ? 'fill-white' : ''} /> {lang === 'de' ? 'Lesezeichen' : 'Bookmarks'}</button>
                 {!isStrictViewer && (
                   <button onClick={() => setAddingHotel(true)} className="ml-4 px-6 py-2.5 bg-[#0D9488] hover:bg-[#0f766e] text-white font-bold rounded-xl flex items-center gap-2 text-sm transition-all shadow-md active:scale-95"><Plus size={18} strokeWidth={2.5} /> {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}</button>
