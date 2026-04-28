@@ -977,6 +977,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                       {groupData[activeGroupTab].map((h, i) => (
                         <HotelRow 
                           key={h.id} 
+                          isSelected={selectedIds.has(h.id)}
+                          onSelect={() => toggleSelect(h.id)}
+                          isBulkActive={selectedIds.size > 0}
                           entry={h} 
                           index={i} 
                           isDarkMode={dk} 
@@ -1003,6 +1006,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                   finalFiltered.map((hotel, index) => (
                     <HotelRow 
                       key={hotel.id} 
+                      isSelected={selectedIds.has(h.id)}
+                      onSelect={() => toggleSelect(h.id)}
+                      isBulkActive={selectedIds.size > 0}
                       entry={hotel} 
                       viewOnly={accessLevel?.role === 'viewer'} 
                       index={index} 
