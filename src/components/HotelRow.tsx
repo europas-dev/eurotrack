@@ -129,7 +129,7 @@ function MwstInput({ value, onChange, isDarkMode, disabled }: { value: string | 
   );
 }
 
-export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onAddOption, viewOnly, isSelected, onSelect, isBulkActive, }: any) {
+export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onAddOption, viewOnly, isSelected, onSelect, isBulkActive}: any) {
   const [open, setOpen] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   
