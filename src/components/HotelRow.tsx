@@ -1,4 +1,3 @@
-// src/components/HotelRow.tsx
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, ChevronRight, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, FileText, Tag, Calculator, Edit3, PlusCircle, Ticket } from 'lucide-react';
@@ -161,7 +160,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                        localHotel.durations?.some((d:any) => d.rechnungNr?.toLowerCase().includes(q));
     if (invoiceMatch && (searchScope === 'all' || searchScope === 'invoice')) return lang === 'de' ? `Treffer: Rechnung` : `Invoice Match`;
 
-    // Check Employee match
+    // Check Employee match only if they are not in the first 6 visible ones or if it's a specific employee search
     const employeeMatch = localHotel.durations?.some((d:any) => 
       (d.roomCards || []).some((rc:any) => 
         (rc.employees || []).some((emp:any) => emp.name?.toLowerCase().includes(q))
@@ -468,7 +467,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
 
           <div className="flex-[0.8] px-2 min-w-[120px]" onClick={e => e.stopPropagation()}>
-            <CompanyMultiSelect disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onAddOption={onAddOption} />
+            {/* SURGICAL FIX: Scoped Highlighting for Company Tags */}
+            <CompanyMultiSelect disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onAddOption={onAddOption} searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} />
           </div>
 
           <div className="flex-[1.5] px-2 min-w-[120px]">
@@ -549,7 +549,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
 
           <div className="ml-auto flex items-center gap-6 pr-3 shrink-0 min-w-[280px] justify-end">
-            {/* SURGICAL FIX: Hidden Match indicator */}
+            {/* SURGICAL FIX: Hidden Match indicator replaces the ugly badges */}
             {hiddenMatchText && (
                <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-teal-500/10 border border-teal-500/20 text-teal-500 text-[9px] font-black uppercase tracking-tighter animate-pulse">
                   <Search size={10} strokeWidth={3} /> {hiddenMatchText}
@@ -790,7 +790,29 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             </div>
             {localHotel.durations[activeDurationTab] ? (
               <div className={cn("relative z-0", activeDurationTab === 0 ? "[&>div]:rounded-tl-none" : "")}>
-                <DurationCard duration={localHotel.durations[activeDurationTab]} isDarkMode={dk} lang={lang} isMasterPricingActive={masterMath.isMasterActive} viewOnly={viewOnly} onUpdate={(id, upd) => { const next = { ...localHotel, durations: localHotel.durations.map((d: any) => d.id === id ? upd : d) }; setLocalHotel(next); onUpdate(localHotel.id, next); }} onDelete={(id) => { const next = { ...localHotel, durations: localHotel.durations.filter((d: any) => d.id !== id) }; setLocalHotel(next); onUpdate(localHotel.id, next); enqueue({ type: 'deleteDuration', payload: { id } }); if (activeDurationTab >= next.durations.length) { setActiveDurationTab(Math.max(0, next.durations.length - 1)); } }} />
+                {/* SURGICAL FIX: Passing scope and query to DurationCard for deep highlighting */}
+                <DurationCard 
+                  duration={localHotel.durations[activeDurationTab]} 
+                  isDarkMode={dk} lang={lang} 
+                  isMasterPricingActive={masterMath.isMasterActive} 
+                  viewOnly={viewOnly} 
+                  searchQuery={searchQuery}
+                  searchScope={searchScope}
+                  onUpdate={(id, upd) => { 
+                    const next = { ...localHotel, durations: localHotel.durations.map((d: any) => d.id === id ? upd : d) }; 
+                    setLocalHotel(next); 
+                    onUpdate(localHotel.id, next); 
+                  }} 
+                  onDelete={(id) => { 
+                    const next = { ...localHotel, durations: localHotel.durations.filter((d: any) => d.id !== id) }; 
+                    setLocalHotel(next); 
+                    onUpdate(localHotel.id, next); 
+                    enqueue({ type: 'deleteDuration', payload: { id } }); 
+                    if (activeDurationTab >= next.durations.length) { 
+                      setActiveDurationTab(Math.max(0, next.durations.length - 1)); 
+                    } 
+                  }} 
+                />
               </div>
             ) : null}
           </div>
@@ -814,7 +836,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   );
 }
 
-// ModernDropdown and CompanyMultiSelect stay exactly as they were
+// --- DROPDOWN COMPONENTS ---
 export function ModernDropdown({ value, options, onChange, isDarkMode, lang, placeholder = 'Select', allowAdd = true, disabled }: any) {
   const [open, setOpen] = useState(false);
   const [addingNew, setAddingNew] = useState(false);
@@ -854,7 +876,7 @@ export function ModernDropdown({ value, options, onChange, isDarkMode, lang, pla
   );
 }
 
-export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange, onDeleteOption, onAddOption, disabled }: any) {
+export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange, onDeleteOption, onAddOption, disabled, searchQuery }: any) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [localMemory, setLocalMemory] = useState<string[]>([]);
@@ -872,7 +894,10 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
     <div ref={ref} className={cn("relative min-h-[30px] flex items-center w-full", disabled ? "cursor-default" : "cursor-pointer")} onClick={(e) => { if (disabled) return; e.stopPropagation(); setOpen(true); }}>
       <div className="flex flex-wrap gap-1.5 w-full">
         {safeSelected.length > 0 ? safeSelected.map((tag: string) => (
-          <span key={tag} className={cn('px-2.5 py-1 rounded-md text-xs font-bold border flex items-center gap-1.5 shadow-sm', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800')}>{tag}</span>
+          <span key={tag} className={cn('px-2.5 py-1 rounded-md text-xs font-bold border flex items-center gap-1.5 shadow-sm', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800')}>
+            {/* SURGICAL FIX: Scoped Highlighting for tags */}
+            <HighlightText text={tag} query={searchQuery} />
+          </span>
         )) : <span className={cn("text-xs font-bold border border-dashed px-3 py-1 rounded-md transition-colors w-full flex items-center", isDarkMode ? "text-slate-500 border-white/20 hover:text-teal-400 hover:border-teal-400" : "text-slate-400 border-slate-300 hover:text-teal-600 hover:border-teal-500")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
       </div>
       {open && !disabled && (
