@@ -1093,6 +1093,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             calcCost={calcHotelTotalCost} 
             lang={lang} 
             total={totalSpend}
+            selectedMonth={selectedMonth}
+            selectedYear={selectedYear}
             title={selectedMonth !== null 
               ? `Period: ${lang === 'de' ? monthNamesDe[selectedMonth] : monthNamesEn[selectedMonth]} ${selectedYear}` 
               : `Period: ${selectedYear}`}
