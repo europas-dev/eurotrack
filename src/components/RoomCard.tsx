@@ -827,7 +827,6 @@ export default function RoomCard({
                </div>
              </div>
            )}
-           
            {/* --- SURGICAL FIX: PASSING EMPLOYEE OPTIONS TO ALL 3 BED SCENARIOS --- */}
            <div className="grid gap-6 items-start" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(400px, 1fr))` }}>
               {Array.from({ length: beds }).map((_, i) => {
@@ -907,8 +906,9 @@ export default function RoomCard({
                  )
               })}
            </div>
+          )}
            {/* --- END OF SURGICAL FIX --- */}
-      )}
+           
       {confirmDelete && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
           <div className={cn('w-full max-w-sm rounded-3xl border p-6 shadow-2xl', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
