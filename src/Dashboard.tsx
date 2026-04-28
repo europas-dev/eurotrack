@@ -477,6 +477,55 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     setSelectedIds(next);
   };
 
+  const handleBulkDelete = async () => {
+    const count = selectedIds.size;
+    const confirmMsg = lang === 'de' 
+      ? `Sind Sie sicher, dass Sie ${count} Hotels löschen möchten?` 
+      : `Are you sure you want to delete ${count} hotels?`;
+    
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setLoading(true);
+      const idsArray = Array.from(selectedIds);
+      const { bulkDeleteHotels } = await import('./lib/supabase');
+      await bulkDeleteHotels(idsArray);
+      
+      const nextHotels = hotels.filter(h => !selectedIds.has(h.id));
+      setHotels(nextHotels);
+      pushToHistory(nextHotels);
+      setSelectedIds(new Set());
+    } catch (err: any) {
+      alert("Delete failed: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBulkDuplicate = async () => {
+    try {
+      setLoading(true);
+      const toClone = hotels.filter(h => selectedIds.has(h.id));
+      const { duplicateHotelsMetadata } = await import('./lib/supabase');
+      const newEntries = await duplicateHotelsMetadata(toClone);
+      
+      const normalizedNew = newEntries.map((h: any) => ({
+        ...h,
+        companyTag: h.company_tag ?? [],
+        durations: []
+      }));
+
+      const nextHotels = [...normalizedNew, ...hotels];
+      setHotels(nextHotels);
+      pushToHistory(nextHotels);
+      setSelectedIds(new Set());
+    } catch (err: any) {
+      alert("Duplicate failed: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const totalSpend = finalFiltered.reduce((s, h) => s + calcHotelTotalCost(h, selectedMonth, selectedYear), 0);
   const freeBedsTotal = finalFiltered.reduce((s, h) => s + calcHotelFreeBedsToday(h), 0);
 
@@ -614,11 +663,15 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             </div>
 
             <div className="flex items-center gap-3">
-              <button className="p-2.5 rounded-xl hover:bg-white/10 transition-all flex items-center gap-2 font-bold text-sm">
-                <Copy size={18} /> {lang === 'de' ? 'Duplizieren' : 'Duplicate'}
+              <button 
+                onClick={handleBulkDuplicate} 
+                className="p-2.5 rounded-xl hover:bg-white/10 transition-all flex items-center gap-2 font-bold text-sm">
+                  <Copy size={18} /> {lang === 'de' ? 'Duplizieren' : 'Duplicate'}
               </button>
-              <button className="p-2.5 rounded-xl hover:bg-red-500 bg-red-500/20 transition-all flex items-center gap-2 font-bold text-sm">
-                <Trash2 size={18} /> {lang === 'de' ? 'Löschen' : 'Delete'}
+              <button 
+                  onClick={handleBulkDelete} 
+                  className="p-2.5 rounded-xl hover:bg-red-500 bg-red-500/20 transition-all flex items-center gap-2 font-bold text-sm">
+                    <Trash2 size={18} /> {lang === 'de' ? 'Löschen' : 'Delete'}
               </button>
               <button onClick={() => setSelectedIds(new Set())} className="ml-4 p-2 hover:bg-white/10 rounded-full transition-all">
                 <X size={20} />
