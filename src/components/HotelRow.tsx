@@ -28,14 +28,30 @@ function formatCurrency(amount: number): string {
   return (amount || 0).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 }
 
+// FILE: src/components/HotelRow.tsx
+
 const HighlightText = ({ text, query }: { text: string; query?: string }) => {
   if (!query || !text) return <>{text}</>;
+  
+  // Use a case-insensitive regex to split the text by the query match
   const parts = text.split(new RegExp(`(${query})`, 'gi'));
+  
   return (
-    <>{parts.map((part, i) => part.toLowerCase() === query.toLowerCase() 
-      ? <mark key={i} className="bg-teal-400 text-black">{part}</mark> 
-      : part
-    )}</>
+    <>
+      {parts.map((part, i) => 
+        part.toLowerCase() === query.toLowerCase() ? (
+          <mark 
+            key={i} 
+            className="bg-teal-400 text-black px-0" 
+            style={{ fontWeight: 'inherit' }}
+          >
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
   );
 };
 
