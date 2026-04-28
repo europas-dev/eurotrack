@@ -87,15 +87,41 @@ export default function DurationCard({
     }, 400)
   }
 
+  // --- NEW: THE AUTO-EXTEND ENGINE ---
   function patch(changes: Partial<Duration>) {
-    if (viewOnly) return; // SURGICAL LOCK
-    const next = { ...local, ...changes } as Duration
+    if (viewOnly) return;
+    
+    let next = { ...local, ...changes } as Duration;
+
+    // Check for Extension: If the endDate moved forward
+    if (changes.endDate && local.endDate && changes.endDate > local.endDate) {
+      const oldEnd = local.endDate;
+      const newEnd = changes.endDate;
+
+      // Identify employees booked for the FULL duration and extend them
+      const updatedCards = (next.roomCards || []).map(card => ({
+        ...card,
+        employees: (card.employees || []).map(emp => {
+          if (emp.checkOut === oldEnd) {
+            // Extension match found!
+            const updatedEmp = { ...emp, checkOut: newEnd };
+            // Sync to DB immediately
+            enqueue({ type: 'updateEmployee', payload: { id: emp.id, checkOut: newEnd } });
+            return updatedEmp;
+          }
+          return emp;
+        })
+      }));
+      next.roomCards = updatedCards;
+      setRoomCards(updatedCards);
+    }
+
     setLocal(next); 
     queueSave(next);
   }
 
   function handleStartDateChange(newStart: string) {
-    if (viewOnly) return; // SURGICAL LOCK
+    if (viewOnly) return;
     let updates: Partial<Duration> = { startDate: newStart };
     if (activePreset === '1W') updates.endDate = addDays(newStart, 7);
     if (activePreset === '1M') updates.endDate = addDays(newStart, 30);
@@ -103,25 +129,40 @@ export default function DurationCard({
   }
 
   function handleEndDateChange(newEnd: string) {
-    if (viewOnly) return; // SURGICAL LOCK
+    if (viewOnly) return;
+    // SURGICAL FIX: Prevent endDate going before startDate
+    if (local.startDate && newEnd < local.startDate) return;
     setActivePreset(null); 
     patch({ endDate: newEnd });
   }
 
   function togglePreset(preset: '1W' | '1M', days: number) {
-    if (!local.startDate || viewOnly) return // SURGICAL LOCK
+    if (!local.startDate || viewOnly) return;
     if (activePreset === preset) {
-      setActivePreset(null) 
+      setActivePreset(null); 
     } else {
-      setActivePreset(preset) 
-      patch({ endDate: addDays(local.startDate, days) })
+      setActivePreset(preset); 
+      patch({ endDate: addDays(local.startDate, days) });
     }
   }
 
+  // --- NEW: SMART INCREMENT MATH ---
   function shiftEndDate(delta: number) {
-    if (!local.endDate || viewOnly) return // SURGICAL LOCK
-    setActivePreset(null) 
-    patch({ endDate: addDays(local.endDate, delta) })
+    if (!local.endDate || viewOnly) return;
+    setActivePreset(null); 
+    
+    // If delta is 1 or -1, check if we should apply a week or month shift
+    let daysToShift = delta;
+    if (Math.abs(delta) === 1) {
+      if (activePreset === '1M') daysToShift = delta * 30;
+      else daysToShift = delta * 7; // Default to week increments
+    }
+
+    const shifted = addDays(local.endDate, daysToShift);
+    // Safety check: Don't shift before start
+    if (local.startDate && shifted < local.startDate) return;
+    
+    patch({ endDate: shifted });
   }
 
   function syncRoomCardsToParent(newCards: RoomCard[]) {
@@ -134,7 +175,7 @@ export default function DurationCard({
   roomCards.forEach(c => { typeCount[c.roomType] = (typeCount[c.roomType] ?? 0) + 1 })
 
   async function handleAddRoomCard(roomType: string, customBedCount?: number) {
-    if (!hasDates || viewOnly) return // SURGICAL LOCK
+    if (!hasDates || viewOnly) return 
     setAddingType(roomType)
     try {
       const bedCount = customBedCount ? customBedCount : (roomType === 'EZ' ? 1 : roomType === 'DZ' ? 2 : roomType === 'TZ' ? 3 : 2)
@@ -150,7 +191,7 @@ export default function DurationCard({
   }
 
   async function handleRemoveLastOfType(roomType: string) {
-    if (viewOnly) return; // SURGICAL LOCK
+    if (viewOnly) return;
     const cards = roomCards.filter(c => c.roomType === roomType)
     if (!cards.length) return
     const last = cards[cards.length - 1]
@@ -163,13 +204,13 @@ export default function DurationCard({
   }
 
   function handleCardUpdate(id: string, p: Partial<RoomCard>) {
-    if (viewOnly) return; // SURGICAL LOCK
+    if (viewOnly) return;
     const n = roomCards.map(c => c.id === id ? { ...c, ...p } : c);
     setRoomCards(n);
     syncRoomCardsToParent(n);
   }
   function handleCardDelete(id: string) {
-    if (viewOnly) return; // SURGICAL LOCK
+    if (viewOnly) return;
     const n = roomCards.filter(c => c.id !== id);
     setRoomCards(n);
     syncRoomCardsToParent(n);
@@ -181,7 +222,7 @@ export default function DurationCard({
     return `${d}/${m}/${y}`;
   }
   function openPicker(ref: React.RefObject<HTMLInputElement>) { 
-    if (viewOnly) return; // SURGICAL LOCK
+    if (viewOnly) return; 
     try { ref.current?.showPicker() } catch (e) { ref.current?.focus() } 
   }
 
@@ -197,18 +238,14 @@ export default function DurationCard({
           {/* DATE PICKERS */}
           <div className={cn("flex items-center rounded-lg border h-[42px] px-2 shrink-0 shadow-sm", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
               <CalendarDays size={16} className="mr-2 opacity-50" />
-              {/* SURGICAL FIX: Added cursor logic to prevent pointer if viewOnly */}
               <div className={cn("relative w-[90px] h-full", viewOnly ? "cursor-default" : "cursor-pointer")} onClick={() => openPicker(inDateRef)}>
-                  {/* SURGICAL FIX: Added disabled={viewOnly} */}
                   <input disabled={viewOnly} ref={inDateRef} type="date" value={local.startDate || ''} onChange={e => handleStartDateChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
                   <div className="absolute inset-0 flex items-center pointer-events-none">
                       <span className={cn("text-[15px] font-bold", local.startDate ? (dk ? 'text-white' : 'text-slate-900') : 'text-slate-400')}>{forceDMY(local.startDate)}</span>
                   </div>
               </div>
               <ArrowRight size={14} className="mx-2 opacity-30" />
-              {/* SURGICAL FIX: Added cursor logic to prevent pointer if viewOnly */}
               <div className={cn("relative w-[90px] h-full", viewOnly ? "cursor-default" : "cursor-pointer")} onClick={() => openPicker(outDateRef)}>
-                  {/* SURGICAL FIX: Added disabled={viewOnly} */}
                   <input disabled={viewOnly} ref={outDateRef} type="date" value={local.endDate || ''} min={local.startDate || undefined} onChange={e => handleEndDateChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
                   <div className="absolute inset-0 flex items-center pointer-events-none">
                       <span className={cn("text-[15px] font-bold", local.endDate ? (dk ? 'text-white' : 'text-slate-900') : 'text-slate-400')}>{forceDMY(local.endDate)}</span>
@@ -217,7 +254,6 @@ export default function DurationCard({
           </div>
 
           {/* SMART PRESETS */}
-          {/* SURGICAL FIX: Wrap entire preset div in {!viewOnly} */}
           {!viewOnly && local.startDate && (
               <div className="flex items-center h-[42px] shrink-0">
                 {[{ label: '1W', days: 7 }, { label: '1M', days: 30 }].map(p => (
@@ -237,9 +273,6 @@ export default function DurationCard({
               <div className="flex items-center gap-1.5 h-[42px] overflow-x-auto no-scrollbar flex-nowrap ml-1">
                 {ROOM_TYPES.map(rt => {
                   const count = typeCount[rt] ?? 0;
-                  
-                  // WG Inline Adder
-                  // SURGICAL FIX: Only show if NOT viewOnly
                   if (rt === 'WG' && isAddingWg && !viewOnly) {
                     return (
                       <div key="wg-input" className={cn('flex items-center h-full rounded-lg border overflow-hidden shrink-0 shadow-sm', dk ? 'border-white/10 bg-[#1E293B]' : 'border-slate-300 bg-white')}>
@@ -251,25 +284,20 @@ export default function DurationCard({
                       </div>
                     )
                   }
-
                   if (count === 0) {
-                    // SURGICAL FIX: Hide the zero-count button if viewOnly
                     return !viewOnly ? (
                       <button key={rt} onClick={() => rt === 'WG' ? setIsAddingWg(true) : handleAddRoomCard(rt)} disabled={!!addingType} className={cn('px-3 h-full rounded-lg text-sm font-black border transition-all flex items-center gap-1 shrink-0 shadow-sm', dk ? 'border-white/10 text-slate-400 bg-[#1E293B] hover:bg-white/5 hover:text-slate-300' : 'border-slate-300 text-slate-500 bg-white hover:bg-slate-50 hover:text-slate-700')}>
                         <Plus size={14} strokeWidth={3} /> {rt}
                       </button>
                     ) : null;
                   }
-                  
                   return (
                     <div key={rt} className="flex items-center h-full shadow-sm rounded-lg overflow-hidden border shrink-0" style={{ borderColor: dk ? 'rgba(255,255,255,0.1)' : '#cbd5e1' }}>
-                      {/* SURGICAL FIX: Hide Minus if viewOnly */}
                       {!viewOnly && <button onClick={() => handleRemoveLastOfType(rt)} className={cn('px-2.5 h-full border-r transition-all', dk ? 'text-slate-400 hover:bg-red-900/20 hover:text-red-400' : 'text-slate-400 hover:bg-red-50 hover:text-red-600')}><Minus size={14} strokeWidth={3} /></button>}
                       <div className={cn("flex items-center h-full px-2.5", dk ? "bg-[#1E293B]" : "bg-white")}>
                          <span className={cn('text-[13px] font-bold mr-1.5', dk ? 'text-slate-400' : 'text-slate-500')}>{rt}</span>
                          <span className={cn('text-[15px] font-black', dk ? 'text-teal-400' : 'text-teal-600')}>{count}</span>
                       </div>
-                      {/* SURGICAL FIX: Hide Plus if viewOnly */}
                       {!viewOnly && <button onClick={() => rt === 'WG' ? setIsAddingWg(true) : handleAddRoomCard(rt)} disabled={!!addingType} className={cn('px-2.5 h-full border-l transition-all', dk ? 'text-slate-400 hover:bg-teal-900/20 hover:text-teal-400' : 'text-slate-400 hover:bg-teal-50 hover:text-teal-600')}><Plus size={14} strokeWidth={3} /></button>}
                     </div>
                   );
@@ -279,54 +307,45 @@ export default function DurationCard({
         </div>
 
         {/* RIGHT: CLEAN, LARGE INFO DISPLAY & TRASH */}
-        {hasDates && (
-            <div className="flex items-center gap-4 shrink-0 ml-auto">
-              
-              {/* 1. THE GREY BASE SPECS */}
+        {/* SURGICAL FIX: Removed hasDates guard to ensure TRASH is always visible for NEW durations */}
+        <div className="flex items-center gap-4 shrink-0 ml-auto">
+          {hasDates && (
+            <>
               <div className="flex items-center gap-4 text-slate-400">
                 <span className="flex items-center gap-1.5 text-lg font-bold"><Moon size={18} /> {nights}</span>
                 <span className="flex items-center gap-1.5 text-lg font-bold"><DoorClosed size={18} /> {roomCards.length}</span>
                 <span className="flex items-center gap-1.5 text-lg font-bold"><Bed size={18} /> {totalBeds}</span>
               </div>
-              
-              {/* FIRST DIVIDER */}
               <div className={cn("w-px h-6 mx-1", dk ? "bg-white/10" : "bg-slate-300")}></div>
-              
-              {/* 2. THE STATUS STAGE (Only renders if relevant) */}
               {isPast ? (
                   <>
-                    {/* Softened, Title Case, smaller size for past dates */}
                     <span className="text-slate-500 font-bold text-base tracking-wide">{lang === 'de' ? 'Abgelaufen' : 'Expired'}</span>
                     <div className={cn("w-px h-6 mx-1", dk ? "bg-white/10" : "bg-slate-300")}></div>
                   </>
               ) : totalBeds > 0 ? (
                   <>
-                    {/* Uppercase but slightly smaller (text-lg) for compact badges */}
                     {freeBeds > 0 ? (
                         <span className="text-red-500 font-black text-lg uppercase tracking-wider">{lang === 'de' ? 'FREI' : 'FREE'} <span className="ml-1">{freeBeds}</span></span>
                     ) : (
                         <span className="text-emerald-500 dark:text-emerald-400 font-black text-lg uppercase tracking-wider">{lang === 'de' ? 'VOLL' : 'FULL'}</span>
                     )}
-                    {/* SECOND DIVIDER (Only if status is showing) */}
                     <div className={cn("w-px h-6 mx-1", dk ? "bg-white/10" : "bg-slate-300")}></div>
                   </>
               ) : null}
-              
-              {/* 3. PRICE & TRASH */}
               {isMasterPricingActive ? (
                   <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Master active</span>
               ) : (
                   <span className="text-xl font-black text-teal-600 dark:text-teal-400">{formatCurrency(roomCardsTotal)}</span>
               )}
-              
-              {/* SURGICAL FIX: Hide Trash if viewOnly */}
-              {!viewOnly && (
-                <button onClick={() => setConfirm(true)} className={cn("p-2 rounded-xl flex items-center justify-center transition-colors shrink-0", dk ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-slate-400 hover:text-red-500 hover:bg-red-50")}>
-                  <Trash2 size={20} />
-                </button>
-              )}
-            </div>
-        )}
+            </>
+          )}
+          
+          {!viewOnly && (
+            <button onClick={() => setConfirm(true)} className={cn("p-2 rounded-xl flex items-center justify-center transition-colors shrink-0", dk ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-slate-400 hover:text-red-500 hover:bg-red-50")}>
+              <Trash2 size={20} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="p-3 border-t border-white/5 space-y-2">
@@ -342,7 +361,7 @@ export default function DurationCard({
             onUpdate={handleCardUpdate} 
             onDelete={handleCardDelete} 
             isMasterPricingActive={isMasterPricingActive} 
-            viewOnly={viewOnly} // SURGICAL FIX: Passed down to RoomCardComponent
+            viewOnly={viewOnly} 
           />
         ))}
       </div>
