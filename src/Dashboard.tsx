@@ -123,7 +123,13 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       const state = channel.presenceState();
       const users = Object.values(state).flat().map((p: any) => p.user);
       const uniqueUsers = Array.from(new Map(users.map(u => [u.id, u])).values());
-      setActiveUsers(uniqueUsers);
+      
+      // SURGICAL FIX: Invisible Mode for Superadmin
+      const filteredUsers = uniqueUsers.filter((u: any) => {
+          if (u.id === accessLevel?.id && accessLevel?.role === 'superadmin' && accessLevel?.invisible) return false;
+          return true;
+      });
+      setActiveUsers(filteredUsers);
     });
 
     channel.subscribe(async (status) => {
@@ -137,7 +143,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     });
 
     return () => { isMounted = false; channel.unsubscribe(); supabase.removeChannel(channel); };
-  }, []);
+  }, [accessLevel]); // Added accessLevel to deps for invisible check
 
   // --- FIXED DATA FETCHING LOGIC WITH NEW MASTER FIELDS ---
   useEffect(() => { 
@@ -298,7 +304,23 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const finalFiltered = useMemo(() => {
     return hotels.filter(h => {
       if (showBookmarks && !bookmarks.includes(h.id)) return false;
-      if (searchQuery && !hotelMatchesSearch(h, searchQuery, searchScope)) return false;
+      
+      // SURGICAL FIX: Targeted Search Logic
+      if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          if (searchScope === 'hotel') { if (!h.name?.toLowerCase().includes(q)) return false; }
+          else if (searchScope === 'city') { if (!h.city?.toLowerCase().includes(q)) return false; }
+          else if (searchScope === 'company') { if (!h.companyTag?.some((t:any) => t.toLowerCase().includes(q))) return false; }
+          else if (searchScope === 'invoice') { 
+              const match = h.rechnungNr?.toLowerCase().includes(q) || h.durations?.some((d:any) => d.rechnungNr?.toLowerCase().includes(q));
+              if (!match) return false;
+          }
+          else if (searchScope === 'employee') {
+              const hasEmp = h.durations?.some((d:any) => d.roomCards?.some((rc:any) => rc.employees?.some((e:any) => e.name?.toLowerCase().includes(q))));
+              if (!hasEmp) return false;
+          }
+          else { if (!hotelMatchesSearch(h, searchQuery, 'all')) return false; }
+      }
       
       if (selectedMonth !== null) {
         const overlap = (h.durations || []).some((d: any) => {
@@ -316,7 +338,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
          if (!hasOverlap) return false;
       }
 
-      // NEW FILTER LOGIC: Now checks the Master Hotel status instead of durations
       if (filterPaid === 'paid' && !h.isPaid) return false;
       if (filterPaid === 'unpaid' && h.isPaid) return false;
       
@@ -343,14 +364,37 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
       return true;
     }).sort((a, b) => {
-      let va: any = a.name?.toLowerCase(); let vb: any = b.name?.toLowerCase();
-      if (sortBy === 'cost') { va = calcHotelTotalCost(a); vb = calcHotelTotalCost(b); }
-      if (sortBy === 'created_at') { va = new Date(a.created_at).getTime(); vb = new Date(b.created_at).getTime(); }
-      if (sortBy === 'updated_at') { va = new Date(a.last_updated_at || a.lastUpdatedAt || 0).getTime(); vb = new Date(b.last_updated_at || b.lastUpdatedAt || 0).getTime(); }
-      if (sortBy === 'free_beds') { va = calcHotelFreeBedsToday(a); vb = calcHotelFreeBedsToday(b); }
+      let va: any; let vb: any;
+      
+      // SURGICAL FIX: Improved Price/Bed numeric sorting
+      if (sortBy === 'bed_price') {
+          const getMinPrice = (hotel: any) => {
+              if (hotel.override_price_per_bed != null) return parseFloat(hotel.override_price_per_bed);
+              let min = Infinity;
+              hotel.durations?.forEach((d:any) => {
+                  const nights = calculateNights(d.startDate, d.endDate);
+                  d.roomCards?.forEach((c:any) => {
+                      const beds = c.roomType === 'EZ' ? 1 : c.roomType === 'DZ' ? 2 : c.roomType === 'TZ' ? 3 : (c.bedCount || 2);
+                      const netto = calcRoomCardNettoSum(c, d.startDate, d.endDate);
+                      if (beds > 0 && nights > 0 && netto > 0) {
+                          const p = netto / (beds * nights);
+                          if (p < min) min = p;
+                      }
+                  });
+              });
+              return min === Infinity ? 0 : min;
+          };
+          va = getMinPrice(a); vb = getMinPrice(b);
+      } 
+      else if (sortBy === 'cost') { va = calcHotelTotalCost(a); vb = calcHotelTotalCost(b); }
+      else if (sortBy === 'free_beds') { va = calcHotelFreeBedsToday(a); vb = calcHotelFreeBedsToday(b); }
+      else if (sortBy === 'created_at') { va = new Date(a.created_at).getTime(); vb = new Date(b.created_at).getTime(); }
+      else if (sortBy === 'updated_at') { va = new Date(a.last_updated_at || a.lastUpdatedAt || 0).getTime(); vb = new Date(b.last_updated_at || b.lastUpdatedAt || 0).getTime(); }
+      else { va = a.name?.toLowerCase(); vb = b.name?.toLowerCase(); }
+
       return (va < vb ? -1 : va > vb ? 1 : 0) * (sortDir === 'asc' ? 1 : -1);
     });
-  }, [hotels, searchQuery, showBookmarks, bookmarks, sortBy, sortDir, tlType, tlStart, tlEnd, fbType, filterPaid, filterDeposit, selectedMonth, selectedYear]);
+  }, [hotels, searchQuery, searchScope, showBookmarks, bookmarks, sortBy, sortDir, tlType, tlStart, tlEnd, fbType, filterPaid, filterDeposit, selectedMonth, selectedYear]);
 
   const groupData = useMemo(() => {
     if (groupBy === 'none') return null;
@@ -369,18 +413,33 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
   const activeFilters = useMemo(() => {
     const badges = [];
-    if (tlType !== 'all') badges.push({ id: 'tl', label: lang === 'de' ? 'Zeitraum' : 'Timeline', val: tlType === 'range' ? `${tlStart} ➔ ${tlEnd}` : tlType, clear: () => { setTlType('all'); setTlStart(''); setTlEnd(''); } });
+    // SURGICAL FIX: Translate chips
+    const fmt = (iso:string) => { if(!iso) return ''; const [y,m,d] = iso.split('-'); return `${d}.${m}.${y}`; };
+    
+    if (tlType !== 'all') badges.push({ id: 'tl', label: lang === 'de' ? 'Zeitraum' : 'Timeline', val: tlType === 'range' ? `${fmt(tlStart)} ➔ ${fmt(tlEnd)}` : tlType, clear: () => { setTlType('all'); setTlStart(''); setTlEnd(''); } });
     if (fbType !== 'all') badges.push({ id: 'fb', label: lang === 'de' ? 'Freie Betten' : 'Free Beds', val: fbType, clear: () => setFbType('all') });
     if (filterPaid !== 'all') badges.push({ id: 'paid', label: lang === 'de' ? 'Zahlung' : 'Payment', val: filterPaid, clear: () => setFilterPaid('all') });
     if (filterDeposit !== 'all') badges.push({ id: 'dep', label: lang === 'de' ? 'Kaution' : 'Deposit', val: filterDeposit, clear: () => setFilterDeposit('all') });
     if (groupBy !== 'none') badges.push({ id: 'grp', label: lang === 'de' ? 'Gruppe' : 'Group', val: groupBy, clear: () => setGroupBy('none') });
-    if (sortBy !== 'created_at' || sortDir !== 'desc') badges.push({ id: 'srt', label: lang === 'de' ? 'Sortierung' : 'Sort', val: `${sortBy.replace('_', ' ')} (${sortDir})`, clear: () => { setSortBy('created_at'); setSortDir('desc'); } });
+    
+    if (sortBy !== 'created_at' || sortDir !== 'desc') {
+        let sortLabel = sortBy.replace('_', ' ').toUpperCase();
+        if (lang === 'de') {
+            if (sortBy === 'bed_price') sortLabel = 'BETTPREIS';
+            else if (sortBy === 'cost') sortLabel = 'GESAMTRABATT';
+            else if (sortBy === 'free_beds') sortLabel = 'FREIE BETTEN';
+        }
+        badges.push({ id: 'srt', label: lang === 'de' ? 'Sortierung' : 'Sort', val: `${sortLabel} (${sortDir === 'asc' ? (lang === 'de' ? 'AUF' : 'ASC') : (lang === 'de' ? 'AB' : 'DESC')})`, clear: () => { setSortBy('created_at'); setSortDir('desc'); } });
+    }
     return badges;
   }, [tlType, tlStart, tlEnd, fbType, filterPaid, filterDeposit, groupBy, sortBy, sortDir, lang]);
 
   const btnActive = dk ? 'bg-teal-600 text-white border-transparent' : 'bg-white border-teal-600 text-teal-700 shadow-sm';
   const btnInactive = dk ? 'bg-white/5 text-slate-300 border-transparent hover:bg-white/10' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50';
-  const popupCls = cn('absolute z-[1000] mt-3 p-5 rounded-2xl border shadow-2xl w-[380px] text-sm animate-in fade-in slide-in-from-top-2 duration-200', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900');
+  
+  // SURGICAL FIX: Popup overflow fix
+  const popupCls = cn('absolute z-[1000] mt-3 p-5 rounded-2xl border shadow-2xl w-[380px] text-sm animate-in fade-in slide-in-from-top-2 duration-200 right-0 lg:right-auto', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900');
+  
   const popupHeader = "flex items-center justify-between mb-5";
   const popupTitle = "text-lg font-bold";
   const sectionTitle = "text-sm text-slate-400 mb-2";
@@ -400,7 +459,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           searchScope={searchScope} setSearchScope={setSearchScope} 
           onSignOut={onSignOut} 
           
-          // FIX: Passing the dynamic title and the active filter states!
           onExportCsv={() => exportToCSV(finalFiltered, calcHotelTotalCost, totalSpend, `Report: Period ${displayTitle}`, lang, filterPaid !== 'all', filterDeposit !== 'all')} 
           onPrint={() => setShowStudio(true)}
           
@@ -484,7 +542,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                         <div className="flex items-center gap-3">
                            <input type="date" value={tlStart} onChange={e => {setTlStart(e.target.value); setTlType('range');}} className={cn("flex-1 p-2 rounded-lg outline-none text-sm font-medium", dk ? "bg-transparent border border-white/10" : "bg-white border border-slate-200")} />
                            <span className="text-slate-400">➔</span>
-                           <input type="date" value={tlEnd} onChange={e => {setTlEnd(e.target.value); setTlType('range');}} className={cn("flex-1 p-2 rounded-lg outline-none text-sm font-medium", dk ? "bg-transparent border border-white/10" : "bg-white border border-slate-200")} />
+                           {/* SURGICAL FIX: Prevent end date before start date */}
+                           <input type="date" min={tlStart} value={tlEnd} onChange={e => {if(tlStart && e.target.value < tlStart) return; setTlEnd(e.target.value); setTlType('range');}} className={cn("flex-1 p-2 rounded-lg outline-none text-sm font-medium", dk ? "bg-transparent border border-white/10" : "bg-white border border-slate-200")} />
                         </div>
                       </div>
                       <p className="text-xs text-slate-500 mb-6">{lang === 'de' ? 'Blendet alle Hotels ohne Buchungen im gewählten Zeitraum aus.' : 'Hides any hotel that has zero bookings/durations overlapping your chosen range.'}</p>
