@@ -342,7 +342,12 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
               const hasEmp = (h.durations || []).some((d:any) => (d.roomCards || []).some((rc:any) => (rc.employees || []).some((e:any) => e.name?.toLowerCase().includes(q))));
               if (!hasEmp) return false;
           } else { 
-              if (!hotelMatchesSearch(h, searchQuery, 'all')) return false; 
+              // ALL FIELDS SCOPE: Deep search including durations, employees, and invoices
+              const matchAll = hotelMatchesSearch(h, searchQuery, 'all');
+              const deepInvoiceMatch = h.rechnungNr?.toLowerCase().includes(q) || (h.durations || []).some((d:any) => d.rechnungNr?.toLowerCase().includes(q));
+              const deepEmployeeMatch = (h.durations || []).some((d:any) => (d.roomCards || []).some((rc:any) => (rc.employees || []).some((e:any) => e.name?.toLowerCase().includes(q))));
+              
+              if (!matchAll && !deepInvoiceMatch && !deepEmployeeMatch) return false;
           }
       }
       
@@ -755,6 +760,25 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             </div>
 
             {/* HORIZONTAL GROUP TABS */}
+            // src/Dashboard.tsx
+
+            {/* ACTIVE FILTERS ROW (Moved ABOVE Group Tabs as requested) */}
+            {activeFilters.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 mb-6 animate-in fade-in duration-200">
+                <span className="text-xs font-bold text-slate-500 mr-2">{lang === 'de' ? 'Aktive Filter:' : 'Active Filters:'}</span>
+                {activeFilters.map(af => (
+                  <span key={af.id} className={cn("px-3 py-1.5 rounded-lg flex items-center gap-2 text-[11px] font-bold border", dk ? "bg-teal-500/20 text-teal-400 border-teal-500/30" : "bg-teal-50 border-teal-200 text-teal-700")}>
+                    {af.label}: <span className="opacity-70 uppercase">{af.val}</span>
+                    <button onClick={af.clear} className="hover:text-red-500 ml-1 transition-colors"><X size={12} strokeWidth={3} /></button>
+                  </span>
+                ))}
+                <button onClick={() => { setTlType('all'); setFbType('all'); setFilterPaid('all'); setFilterDeposit('all'); setGroupBy('none'); setSortBy('created_at'); setSortDir('desc'); setShowBookmarks(false); }} className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-white ml-2 transition-all hover:underline">
+                  {lang === 'de' ? 'Alle löschen' : 'Clear All'}
+                </button>
+              </div>
+            )}
+
+            {/* HORIZONTAL GROUP TABS */}
             {groupBy !== 'none' && groupData && (
               <div className="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar border-b border-slate-200 dark:border-white/10">
                 {Object.keys(groupData).map(g => (
@@ -769,22 +793,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                     {g} ({groupData[g].length})
                   </button>
                 ))}
-              </div>
-            )}
-
-            {/* ACTIVE FILTERS ROW */}
-            {activeFilters.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 mb-6 animate-in fade-in duration-200">
-                <span className="text-xs font-bold text-slate-500 mr-2">{lang === 'de' ? 'Aktive Filter:' : 'Active Filters:'}</span>
-                {activeFilters.map(af => (
-                  <span key={af.id} className={cn("px-3 py-1.5 rounded-lg flex items-center gap-2 text-[11px] font-bold border", dk ? "bg-teal-500/20 text-teal-400 border-teal-500/30" : "bg-teal-50 border-teal-200 text-teal-700")}>
-                    {af.label}: <span className="opacity-70 uppercase">{af.val}</span>
-                    <button onClick={af.clear} className="hover:text-red-500 ml-1 transition-colors"><X size={12} strokeWidth={3} /></button>
-                  </span>
-                ))}
-                <button onClick={() => { setTlType('all'); setFbType('all'); setFilterPaid('all'); setFilterDeposit('all'); setGroupBy('none'); setSortBy('created_at'); setSortDir('desc'); setShowBookmarks(false); }} className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-white ml-2 transition-all hover:underline">
-                  {lang === 'de' ? 'Alle löschen' : 'Clear All'}
-                </button>
               </div>
             )}
 
@@ -832,6 +840,20 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                 {groupBy !== 'none' && groupData ? (
                   activeGroupTab ? (
                     <div className="flex flex-col gap-4 animate-in fade-in duration-300">
+                      
+                      {/* RESTORED: GROUP TOTALS BLOCK */}
+                      <div className={cn("px-6 py-4 rounded-xl border flex items-center justify-between mb-2", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200 shadow-sm")}>
+                        <div className="flex items-center gap-4">
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{lang === 'de' ? 'Gruppe' : 'Group'}: {lang === 'de' && groupBy === 'company' ? 'Firma' : groupBy.toUpperCase()}</span>
+                          <h3 className="text-xl font-bold">{activeGroupTab}</h3>
+                          <span className="px-3 py-1 rounded-full bg-teal-500/10 text-teal-600 text-xs font-bold">{groupData[activeGroupTab].length} Hotels</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase">{lang === 'de' ? 'Gesamtwert' : 'Total Value'}</p>
+                          <p className="text-lg font-bold text-teal-600 dark:text-teal-400">{formatCurrency(groupData[activeGroupTab].reduce((s,h)=>s+calcHotelTotalCost(h),0))}</p>
+                        </div>
+                      </div>
+
                       {groupData[activeGroupTab].map((h, i) => (
                         <HotelRow 
                           key={h.id} 
