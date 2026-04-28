@@ -639,13 +639,48 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                           </button>
                         ))}
                       </div>
+                      {/* --- SURGICAL FIX: TIMELINE DATE FORMAT (DD.MM.YYYY) --- */}
                       <div className={cn("p-4 rounded-xl border mb-4", dk ? "bg-black/20 border-white/5" : "bg-slate-50 border-slate-200")}>
                         <div className="flex items-center gap-3">
-                           <input type="date" value={tlStart} onChange={e => {setTlStart(e.target.value); setTlType('range');}} className={cn("flex-1 p-2 rounded-lg outline-none text-sm font-medium", dk ? "bg-transparent border border-white/10" : "bg-white border border-slate-200")} />
+                           
+                           {/* START DATE */}
+                           <div className={cn("relative flex-1 h-[38px] rounded-lg border transition-all focus-within:border-teal-500 focus-within:ring-1 focus-within:ring-teal-500 overflow-hidden", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+                              {/* Custom Formatted Display */}
+                              <div className={cn("absolute inset-0 flex items-center px-3 text-sm font-medium pointer-events-none", dk ? "text-white" : "text-slate-900")}>
+                                 {tlStart ? tlStart.split('-').reverse().join('.') : <span className="opacity-40">{lang === 'de' ? 'TT.MM.JJJJ' : 'DD.MM.YYYY'}</span>}
+                              </div>
+                              {/* Invisible Native Input */}
+                              <input 
+                                type="date" 
+                                value={tlStart} 
+                                onClick={(e: any) => e.target.showPicker && e.target.showPicker()}
+                                onChange={e => {setTlStart(e.target.value); setTlType('range');}} 
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                              />
+                           </div>
+                           
                            <span className="text-slate-400">➔</span>
-                           <input type="date" min={tlStart} value={tlEnd} onChange={e => {if(tlStart && e.target.value < tlStart) return; setTlEnd(e.target.value); setTlType('range');}} className={cn("flex-1 p-2 rounded-lg outline-none text-sm font-medium", dk ? "bg-transparent border border-white/10" : "bg-white border border-slate-200")} />
+                           
+                           {/* END DATE */}
+                           <div className={cn("relative flex-1 h-[38px] rounded-lg border transition-all focus-within:border-teal-500 focus-within:ring-1 focus-within:ring-teal-500 overflow-hidden", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+                              {/* Custom Formatted Display */}
+                              <div className={cn("absolute inset-0 flex items-center px-3 text-sm font-medium pointer-events-none", dk ? "text-white" : "text-slate-900")}>
+                                 {tlEnd ? tlEnd.split('-').reverse().join('.') : <span className="opacity-40">{lang === 'de' ? 'TT.MM.JJJJ' : 'DD.MM.YYYY'}</span>}
+                              </div>
+                              {/* Invisible Native Input */}
+                              <input 
+                                type="date" 
+                                min={tlStart} 
+                                value={tlEnd} 
+                                onClick={(e: any) => e.target.showPicker && e.target.showPicker()}
+                                onChange={e => {if(tlStart && e.target.value < tlStart) return; setTlEnd(e.target.value); setTlType('range');}} 
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                              />
+                           </div>
+
                         </div>
                       </div>
+                      {/* --- END FIX --- */}
                       <p className="text-xs text-slate-500 mb-6">{lang === 'de' ? 'Blendet alle Hotels ohne Buchungen im gewählten Zeitraum aus.' : 'Hides any hotel that has zero bookings/durations overlapping your chosen range.'}</p>
                       <div className="flex justify-center border-t border-slate-200 dark:border-white/10 pt-4">
                         <button onClick={() => {setTlType('all'); setTlStart(''); setTlEnd(''); closeMenu();}} className={cn("w-full py-2.5 rounded-lg border flex items-center justify-center gap-2 text-sm font-medium", dk ? "border-teal-600 text-teal-500 hover:bg-teal-600/10" : "border-teal-600 text-teal-700 hover:bg-teal-50")}>
