@@ -4,7 +4,7 @@ import { supabase, deleteHotel, createHotel } from './lib/supabase';
 import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday, calculateNights } from './lib/utils';
 import { calcRoomCardNettoSum } from './lib/roomCardUtils';
 import type { AccessLevel } from './lib/supabase';
-import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Undo2, Redo2, Star, Calendar, MapPin, Building, Building2, CloudOff, Globe, Trash2 } from 'lucide-react';
+import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Undo2, Redo2, Star, Calendar, MapPin, Building, Building2, CloudOff, Globe, Trash2, Copy } from 'lucide-react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import { HotelRow, ModernDropdown, CompanyMultiSelect, getCountryOptions } from './components/HotelRow';
@@ -55,38 +55,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     status: false, deposit: false
   });
 
-  // --- SELECTION SYSTEM ---
+  // --- SELECTION SYSTEM STATE ---
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // Check if everything on the current screen is selected
-  const isAllSelected = useMemo(() => {
-    // Standard: Only select what the user actually sees right now
-    const visible = groupBy !== 'none' && activeGroupTab && groupData 
-      ? groupData[activeGroupTab] 
-      : finalFiltered;
-    return visible.length > 0 && visible.every(h => selectedIds.has(h.id));
-  }, [selectedIds, finalFiltered, groupData, activeGroupTab, groupBy]);
-
-  const toggleSelect = (id: string) => {
-    const next = new Set(selectedIds);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setSelectedIds(next);
-  };
-
-  const toggleSelectAll = () => {
-    const visible = groupBy !== 'none' && activeGroupTab && groupData 
-      ? groupData[activeGroupTab] 
-      : finalFiltered;
-    const next = new Set(selectedIds);
-    if (isAllSelected) {
-      visible.forEach(h => next.delete(h.id));
-    } else {
-      visible.forEach(h => next.add(h.id));
-    }
-    setSelectedIds(next);
-  };
-  
   // MENU VISIBILITY
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showTimelineMenu, setShowTimelineMenu] = useState(false);
@@ -365,7 +336,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const fbCountTomorrow = useMemo(() => getBedsCount(1), [hotels]);
   const fbCount3 = useMemo(() => getBedsCount(3), [hotels]);
   const fbCount7 = useMemo(() => getBedsCount(7), [hotels]);
-
   const finalFiltered = useMemo(() => {
     return hotels.filter(h => {
       if (showBookmarks && !bookmarks.includes(h.id)) return false;
@@ -479,11 +449,38 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     return groups;
   }, [finalFiltered, groupBy, lang]);
 
+  // --- SELECTION SYSTEM LOGIC (SAFELY MOVED HERE AFTER DATA CALCULATION) ---
+  const isAllSelected = useMemo(() => {
+    const visible = groupBy !== 'none' && activeGroupTab && groupData 
+      ? groupData[activeGroupTab] 
+      : finalFiltered;
+    return visible.length > 0 && visible.every(h => selectedIds.has(h.id));
+  }, [selectedIds, finalFiltered, groupData, activeGroupTab, groupBy]);
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const toggleSelectAll = () => {
+    const visible = groupBy !== 'none' && activeGroupTab && groupData 
+      ? groupData[activeGroupTab] 
+      : finalFiltered;
+    const next = new Set(selectedIds);
+    if (isAllSelected) {
+      visible.forEach(h => next.delete(h.id));
+    } else {
+      visible.forEach(h => next.add(h.id));
+    }
+    setSelectedIds(next);
+  };
+
   const totalSpend = finalFiltered.reduce((s, h) => s + calcHotelTotalCost(h, selectedMonth, selectedYear), 0);
   const freeBedsTotal = finalFiltered.reduce((s, h) => s + calcHotelFreeBedsToday(h), 0);
 
   const closeMenu = () => { setShowFilterMenu(false); setShowTimelineMenu(false); setShowSortMenu(false); };
-  // src/Dashboard.tsx
 
   const activeFilters = useMemo(() => {
     const badges = [];
@@ -870,9 +867,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
               </div>
             </div>
 
-            {/* HORIZONTAL GROUP TABS */}
-
-            {/* ACTIVE FILTERS ROW (Moved ABOVE Group Tabs as requested) */}
+            {/* ACTIVE FILTERS ROW */}
             {activeFilters.length > 0 && (
               <div className="flex flex-wrap items-center gap-2 mb-6 animate-in fade-in duration-200">
                 <span className="text-xs font-bold text-slate-500 mr-2">{lang === 'de' ? 'Aktive Filter:' : 'Active Filters:'}</span>
@@ -917,7 +912,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                         <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">{lang === 'de' ? 'Hotelname' : 'Hotel Name'}</label>
                         <input autoFocus list="hotel-suggestions" className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold transition-all focus:border-teal-500', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder="Riveria..." />
                         <datalist id="hotel-suggestions">
-                           {/* SURGICAL FIX: Only populate suggestions if user typed something */}
                            {newHotelName.trim().length > 0 && uniqueHotelNames.map(n => <option key={n} value={n} />)}
                         </datalist>
                       </div>
@@ -927,7 +921,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                         <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block"><MapPin size={10} className="inline mr-1"/> {lang === 'de' ? 'Stadt' : 'City'}</label>
                         <input list="city-suggestions" className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold transition-all focus:border-teal-500', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder="Essen..." />
                         <datalist id="city-suggestions">
-                           {/* SURGICAL FIX: Only populate suggestions if user typed something */}
                            {newHotelCity.trim().length > 0 && uniqueCities.map(c => <option key={c} value={c} />)}
                         </datalist>
                       </div>
@@ -1006,6 +999,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                   finalFiltered.map((hotel, index) => (
                     <HotelRow 
                       key={hotel.id} 
+                      // --- SURGICAL FIX: USE CORRECT VARIABLE NAME 'hotel' ---
                       isSelected={selectedIds.has(hotel.id)}
                       onSelect={() => toggleSelect(hotel.id)}
                       isBulkActive={selectedIds.size > 0}
