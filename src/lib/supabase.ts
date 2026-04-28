@@ -139,10 +139,17 @@ export async function removeCollaborator(userId: string): Promise<void> {
 }
 
 // ─── Hotels ────────────────────────────────────────────────────────────────
+// src/lib/supabase.ts
+
+// ─── Hotels ────────────────────────────────────────────────────────────────
 export async function createHotel(data: any) {
   const { data: { user } } = await supabase.auth.getUser()
   const authorName = user?.user_metadata?.full_name || user?.email || 'Admin'
-  const tags = Array.isArray(data.companyTag) ? data.companyTag : []
+  
+  // SURGICAL FIX: Check for both company_tag (from Dashboard) and companyTag
+  const tags = Array.isArray(data.company_tag) 
+    ? data.company_tag 
+    : (Array.isArray(data.companyTag) ? data.companyTag : [])
 
   const { data: result, error } = await supabase.from('hotels').insert({
     name: data.name,
@@ -163,7 +170,6 @@ export async function createHotel(data: any) {
   if (error) throw error
   return result
 }
-
 export async function updateHotel(id: string, data: any) {
   const { data: { user } } = await supabase.auth.getUser()
   const authorName = user?.user_metadata?.full_name || user?.email || 'Admin'
