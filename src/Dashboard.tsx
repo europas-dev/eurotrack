@@ -760,7 +760,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             </div>
 
             {/* HORIZONTAL GROUP TABS */}
-            // src/Dashboard.tsx
 
             {/* ACTIVE FILTERS ROW (Moved ABOVE Group Tabs as requested) */}
             {activeFilters.length > 0 && (
