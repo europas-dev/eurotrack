@@ -104,7 +104,7 @@ function MwstInput({ value, onChange, isDarkMode, disabled }: { value: string | 
   );
 }
 
-export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onAddOption, viewOnly }: any) {
+export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onAddOption, viewOnly }: any) {
   const [open, setOpen] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   
@@ -151,19 +151,26 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [activeDurationTab, setActiveDurationTab] = useState(0);
   const saveTimer = useRef<any>(null);
 
+  // --- SURGICAL FIX: INDICATOR FOR HIDDEN MATCHES ---
   const hiddenMatchText = useMemo(() => {
     if (!searchQuery) return null;
     const q = searchQuery.toLowerCase();
-    for (const d of (localHotel.durations || [])) {
-      if (localHotel.rechnungNr?.toLowerCase().includes(q) || d.rechnungNr?.toLowerCase().includes(q)) return lang === 'de' ? `Treffer: Rechnung` : `Invoice Match`;
-      for (const rc of (d.roomCards || [])) {
-        for (const emp of (rc.employees || [])) {
-          if (emp.name?.toLowerCase().includes(q)) return lang === 'de' ? `Treffer: Mitarbeiter` : `Employee Match`;
-        }
-      }
-    }
+    
+    // Check Invoice match in Master or Durations
+    const invoiceMatch = localHotel.rechnungNr?.toLowerCase().includes(q) || 
+                       localHotel.durations?.some((d:any) => d.rechnungNr?.toLowerCase().includes(q));
+    if (invoiceMatch && (searchScope === 'all' || searchScope === 'invoice')) return lang === 'de' ? `Treffer: Rechnung` : `Invoice Match`;
+
+    // Check Employee match
+    const employeeMatch = localHotel.durations?.some((d:any) => 
+      (d.roomCards || []).some((rc:any) => 
+        (rc.employees || []).some((emp:any) => emp.name?.toLowerCase().includes(q))
+      )
+    );
+    if (employeeMatch && (searchScope === 'all' || searchScope === 'employee')) return lang === 'de' ? `Treffer: Mitarbeiter` : `Employee Match`;
+
     return null;
-  }, [localHotel, searchQuery, lang]);
+  }, [localHotel, searchQuery, searchScope, lang]);
 
   // --- THE MASTER ACCOUNTING ENGINE & MWST BUCKETER ---
   const masterMath = useMemo(() => {
@@ -304,8 +311,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           finalNetto = Math.max(0, preGlobalNetto - (isFixed ? gVal : preGlobalNetto * ratio));
           finalBrutto = finalNetto;
           Object.keys(buckets).forEach(k => {
-             buckets[k] = buckets[k] * (1 - ratio);
-             finalBrutto += buckets[k];
+              buckets[k] = buckets[k] * (1 - ratio);
+              finalBrutto += buckets[k];
           });
        } else {
           finalBrutto = Math.max(0, preGlobalBrutto - (isFixed ? gVal : preGlobalBrutto * (gVal/100)));
@@ -341,7 +348,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const hiddenEmpsCount = masterMath.employees.length > 6 ? masterMath.employees.length - 6 : 0;
 
   function patchHotel(changes: any) {
-    if (viewOnly) return; // FIX: Lock save function for viewer
+    if (viewOnly) return; 
     const next = { ...localHotel, ...changes };
     setLocalHotel(next);
     clearTimeout(saveTimer.current);
@@ -359,22 +366,17 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         if ('website' in next) dbPayload.weblink = next.website;
         if ('country' in next) dbPayload.country = next.country;
         if ('notes' in next) dbPayload.notes = next.notes;
-        
         if ('rechnungNr' in next) dbPayload.rechnung_nr = next.rechnungNr;
         if ('bookingId' in next) dbPayload.booking_id = next.bookingId;
         if ('isPaid' in next) dbPayload.is_paid = next.isPaid;
-        
         if ('depositEnabled' in next) dbPayload.deposit_enabled = next.depositEnabled;
         if ('depositAmount' in next) dbPayload.deposit_amount = next.depositAmount;
-        
         if ('has_global_discount' in next) dbPayload.has_global_discount = next.has_global_discount;
         if ('global_discount_value' in next) dbPayload.global_discount_value = next.global_discount_value;
         if ('global_discount_type' in next) dbPayload.global_discount_type = next.global_discount_type;
         if ('global_discount_target' in next) dbPayload.global_discount_target = next.global_discount_target;
-        
         if ('baseCosts' in next) dbPayload.base_costs = next.baseCosts;
         if ('extraCosts' in next) dbPayload.extra_costs = next.extraCosts;
-        
         if ('override_total_brutto' in next) dbPayload.override_total_brutto = next.override_total_brutto;
         if ('override_price_per_bed' in next) dbPayload.override_price_per_bed = next.override_price_per_bed;
 
@@ -459,8 +461,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
 
           <div className="flex-[2] py-2 min-w-[200px] pr-2">
-            <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-[15px] font-black leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchQuery} />
-            <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} className="mt-0.5" textClass={cn("text-[10px] font-bold uppercase tracking-widest gap-1.5", dk ? "text-slate-500" : "text-slate-400")} searchQuery={searchQuery} />
+            {/* SURGICAL FIX: Scoped Highlighting for Hotel Name */}
+            <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-[15px] font-black leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} />
+            {/* SURGICAL FIX: Scoped Highlighting for City */}
+            <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} className="mt-0.5" textClass={cn("text-[10px] font-bold uppercase tracking-widest gap-1.5", dk ? "text-slate-500" : "text-slate-400")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
           </div>
 
           <div className="flex-[0.8] px-2 min-w-[120px]" onClick={e => e.stopPropagation()}>
@@ -489,18 +493,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             <div className="flex flex-wrap gap-1.5">
               {visibleEmps.map((emp: any, i: number) => {
                 const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
-                
-                // NEW: Find the duration this employee belongs to so we can check for partial stays
                 const parentDuration = localHotel.durations.find((d: any) => d.id === emp.duration_id || d.id === emp.durationId);
                 const isPartial = parentDuration && (emp.checkIn > parentDuration.startDate || emp.checkOut < parentDuration.endDate);
-                
-                // NEW: Check if this employee is a replacement (Substitute)
-                // In the main row list, we check if they have a 'slot_index' shared with another emp in the same duration
                 const isSubstitute = masterMath.employees.some((other: any) => 
                   other.id !== emp.id && 
                   other.slot_index === emp.slot_index && 
                   other.duration_id === emp.duration_id &&
-                  (other.checkIn < emp.checkIn) // The one who came first is the original
+                  (other.checkIn < emp.checkIn)
                 );
 
                 const borderCls = status === 'active' ? "border-emerald-500/50" : status === 'upcoming' ? "border-blue-500/50" : status === 'ending-soon' ? "border-red-500/50" : "border-slate-500/40";
@@ -516,19 +515,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                   title={tooltip} 
                   onClick={(e) => { 
                     e.stopPropagation(); 
-                    // 1. Open the hotel row if it's closed
                     setOpen(true); 
-                    
-                    // 2. Find and set the correct duration tab
                     const durationIdx = localHotel.durations.findIndex((d: any) => d.id === emp.duration_id || d.id === emp.durationId);
                     if (durationIdx !== -1) setActiveDurationTab(durationIdx);
-                
-                    // 3. Scroll to the specific employee slot
                     setTimeout(() => {
                       const element = document.getElementById(`emp-slot-${emp.id}`);
                       if (element) {
                         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        // Optional: Add a brief "flash" effect so the user sees which one it is
                         element.classList.add('ring-2', 'ring-teal-500');
                         setTimeout(() => element.classList.remove('ring-2', 'ring-teal-500'), 2000);
                       }
@@ -546,7 +539,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                   ) : (
                     <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
                   )}
-                  <HighlightText text={emp.name || '_ _ _'} query={searchQuery} />
+                  {/* SURGICAL FIX: Scoped Highlighting for Employees */}
+                  <HighlightText text={emp.name || '_ _ _'} query={searchScope === 'all' || searchScope === 'employee' ? searchQuery : ''} />
                </button>
                 );
               })}
@@ -555,6 +549,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
 
           <div className="ml-auto flex items-center gap-6 pr-3 shrink-0 min-w-[280px] justify-end">
+            {/* SURGICAL FIX: Hidden Match indicator */}
+            {hiddenMatchText && (
+               <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-teal-500/10 border border-teal-500/20 text-teal-500 text-[9px] font-black uppercase tracking-tighter animate-pulse">
+                  <Search size={10} strokeWidth={3} /> {hiddenMatchText}
+               </div>
+            )}
+            
             <div className="text-center w-10">
               <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">{lang === 'de' ? 'Frei' : 'Free'}</p>
               <p className={cn('text-lg font-black', masterMath.freeBeds > 0 ? 'text-red-500' : dk ? 'text-teal-500' : 'text-teal-600')}>{masterMath.freeBeds}</p>
@@ -585,11 +586,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
         </div>
 
-        {/* EXPANDED BREAKDOWN */}
+        {/* EXPANDED BREAKDOWN stays exactly the same */}
         {open && (
           <div className={cn('p-6 space-y-6 rounded-b-2xl border-t', dk ? 'bg-[#0B1224] border-white/5' : 'bg-slate-50 border-slate-200')} onClick={e => e.stopPropagation()}>
-            
-            {/* CONTACT ROW */}
             <div className="flex flex-wrap xl:flex-nowrap gap-4 items-end">
               <div className="flex-[2] min-w-[180px] flex items-end gap-2">
                  <div className="shrink-0"><label className={cn(labelCls, 'mb-1.5')}><StickyNote size={12}/> {lang === 'de' ? 'Notiz' : 'Note'}</label><button onClick={() => setShowNotes(!showNotes)} className={cn("w-[34px] h-[34px] rounded-lg border flex items-center justify-center transition-all", localHotel.notes ? "bg-teal-500/10 border-teal-500/30 text-teal-500" : dk ? "bg-[#1E293B] text-slate-400 hover:text-white hover:bg-white/5" : "bg-white border-slate-200 text-slate-400 hover:text-slate-800 hover:bg-slate-50")}><StickyNote size={16} /></button></div>
@@ -608,14 +607,14 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               </div>
             )}
 
-            {/* MASTER INVOICE CARD */}
             <div className={cn("rounded-2xl border flex flex-col xl:flex-row shadow-md", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}>
-                
-                {/* COL 1: Identity */}
                 <div className={cn("w-full xl:w-[240px] shrink-0 p-5 flex flex-col gap-4 border-b xl:border-b-0 xl:border-r rounded-tl-2xl", dk ? "border-white/10 bg-[#0F172A]/50" : "border-slate-200 bg-slate-50/50")}>
                     <div>
                        <label className={cn(labelCls, 'mb-1.5')}><Receipt size={12}/> {lang === 'de' ? 'Rechnungsnr.' : 'Invoice No.'}</label>
-                       <input disabled={viewOnly} value={localHotel.rechnungNr || ''} onChange={e => patchHotel({ rechnungNr: e.target.value })} className={inputCls} placeholder="RE-2026-..." />
+                       {/* SURGICAL FIX: Highlight Search Query in Invoice Field if active */}
+                       <div className="relative">
+                          <input disabled={viewOnly} value={localHotel.rechnungNr || ''} onChange={e => patchHotel({ rechnungNr: e.target.value })} className={cn(inputCls, searchQuery && (searchScope==='all'||searchScope==='invoice') && localHotel.rechnungNr?.toLowerCase().includes(searchQuery.toLowerCase()) && "border-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.3)]")} placeholder="RE-2026-..." />
+                       </div>
                     </div>
                     <div>
                        <label className={cn(labelCls, 'mb-1.5')}><FileText size={12}/> {lang === 'de' ? 'Buchungsref.' : 'Booking Ref'}</label>
@@ -623,7 +622,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                     </div>
                 </div>
 
-                {/* COL 2: Action Center */}
                 <div className="flex-1 p-5 flex flex-col gap-5 min-w-[320px]">
                    <div className="flex items-center gap-2 flex-wrap">
                       {!viewOnly && <button onClick={() => setShowMasterBase(!showMasterBase)} className={cn("px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5", showMasterBase ? (dk ? "bg-teal-600 text-white border-teal-500" : "bg-teal-600 text-white border-teal-700") : (dk ? "bg-[#1E293B] text-slate-400 border-white/10 hover:text-white" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"))}><Calculator size={12}/> Brutto / Netto</button>}
@@ -640,25 +638,21 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                     {!viewOnly && <button onClick={addBaseCost} className={cn("p-1.5 h-[34px] rounded-lg transition-all flex items-center justify-center shrink-0 border", dk ? "bg-[#1E293B] border-white/10 text-teal-400 hover:bg-white/10" : "bg-white border-slate-200 text-teal-600 hover:bg-slate-100")}><Plus size={16}/></button>}
                                     <span className="text-sm font-bold text-teal-600 dark:text-teal-400">{lang === 'de' ? 'Grundkosten' : 'Base Cost'} {index > 0 ? `#${index + 1}` : ''}</span>
                                  </div>
-                                 
                                  <div className="flex-1 flex flex-wrap xl:flex-nowrap items-start gap-2 justify-end w-full pt-1">
                                     <div className="flex flex-col gap-1">
                                        <div className="flex items-center gap-1.5">
                                           <span className={labelCls}>Netto</span>
                                           <input disabled={viewOnly} type="number" value={bc.netto != null ? bc.netto : bc.bNettoDisplay} onChange={e => updateBaseCost(bc.id, {netto: e.target.value === '' ? null : e.target.value, brutto: null})} className={cn(inputCls, 'w-full max-w-[120px] min-w-[80px]', bc.brutto != null && "opacity-50 pointer-events-none")} placeholder="Auto" />
-                                          
                                           {!(bc.showDiscount || Boolean(bc.discountValue)) && (!viewOnly) ? (
                                              <button onClick={() => updateBaseCost(bc.id, {showDiscount: true})} title="Rabatt hinzufügen" className={cn("p-1.5 rounded-lg border transition-all flex items-center justify-center shrink-0", dk ? "bg-[#1E293B] border-white/10 text-slate-400 hover:text-teal-400" : "bg-white border-slate-200 text-slate-400 hover:text-teal-500 hover:bg-slate-50")}>
-                                               <Ticket size={14} />
+                                                <Ticket size={14} />
                                              </button>
                                           ) : null}
                                        </div>
-                                       
                                        {(bc.showDiscount || Boolean(bc.discountValue)) && parseFloat(bc.discountValue) > 0 ? (
                                           <div className="text-[12px] font-black text-teal-600 dark:text-teal-400 text-right">↳ {formatCurrency(bc.discountedNetto)}</div>
                                        ) : null}
                                     </div>
-                                    
                                     {(bc.showDiscount || Boolean(bc.discountValue)) ? (
                                       <div className="flex items-center gap-1.5 shrink-0 animate-in fade-in zoom-in-95 duration-200">
                                         <span className={labelCls}>{lang === 'de' ? 'Rabatt' : 'Discount'}</span>
@@ -669,14 +663,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                         {!viewOnly && <button onClick={() => updateBaseCost(bc.id, {showDiscount: false, discountValue: null})} className="text-slate-400 hover:text-red-500 transition-colors"><X size={14} /></button>}
                                       </div>
                                     ) : null}
-                                    
                                     <div className="flex items-center gap-1.5 shrink-0"><span className={labelCls}>MwSt</span><MwstInput disabled={viewOnly} value={bc.mwst} onChange={(v:any) => updateBaseCost(bc.id, {mwst: v})} isDarkMode={dk} /></div>
-                                    
                                     <div className="flex items-center gap-1.5">
                                        <span className={labelCls}>Brutto</span>
                                        <input disabled={viewOnly} type="number" value={bc.brutto != null ? bc.brutto : bc.bBruttoDisplay} onChange={e => updateBaseCost(bc.id, {brutto: e.target.value === '' ? null : e.target.value, netto: null})} className={cn(inputCls, 'w-full max-w-[120px] min-w-[80px]', bc.netto != null && "opacity-50 pointer-events-none")} placeholder="Auto" />
                                     </div>
-
                                     {!viewOnly && localHotel.baseCosts.length > 1 ? (
                                        <button onClick={() => removeBaseCost(bc.id)} className={cn("p-1.5 h-[34px] rounded-lg transition-all flex items-center justify-center shrink-0 border ml-1", dk ? "bg-[#1E293B] border-white/10 text-red-400 hover:bg-white/10" : "bg-white border-slate-200 text-red-500 hover:bg-slate-100")}><X size={16}/></button>
                                     ) : null}
@@ -685,7 +676,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                            ))}
                         </div>
                       )}
-
                       {localHotel.has_global_discount ? (
                         <div className={cn("flex flex-col md:flex-row md:items-center justify-between gap-4 p-3 rounded-xl border animate-in fade-in slide-in-from-top-2", dk ? "bg-indigo-500/5 border-indigo-500/20" : "bg-indigo-50/50 border-indigo-200")}>
                            <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400 shrink-0">{lang === 'de' ? 'Gesamtrabatt' : 'Global Discount'}</span>
@@ -704,7 +694,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                            </div>
                         </div>
                       ) : null}
-
                       {showExtras ? (
                         <div className={cn("flex flex-col md:flex-row md:items-start justify-between gap-4 p-3 rounded-xl border animate-in fade-in slide-in-from-top-2", dk ? "bg-white/5 border-white/5" : "bg-slate-50 border-slate-200")}>
                            <span className="text-sm font-bold text-amber-500 shrink-0 mt-2">{lang === 'de' ? 'Extra' : 'Extra'}</span>
@@ -713,7 +702,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                   <div key={ec.id} style={{ zIndex: 40 - index, position: 'relative' }} className="flex flex-nowrap items-center gap-2 w-full justify-end">
                                      {!viewOnly && <button onClick={addExtra} className={cn("p-1.5 h-[34px] rounded-lg transition-all flex items-center justify-center shrink-0 border", dk ? "bg-[#1E293B] border-white/10 text-teal-400 hover:bg-white/10" : "bg-white border-slate-200 text-teal-600 hover:bg-slate-100")}><Plus size={16}/></button>}
                                      <input disabled={viewOnly} value={ec.note} onChange={e => updateExtra(ec.id, {note: e.target.value})} className={cn(inputCls, 'flex-1 min-w-[140px]')} placeholder={lang === 'de' ? "Notiz..." : "Note..."} />
-                                     
                                      <div className="flex items-center gap-1.5"><span className={labelCls}>Netto</span><input disabled={viewOnly} type="number" value={ec.netto != null ? ec.netto : ec.eNettoDisplay} onChange={e => updateExtra(ec.id, {netto: e.target.value === '' ? null : e.target.value, brutto: null})} className={cn(inputCls, 'w-full max-w-[100px] min-w-[70px]', ec.brutto != null && "opacity-50 pointer-events-none")} placeholder="Auto" /></div>
                                      <div className="flex items-center gap-1.5 shrink-0"><span className={labelCls}>MwSt</span><MwstInput disabled={viewOnly} value={ec.mwst} onChange={(v:any) => updateExtra(ec.id, {mwst: v})} isDarkMode={dk} /></div>
                                      <div className="flex items-center gap-1.5"><span className={labelCls}>Brutto</span><input disabled={viewOnly} type="number" value={ec.brutto != null ? ec.brutto : ec.eBruttoDisplay} onChange={e => updateExtra(ec.id, {brutto: e.target.value === '' ? null : e.target.value, netto: null})} className={cn(inputCls, 'w-full max-w-[100px] min-w-[70px]', ec.netto != null && "opacity-50 pointer-events-none")} placeholder="Auto" /></div>
@@ -726,7 +714,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    </div>
                 </div>
 
-                {/* COL 3: Master Summary (FIXED ALIGNMENT) */}
                 <div className={cn("w-full xl:w-[380px] p-5 flex flex-col shrink-0 border-t xl:border-t-0 xl:border-l rounded-tr-2xl rounded-br-2xl rounded-bl-2xl xl:rounded-bl-none", dk ? "bg-[#0F172A]/80 border-white/10" : "bg-slate-50 border-slate-200")}>
                    <div className="flex items-center justify-between gap-2 mb-4">
                       <div className="flex items-center gap-1.5 flex-1 max-w-[160px]">
@@ -739,67 +726,51 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                          {localHotel.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid')}
                       </button>
                    </div>
-
                    <div className="space-y-1.5 mb-4 font-medium text-[14px]">
                       <div className="flex justify-between items-center">
                          <span className={dk ? "text-slate-400" : "text-slate-500"}>{lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</span>
                          <span className={cn("font-bold", dk ? "text-white" : "text-slate-900")}>{formatCurrency(masterMath.displayNetto)}</span>
                       </div>
-                      
                       {Object.keys(masterMath.buckets).length > 0 ? (
                         Object.entries(masterMath.buckets).map(([percent, amount]: any) => (
                           <div key={percent} className="flex justify-between items-center text-[13px]">
-                             <span className={dk ? "text-slate-500" : "text-slate-400"}>MwSt ({percent}%)</span>
-                             <span className={dk ? "text-slate-400" : "text-slate-500"}>{formatCurrency(amount)}</span>
+                              <span className={dk ? "text-slate-500" : "text-slate-400"}>MwSt ({percent}%)</span>
+                              <span className={dk ? "text-slate-400" : "text-slate-500"}>{formatCurrency(amount)}</span>
                           </div>
                         ))
                       ) : (
                         masterMath.isMasterActive ? <div className="text-right text-xs opacity-50 italic">--</div> : null
                       )}
                    </div>
-
                    <div className={cn("pt-4 border-t flex flex-col gap-3 mt-auto", dk ? "border-white/10" : "border-slate-200")}>
-                      
                       <div className="flex justify-between items-center group w-full">
                          <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 shrink-0">{lang === 'de' ? 'Gesamt Brutto' : 'Total Brutto'}</span>
                          {!viewOnly && editingOBrutto ? (
-                           <input autoFocus type="number" value={editBruttoValue} onChange={e => setEditBruttoValue(e.target.value)} onBlur={() => {patchHotel({override_total_brutto: editBruttoValue === '' ? null : editBruttoValue}); setEditingOBrutto(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-32 text-right px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-600 font-black text-xl outline-none ml-auto")} />
+                            <input autoFocus type="number" value={editBruttoValue} onChange={e => setEditBruttoValue(e.target.value)} onBlur={() => {patchHotel({override_total_brutto: editBruttoValue === '' ? null : editBruttoValue}); setEditingOBrutto(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-32 text-right px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-600 font-black text-xl outline-none ml-auto")} />
                          ) : (
-                           <span onClick={() => {!viewOnly && setEditingOBrutto(true);}} className={cn("text-[22px] font-black", masterMath.isOverriddenBrutto && "text-yellow-500", !viewOnly && "cursor-pointer rounded px-1 -mr-1 transition-colors group-hover:bg-black/5")}>{formatCurrency(masterMath.displayBrutto)} {!viewOnly && <Edit3 size={14} className="opacity-0 group-hover:opacity-100 ml-2 inline-block"/>}</span>
+                            <span onClick={() => {!viewOnly && setEditingOBrutto(true);}} className={cn("text-[22px] font-black", masterMath.isOverriddenBrutto && "text-yellow-500", !viewOnly && "cursor-pointer rounded px-1 -mr-1 transition-colors group-hover:bg-black/5")}>{formatCurrency(masterMath.displayBrutto)} {!viewOnly && <Edit3 size={14} className="opacity-0 group-hover:opacity-100 ml-2 inline-block"/>}</span>
                          )}
                       </div>
-                      
                       <div className="flex justify-between items-center group w-full">
                         <span className={cn("text-[11px] font-bold shrink-0", dk ? "text-slate-500" : "text-slate-400")}>{lang === 'de' ? 'Preis / Bett' : 'Price / Bed'}</span>
                         {!viewOnly && editingPriceBed ? (
-                           <input autoFocus type="number" value={editPriceBedValue} onChange={e => setEditPriceBedValue(e.target.value)} onBlur={() => {patchHotel({override_price_per_bed: editPriceBedValue === '' ? null : editPriceBedValue}); setEditingPriceBed(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-20 text-right px-1 rounded bg-yellow-500/20 text-yellow-600 font-bold text-[14px] outline-none ml-auto")} />
+                            <input autoFocus type="number" value={editPriceBedValue} onChange={e => setEditPriceBedValue(e.target.value)} onBlur={() => {patchHotel({override_price_per_bed: editPriceBedValue === '' ? null : editPriceBedValue}); setEditingPriceBed(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-20 text-right px-1 rounded bg-yellow-500/20 text-yellow-600 font-bold text-[14px] outline-none ml-auto")} />
                         ) : (
-                           <span onClick={() => {!viewOnly && setEditingPriceBed(true);}} className={cn("text-[14px] font-bold", masterMath.isOverriddenBed && "text-yellow-600", !viewOnly && "cursor-pointer rounded px-1 -mr-1 transition-colors group-hover:bg-black/5 text-right ml-auto")}>
-                             {!masterMath.isOverriddenBed && masterMath.pricePerBed > 0 ? 'ab ' : ''}{formatCurrency(masterMath.pricePerBed)} / N {!viewOnly && <Edit3 size={11} className="opacity-0 group-hover:opacity-100 ml-1 inline-block"/>}
-                           </span>
+                            <span onClick={() => {!viewOnly && setEditingPriceBed(true);}} className={cn("text-[14px] font-bold", masterMath.isOverriddenBed && "text-yellow-600", !viewOnly && "cursor-pointer rounded px-1 -mr-1 transition-colors group-hover:bg-black/5 text-right ml-auto")}>
+                               {!masterMath.isOverriddenBed && masterMath.pricePerBed > 0 ? 'ab ' : ''}{formatCurrency(masterMath.pricePerBed)} / N {!viewOnly && <Edit3 size={11} className="opacity-0 group-hover:opacity-100 ml-1 inline-block"/>}
+                            </span>
                         )}
                       </div>
                    </div>
                 </div>
             </div>
-            
-            {/* DURATION TABS (FUSED FOLDER EFFECT) */}
+
             <div className="pt-4">
               <div className={cn("flex items-end gap-1 flex-wrap", dk ? "" : "")}>
                 {(localHotel.durations || []).map((d: any, i: number) => {
                   const isActive = activeDurationTab === i;
                   return (
-                    <button 
-                      key={d.id || i} 
-                      onClick={() => setActiveDurationTab(i)} 
-                      className={cn(
-                        'px-5 py-2.5 text-sm font-bold transition-all border', 
-                        isActive 
-                          ? (dk ? 'bg-[#0B1224] text-teal-400 border-white/5 border-b-0 rounded-t-xl z-10' : 'bg-white text-teal-700 border-slate-200 border-b-0 rounded-t-xl z-10') 
-                          : (dk ? 'bg-[#1E293B]/50 text-slate-500 border-transparent hover:text-slate-300 rounded-lg' : 'bg-slate-100 text-slate-500 border-transparent hover:text-slate-700 rounded-lg')
-                      )}
-                      style={isActive ? { marginBottom: '-1px' } : { marginBottom: '3px' }}
-                    >
+                    <button key={d.id || i} onClick={() => setActiveDurationTab(i)} className={cn('px-5 py-2.5 text-sm font-bold transition-all border', isActive ? (dk ? 'bg-[#0B1224] text-teal-400 border-white/5 border-b-0 rounded-t-xl z-10' : 'bg-white text-teal-700 border-slate-200 border-b-0 rounded-t-xl z-10') : (dk ? 'bg-[#1E293B]/50 text-slate-500 border-transparent hover:text-slate-300 rounded-lg' : 'bg-slate-100 text-slate-500 border-transparent hover:text-slate-700 rounded-lg'))} style={isActive ? { marginBottom: '-1px' } : { marginBottom: '3px' }}>
                       {getDurationTabLabel(d, lang)}
                     </button>
                   );
@@ -817,26 +788,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 )}
               </div>
             </div>
-            
-            {/* FIX: Remove top-left border radius of card so it perfectly connects to the first tab */}
             {localHotel.durations[activeDurationTab] ? (
               <div className={cn("relative z-0", activeDurationTab === 0 ? "[&>div]:rounded-tl-none" : "")}>
-                <DurationCard duration={localHotel.durations[activeDurationTab]} isDarkMode={dk} lang={lang} 
-                  isMasterPricingActive={masterMath.isMasterActive}
-                  viewOnly={viewOnly}
-                  onUpdate={(id, upd) => {
-                    const next = { ...localHotel, durations: localHotel.durations.map((d: any) => d.id === id ? upd : d) };
-                    setLocalHotel(next); onUpdate(localHotel.id, next);
-                  }}
-                  onDelete={(id) => {
-                    const next = { ...localHotel, durations: localHotel.durations.filter((d: any) => d.id !== id) };
-                    setLocalHotel(next); onUpdate(localHotel.id, next);
-                    enqueue({ type: 'deleteDuration', payload: { id } });
-                    if (activeDurationTab >= next.durations.length) {
-                       setActiveDurationTab(Math.max(0, next.durations.length - 1));
-                    }
-                  }}
-                />
+                <DurationCard duration={localHotel.durations[activeDurationTab]} isDarkMode={dk} lang={lang} isMasterPricingActive={masterMath.isMasterActive} viewOnly={viewOnly} onUpdate={(id, upd) => { const next = { ...localHotel, durations: localHotel.durations.map((d: any) => d.id === id ? upd : d) }; setLocalHotel(next); onUpdate(localHotel.id, next); }} onDelete={(id) => { const next = { ...localHotel, durations: localHotel.durations.filter((d: any) => d.id !== id) }; setLocalHotel(next); onUpdate(localHotel.id, next); enqueue({ type: 'deleteDuration', payload: { id } }); if (activeDurationTab >= next.durations.length) { setActiveDurationTab(Math.max(0, next.durations.length - 1)); } }} />
               </div>
             ) : null}
           </div>
@@ -860,24 +814,14 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   );
 }
 
+// ModernDropdown and CompanyMultiSelect stay exactly as they were
 export function ModernDropdown({ value, options, onChange, isDarkMode, lang, placeholder = 'Select', allowAdd = true, disabled }: any) {
   const [open, setOpen] = useState(false);
   const [addingNew, setAddingNew] = useState(false);
   const [newVal, setNewVal] = useState('');
   const ref = useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
-    function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setAddingNew(false); setNewVal(''); } }
-    document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
-  }, []);
-
-  const displayValue = (val: string) => {
-    if (lang !== 'de') return val;
-    const de: any = { 'Germany': 'Deutschland', 'Switzerland': 'Schweiz', 'Austria': 'Österreich', 'Netherlands': 'Niederlande', 'Poland': 'Polen', 'Belgium': 'Belgien', 'France': 'Frankreich', 'Luxembourg': 'Luxemburg' };
-    return de[val] || val;
-  };
-
+  useEffect(() => { function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setAddingNew(false); setNewVal(''); } } document.addEventListener('mousedown', handle); return () => document.removeEventListener('mousedown', handle); }, []);
+  const displayValue = (val: string) => { if (lang !== 'de') return val; const de: any = { 'Germany': 'Deutschland', 'Switzerland': 'Schweiz', 'Austria': 'Österreich', 'Netherlands': 'Niederlande', 'Poland': 'Polen', 'Belgium': 'Belgien', 'France': 'Frankreich', 'Luxembourg': 'Luxemburg' }; return de[val] || val; };
   return (
     <div ref={ref} className="relative w-full h-[34px]">
       <button disabled={disabled} onClick={() => setOpen(!open)} className={cn('w-full h-full px-3 flex items-center justify-between rounded-lg border text-sm font-bold outline-none transition-all', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white hover:border-teal-500' : 'bg-white border-slate-200 text-slate-900 hover:border-teal-500', disabled && "opacity-60 cursor-not-allowed")}>
@@ -888,12 +832,9 @@ export function ModernDropdown({ value, options, onChange, isDarkMode, lang, pla
         <div className={cn('absolute top-full mt-1 left-0 right-0 z-[200] rounded-xl border shadow-xl py-1 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
           <div className="max-h-48 overflow-y-auto no-scrollbar">
             {options.map((opt:any) => (
-              <button key={opt} onClick={() => { onChange(opt); setOpen(false); }} className={cn('w-full text-left px-4 py-2.5 text-sm font-bold transition-all', value === opt ? (isDarkMode ? 'bg-teal-500/20 text-teal-400' : 'bg-teal-50 text-teal-700') : (isDarkMode ? 'text-slate-300 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'))}>
-                {displayValue(opt)}
-              </button>
+              <button key={opt} onClick={() => { onChange(opt); setOpen(false); }} className={cn('w-full text-left px-4 py-2.5 text-sm font-bold transition-all', value === opt ? (isDarkMode ? 'bg-teal-500/20 text-teal-400' : 'bg-teal-50 text-teal-700') : (isDarkMode ? 'text-slate-300 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'))}>{displayValue(opt)}</button>
             ))}
           </div>
-          
           {allowAdd ? (
             <>
               <div className={cn('my-1 border-t', isDarkMode ? 'border-white/10' : 'border-slate-100')} />
@@ -918,45 +859,15 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
   const [query, setQuery] = useState('');
   const [localMemory, setLocalMemory] = useState<string[]>([]);
   const ref = useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
-    function handle(e: any) { 
-      if (ref.current && !ref.current.contains(e.target)) {
-        setOpen(false); 
-        setQuery('');
-      }
-    }
-    document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
-  }, []);
-
+  useEffect(() => { function handle(e: any) { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setQuery(''); } } document.addEventListener('mousedown', handle); return () => document.removeEventListener('mousedown', handle); }, []);
   const safeOptions = Array.isArray(options) ? options : [];
   const safeSelected = Array.isArray(selected) ? selected : (typeof selected === 'string' && selected ? [selected] : []);
-  
   const combinedOptions = Array.from(new Set([...safeOptions, ...localMemory]));
   const filteredOptions = combinedOptions.filter((o: string) => o.toLowerCase().includes(query.toLowerCase()));
   const exactMatchExists = combinedOptions.some((o: string) => o.toLowerCase() === query.trim().toLowerCase());
   const isAlreadySelected = safeSelected.some((o: string) => o.toLowerCase() === query.trim().toLowerCase());
-  
-  const handleToggle = (opt: string) => {
-    if (disabled) return;
-    onChange(safeSelected.includes(opt) ? safeSelected.filter((t: any) => t !== opt) : [...safeSelected, opt]);
-    setQuery('');
-  };
-
-  const handleAddNew = async () => {
-    if (disabled) return;
-    const val = query.trim();
-    if (val && !isAlreadySelected) {
-      setLocalMemory(prev => Array.from(new Set([...prev, val]))); 
-      onChange([...safeSelected, val]);
-      setQuery('');
-      if (onAddOption) {
-        await onAddOption(val);
-      }
-    }
-  };
-  
+  const handleToggle = (opt: string) => { if (disabled) return; onChange(safeSelected.includes(opt) ? safeSelected.filter((t: any) => t !== opt) : [...safeSelected, opt]); setQuery(''); };
+  const handleAddNew = async () => { if (disabled) return; const val = query.trim(); if (val && !isAlreadySelected) { setLocalMemory(prev => Array.from(new Set([...prev, val]))); onChange([...safeSelected, val]); setQuery(''); if (onAddOption) { await onAddOption(val); } } };
   return (
     <div ref={ref} className={cn("relative min-h-[30px] flex items-center w-full", disabled ? "cursor-default" : "cursor-pointer")} onClick={(e) => { if (disabled) return; e.stopPropagation(); setOpen(true); }}>
       <div className="flex flex-wrap gap-1.5 w-full">
@@ -964,43 +875,29 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
           <span key={tag} className={cn('px-2.5 py-1 rounded-md text-xs font-bold border flex items-center gap-1.5 shadow-sm', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800')}>{tag}</span>
         )) : <span className={cn("text-xs font-bold border border-dashed px-3 py-1 rounded-md transition-colors w-full flex items-center", isDarkMode ? "text-slate-500 border-white/20 hover:text-teal-400 hover:border-teal-400" : "text-slate-400 border-slate-300 hover:text-teal-600 hover:border-teal-500")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
       </div>
-      
       {open && !disabled && (
         <div className={cn('absolute top-full mt-2 left-0 z-[200] rounded-xl border shadow-2xl min-w-[240px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')} onClick={e => e.stopPropagation()}>
           <div className={cn("flex items-center px-3 py-2 border-b", isDarkMode ? "border-white/10 bg-[#1E293B]" : "border-slate-100 bg-slate-50")}>
             <Search size={14} className={isDarkMode ? "text-slate-400" : "text-slate-500"} />
             <input autoFocus value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAddNew(); }} placeholder={lang === 'de' ? "Suchen..." : "Search..."} className={cn("ml-2 bg-transparent text-sm font-bold outline-none w-full", isDarkMode ? "text-white placeholder:text-slate-500" : "text-slate-900 placeholder:text-slate-400")} />
           </div>
-          
           <div className="max-h-48 overflow-y-auto no-scrollbar py-1">
             {query.trim() && !exactMatchExists && !isAlreadySelected && (
-              <button onClick={handleAddNew} className={cn('w-full text-left px-4 py-2 text-sm font-bold flex items-center gap-2 transition-all', isDarkMode ? 'text-teal-400 hover:bg-white/10' : 'text-teal-600 hover:bg-teal-50')}>
-                <span className="opacity-70 text-xs">Create</span> "{query.trim()}"
-              </button>
+              <button onClick={handleAddNew} className={cn('w-full text-left px-4 py-2 text-sm font-bold flex items-center gap-2 transition-all', isDarkMode ? 'text-teal-400 hover:bg-white/10' : 'text-teal-600 hover:bg-teal-50')}><span className="opacity-70 text-xs">Create</span> "{query.trim()}"</button>
             )}
             {filteredOptions.map((opt: string) => {
               const isSelected = safeSelected.includes(opt);
               return (
                 <div key={opt} className={cn('w-full flex items-center justify-between group transition-all', isSelected ? (isDarkMode ? 'bg-teal-500/10' : 'bg-teal-50') : (isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'))}>
                   <button onClick={() => handleToggle(opt)} className="flex-1 text-left px-4 py-2 text-sm font-bold flex items-center gap-2">
-                    <div className={cn("w-3.5 h-3.5 rounded flex items-center justify-center shrink-0 border", isSelected ? "bg-teal-500 border-teal-500" : isDarkMode ? "border-slate-500" : "border-slate-400")}>
-                      {isSelected && <Check size={10} className="text-white" strokeWidth={4} />}
-                    </div>
+                    <div className={cn("w-3.5 h-3.5 rounded flex items-center justify-center shrink-0 border", isSelected ? "bg-teal-500 border-teal-500" : isDarkMode ? "border-slate-500" : "border-slate-400")}>{isSelected && <Check size={10} className="text-white" strokeWidth={4} />}</div>
                     <span className={cn(isSelected ? (isDarkMode ? 'text-teal-400' : 'text-teal-700') : (isDarkMode ? 'text-slate-300' : 'text-slate-700'))}>{opt}</span>
                   </button>
-                  {onDeleteOption && (
-                     <button onClick={(e) => { e.stopPropagation(); onDeleteOption(opt); setLocalMemory(prev => prev.filter(m => m !== opt)); }} className="px-3 py-2 text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete from system">
-                       <Trash2 size={13} />
-                     </button>
-                  )}
+                  {onDeleteOption && (<button onClick={(e) => { e.stopPropagation(); onDeleteOption(opt); setLocalMemory(prev => prev.filter(m => m !== opt)); }} className="px-3 py-2 text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete from system"><Trash2 size={13} /></button>)}
                 </div>
               )
             })}
-            {filteredOptions.length === 0 && !query.trim() && (
-               <div className="px-4 py-3 text-xs font-bold text-slate-500 text-center">
-                 {lang === 'de' ? 'Keine Firmen gefunden' : 'No companies found'}
-               </div>
-            )}
+            {filteredOptions.length === 0 && !query.trim() && (<div className="px-4 py-3 text-xs font-bold text-slate-500 text-center">{lang === 'de' ? 'Keine Firmen gefunden' : 'No companies found'}</div>)}
           </div>
         </div>
       )}
