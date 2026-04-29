@@ -618,6 +618,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                   </span>
                 </div>
               )}
+            </div>
             
             <div className="flex items-center gap-1 pl-2">
                <button onClick={handleBookmarkToggle} className={cn("p-1.5 rounded-lg transition-all", isBookmarked ? "text-yellow-500 hover:text-yellow-400 bg-yellow-500/10" : "text-slate-400 hover:text-yellow-500 hover:bg-white/5")}>
