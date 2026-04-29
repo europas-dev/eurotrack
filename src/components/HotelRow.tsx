@@ -895,6 +895,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                         )}
                       </div>
                    </div>
+                  )}
                 </div>
             </div>
 
