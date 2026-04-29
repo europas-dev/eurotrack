@@ -706,7 +706,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                      localHotel.invoices.map((inv: any) => {
                        const isEditing = editingInvoiceId === inv.id;
                        
-                       /* --- EXPANDED EDIT MODE --- */
+                       /* --- EXPANDED EDIT MODE (Fixed Teal Text) --- */
                        if (isEditing) {
                           return (
                              <div key={inv.id} className={cn("group relative flex flex-col gap-1 p-2.5 rounded-xl border transition-colors", dk ? "bg-[#1E293B] border-white/5" : "bg-white border-slate-100 shadow-sm")}>
@@ -715,7 +715,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                      autoFocus
                                      value={inv.number}
                                      onChange={(e) => patchHotel({ invoices: localHotel.invoices.map((i: any) => i.id === inv.id ? { ...i, number: e.target.value } : i) })}
-                                     className="w-full text-[12px] font-black border-none bg-transparent outline-none p-0 focus:text-teal-600 dark:focus:text-teal-400 placeholder:opacity-30"
+                                     className={cn("w-full text-[12px] font-black border-none bg-transparent outline-none p-0 placeholder:opacity-30", dk ? "text-white" : "text-slate-900")}
                                      placeholder="RE-..."
                                    />
                                    <button onClick={() => setEditingInvoiceId(null)} className="p-1 text-teal-500 hover:bg-teal-500/10 rounded transition-all"><Check size={12}/></button>
@@ -735,20 +735,23 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                           );
                        }
 
-                       /* --- MINIMAL LIST VIEW --- */
+                       /* --- MINIMAL LIST VIEW (Fixed Hover Card) --- */
                        return (
                           <div key={inv.id} className="group relative flex items-center justify-between p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors border border-transparent hover:border-black/5 dark:hover:border-white/5">
                              <div className="flex items-center gap-2 overflow-hidden">
                                 {inv.note && (
-                                   <div className="relative flex items-center justify-center">
-                                      <div className="w-3 h-3 rounded-full border border-teal-500/50 text-teal-500 flex items-center justify-center text-[8px] font-bold cursor-help peer">i</div>
-                                      <div className={cn("absolute left-0 bottom-full mb-2 w-max max-w-[200px] p-2 rounded-lg shadow-xl border opacity-0 peer-hover:opacity-100 pointer-events-none transition-all z-[300] translate-y-1 peer-hover:translate-y-0", dk ? "bg-slate-800 border-white/10" : "bg-white border-slate-200")}>
+                                   <div className="relative flex items-center justify-center group/info cursor-help">
+                                      <div className="w-3 h-3 rounded-full border border-teal-500/50 text-teal-500 flex items-center justify-center text-[8px] font-bold">i</div>
+                                      
+                                      {/* Bulletproof Hover Card */}
+                                      <div className={cn("absolute left-0 bottom-full mb-2 w-max max-w-[200px] p-2 rounded-lg shadow-xl border opacity-0 group-hover/info:opacity-100 pointer-events-none transition-all z-[300] translate-y-1 group-hover/info:translate-y-0", dk ? "bg-slate-800 border-white/10" : "bg-white border-slate-200")}>
                                         <p className={cn("text-[11px] font-black leading-tight mb-1", dk ? "text-white" : "text-slate-900")}>{inv.number || 'Unnamed'}</p>
                                         <p className={cn("text-[10px] font-medium leading-normal whitespace-pre-wrap", dk ? "text-slate-400" : "text-slate-500")}>{inv.note}</p>
                                       </div>
                                    </div>
                                 )}
                                 <span className={cn("text-[11px] font-bold truncate", dk ? "text-slate-300" : "text-slate-700")}>
+                                   {/* Search highlight is wired in right here */}
                                    <HighlightText text={inv.number || (lang === 'de' ? 'Unbenannt' : 'Unnamed')} query={searchScope === 'all' || searchScope === 'invoice' ? searchQuery : ''} />
                                 </span>
                              </div>
