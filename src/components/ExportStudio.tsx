@@ -3,11 +3,15 @@ import { X, Printer, FileText, Download, Check, Settings2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { generatePDF, generateExcel, buildReportData } from '../lib/utils';
 
-export default function ExportStudio({ hotels, calcCost, lang, title, total, onClose, dk }: any) {
+export default function ExportStudio({ hotels, calcCost, lang, title, total, onClose, dk, selectedMonth, selectedYear }: any) {
   const [activeCols, setActiveCols] = React.useState<string[]>(['company', 'address', 'contact', 'phone', 'invoice', 'durations', 'employees']);
   const isDe = lang === 'de';
 
-  const reportData = React.useMemo(() => buildReportData(hotels, calcCost, lang), [hotels, lang]);
+  // Now passes the period filters into the report builder
+const reportData = React.useMemo(() => 
+  buildReportData(hotels, calcCost, lang, selectedMonth, selectedYear), 
+  [hotels, lang, selectedMonth, selectedYear]
+);
 
   const toggleCol = (id: string) => {
     setActiveCols(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
