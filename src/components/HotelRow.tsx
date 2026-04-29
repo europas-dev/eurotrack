@@ -679,7 +679,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
             <div className={cn("rounded-2xl border flex flex-col xl:flex-row shadow-md", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}>
 
-               {/* 1. DYNAMIC INVOICE LEDGER */}
+                {/* 1. DYNAMIC INVOICE LEDGER */}
             <div className={cn("w-full xl:w-[260px] shrink-0 p-5 flex flex-col gap-3 border-b xl:border-b-0 xl:border-r rounded-tl-2xl rounded-bl-2xl", dk ? "border-white/10 bg-[#0F172A]/50" : "border-slate-200 bg-slate-50/50")}>
                 <div className="flex items-center justify-between mb-1">
                    <label className={labelCls}><Receipt size={12}/> {lang === 'de' ? 'Rechnungsnr.' : 'Invoice No.'}</label>
@@ -698,8 +698,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    )}
                 </div>
                 
-                {/* FIXED: Added strict max-h-[140px] and restored custom-scrollbar */}
-                <div className="flex-1 overflow-y-auto space-y-2 pr-2 max-h-[140px] custom-scrollbar">
+                {/* Scrollbar styled with Webkit classes, capped max-height so it scrolls instead of breaking layout */}
+                <div className="flex-1 overflow-y-auto space-y-2 pr-2 max-h-[160px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
                    {(localHotel.invoices || []).length === 0 ? (
                      <p className="text-[11px] font-medium italic text-slate-400 mt-2">{lang === 'de' ? 'Keine Rechnungen' : 'No invoices'}</p>
                    ) : (
@@ -726,9 +726,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                 </div>
                                 <textarea 
                                   value={inv.note}
-                                  rows={2}
+                                  rows={4} /* <-- INCREASED TO 4 LINES */
                                   onChange={(e) => patchHotel({ invoices: localHotel.invoices.map((i: any) => i.id === inv.id ? { ...i, note: e.target.value } : i) })}
-                                  className="w-full text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-transparent outline-none p-0 resize-none overflow-y-auto custom-scrollbar"
+                                  className="w-full text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-transparent outline-none p-1 resize-none overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full"
                                   placeholder={lang === 'de' ? "+ Notiz..." : "+ Add note..."}
                                 />
                              </div>
@@ -737,18 +737,22 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
                        /* --- MINIMAL LIST VIEW --- */
                        return (
-                          <div key={inv.id} className="group relative flex items-center justify-between p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors border border-transparent hover:border-black/5 dark:hover:border-white/5">
+                          <div key={inv.id} className="group relative flex items-center justify-between p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors border border-transparent hover:border-black/5 dark:hover:border-white/5 hover:z-50">
                              
-                             {/* FIXED: Removed overflow-hidden from this div so the tooltip can escape */}
+                             {/* Removed overflow-hidden from here so tooltip can escape */}
                              <div className="flex items-center gap-2">
                                 {inv.note && (
                                    <div className="relative flex items-center justify-center group/info cursor-help">
                                       <div className="w-3 h-3 rounded-full border border-teal-500/50 text-teal-500 flex items-center justify-center text-[8px] font-bold">i</div>
                                       
-                                      {/* THE HOVER CARD */}
-                                      <div className={cn("absolute left-0 bottom-full mb-2 w-max max-w-[200px] p-2 rounded-lg shadow-xl border opacity-0 group-hover/info:opacity-100 pointer-events-none transition-all z-[300] translate-y-1 group-hover/info:translate-y-0", dk ? "bg-slate-800 border-white/10" : "bg-white border-slate-200")}>
-                                        <p className={cn("text-[11px] font-black leading-tight mb-1", dk ? "text-white" : "text-slate-900")}>{inv.number || 'Unnamed'}</p>
-                                        <p className={cn("text-[10px] font-medium leading-normal whitespace-pre-wrap", dk ? "text-slate-400" : "text-slate-500")}>{inv.note}</p>
+                                      {/* THE HOVER CARD (High Z-Index, Break-Words, Translated out to the right) */}
+                                      <div className={cn("absolute left-6 top-0 w-max max-w-[250px] p-2.5 rounded-xl shadow-2xl border opacity-0 group-hover/info:opacity-100 pointer-events-none transition-all z-[9999] -translate-x-2 group-hover/info:translate-x-0", dk ? "bg-slate-800 border-white/10" : "bg-white border-slate-200")}>
+                                        <p className={cn("text-[11px] font-black leading-tight mb-1 border-b pb-1", dk ? "text-white border-white/10" : "text-slate-900 border-slate-100")}>
+                                          {inv.number || 'Unnamed'}
+                                        </p>
+                                        <p className={cn("text-[10px] font-medium leading-relaxed break-words whitespace-pre-wrap", dk ? "text-slate-300" : "text-slate-600")}>
+                                          {inv.note}
+                                        </p>
                                       </div>
                                    </div>
                                 )}
