@@ -1093,6 +1093,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         {showStudio && (
           <ExportStudio 
             hotels={finalFiltered} 
+            selectedMonth={selectedMonth}
+            selectedYear={selectedYear}
             calcCost={calcHotelTotalCost} 
             lang={lang} 
             total={totalSpend}
