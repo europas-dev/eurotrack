@@ -1023,6 +1023,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                       {groupData[activeGroupTab].map((h, i) => (
                         <HotelRow 
                           key={h.id} 
+                          selectedMonth={selectedMonth}
+                          selectedYear={selectedYear}
                           isSelected={selectedIds.has(h.id)}
                           onSelect={() => toggleSelect(h.id)}
                           isBulkActive={selectedIds.size > 0}
@@ -1052,7 +1054,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                   finalFiltered.map((hotel, index) => (
                     <HotelRow 
                       key={hotel.id} 
-                      // --- SURGICAL FIX: USE CORRECT VARIABLE NAME 'hotel' ---
+                      selectedMonth={selectedMonth}
+                      selectedYear={selectedYear}
                       isSelected={selectedIds.has(hotel.id)}
                       onSelect={() => toggleSelect(hotel.id)}
                       isBulkActive={selectedIds.size > 0}
