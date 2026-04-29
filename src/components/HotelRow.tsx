@@ -693,68 +693,71 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               </div>
             )}
 
-            {/* DYNAMIC INVOICE LEDGER */}
-            <div className={cn("w-full xl:w-[260px] shrink-0 p-5 flex flex-col gap-2 border-b xl:border-b-0 xl:border-r rounded-tl-2xl h-[180px]", dk ? "border-white/10 bg-[#0F172A]/50" : "border-slate-200 bg-slate-50/50")}>
-                <div className="flex items-center justify-between mb-1">
-                   <label className={labelCls}><Receipt size={12}/> {lang === 'de' ? 'Rechnungsnr.' : 'Invoice No.'}</label>
-                   {!viewOnly && (
-                     <button 
-                       onClick={() => {
-                         const newInv = { id: Math.random().toString(), number: '', note: '' };
-                         patchHotel({ invoices: [newInv, ...(localHotel.invoices || [])] });
-                       }}
-                       className="p-1 rounded bg-teal-500/10 text-teal-500 hover:bg-teal-500/20 transition-colors"
-                     >
-                       <Plus size={14} strokeWidth={3} />
-                     </button>
-                   )}
-                </div>
+            <div className={cn("rounded-2xl border flex flex-col xl:flex-row shadow-md", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}>
                 
-                <div className="flex-1 overflow-y-auto pr-1 space-y-3 no-scrollbar custom-scrollbar">
-                   {(localHotel.invoices || []).length === 0 ? (
-                     <p className="text-[10px] italic text-slate-500 mt-2">{lang === 'de' ? 'Keine Rechnungen' : 'No invoices'}</p>
-                   ) : (
-                     localHotel.invoices.map((inv: any) => (
-                       <div key={inv.id} className="group relative space-y-1 pb-2 border-b border-black/5 dark:border-white/5 last:border-0">
-                          <div className="flex items-center gap-2">
-                             <input 
-                               disabled={viewOnly}
-                               value={inv.number}
-                               onChange={(e) => {
-                                 const next = localHotel.invoices.map((i: any) => i.id === inv.id ? { ...i, number: e.target.value } : i);
-                                 patchHotel({ invoices: next });
-                               }}
-                               className={cn(inputCls, "h-[28px] text-[11px] font-black border-none bg-transparent p-0 focus:text-teal-500", viewOnly && "cursor-default")}
-                               placeholder={viewOnly ? "" : "RE-..."}
-                             />
-                             {!viewOnly && (
-                               <button 
-                                 onClick={() => {
-                                   const next = localHotel.invoices.filter((i: any) => i.id !== inv.id);
-                                   patchHotel({ invoices: next });
-                                 }}
-                                 className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-500 transition-all"
-                               >
-                                 <Trash2 size={12} />
-                               </button>
-                             )}
-                          </div>
-                          <input 
-                            disabled={viewOnly}
-                            value={inv.note}
-                            onChange={(e) => {
-                              const next = localHotel.invoices.map((i: any) => i.id === inv.id ? { ...i, note: e.target.value } : i);
-                              patchHotel({ invoices: next });
-                            }}
-                            className={cn("w-full text-[10px] font-bold text-slate-400 bg-transparent outline-none p-0 italic", viewOnly ? "cursor-default" : "cursor-text")}
-                            placeholder={viewOnly ? "" : (lang === 'de' ? "Notiz hinzufügen..." : "Add note...")}
-                          />
-                       </div>
-                     ))
-                  )}
+                {/* 1. DYNAMIC INVOICE LEDGER (Left Column) */}
+                <div className={cn("w-full xl:w-[260px] shrink-0 p-5 flex flex-col gap-2 border-b xl:border-b-0 xl:border-r rounded-tl-2xl h-[180px]", dk ? "border-white/10 bg-[#0F172A]/50" : "border-slate-200 bg-slate-50/50")}>
+                    <div className="flex items-center justify-between mb-1">
+                       <label className={labelCls}><Receipt size={12}/> {lang === 'de' ? 'Rechnungsnr.' : 'Invoice No.'}</label>
+                       {!viewOnly && (
+                         <button 
+                           onClick={() => {
+                             const newInv = { id: Math.random().toString(), number: '', note: '' };
+                             patchHotel({ invoices: [newInv, ...(localHotel.invoices || [])] });
+                           }}
+                           className="p-1 rounded bg-teal-500/10 text-teal-500 hover:bg-teal-500/20 transition-colors"
+                         >
+                           <Plus size={14} strokeWidth={3} />
+                         </button>
+                       )}
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto pr-1 space-y-3 no-scrollbar custom-scrollbar">
+                       {(localHotel.invoices || []).length === 0 ? (
+                         <p className="text-[10px] italic text-slate-500 mt-2">{lang === 'de' ? 'Keine Rechnungen' : 'No invoices'}</p>
+                       ) : (
+                         localHotel.invoices.map((inv: any) => (
+                           <div key={inv.id} className="group relative space-y-1 pb-2 border-b border-black/5 dark:border-white/5 last:border-0">
+                              <div className="flex items-center gap-2">
+                                 <input 
+                                   disabled={viewOnly}
+                                   value={inv.number}
+                                   onChange={(e) => {
+                                     const next = localHotel.invoices.map((i: any) => i.id === inv.id ? { ...i, number: e.target.value } : i);
+                                     patchHotel({ invoices: next });
+                                   }}
+                                   className={cn(inputCls, "h-[28px] text-[11px] font-black border-none bg-transparent p-0 focus:text-teal-500", viewOnly && "cursor-default")}
+                                   placeholder={viewOnly ? "" : "RE-..."}
+                                 />
+                                 {!viewOnly && (
+                                   <button 
+                                     onClick={() => {
+                                       const next = localHotel.invoices.filter((i: any) => i.id !== inv.id);
+                                       patchHotel({ invoices: next });
+                                     }}
+                                     className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-red-500 transition-all"
+                                   >
+                                     <Trash2 size={12} />
+                                   </button>
+                                 )}
+                              </div>
+                              <input 
+                                disabled={viewOnly}
+                                value={inv.note}
+                                onChange={(e) => {
+                                  const next = localHotel.invoices.map((i: any) => i.id === inv.id ? { ...i, note: e.target.value } : i);
+                                  patchHotel({ invoices: next });
+                                }}
+                                className={cn("w-full text-[10px] font-bold text-slate-400 bg-transparent outline-none p-0 italic", viewOnly ? "cursor-default" : "cursor-text")}
+                                placeholder={viewOnly ? "" : (lang === 'de' ? "Notiz hinzufügen..." : "Add note...")}
+                              />
+                           </div>
+                         ))
+                       )}
+                    </div>
                 </div>
-            </div>
 
+                {/* 2. MIDDLE COLUMN (Base Costs & Extras) */}
                 <div className="flex-1 p-5 flex flex-col gap-5 min-w-[320px]">
                    <div className="flex items-center gap-2 flex-wrap">
                       {!viewOnly && <button onClick={() => setShowMasterBase(!showMasterBase)} className={cn("px-3 py-1.5 text-xs font-bold rounded-lg border transition-all flex items-center gap-1.5", showMasterBase ? (dk ? "bg-teal-600 text-white border-teal-500" : "bg-teal-600 text-white border-teal-700") : (dk ? "bg-[#1E293B] text-slate-400 border-white/10 hover:text-white" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"))}><Calculator size={12}/> Brutto / Netto</button>}
@@ -847,6 +850,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    </div>
                 </div>
 
+                {/* 3. RIGHT COLUMN (Deposit, Netto, Brutto) */}
                 <div className={cn("w-full xl:w-[380px] p-5 flex flex-col shrink-0 border-t xl:border-t-0 xl:border-l rounded-tr-2xl rounded-br-2xl rounded-bl-2xl xl:rounded-bl-none", dk ? "bg-[#0F172A]/80 border-white/10" : "bg-slate-50 border-slate-200")}>
                    <div className="flex items-center justify-between gap-2 mb-4">
                       <div className="flex items-center gap-1.5 flex-1 max-w-[160px]">
@@ -895,7 +899,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                         )}
                       </div>
                    </div>
-                  )}
                 </div>
             </div>
 
