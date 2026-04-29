@@ -596,27 +596,27 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             </div>
             {/* DUAL COST BLOCK */}
 
-            <div className="text-right min-w-[120px] flex flex-col justify-center h-full">
+            <div className="text-right min-w-[120px] flex flex-col justify-center h-full pr-0">
               <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">
                 {selectedMonth !== null ? (lang === 'de' ? 'Monat' : 'Month') : (lang === 'de' ? 'Kosten' : 'Cost')}
               </p>
               <p className={cn(
-                'font-black leading-none transition-all',
+                'font-black leading-none transition-all pr-0',
                 selectedMonth !== null ? 'text-md' : 'text-lg',
                 dk ? 'text-white' : 'text-slate-900'
               )}>
                 {formatCurrency(selectedMonth !== null ? calcHotelTotalCost(localHotel, selectedMonth, selectedYear) : masterMath.displayBrutto)}
               </p>
               {selectedMonth !== null && (
-                <div className="mt-1 flex justify-end">
-                  <span className={cn(
-                    "text-[11.5px] font-medium tracking-tight px-2 py-0.5 rounded-md border leading-none transition-all",
+                <div className="mt-1.5 flex justify-end">
+                  <div className={cn(
+                    "text-[11px] font-medium tracking-tight px-1.5 py-0.5 rounded-md border leading-none transition-all",
                     dk 
                       ? "bg-white/5 border-white/10 text-slate-400" 
                       : "bg-slate-50 border-slate-200 text-slate-500"
                   )}>
                     {formatCurrency(masterMath.displayBrutto)}
-                  </span>
+                  </div>
                 </div>
               )}
             </div>
