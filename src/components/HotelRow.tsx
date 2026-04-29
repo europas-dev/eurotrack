@@ -3,7 +3,7 @@ import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, ChevronRight, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, FileText, Tag, Calculator, Edit3, PlusCircle, Ticket } from 'lucide-react';
 import {
-  cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatDateChip, formatLastUpdated, calculateNights
+  cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatDateChip, formatLastUpdated, calculateNights, calcHotelTotalCost
 } from '../lib/utils';
 import { createDuration, updateHotel, deleteHotel } from '../lib/supabase';
 import { calcRoomCardTotal, calcRoomCardNettoSum } from '../lib/roomCardUtils';
@@ -594,7 +594,30 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">{lang === 'de' ? 'Betten' : 'Beds'}</p>
               <p className={cn('text-lg font-black', dk ? 'text-slate-300' : 'text-slate-700')}>{masterMath.totalBeds}</p>
             </div>
+            {/* DUAL COST BLOCK */}
             <div className="text-right min-w-[120px] flex flex-col justify-center h-full">
+              <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                {selectedMonth !== null ? (lang === 'de' ? 'Monat' : 'Month') : (lang === 'de' ? 'Kosten' : 'Cost')}
+              </p>
+              <p className={cn(
+                'font-black leading-none transition-all',
+                selectedMonth !== null ? 'text-md' : 'text-lg',
+                dk ? 'text-white' : 'text-slate-900'
+              )}>
+                {/* When a month is active, it uses your dashboard's exact math function! */}
+                {formatCurrency(selectedMonth !== null ? calcHotelTotalCost(localHotel, selectedMonth, selectedYear) : masterMath.displayBrutto)}
+              </p>
+              {selectedMonth !== null && (
+                <div className="mt-1 flex justify-end">
+                  <span className={cn(
+                    "text-[9px] font-bold px-1.5 py-0.5 rounded border leading-none",
+                    dk ? "bg-white/5 border-white/10 text-slate-400" : "bg-slate-50 border-slate-200 text-slate-500"
+                  )}>
+                    Total: {formatCurrency(masterMath.yearlyTotal || masterMath.displayBrutto)}
+                  </span>
+                </div>
+              )}
+            </div>
             <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">
               {selectedMonth !== null ? (lang === 'de' ? 'Monat' : 'Month') : (lang === 'de' ? 'Kosten' : 'Cost')}
             </p>
