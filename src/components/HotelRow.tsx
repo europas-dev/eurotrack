@@ -585,31 +585,25 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
 
           <div className="ml-auto flex items-center gap-8 pr-4 shrink-0 min-w-[320px] justify-end">
-            {/* FIXED WIDTH CONTAINER: Protects the alignment of the middle columns */}
-            <div className="flex flex-col gap-1 items-end max-h-[45px] overflow-y-auto no-scrollbar pr-1 w-[100px] shrink-0">
+            
+            {/* SEARCH MATCH INDICATOR ONLY (Zero invoice text to break alignment) */}
+            <div className="flex flex-col items-end justify-center w-[80px] shrink-0">
                {hiddenMatchText && (
-                  <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-teal-500/10 border border-teal-500/20 text-teal-500 text-[9px] font-black uppercase tracking-tighter animate-pulse mb-1">
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-teal-500/10 border border-teal-500/20 text-teal-500 text-[9px] font-black uppercase tracking-tighter animate-pulse">
                      <Search size={10} strokeWidth={3} /> {hiddenMatchText}
                   </div>
                )}
-               {(localHotel.invoices || []).map((inv: any) => (
-                 <div key={inv.id} className="group relative flex items-center gap-1.5 justify-end w-full">
-                    {/* The tiny "i" icon you requested */}
-                    {inv.note && <div className="w-3 h-3 rounded-full border border-teal-500/50 text-teal-500 flex items-center justify-center text-[8px] font-bold cursor-help shrink-0">i</div>}
-                    <span className={cn("text-[10px] font-bold tracking-tight truncate", dk ? "text-slate-400" : "text-slate-500")}>
-                      <HighlightText text={inv.number} query={searchScope === 'all' || searchScope === 'invoice' ? searchQuery : ''} />
-                    </span>
-                    
-                    {/* THE HOVER CARD */}
-                    {inv.note && (
-                       <div className={cn("absolute bottom-full right-0 mb-2 w-max max-w-[200px] p-2 rounded-lg shadow-xl border opacity-0 group-hover:opacity-100 pointer-events-none transition-all z-[300] translate-y-1 group-hover:translate-y-0", dk ? "bg-slate-800 border-white/10" : "bg-white border-slate-200")}>
-                         <p className={cn("text-[11px] font-black leading-tight mb-1", dk ? "text-white" : "text-slate-900")}>{inv.number}</p>
-                         <p className={cn("text-[10px] font-medium leading-normal", dk ? "text-slate-400" : "text-slate-500")}>{inv.note}</p>
-                       </div>
-                    )}
-                 </div>
-               ))}
             </div>
+            
+            <div className="text-center w-10">
+              <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">{lang === 'de' ? 'Frei' : 'Free'}</p>
+              <p className={cn('text-lg font-black', masterMath.freeBeds > 0 ? 'text-red-500' : dk ? 'text-teal-500' : 'text-teal-600')}>{masterMath.freeBeds}</p>
+            </div>
+            <div className="text-center w-10">
+              <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">{lang === 'de' ? 'Betten' : 'Beds'}</p>
+              <p className={cn('text-lg font-black', dk ? 'text-slate-300' : 'text-slate-700')}>{masterMath.totalBeds}</p>
+            </div>
+          
             
             <div className="text-center w-10">
               <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">{lang === 'de' ? 'Frei' : 'Free'}</p>
@@ -692,72 +686,71 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
             <div className={cn("rounded-2xl border flex flex-col xl:flex-row shadow-md", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}>
                 
-               {/* DYNAMIC INVOICE LEDGER */}
-                <div className={cn("w-full xl:w-[260px] shrink-0 p-5 flex flex-col gap-3 border-b xl:border-b-0 xl:border-r rounded-tl-2xl rounded-bl-2xl h-[180px]", dk ? "border-white/10 bg-[#0F172A]/50" : "border-slate-200 bg-slate-50/50")}>
-                    <div className="flex items-center justify-between mb-1">
-                       <label className={labelCls}><Receipt size={12}/> {lang === 'de' ? 'Rechnungsnr.' : 'Invoice No.'}</label>
-                       {!viewOnly && (
-                         <button 
-                           onClick={() => {
-                             const newInv = { id: Math.random().toString(), number: '', note: '' };
-                             patchHotel({ invoices: [newInv, ...(localHotel.invoices || [])] });
-                           }}
-                           className="p-1.5 rounded-md text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-500/20 transition-all"
-                         >
-                           <Plus size={14} strokeWidth={3} />
-                         </button>
-                       )}
-                    </div>
-                    
-                    {/* Scrollbar hidden visually, but scrolling remains active */}
-                    <div className="flex-1 overflow-y-auto space-y-2 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                       {(localHotel.invoices || []).length === 0 ? (
-                         <p className="text-[11px] font-medium italic text-slate-400 mt-2">{lang === 'de' ? 'Keine Rechnungen' : 'No invoices'}</p>
-                       ) : (
-                         localHotel.invoices.map((inv: any) => (
-                           <div key={inv.id} className={cn("group relative flex flex-col gap-1 p-2.5 rounded-xl border transition-colors", dk ? "bg-[#1E293B] border-white/5 hover:border-white/10" : "bg-white border-slate-100 hover:border-slate-200 shadow-sm")}>
-                              <div className="flex items-center gap-2">
-                                 <input 
-                                   disabled={viewOnly}
-                                   value={inv.number}
-                                   onChange={(e) => {
-                                     const next = localHotel.invoices.map((i: any) => i.id === inv.id ? { ...i, number: e.target.value } : i);
-                                     patchHotel({ invoices: next });
-                                   }}
-                                   className={cn("w-full text-[12px] font-black border-none bg-transparent outline-none p-0 focus:text-teal-600 dark:focus:text-teal-400", viewOnly && "cursor-default")}
-                                   placeholder={viewOnly ? "" : "RE-..."}
-                                 />
-                                 {!viewOnly && (
-                                   <button 
-                                     onClick={() => {
-                                       const next = localHotel.invoices.filter((i: any) => i.id !== inv.id);
-                                       patchHotel({ invoices: next });
-                                     }}
-                                     className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-400 hover:text-red-500 transition-all shrink-0"
-                                   >
-                                     <Trash2 size={12} />
-                                   </button>
-                                 )}
-                              </div>
-                              
-                              {/* TEXTAREA fixes the infinite horizontal scrolling */}
-                              <textarea 
-                                disabled={viewOnly}
-                                value={inv.note}
-                                rows={2}
-                                onChange={(e) => {
-                                  const next = localHotel.invoices.map((i: any) => i.id === inv.id ? { ...i, note: e.target.value } : i);
-                                  patchHotel({ invoices: next });
-                                }}
-                                className={cn("w-full text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-transparent outline-none p-0 resize-none overflow-hidden", viewOnly ? "cursor-default" : "cursor-text")}
-                                placeholder={viewOnly ? "" : (lang === 'de' ? "+ Notiz hinzufügen..." : "+ Add note...")}
-                              />
-                           </div>
-                         ))
-                       )}
-                    </div>
+               {/* 1. DYNAMIC INVOICE LEDGER (Left Column - Auto stretches to fill empty space) */}
+            <div className={cn("w-full xl:w-[260px] shrink-0 p-5 flex flex-col gap-3 border-b xl:border-b-0 xl:border-r rounded-tl-2xl rounded-bl-2xl", dk ? "border-white/10 bg-[#0F172A]/50" : "border-slate-200 bg-slate-50/50")}>
+                <div className="flex items-center justify-between mb-1">
+                   <label className={labelCls}><Receipt size={12}/> {lang === 'de' ? 'Rechnungsnr.' : 'Invoice No.'}</label>
+                   {!viewOnly && (
+                     <button 
+                       onClick={() => {
+                         const newInv = { id: Math.random().toString(), number: '', note: '' };
+                         patchHotel({ invoices: [newInv, ...(localHotel.invoices || [])] });
+                       }}
+                       className="p-1.5 rounded-md text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-500/20 transition-all"
+                     >
+                       <Plus size={14} strokeWidth={3} />
+                     </button>
+                   )}
                 </div>
-
+                
+                {/* Scrollbar hidden visually, but scrolling works */}
+                <div className="flex-1 overflow-y-auto space-y-2 pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                   {(localHotel.invoices || []).length === 0 ? (
+                     <p className="text-[11px] font-medium italic text-slate-400 mt-2">{lang === 'de' ? 'Keine Rechnungen' : 'No invoices'}</p>
+                   ) : (
+                     localHotel.invoices.map((inv: any) => (
+                       <div key={inv.id} className={cn("group relative flex flex-col gap-1 p-2.5 rounded-xl border transition-colors", dk ? "bg-[#1E293B] border-white/5 hover:border-white/10" : "bg-white border-slate-100 hover:border-slate-200 shadow-sm")}>
+                          <div className="flex items-center gap-2">
+                             <input 
+                               disabled={viewOnly}
+                               value={inv.number}
+                               onChange={(e) => {
+                                 const next = localHotel.invoices.map((i: any) => i.id === inv.id ? { ...i, number: e.target.value } : i);
+                                 patchHotel({ invoices: next });
+                               }}
+                               className={cn("w-full text-[12px] font-black border-none bg-transparent outline-none p-0 focus:text-teal-600 dark:focus:text-teal-400 placeholder:opacity-30", viewOnly && "cursor-default")}
+                               placeholder={viewOnly ? "" : "RE-..."}
+                             />
+                             {!viewOnly && (
+                               <button 
+                                 onClick={() => {
+                                   const next = localHotel.invoices.filter((i: any) => i.id !== inv.id);
+                                   patchHotel({ invoices: next });
+                                 }}
+                                 className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-400 hover:text-red-500 transition-all shrink-0"
+                               >
+                                 <Trash2 size={12} />
+                               </button>
+                             )}
+                          </div>
+                          
+                          {/* TEXTAREA fixes the infinite horizontal scrolling */}
+                          <textarea 
+                            disabled={viewOnly}
+                            value={inv.note}
+                            rows={2}
+                            onChange={(e) => {
+                              const next = localHotel.invoices.map((i: any) => i.id === inv.id ? { ...i, note: e.target.value } : i);
+                              patchHotel({ invoices: next });
+                            }}
+                            className={cn("w-full text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-transparent outline-none p-0 resize-none overflow-hidden", viewOnly ? "cursor-default" : "cursor-text")}
+                            placeholder={viewOnly ? "" : (lang === 'de' ? "+ Notiz hinzufügen..." : "+ Add note...")}
+                          />
+                       </div>
+                     ))
+                   )}
+                </div>
+            </div>
                 {/* 2. MIDDLE COLUMN (Base Costs & Extras) */}
                 <div className="flex-1 p-5 flex flex-col gap-5 min-w-[320px]">
                    <div className="flex items-center gap-2 flex-wrap">
