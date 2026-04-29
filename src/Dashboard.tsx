@@ -340,29 +340,30 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     return hotels.filter(h => {
       if (showBookmarks && !bookmarks.includes(h.id)) return false;
       if (searchQuery) {
-          const q = searchQuery.toLowerCase();
-          if (searchScope === 'hotel') { 
-              if (!h.name?.toLowerCase().includes(q)) return false; 
-          } else if (searchScope === 'city') { 
-              if (!h.city?.toLowerCase().includes(q)) return false; 
-          } else if (searchScope === 'company') { 
-              if (!h.companyTag?.some((t:any) => t.toLowerCase().includes(q))) return false; 
-          } else if (searchScope === 'invoice') { 
-              const hotelInvMatch = h.rechnungNr?.toLowerCase().includes(q);
-              const durationInvMatch = (h.durations || []).some((d:any) => d.rechnungNr?.toLowerCase().includes(q));
-              if (!hotelInvMatch && !durationInvMatch) return false;
-          } else if (searchScope === 'employee') {
-              const hasEmp = (h.durations || []).some((d:any) => (d.roomCards || []).some((rc:any) => (rc.employees || []).some((e:any) => e.name?.toLowerCase().includes(q))));
-              if (!hasEmp) return false;
-          } else { 
-              // ALL FIELDS SCOPE: Deep search including durations, employees, and invoices
-              const matchAll = hotelMatchesSearch(h, searchQuery, 'all');
-              const deepInvoiceMatch = h.rechnungNr?.toLowerCase().includes(q) || (h.durations || []).some((d:any) => d.rechnungNr?.toLowerCase().includes(q));
-              const deepEmployeeMatch = (h.durations || []).some((d:any) => (d.roomCards || []).some((rc:any) => (rc.employees || []).some((e:any) => e.name?.toLowerCase().includes(q))));
-              
-              if (!matchAll && !deepInvoiceMatch && !deepEmployeeMatch) return false;
-          }
-      }
+                const q = searchQuery.toLowerCase();
+                if (searchScope === 'hotel') { 
+                    if (!h.name?.toLowerCase().includes(q)) return false; 
+                } else if (searchScope === 'city') { 
+                    if (!h.city?.toLowerCase().includes(q)) return false; 
+                } else if (searchScope === 'company') { 
+                    if (!h.companyTag?.some((t:any) => t.toLowerCase().includes(q))) return false; 
+                } else if (searchScope === 'invoice') { 
+                    // FIXED: Now checks both the old string AND the new invoices array
+                    const hotelInvMatch = h.rechnungNr?.toLowerCase().includes(q) || (h.invoices || []).some((inv: any) => inv.number?.toLowerCase().includes(q));
+                    const durationInvMatch = (h.durations || []).some((d:any) => d.rechnungNr?.toLowerCase().includes(q));
+                    if (!hotelInvMatch && !durationInvMatch) return false;
+                } else if (searchScope === 'employee') {
+                    const hasEmp = (h.durations || []).some((d:any) => (d.roomCards || []).some((rc:any) => (rc.employees || []).some((e:any) => e.name?.toLowerCase().includes(q))));
+                    if (!hasEmp) return false;
+                } else { 
+                    // ALL FIELDS SCOPE: Deep search includes the new invoices array
+                    const matchAll = hotelMatchesSearch(h, searchQuery, 'all');
+                    const deepInvoiceMatch = h.rechnungNr?.toLowerCase().includes(q) || (h.invoices || []).some((inv: any) => inv.number?.toLowerCase().includes(q)) || (h.durations || []).some((d:any) => d.rechnungNr?.toLowerCase().includes(q));
+                    const deepEmployeeMatch = (h.durations || []).some((d:any) => (d.roomCards || []).some((rc:any) => (rc.employees || []).some((e:any) => e.name?.toLowerCase().includes(q))));
+                    
+                    if (!matchAll && !deepInvoiceMatch && !deepEmployeeMatch) return false;
+                }
+            }
       
       if (selectedMonth !== null) {
         const overlap = (h.durations || []).some((d: any) => {
