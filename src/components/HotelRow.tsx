@@ -610,8 +610,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               {selectedMonth !== null && (
                 <div className="mt-1 flex justify-end">
                   <span className={cn(
-                    "text-[10.5px] font-black px-2 py-0.5 rounded-md border leading-none transition-colors",
-                    dk 
+                    "text-[10.5px] font-black px-2 py-0.5 rounded-md border leading-none transition-colors", dk 
                       ? "bg-slate-800/50 border-white/10 text-slate-400" 
                       : "bg-slate-100 border-slate-200 text-slate-500"
                   )}>
