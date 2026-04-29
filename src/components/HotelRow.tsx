@@ -494,17 +494,17 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           <div className="flex items-center justify-center w-10 shrink-0">
             {open ? <ChevronDown size={18} className="text-teal-500" /> : <ChevronRight size={18} className="text-slate-500" />}
           </div>
-          <div className="flex-[2] py-2 min-w-[180px] pr-2">
+          <div className="flex-[1.2] py-2 min-w-[180px] pr-2">
             <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-[15px] font-black leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} />
             <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} className="mt-0.5" textClass={cn("text-[10px] font-bold uppercase tracking-widest gap-1.5", dk ? "text-slate-500" : "text-slate-400")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
           </div>
 
-          <div className="flex-[0.8] px-2 min-w-[100px]" onClick={e => e.stopPropagation()}>
+          <div className="flex-[0.5] px-2 min-w-[100px]" onClick={e => e.stopPropagation()}>
             <CompanyMultiSelect disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onAddOption={onAddOption} searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} />
           </div>
 
           <div className="flex-[1.5] px-2 min-w-[120px]">
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1.9">
               {localHotel.durations.map((d: any, i: number) => {
                 const typeCount: any = {};
                 (d.roomCards || []).forEach((c:any) => { typeCount[c.roomType] = (typeCount[c.roomType] || 0) + 1 });
@@ -522,7 +522,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
 
           <div className="flex-[2] px-2">
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
               {visibleEmps.map((emp: any, i: number) => {
                 const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
                 const parentDuration = localHotel.durations.find((d: any) => d.id === emp.duration_id || d.id === emp.durationId);
@@ -579,7 +579,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             </div>
           </div>
 
-          <div className="ml-auto flex items-center gap-6 pr-3 shrink-0 min-w-[300px] justify-end">
+          <div className="ml-auto flex items-center gap-8 pr-4 shrink-0 min-w-[320px] justify-end">
             {hiddenMatchText && (
                <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-teal-500/10 border border-teal-500/20 text-teal-500 text-[9px] font-black uppercase tracking-tighter animate-pulse">
                   <Search size={10} strokeWidth={3} /> {hiddenMatchText}
