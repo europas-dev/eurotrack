@@ -504,7 +504,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
 
           <div className="flex-[1.5] px-2 min-w-[120px]">
-            <div className="flex flex-wrap gap-1.9">
+            <div className="flex flex-wrap gap-2.5">
               {localHotel.durations.map((d: any, i: number) => {
                 const typeCount: any = {};
                 (d.roomCards || []).forEach((c:any) => { typeCount[c.roomType] = (typeCount[c.roomType] || 0) + 1 });
@@ -521,7 +521,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             </div>
           </div>
 
-          <div className="flex-[2] px-2">
+          <div className="flex-[2] px-2 mr-6">
             <div className="flex flex-wrap gap-2">
               {visibleEmps.map((emp: any, i: number) => {
                 const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
