@@ -7,11 +7,11 @@ export default function ExportStudio({ hotels, calcCost, lang, title, total, onC
   const [activeCols, setActiveCols] = React.useState<string[]>(['company', 'address', 'contact', 'phone', 'invoice', 'durations', 'employees']);
   const isDe = lang === 'de';
 
-  // Now passes the period filters into the report builder
-const reportData = React.useMemo(() => 
-  buildReportData(hotels, calcCost, lang, selectedMonth, selectedYear), 
-  [hotels, lang, selectedMonth, selectedYear]
-);
+   // We wrap the calcCost function so that it always uses the selected period
+  const reportData = React.useMemo(() => {
+  const periodCalc = (h: any) => calcCost(h, selectedMonth, selectedYear);
+  return buildReportData(hotels, periodCalc, lang);
+}, [hotels, lang, selectedMonth, selectedYear, calcCost]);
 
   const toggleCol = (id: string) => {
     setActiveCols(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
