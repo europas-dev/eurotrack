@@ -595,6 +595,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               <p className={cn('text-lg font-black', dk ? 'text-slate-300' : 'text-slate-700')}>{masterMath.totalBeds}</p>
             </div>
             {/* DUAL COST BLOCK */}
+
             <div className="text-right min-w-[120px] flex flex-col justify-center h-full">
               <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">
                 {selectedMonth !== null ? (lang === 'de' ? 'Monat' : 'Month') : (lang === 'de' ? 'Kosten' : 'Cost')}
@@ -604,7 +605,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 selectedMonth !== null ? 'text-md' : 'text-lg',
                 dk ? 'text-white' : 'text-slate-900'
               )}>
-                {/* When a month is active, it uses your dashboard's exact math function! */}
                 {formatCurrency(selectedMonth !== null ? calcHotelTotalCost(localHotel, selectedMonth, selectedYear) : masterMath.displayBrutto)}
               </p>
               {selectedMonth !== null && (
@@ -613,29 +613,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                     "text-[9px] font-bold px-1.5 py-0.5 rounded border leading-none",
                     dk ? "bg-white/5 border-white/10 text-slate-400" : "bg-slate-50 border-slate-200 text-slate-500"
                   )}>
-                    Total: {formatCurrency(masterMath.yearlyTotal || masterMath.displayBrutto)}
+                    Total: {formatCurrency(masterMath.displayBrutto)}
                   </span>
                 </div>
               )}
             </div>
-            <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">
-              {selectedMonth !== null ? (lang === 'de' ? 'Monat' : 'Month') : (lang === 'de' ? 'Kosten' : 'Cost')}
-            </p>
-            <p className={cn(
-              'font-black leading-tight transition-all',
-              selectedMonth !== null ? 'text-md' : 'text-lg', // Slightly smaller if month is active
-              dk ? 'text-white' : 'text-slate-900'
-            )}>
-              {formatCurrency(masterMath.displayBrutto)}
-            </p>
-            {selectedMonth !== null && (
-              <p className="text-[9px] font-bold text-slate-400 mt-0.5 leading-none">
-                 Total: {formatCurrency(masterMath.yearlyTotal)}
-              </p>
-            )}
-          </div>
-              
-
+            
             <div className="flex items-center gap-1 pl-2">
                <button onClick={handleBookmarkToggle} className={cn("p-1.5 rounded-lg transition-all", isBookmarked ? "text-yellow-500 hover:text-yellow-400 bg-yellow-500/10" : "text-slate-400 hover:text-yellow-500 hover:bg-white/5")}>
                  <Star size={16} className={isBookmarked ? "fill-yellow-500" : ""} />
