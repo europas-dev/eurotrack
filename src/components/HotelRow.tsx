@@ -70,13 +70,18 @@ function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, clas
 
   useEffect(() => { setDraft(value || ''); }, [value]);
 
+  // FIXED: Click away to CANCEL/REVERT. Only 'Enter' or clicking a dropdown option saves.
   useEffect(() => {
     function handle(e: MouseEvent) { 
-      if (ref.current && !ref.current.contains(e.target as Node)) { setEditing(false); setShowOptions(false); if (draft !== value) onChange(draft); } 
+      if (ref.current && !ref.current.contains(e.target as Node)) { 
+        setEditing(false); 
+        setShowOptions(false); 
+        setDraft(value || ''); // Instantly revert back to the original saved value
+      } 
     }
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
-  }, [draft, value, onChange]);
+  }, [value]);
 
   const filtered = draft.trim().length > 0 
     ? (options || []).filter((o: string) => o.toLowerCase().includes(draft.toLowerCase()) && o.toLowerCase() !== draft.toLowerCase()).slice(0, 5)
@@ -528,7 +533,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             </div>
           </div>
 
-          <div className="flex-[2] px-2 mr-6">
+          <div className="flex-[2.5] px-2 mr-6">
             <div className="flex flex-wrap gap-2">
               {visibleEmps.map((emp: any, i: number) => {
                 const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
