@@ -610,14 +610,15 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               {selectedMonth !== null && (
                 <div className="mt-1 flex justify-end">
                   <span className={cn(
-                    "text-[9px] font-bold px-1.5 py-0.5 rounded border leading-none",
-                    dk ? "bg-white/5 border-white/10 text-slate-400" : "bg-slate-50 border-slate-200 text-slate-500"
+                    "text-[10.5px] font-black px-2 py-0.5 rounded-md border leading-none transition-colors",
+                    dk 
+                      ? "bg-slate-800/50 border-white/10 text-slate-400" 
+                      : "bg-slate-100 border-slate-200 text-slate-500"
                   )}>
-                    Total: {formatCurrency(masterMath.displayBrutto)}
+                    {lang === 'de' ? 'Gesamt' : 'Total'}: {formatCurrency(masterMath.displayBrutto)}
                   </span>
                 </div>
               )}
-            </div>
             
             <div className="flex items-center gap-1 pl-2">
                <button onClick={handleBookmarkToggle} className={cn("p-1.5 rounded-lg transition-all", isBookmarked ? "text-yellow-500 hover:text-yellow-400 bg-yellow-500/10" : "text-slate-400 hover:text-yellow-500 hover:bg-white/5")}>
