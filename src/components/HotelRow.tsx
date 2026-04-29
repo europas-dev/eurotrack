@@ -596,25 +596,28 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             </div>
             {/* DUAL COST BLOCK */}
 
-            <div className="text-right min-w-[120px] flex flex-col justify-center h-full pr-0">
-              <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+            <div className="flex flex-col items-end justify-center min-w-[130px] h-full">
+              <p className="text-[10px] uppercase font-bold text-slate-500 mb-1 leading-none">
                 {selectedMonth !== null ? (lang === 'de' ? 'Monat' : 'Month') : (lang === 'de' ? 'Kosten' : 'Cost')}
               </p>
-              <p className={cn(
-                'font-black leading-none transition-all pr-0',
+              <div className={cn(
+                'font-black leading-none transition-all text-right',
                 selectedMonth !== null ? 'text-md' : 'text-lg',
                 dk ? 'text-white' : 'text-slate-900'
               )}>
                 {formatCurrency(selectedMonth !== null ? calcHotelTotalCost(localHotel, selectedMonth, selectedYear) : masterMath.displayBrutto)}
-              </p>
+              </div>
               {selectedMonth !== null && (
-                <div className="mt-1.5 flex justify-end">
-                  <div className={cn(
-                    "text-[11px] font-medium tracking-tight px-1.5 py-0.5 rounded-md border leading-none transition-all",
-                    dk 
-                      ? "bg-white/5 border-white/10 text-slate-400" 
-                      : "bg-slate-50 border-slate-200 text-slate-500"
-                  )}>
+                <div className="mt-2 flex justify-end">
+                  <div 
+                    style={{ fontSize: '11.5px' }}
+                    className={cn(
+                      "font-medium tracking-tighter px-1 py-0.5 rounded border leading-none transition-all text-right shrink-0 mr-[-1px]",
+                      dk 
+                        ? "bg-white/5 border-white/10 text-slate-400" 
+                        : "bg-slate-50 border-slate-200 text-slate-500"
+                    )}
+                  >
                     {formatCurrency(masterMath.displayBrutto)}
                   </div>
                 </div>
