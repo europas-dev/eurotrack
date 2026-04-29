@@ -608,14 +608,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 {formatCurrency(selectedMonth !== null ? calcHotelTotalCost(localHotel, selectedMonth, selectedYear) : masterMath.displayBrutto)}
               </p>
               {selectedMonth !== null && (
-                <div className="mt-1.5 flex justify-end">
+                <div className="mt-1 flex justify-end">
                   <span className={cn(
-                    "text-[10px] font-medium tracking-tight px-1.5 py-0.5 rounded-md border flex items-center gap-1 leading-none transition-all",
+                    "text-[11.5px] font-medium tracking-tight px-2 py-0.5 rounded-md border leading-none transition-all",
                     dk 
                       ? "bg-white/5 border-white/10 text-slate-400" 
                       : "bg-slate-50 border-slate-200 text-slate-500"
                   )}>
-                    <span className="text-[11px] opacity-70 font-sans">Σ</span>
                     {formatCurrency(masterMath.displayBrutto)}
                   </span>
                 </div>
