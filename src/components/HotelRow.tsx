@@ -725,7 +725,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                  patchHotel({ invoices: next });
                                }}
                                className={cn(inputCls, "h-[28px] text-[11px] font-black border-none bg-transparent p-0 focus:text-teal-500", viewOnly && "cursor-default")}
-                               placeholder="RE-..."
+                               placeholder={viewOnly ? "" : "RE-..."}
                              />
                              {!viewOnly && (
                                <button 
