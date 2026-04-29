@@ -698,15 +698,15 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    )}
                 </div>
                 
-                {/* Custom scrollbar class applied here */}
-                <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                {/* FIXED: Added strict max-h-[140px] and restored custom-scrollbar */}
+                <div className="flex-1 overflow-y-auto space-y-2 pr-2 max-h-[140px] custom-scrollbar">
                    {(localHotel.invoices || []).length === 0 ? (
                      <p className="text-[11px] font-medium italic text-slate-400 mt-2">{lang === 'de' ? 'Keine Rechnungen' : 'No invoices'}</p>
                    ) : (
                      localHotel.invoices.map((inv: any) => {
                        const isEditing = editingInvoiceId === inv.id;
                        
-                       /* --- EXPANDED EDIT MODE (Fixed Teal Text) --- */
+                       /* --- EXPANDED EDIT MODE --- */
                        if (isEditing) {
                           return (
                              <div key={inv.id} className={cn("group relative flex flex-col gap-1 p-2.5 rounded-xl border transition-colors", dk ? "bg-[#1E293B] border-white/5" : "bg-white border-slate-100 shadow-sm")}>
@@ -735,15 +735,17 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                           );
                        }
 
-                       /* --- MINIMAL LIST VIEW (Fixed Hover Card) --- */
+                       /* --- MINIMAL LIST VIEW --- */
                        return (
                           <div key={inv.id} className="group relative flex items-center justify-between p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors border border-transparent hover:border-black/5 dark:hover:border-white/5">
-                             <div className="flex items-center gap-2 overflow-hidden">
+                             
+                             {/* FIXED: Removed overflow-hidden from this div so the tooltip can escape */}
+                             <div className="flex items-center gap-2">
                                 {inv.note && (
                                    <div className="relative flex items-center justify-center group/info cursor-help">
                                       <div className="w-3 h-3 rounded-full border border-teal-500/50 text-teal-500 flex items-center justify-center text-[8px] font-bold">i</div>
                                       
-                                      {/* Bulletproof Hover Card */}
+                                      {/* THE HOVER CARD */}
                                       <div className={cn("absolute left-0 bottom-full mb-2 w-max max-w-[200px] p-2 rounded-lg shadow-xl border opacity-0 group-hover/info:opacity-100 pointer-events-none transition-all z-[300] translate-y-1 group-hover/info:translate-y-0", dk ? "bg-slate-800 border-white/10" : "bg-white border-slate-200")}>
                                         <p className={cn("text-[11px] font-black leading-tight mb-1", dk ? "text-white" : "text-slate-900")}>{inv.number || 'Unnamed'}</p>
                                         <p className={cn("text-[10px] font-medium leading-normal whitespace-pre-wrap", dk ? "text-slate-400" : "text-slate-500")}>{inv.note}</p>
@@ -751,12 +753,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                    </div>
                                 )}
                                 <span className={cn("text-[11px] font-bold truncate", dk ? "text-slate-300" : "text-slate-700")}>
-                                   {/* Search highlight is wired in right here */}
                                    <HighlightText text={inv.number || (lang === 'de' ? 'Unbenannt' : 'Unnamed')} query={searchScope === 'all' || searchScope === 'invoice' ? searchQuery : ''} />
                                 </span>
                              </div>
                              {!viewOnly && (
-                                <button onClick={() => setEditingInvoiceId(inv.id)} className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-teal-500 transition-all">
+                                <button onClick={() => setEditingInvoiceId(inv.id)} className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-teal-500 transition-all shrink-0">
                                    <Edit3 size={10} />
                                 </button>
                              )}
@@ -766,7 +767,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    )}
                 </div>
             </div>
-
               
                 {/* 2. MIDDLE COLUMN (Base Costs & Extras) */}
                 <div className="flex-1 p-5 flex flex-col gap-5 min-w-[320px]">
