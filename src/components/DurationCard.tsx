@@ -57,14 +57,14 @@ export default function DurationCard({
   useEffect(() => {
     setLocal(duration)
     setRoomCards(duration.roomCards ?? [])
-    setBaseNights(calculateNights(duration.startDate, duration.endDate));
-  }, [duration])
+    // Removed setBaseNights from here to prevent the 'blink' when dates shift.
+  }, [duration.id]) // Only resets when you switch to a completely different hotel/stay.
 
   const nights   = calculateNights(local.startDate, local.endDate)
   const hasDates = !!(local.startDate && local.endDate && nights > 0)
 
   const roomCardsTotal = roomCards.reduce(
-    (s, c) => s + (parseFloat(calcRoomCardTotal(c, local.startDate, local.endDate).toString()) || 0), 0
+    (s, c) => s + (parseFloat(calcRoomCardTotal(c, duration.startDate, duration.endDate).toString()) || 0), 0
   )
   const totalBeds = hasDates ? roomCards.reduce(
     (s, c) => s + (c.roomType === 'EZ' ? 1 : c.roomType === 'DZ' ? 2 : c.roomType === 'TZ' ? 3 : (c.bedCount || 2)),
