@@ -622,6 +622,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 selectedMonth !== null ? 'text-md' : 'text-lg',
                 dk ? 'text-white' : 'text-slate-900'
               )}>
+
                 {formatCurrency(selectedMonth !== null ? (() => {
                   return (localHotel.durations || []).reduce((durSum: number, dur: any) => {
                     const durMoney = (dur.roomCards || []).reduce((rcSum: number, rc: any) => 
@@ -631,16 +632,16 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
                     const dStart = new Date(dur.startDate); 
                     const dEnd = new Date(dur.endDate);
-                    const dEndNight = new Date(dEnd.getTime() - (1000 * 60 * 60 * 24));
+                    const lastNight = new Date(dEnd.getTime() - (1000 * 60 * 60 * 24));
 
                     const mStart = new Date(selectedYear, selectedMonth, 1);
                     const mEnd = new Date(selectedYear, selectedMonth + 1, 0);
 
-                    if (dStart > mEnd || dEndNight < mStart) return durSum;
+                    if (dStart > mEnd || lastNight < mStart) return durSum;
 
                     const overlapStart = dStart > mStart ? dStart : mStart;
-                    const overlapEnd = dEndNight < mEnd ? dEndNight : mEnd;
-                    const overlapNights = Math.max(0, (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24) + 1);
+                    const overlapEnd = lastNight < mEnd ? lastNight : mEnd;
+                    const overlapNights = Math.max(0, Math.floor((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
                     const totalNights = calculateNights(dur.startDate, dur.endDate);
 
                     return durSum + (durMoney * (overlapNights / totalNights));
