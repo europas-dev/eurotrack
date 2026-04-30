@@ -42,7 +42,6 @@ export default function DurationCard({
   const [roomCards, setRoomCards]   = useState<RoomCard[]>(duration.roomCards ?? [])
   
   const [addingType, setAddingType] = useState<string | null>(null)
-  const [activePreset, setActivePreset] = useState<'1W' | '1M' | null>(null)
   const [isAddingWg, setIsAddingWg] = useState(false)
   const [wgBeds, setWgBeds]         = useState(4)
   
@@ -58,8 +57,6 @@ export default function DurationCard({
 
   const nights   = calculateNights(local.startDate, local.endDate)
   // Teal color stays if nights are exactly 7 or 30
-  const is1WActive = nights === 7;
-  const is1MActive = nights === 30;
   const hasDates = !!(local.startDate && local.endDate && nights > 0)
 
   const roomCardsTotal = roomCards.reduce(
@@ -149,13 +146,15 @@ export default function DurationCard({
 
   // --- FIX: UNIT-AWARE STEPPERS ---
   // Now accepts 'unit' (7 or 30) so 1W adds 7 and 1M adds 30 consistently
+  // --- [FIX: RELATIVE STEPPER MATH] ---
   function shiftEndDate(delta: number, unit: number) {
+    // Guard: If check-out is empty, the buttons do nothing
     if (!local.endDate || viewOnly) return;
     
-    const daysToShift = delta * unit;
-    const shifted = addDays(local.endDate, daysToShift);
+    // Relative Math: Take the CURRENT end date and add/subtract the unit[cite: 6]
+    const shifted = addDays(local.endDate, delta * unit);
     
-    // Safety check: Don't shift before start[cite: 4, 6]
+    // Safety check: Don't shift before Check-in[cite: 4, 6]
     if (local.startDate && shifted < local.startDate) return;
     
     patch({ endDate: shifted });
@@ -252,30 +251,42 @@ export default function DurationCard({
 
           {/* SMART PRESETS */}
           {/* SMART PRESETS WITH UNIT-SPECIFIC STEPPERS */}
+
           {!viewOnly && local.startDate && (
-              <div className="flex items-center h-[42px] shrink-0">
-                {[
-                  { label: '1W', days: 7, active: is1WActive }, 
-                  { label: '1M', days: 30, active: is1MActive }
-                ].map(p => (
-                  <div key={p.label} className="flex items-center h-full">
-                    <button 
-                      onClick={() => patch({ endDate: addDays(local.startDate, p.days) })} 
-                      className={cn(
-                        'px-2.5 h-full text-sm font-black border-y border-l transition-all shadow-sm', 
-                        p.active ? 'bg-teal-600 text-white border-teal-600' : dk ? 'border-white/10 text-slate-300 hover:bg-white/5 bg-[#1E293B]' : 'border-slate-200 text-slate-600 hover:bg-slate-50 bg-white'
-                      )}
-                    >
-                      {p.label}
-                    </button>
-                    <div className="flex flex-col h-full border-y border-r rounded-r-lg mr-1 overflow-hidden shadow-sm" style={{ borderColor: dk ? 'rgba(255,255,255,0.1)' : '#e2e8f0' }}>
-                      <button onClick={() => shiftEndDate(1, p.days)} className={cn("flex-1 px-2 text-[9px] font-black border-b transition-colors", dk ? "hover:bg-white/10 text-slate-300 border-white/10" : "hover:bg-slate-100 text-slate-600 border-slate-200")}>+</button>
-                      <button onClick={() => shiftEndDate(-1, p.days)} className={cn("flex-1 px-2 text-[9px] font-black transition-colors", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")}>−</button>
-                    </div>
-                  </div>
-                ))}
+          <div className="flex items-center h-[42px] shrink-0">
+            {[
+              { label: '1W', days: 7 }, 
+              { label: '1M', days: 30 }
+            ].map(p => (
+              <div key={p.label} className="flex items-center h-full">
+                {/* The Label: Becomes the "First Fill" setter */}
+                <button 
+                  onClick={() => togglePreset(p.days)} 
+                  className={cn(
+                    'px-2.5 h-full text-sm font-black border-y border-l transition-all shadow-sm', 
+                    dk ? 'border-white/10 text-slate-300 hover:bg-white/5 bg-[#1E293B]' : 'border-slate-200 text-slate-600 hover:bg-slate-50 bg-white'
+                  )}
+                >
+                  {p.label}
+                </button>
+                
+                {/* The Steppers: Relative +/- shifters */}
+                <div className="flex flex-col h-full border-y border-r rounded-r-lg mr-1 overflow-hidden shadow-sm" style={{ borderColor: dk ? 'rgba(255,255,255,0.1)' : '#e2e8f0' }}>
+                  <button 
+                    disabled={!local.endDate} // Guard remains active
+                    onClick={() => shiftEndDate(1, p.days)} 
+                    className={cn("flex-1 px-2 text-[9px] font-black border-b transition-colors", dk ? "hover:bg-white/10 text-slate-300 border-white/10" : "hover:bg-slate-100 text-slate-600 border-slate-200", !local.endDate && "opacity-30")}
+                  >+</button>
+                  <button 
+                    disabled={!local.endDate}
+                    onClick={() => shiftEndDate(-1, p.days)} 
+                    className={cn("flex-1 px-2 text-[9px] font-black transition-colors", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600", !local.endDate && "opacity-30")}
+                  >−</button>
+                </div>
               </div>
-          )}
+            ))}
+          </div>
+      )}
 
           {/* ULTRA-COMPACT ROOM ADDERS */}
           {hasDates && (
