@@ -730,6 +730,7 @@ export default function RoomCard({
                         const suggestedNetto = (Number(card.totalNetto) / nights) * (nights + nightsDiff);
                         onUpdate(card.id, { totalNetto: Number(suggestedNetto.toFixed(2)) });
                         enqueue({ type: 'updateRoomCard', payload: { id: card.id, totalNetto: Number(suggestedNetto.toFixed(2)) } });
+                        if (onPriceApplied) onPriceApplied();
                         
                         // Reset the baseline so the badge disappears
                         if (onPriceApplied) onPriceApplied();
@@ -745,10 +746,12 @@ export default function RoomCard({
                     </button>
           
                     {/* HOVER RECEIPT - High Z-Index Fix[cite: 4] */}
-                    <div className={cn(
-                      "absolute bottom-full right-0 mb-3 w-64 p-4 rounded-2xl border shadow-2xl opacity-0 group-hover/sync:opacity-100 pointer-events-none transition-all z-[110] translate-y-2 group-hover/sync:translate-y-0",
-                      dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"
-                    )}>
+                     <div className={cn(
+                        "fixed md:absolute bottom-auto md:bottom-full right-auto md:right-0 mb-3 w-64 p-4 rounded-2xl border shadow-2xl transition-all",
+                        "opacity-0 group-hover/sync:opacity-100 z-[9999] pointer-events-auto", 
+                        dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-900",
+                        "translate-y-2 group-hover/sync:translate-y-0"
+                      )}>
                       <p className="text-[10px] font-black uppercase text-slate-500 mb-3 border-b pb-2 tracking-widest">
                         {lang === 'de' ? 'PREIS-VORSCHLAG' : 'PRICE SUGGESTION'}
                       </p>
