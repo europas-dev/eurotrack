@@ -129,6 +129,7 @@ export default function DurationCard({
     if (local.endDate && newStart >= local.endDate) {
       updates.endDate = addDays(newStart, 1);
     }
+    
     patch(updates);
   }
 
@@ -139,11 +140,11 @@ export default function DurationCard({
     patch({ endDate: newEnd });
   }
 
-  // --- [FIX: LABEL "FIRST FILL" LOGIC] ---
+  // --- [FIX: LABEL ONLY WORKS IF END DATE IS EMPTY] ---
   function togglePreset(days: number) {
-    if (!local.startDate || viewOnly) return;
+    // Only proceed if we have a start date AND the end date is currently empty
+    if (!local.startDate || local.endDate || viewOnly) return;
     
-    // Simply sets Check-out based on Check-in + X nights
     patch({ endDate: addDays(local.startDate, days) });
   }
 
@@ -258,16 +259,19 @@ export default function DurationCard({
               { label: '1M', days: 30 }
             ].map(p => (
               <div key={p.label} className="flex items-center h-full">
-                {/* The Label: Becomes the "First Fill" setter */}
-                <button 
-                  onClick={() => togglePreset(p.days)} 
-                  className={cn(
-                    'px-2.5 h-full text-sm font-black border-y border-l transition-all shadow-sm', 
-                    dk ? 'border-white/10 text-slate-300 hover:bg-white/5 bg-[#1E293B]' : 'border-slate-200 text-slate-600 hover:bg-slate-50 bg-white'
-                  )}
-                >
-                  {p.label}
-                </button>
+                {/* The Label: Only clickable if endDate is empty */}
+                  <button 
+                    onClick={() => togglePreset(p.days)} 
+                    disabled={!!local.endDate} // Visual and functional lock
+                    className={cn(
+                      'px-2.5 h-full text-sm font-black border-y border-l transition-all shadow-sm', 
+                      local.endDate 
+                        ? (dk ? 'text-slate-600 bg-white/5' : 'text-slate-300 bg-slate-50 cursor-default') 
+                        : (dk ? 'border-white/10 text-slate-300 hover:bg-white/5 bg-[#1E293B]' : 'border-slate-200 text-slate-600 hover:bg-slate-50 bg-white')
+                    )}
+                  >
+                    {p.label}
+                  </button>
                 
                 {/* The Steppers: Relative +/- shifters */}
                 <div className="flex flex-col h-full border-y border-r rounded-r-lg mr-1 overflow-hidden shadow-sm" style={{ borderColor: dk ? 'rgba(255,255,255,0.1)' : '#e2e8f0' }}>
