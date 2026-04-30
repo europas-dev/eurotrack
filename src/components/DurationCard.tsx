@@ -243,22 +243,23 @@ export default function DurationCard({
           <div className={cn("flex items-center rounded-lg border h-[42px] px-2 shrink-0 shadow-sm", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
               <CalendarDays size={16} className="mr-2 opacity-50" />
               <div className={cn("relative w-[90px] h-full", viewOnly ? "cursor-default" : "cursor-pointer")} onClick={() => openPicker(inDateRef)}>
-                  <input disabled={viewOnly} ref={inDateRef} type="date" value={local.startDate || ''} onChange={e => handleStartDateChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
+                  <input disabled={viewOnly} ref={inDateRef} type="date" value={local.startDate || ''} onChange={e => handleStartDateChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                   <div className="absolute inset-0 flex items-center pointer-events-none">
                       <span className={cn("text-[15px] font-bold", local.startDate ? (dk ? 'text-white' : 'text-slate-900') : 'text-slate-400')}>{forceDMY(local.startDate)}</span>
                   </div>
               </div>
-              {/* Arrow and Check-out Picker */}
+              
               <ArrowRight size={14} className="mx-2 opacity-30" />
+              
               <div 
                 className={cn(
                   "relative w-[90px] h-full", 
-                  (viewOnly || !local.startDate) ? "cursor-default opacity-50" : "cursor-pointer" // Visual cue that it's locked
+                  (viewOnly || !local.startDate) ? "cursor-default opacity-50" : "cursor-pointer"
                 )} 
-                onClick={() => local.startDate && openPicker(outDateRef)} // Only open if start date exists
+                onClick={() => local.startDate && openPicker(outDateRef)}
               >
                   <input 
-                    disabled={viewOnly || !local.startDate} // HARD LOCK: Cannot click or tab into it without Check-in
+                    disabled={viewOnly || !local.startDate} 
                     ref={outDateRef} 
                     type="date" 
                     value={local.endDate || ''} 
@@ -272,48 +273,45 @@ export default function DurationCard({
                       </span>
                   </div>
               </div>
+          </div> {/* FIXED: Added missing closing div for the date picker container */}
 
           {/* SMART PRESETS */}
-          {/* SMART PRESETS WITH UNIT-SPECIFIC STEPPERS */}
-
           {!viewOnly && local.startDate && (
-          <div className="flex items-center h-[42px] shrink-0">
-            {[
-              { label: '1W', days: 7 }, 
-              { label: '1M', days: 30 }
-            ].map(p => (
-              <div key={p.label} className="flex items-center h-full">
-                {/* The Label: Only clickable if endDate is empty */}
-                  <button 
-                    onClick={() => togglePreset(p.days)} 
-                    disabled={!!local.endDate} // Visual and functional lock
-                    className={cn(
-                      'px-2.5 h-full text-sm font-black border-y border-l transition-all shadow-sm', 
-                      local.endDate 
-                        ? (dk ? 'text-slate-600 bg-white/5' : 'text-slate-300 bg-slate-50 cursor-default') 
-                        : (dk ? 'border-white/10 text-slate-300 hover:bg-white/5 bg-[#1E293B]' : 'border-slate-200 text-slate-600 hover:bg-slate-50 bg-white')
-                    )}
-                  >
-                    {p.label}
-                  </button>
-                
-                {/* The Steppers: Relative +/- shifters */}
-                <div className="flex flex-col h-full border-y border-r rounded-r-lg mr-1 overflow-hidden shadow-sm" style={{ borderColor: dk ? 'rgba(255,255,255,0.1)' : '#e2e8f0' }}>
-                  <button 
-                    disabled={!local.endDate} // Guard remains active
-                    onClick={() => shiftEndDate(1, p.days)} 
-                    className={cn("flex-1 px-2 text-[9px] font-black border-b transition-colors", dk ? "hover:bg-white/10 text-slate-300 border-white/10" : "hover:bg-slate-100 text-slate-600 border-slate-200", !local.endDate && "opacity-30")}
-                  >+</button>
-                  <button 
-                    disabled={!local.endDate}
-                    onClick={() => shiftEndDate(-1, p.days)} 
-                    className={cn("flex-1 px-2 text-[9px] font-black transition-colors", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600", !local.endDate && "opacity-30")}
-                  >−</button>
+            <div className="flex items-center h-[42px] shrink-0">
+              {[
+                { label: '1W', days: 7 }, 
+                { label: '1M', days: 30 }
+              ].map(p => (
+                <div key={p.label} className="flex items-center h-full">
+                    <button 
+                      onClick={() => togglePreset(p.days)} 
+                      disabled={!!local.endDate}
+                      className={cn(
+                        'px-2.5 h-full text-sm font-black border-y border-l transition-all shadow-sm', 
+                        local.endDate 
+                          ? (dk ? 'text-slate-600 bg-white/5' : 'text-slate-300 bg-slate-50 cursor-default') 
+                          : (dk ? 'border-white/10 text-slate-300 hover:bg-white/5 bg-[#1E293B]' : 'border-slate-200 text-slate-600 hover:bg-slate-50 bg-white')
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  
+                  <div className="flex flex-col h-full border-y border-r rounded-r-lg mr-1 overflow-hidden shadow-sm" style={{ borderColor: dk ? 'rgba(255,255,255,0.1)' : '#e2e8f0' }}>
+                    <button 
+                      disabled={!local.endDate}
+                      onClick={() => shiftEndDate(1, p.days)} 
+                      className={cn("flex-1 px-2 text-[9px] font-black border-b transition-colors", dk ? "hover:bg-white/10 text-slate-300 border-white/10" : "hover:bg-slate-100 text-slate-600 border-slate-200", !local.endDate && "opacity-30")}
+                    >+</button>
+                    <button 
+                      disabled={!local.endDate}
+                      onClick={() => shiftEndDate(-1, p.days)} 
+                      className={cn("flex-1 px-2 text-[9px] font-black transition-colors", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600", !local.endDate && "opacity-30")}
+                    >−</button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-      )}
+              ))}
+            </div>
+          )}
 
           {/* ULTRA-COMPACT ROOM ADDERS */}
           {hasDates && (
@@ -352,7 +350,7 @@ export default function DurationCard({
               </div>
           )}
         </div>
-
+  
         {/* RIGHT: CLEAN, LARGE INFO DISPLAY & TRASH */}
         {/* SURGICAL FIX: Removed hasDates guard to ensure TRASH is always visible for NEW durations */}
         <div className="flex items-center gap-4 shrink-0 ml-auto">
