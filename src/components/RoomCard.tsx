@@ -707,62 +707,67 @@ export default function RoomCard({
                   return null;
                 })()}
              </div>
-             
-             <div className="flex flex-col items-end shrink-0 ml-4">
-                {isMasterPricingActive ? (
-                  <span className={cn("text-[10px] font-black uppercase tracking-widest", dk ? "text-slate-600" : "text-slate-400")}>
-                    {lang === 'de' ? 'Master Aktiv' : 'Master Active'}
-                  </span>
-                ) : (
-                  <div className="flex items-center">
-                    {/* --- [LAUNCH TEST: SMART PRICE SYNC BADGE] --- */}
-                    {activeTab === 'total_room' && nightsDiff !== 0 && (
-                      <div className="group/sync relative flex items-center mr-3" onClick={e => e.stopPropagation()}>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const suggestedNetto = (Number(card.totalNetto) / nights) * (nights + nightsDiff);
-                            onUpdate(card.id, { totalNetto: Number(suggestedNetto.toFixed(2)) });
-                            enqueue({ type: 'updateRoomCard', payload: { id: card.id, totalNetto: Number(suggestedNetto.toFixed(2)) } });
-                          }}
-                          className={cn(
-                            "flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-black transition-all shadow-md border animate-pulse hover:animate-none",
-                            nightsDiff > 0 
-                             ? "bg-teal-500/10 border-teal-500/40 text-teal-500 hover:bg-teal-500 hover:text-white" 
-                             : "bg-amber-500/10 border-amber-500/40 text-amber-500 hover:bg-amber-500 hover:text-white"
-                          )}
-                        >
-                          {nightsDiff > 0 ? `+${nightsDiff}D` : `${nightsDiff}D`}? <Check size={12} strokeWidth={4}/>
-                        </button>
-       
-                        {/* RECEIPT-STYLE HOVER TOOLTIP */}
-                        <div className={cn(
-                          "absolute bottom-full right-0 mb-3 w-56 p-4 rounded-2xl border shadow-2xl opacity-0 group-hover/sync:opacity-100 pointer-events-none transition-all z-[100] translate-y-2 group-hover/sync:translate-y-0",
-                          dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"
-                        )}>
-                          <p className="text-[10px] font-black uppercase text-slate-500 mb-3 border-b pb-2 tracking-widest">
-                            {lang === 'de' ? 'PREIS-VORSCHLAG' : 'PRICE SUGGESTION'}
-                          </p>
-                          <div className="space-y-2 text-[12px] font-bold">
-                            <div className="flex justify-between opacity-60">
-                              <span>{nights}N ({lang === 'de' ? 'Alt' : 'Old'})</span> 
-                              <span>{formatCurrency(calculatedFinalBrutto)}</span>
-                            </div>
-                            <div className={cn("flex justify-between py-1 border-t border-dashed", dk ? "border-white/10 text-teal-400" : "border-slate-100 text-teal-600")}>
-                              <span>{nights + nightsDiff}N ({lang === 'de' ? 'Neu' : 'New'})</span> 
-                              <span>{formatCurrency((calculatedFinalBrutto / nights) * (nights + nightsDiff))}</span>
-                            </div>
-                          </div>
-                          <p className="mt-3 text-[10px] opacity-70 italic leading-tight">
-                            {lang === 'de' ? 'Klicken zum Übernehmen der Hochrechnung' : 'Click to apply pro-rata extension'}
-                          </p>
+
+            <div className="flex flex-col items-end shrink-0 ml-4">
+            {isMasterPricingActive ? (
+              <span className={cn("text-[10px] font-black uppercase tracking-widest", dk ? "text-slate-600" : "text-slate-400")}>
+                {lang === 'de' ? 'Master Aktiv' : 'Master Active'}
+              </span>
+            ) : (
+              <div className="flex items-center">
+                {/* --- [SYNC BADGE LOGIC] --- */}
+                {/* Only show if we are in Total/Room mode and dates have shifted */}
+                {activeTab === 'total_room' && nightsDiff !== 0 && (
+                  <div className="group/sync relative flex items-center mr-3" onClick={e => e.stopPropagation()}>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Calculate the suggested price based on the NEW total nights
+                        const suggestedNetto = (Number(card.totalNetto) / nights) * (nights + nightsDiff);
+                        onUpdate(card.id, { totalNetto: Number(suggestedNetto.toFixed(2)) });
+                        enqueue({ type: 'updateRoomCard', payload: { id: card.id, totalNetto: Number(suggestedNetto.toFixed(2)) } });
+                      }}
+                      className={cn(
+                        "flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-black transition-all shadow-md border animate-pulse hover:animate-none",
+                        nightsDiff > 0 
+                         ? "bg-teal-500/10 border-teal-500/40 text-teal-500 hover:bg-teal-500 hover:text-white" 
+                         : "bg-amber-500/10 border-amber-500/40 text-amber-500 hover:bg-amber-500 hover:text-white"
+                      )}
+                    >
+                      {/* Show day count */}
+                      {nightsDiff > 0 ? `+${nightsDiff}D` : `${nightsDiff}D`}? <Check size={12} strokeWidth={4}/>
+                    </button>
+          
+                    {/* HOVER RECEIPT[cite: 3] */}
+                    <div className={cn(
+                      "absolute bottom-full right-0 mb-3 w-56 p-4 rounded-2xl border shadow-2xl opacity-0 group-hover/sync:opacity-100 pointer-events-none transition-all z-[100] translate-y-2 group-hover/sync:translate-y-0",
+                      dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"
+                    )}>
+                      <p className="text-[10px] font-black uppercase text-slate-500 mb-3 border-b pb-2 tracking-widest">
+                        {lang === 'de' ? 'PREIS-VORSCHLAG' : 'PRICE SUGGESTION'}
+                      </p>
+                      <div className="space-y-2 text-[12px] font-bold">
+                        <div className="flex justify-between opacity-60">
+                          <span>{nights}N ({lang === 'de' ? 'Aktuell' : 'Current'})</span> 
+                          <span>{formatCurrency(calculatedFinalBrutto)}</span>
+                        </div>
+                        <div className={cn("flex justify-between py-1 border-t border-dashed", dk ? "border-white/10 text-teal-400" : "border-slate-100 text-teal-600")}>
+                          <span>{nights + nightsDiff}N ({nightsDiff > 0 ? (lang === 'de' ? 'Verlängerung' : 'Extension') : (lang === 'de' ? 'Kürzung' : 'Reduction')})</span> 
+                          <span>{formatCurrency((calculatedFinalBrutto / nights) * (nights + nightsDiff))}</span>
                         </div>
                       </div>
-                    )}
-                    <span className="text-xl font-black tabular-nums">{roomTotalDisplay}</span>
+                      <p className="mt-3 text-[10px] opacity-70 italic leading-tight">
+                        {lang === 'de' ? 'Klicken zum Übernehmen' : 'Click to apply'}
+                      </p>
+                    </div>
                   </div>
                 )}
-             </div>
+                <span className="text-xl font-black tabular-nums">{roomTotalDisplay}</span>
+              </div>
+            )}
+          </div>
+
+             
              {/* SURGICAL FIX: Hide delete button on closed row for viewers */}
              {!viewOnly && (
                <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className={cn('p-2 rounded transition-all shrink-0 ml-4', dk ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-red-500 hover:bg-red-50')}><Trash2 size={18} /></button>
