@@ -529,29 +529,37 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
   // --- [FIX: DASHBOARD TOTAL SPEND] ---
   // Sum only the actual room costs inside durations
+  // --- [FIX: NIGHT-BASED DASHBOARD SUM] ---
   const totalSpend = finalFiltered.reduce((s, h) => {
     const hotelSum = (h.durations || []).reduce((dSum: number, dur: any) => {
       const durMoney = (dur.roomCards || []).reduce((rcSum: number, rc: any) => 
         rcSum + (parseFloat(calcRoomCardTotal(rc, dur.startDate, dur.endDate).toString()) || 0), 0
       );
       
-      // If we are filtering by month, pro-rata THIS duration's specific money
       if (selectedMonth !== null) {
-         const dStart = new Date(dur.startDate); const dEnd = new Date(dur.endDate);
-         const mStart = new Date(selectedYear, selectedMonth, 1); const mEnd = new Date(selectedYear, selectedMonth + 1, 0);
-         if (dStart > mEnd || dEnd < mStart) return dSum;
+         const dStart = new Date(dur.startDate);
+         const dEnd = new Date(dur.endDate);
+         const dEndNight = new Date(dEnd.getTime() - (1000 * 60 * 60 * 24));
+         
+         const mStart = new Date(selectedYear, selectedMonth, 1);
+         const mEnd = new Date(selectedYear, selectedMonth + 1, 0);
+         
+         if (dStart > mEnd || dEndNight < mStart) return dSum;
+         
          const overlapStart = dStart > mStart ? dStart : mStart;
-         const overlapEnd = dEnd < mEnd ? dEnd : mEnd;
-         const overlapDays = Math.max(0, (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24) + 1);
-         const totalDurDays = Math.max(1, (dEnd.getTime() - dStart.getTime()) / (1000 * 60 * 60 * 24) + 1);
-         return dSum + (durMoney * (overlapDays / totalDurDays));
+         const overlapEnd = dEndNight < mEnd ? dEndNight : mEnd;
+         const overlapNights = Math.max(0, (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24) + 1);
+         const totalNights = calculateNights(dur.startDate, dur.endDate);
+         
+         return dSum + (durMoney * (overlapNights / totalNights));
       }
       return dSum + durMoney;
     }, 0);
     return s + hotelSum;
   }, 0);
-  const freeBedsTotal = finalFiltered.reduce((s, h) => s + calcHotelFreeBedsToday(h), 0);
 
+  
+  const freeBedsTotal = finalFiltered.reduce((s, h) => s + calcHotelFreeBedsToday(h), 0);
   const closeMenu = () => { setShowFilterMenu(false); setShowTimelineMenu(false); setShowSortMenu(false); };
 
   const activeFilters = useMemo(() => {
