@@ -129,11 +129,6 @@ export default function DurationCard({
     if (local.endDate && newStart >= local.endDate) {
       updates.endDate = addDays(newStart, 1);
     }
-    
-    // Maintain presets if they were active to keep the teal color locked
-    if (is1WActive) updates.endDate = addDays(newStart, 7);
-    if (is1MActive) updates.endDate = addDays(newStart, 30);
-    
     patch(updates);
   }
 
@@ -144,17 +139,21 @@ export default function DurationCard({
     patch({ endDate: newEnd });
   }
 
-  // --- FIX: UNIT-AWARE STEPPERS ---
-  // Now accepts 'unit' (7 or 30) so 1W adds 7 and 1M adds 30 consistently
+  // --- [FIX: LABEL "FIRST FILL" LOGIC] ---
+  function togglePreset(days: number) {
+    if (!local.startDate || viewOnly) return;
+    
+    // Simply sets Check-out based on Check-in + X nights
+    patch({ endDate: addDays(local.startDate, days) });
+  }
+
   // --- [FIX: RELATIVE STEPPER MATH] ---
   function shiftEndDate(delta: number, unit: number) {
-    // Guard: If check-out is empty, the buttons do nothing
     if (!local.endDate || viewOnly) return;
     
-    // Relative Math: Take the CURRENT end date and add/subtract the unit[cite: 6]
+    // Take the CURRENT end date and move it relative
     const shifted = addDays(local.endDate, delta * unit);
     
-    // Safety check: Don't shift before Check-in[cite: 4, 6]
     if (local.startDate && shifted < local.startDate) return;
     
     patch({ endDate: shifted });
