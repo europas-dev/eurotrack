@@ -359,8 +359,9 @@ export default function DurationCard({
             card={card} 
             durationStart={local.startDate} 
             durationEnd={local.endDate} 
+            nightsDiff={calculateNights(local.startDate, local.endDate) - nights}
             dk={dk} 
-            lang={lang} 
+            lang={lang}
             allCardsOfSameType={roomCards.filter(c => c.roomType === card.roomType)} 
             onUpdate={handleCardUpdate} 
             onDelete={handleCardDelete} 
