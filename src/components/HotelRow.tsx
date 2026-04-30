@@ -623,25 +623,27 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 dk ? 'text-white' : 'text-slate-900'
               )}>
                 {formatCurrency(selectedMonth !== null ? (() => {
-                  // LOCAL FIX: Only sum durations that have rooms and overlap this month
                   return (localHotel.durations || []).reduce((durSum: number, dur: any) => {
                     const durMoney = (dur.roomCards || []).reduce((rcSum: number, rc: any) => 
                       rcSum + (parseFloat(calcRoomCardTotal(rc, dur.startDate, dur.endDate).toString()) || 0), 0
                     );
                     if (durMoney === 0) return durSum;
 
-                    const dStart = new Date(dur.startDate); const dEnd = new Date(dur.endDate);
+                    const dStart = new Date(dur.startDate); 
+                    const dEnd = new Date(dur.endDate);
+                    const dEndNight = new Date(dEnd.getTime() - (1000 * 60 * 60 * 24));
+
                     const mStart = new Date(selectedYear, selectedMonth, 1);
                     const mEnd = new Date(selectedYear, selectedMonth + 1, 0);
 
-                    if (dStart > mEnd || dEnd < mStart) return durSum;
+                    if (dStart > mEnd || dEndNight < mStart) return durSum;
 
                     const overlapStart = dStart > mStart ? dStart : mStart;
-                    const overlapEnd = dEnd < mEnd ? dEnd : mEnd;
-                    const overlapDays = Math.max(0, (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24) + 1);
-                    const totalDurDays = Math.max(1, (dEnd.getTime() - dStart.getTime()) / (1000 * 60 * 60 * 24) + 1);
+                    const overlapEnd = dEndNight < mEnd ? dEndNight : mEnd;
+                    const overlapNights = Math.max(0, (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24) + 1);
+                    const totalNights = calculateNights(dur.startDate, dur.endDate);
 
-                    return durSum + (durMoney * (overlapDays / totalDurDays));
+                    return durSum + (durMoney * (overlapNights / totalNights));
                   }, 0);
                 })() : masterMath.displayBrutto)}
               </div>
