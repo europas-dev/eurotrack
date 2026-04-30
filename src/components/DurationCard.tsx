@@ -276,43 +276,61 @@ export default function DurationCard({
           </div> {/* FIXED: Added missing closing div for the date picker container */}
 
           {/* SMART PRESETS */}
+
+          {/* --- [FIX: MODERN UI FOR PRESETS] --- */}
           {!viewOnly && local.startDate && (
-            <div className="flex items-center h-[42px] shrink-0">
+            <div className="flex items-center gap-2 h-[42px] shrink-0 ml-1">
               {[
                 { label: '1W', days: 7 }, 
                 { label: '1M', days: 30 }
               ].map(p => (
-                <div key={p.label} className="flex items-center h-full">
+                <div key={p.label} className="flex items-center h-full group">
+                  {/* Main Label */}
+                  <button 
+                    type="button" // Prevents accidental form submits
+                    onClick={() => togglePreset(p.days)} 
+                    disabled={!!local.endDate}
+                    className={cn(
+                      "h-full px-3 text-sm font-black transition-all outline-none border-y border-l rounded-l-lg",
+                      local.endDate 
+                        ? (dk ? "bg-white/5 border-white/10 text-slate-500 opacity-40 cursor-default" : "bg-slate-50 border-slate-200 text-slate-300 cursor-default")
+                        : (dk ? "bg-[#1E293B] border-white/10 text-slate-300 hover:bg-white/5" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50")
+                    )}
+                  >
+                    {p.label}
+                  </button>
+          
+                  {/* Stepper Container */}
+                  <div className={cn(
+                    "flex flex-col h-full border rounded-r-lg overflow-hidden transition-all",
+                    dk ? "border-white/10" : "border-slate-200",
+                    !local.endDate && "opacity-100",
+                    local.endDate && "opacity-40"
+                  )}>
                     <button 
-                      onClick={() => togglePreset(p.days)} 
-                      disabled={!!local.endDate}
-                      className={cn(
-                        'px-2.5 h-full text-sm font-black border-y border-l transition-all shadow-sm', 
-                        local.endDate 
-                          ? (dk ? 'text-slate-600 bg-white/5' : 'text-slate-300 bg-slate-50 cursor-default') 
-                          : (dk ? 'border-white/10 text-slate-300 hover:bg-white/5 bg-[#1E293B]' : 'border-slate-200 text-slate-600 hover:bg-slate-50 bg-white')
-                      )}
-                    >
-                      {p.label}
-                    </button>
-                  
-                  <div className="flex flex-col h-full border-y border-r rounded-r-lg mr-1 overflow-hidden shadow-sm" style={{ borderColor: dk ? 'rgba(255,255,255,0.1)' : '#e2e8f0' }}>
-                    <button 
+                      type="button"
                       disabled={!local.endDate}
                       onClick={() => shiftEndDate(1, p.days)} 
-                      className={cn("flex-1 px-2 text-[9px] font-black border-b transition-colors", dk ? "hover:bg-white/10 text-slate-300 border-white/10" : "hover:bg-slate-100 text-slate-600 border-slate-200", !local.endDate && "opacity-30")}
+                      className={cn(
+                        "flex-1 px-2 text-[10px] font-black border-b transition-colors outline-none",
+                        dk ? "border-white/10 hover:bg-white/10 text-slate-400" : "border-slate-200 hover:bg-slate-100 text-slate-500"
+                      )}
                     >+</button>
                     <button 
+                      type="button"
                       disabled={!local.endDate}
                       onClick={() => shiftEndDate(-1, p.days)} 
-                      className={cn("flex-1 px-2 text-[9px] font-black transition-colors", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600", !local.endDate && "opacity-30")}
+                      className={cn(
+                        "flex-1 px-2 text-[10px] font-black transition-colors outline-none",
+                        dk ? "hover:bg-white/10 text-slate-400" : "hover:bg-slate-100 text-slate-500"
+                      )}
                     >−</button>
                   </div>
                 </div>
               ))}
             </div>
           )}
-
+          
           {/* ULTRA-COMPACT ROOM ADDERS */}
           {hasDates && (
               <div className="flex items-center gap-1.5 h-[42px] overflow-x-auto no-scrollbar flex-nowrap ml-1">
