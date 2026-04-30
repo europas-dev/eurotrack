@@ -150,19 +150,15 @@ export default function DurationCard({
     }
   }
 
-  // --- NEW: SMART INCREMENT MATH ---
-  function shiftEndDate(delta: number) {
+  // --- [LAUNCH TEST: CONTEXTUAL STEPPER FIX] ---
+  // Now accepts 'unit' (7 or 30) so 1W and 1M steppers work correctly
+  function shiftEndDate(delta: number, unit: number) {
     if (!local.endDate || viewOnly) return;
     setActivePreset(null); 
     
-    // If delta is 1 or -1, check if we should apply a week or month shift
-    let daysToShift = delta;
-    if (Math.abs(delta) === 1) {
-      if (activePreset === '1M') daysToShift = delta * 30;
-      else daysToShift = delta * 7; // Default to week increments
-    }
-
+    const daysToShift = delta * unit;
     const shifted = addDays(local.endDate, daysToShift);
+    
     // Safety check: Don't shift before start
     if (local.startDate && shifted < local.startDate) return;
     
@@ -257,15 +253,16 @@ export default function DurationCard({
               </div>
           </div>
 
-          {/* SMART PRESETS */}
+          {/* SMART PRESETS WITH UNIT-SPECIFIC STEPPERS */}
           {!viewOnly && local.startDate && (
               <div className="flex items-center h-[42px] shrink-0">
                 {[{ label: '1W', days: 7 }, { label: '1M', days: 30 }].map(p => (
                   <div key={p.label} className="flex items-center h-full">
                     <button onClick={() => togglePreset(p.label as any, p.days)} className={cn('px-2.5 h-full text-sm font-black border-y border-l transition-all shadow-sm', activePreset === p.label ? 'bg-teal-600 text-white border-teal-600' : dk ? 'border-white/10 text-slate-300 hover:bg-white/5 bg-[#1E293B]' : 'border-slate-200 text-slate-600 hover:bg-slate-50 bg-white')}>{p.label}</button>
                     <div className="flex flex-col h-full border-y border-r rounded-r-lg mr-1 overflow-hidden shadow-sm" style={{ borderColor: dk ? 'rgba(255,255,255,0.1)' : '#e2e8f0' }}>
-                      <button onClick={() => shiftEndDate(1)} className={cn("flex-1 px-2 text-[9px] font-black border-b transition-colors", dk ? "hover:bg-white/10 text-slate-300 border-white/10" : "hover:bg-slate-100 text-slate-600 border-slate-200")}>+</button>
-                      <button onClick={() => shiftEndDate(-1)} className={cn("flex-1 px-2 text-[9px] font-black transition-colors", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")}>−</button>
+                      {/* FIX: Use p.days to ensure 1W adds 7 and 1M adds 30 */}
+                      <button onClick={() => shiftEndDate(1, p.days)} className={cn("flex-1 px-2 text-[9px] font-black border-b transition-colors", dk ? "hover:bg-white/10 text-slate-300 border-white/10" : "hover:bg-slate-100 text-slate-600 border-slate-200")}>+</button>
+                      <button onClick={() => shiftEndDate(-1, p.days)} className={cn("flex-1 px-2 text-[9px] font-black transition-colors", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")}>−</button>
                     </div>
                   </div>
                 ))}
