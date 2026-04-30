@@ -89,24 +89,24 @@ export default function DurationCard({
   }
 
   // --- NEW: THE AUTO-EXTEND ENGINE ---
+  // --- [LAUNCH TEST: SMART EXTENSION ENGINE] ---
   function patch(changes: Partial<Duration>) {
     if (viewOnly) return;
     
+    // 1. Capture nights BEFORE the change
+    const oldNights = calculateNights(local.startDate, local.endDate);
+    
     let next = { ...local, ...changes } as Duration;
 
-    // Check for Extension: If the endDate moved forward
+    // ... (Keep existing employee extension logic)
     if (changes.endDate && local.endDate && changes.endDate > local.endDate) {
       const oldEnd = local.endDate;
       const newEnd = changes.endDate;
-
-      // Identify employees booked for the FULL duration and extend them
       const updatedCards = (next.roomCards || []).map(card => ({
         ...card,
         employees: (card.employees || []).map(emp => {
           if (emp.checkOut === oldEnd) {
-            // Extension match found!
             const updatedEmp = { ...emp, checkOut: newEnd };
-            // Sync to DB immediately
             enqueue({ type: 'updateEmployee', payload: { id: emp.id, checkOut: newEnd } });
             return updatedEmp;
           }
@@ -117,6 +117,9 @@ export default function DurationCard({
       setRoomCards(updatedCards);
     }
 
+    // 2. Calculate nights AFTER the change
+    const newNights = calculateNights(next.startDate, next.endDate);
+    
     setLocal(next); 
     queueSave(next);
   }
