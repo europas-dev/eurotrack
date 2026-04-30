@@ -40,7 +40,7 @@ export default function DurationCard({
   const [saving, setSaving]         = useState(false)
   const [confirmDelete, setConfirm] = useState(false)
   const [roomCards, setRoomCards]   = useState<RoomCard[]>(duration.roomCards ?? [])
-  
+  const [baseNights, setBaseNights] = useState(calculateNights(duration.startDate, duration.endDate));
   const [addingType, setAddingType] = useState<string | null>(null)
   const [activePreset, setActivePreset] = useState<'1W' | '1M' | null>(null)
   const [isAddingWg, setIsAddingWg] = useState(false)
@@ -154,17 +154,14 @@ export default function DurationCard({
   // Now accepts 'unit' (7 or 30) so 1W and 1M steppers work correctly
   function shiftEndDate(delta: number, unit: number) {
     if (!local.endDate || viewOnly) return;
-    setActivePreset(null); 
+    // REMOVED: setActivePreset(null); <-- This was killing your teal color
     
     const daysToShift = delta * unit;
     const shifted = addDays(local.endDate, daysToShift);
     
-    // Safety check: Don't shift before start
     if (local.startDate && shifted < local.startDate) return;
-    
     patch({ endDate: shifted });
   }
-
   function syncRoomCardsToParent(newCards: RoomCard[]) {
     const nextLocal = { ...local, roomCards: newCards } as Duration;
     setLocal(nextLocal);
@@ -356,7 +353,7 @@ export default function DurationCard({
             card={card} 
             durationStart={local.startDate} 
             durationEnd={local.endDate} 
-            nightsDiff={calculateNights(local.startDate, local.endDate) - nights}
+            nightsDiff={calculateNights(local.startDate, local.endDate) - baseNights}
             dk={dk} 
             lang={lang}
             allCardsOfSameType={roomCards.filter(c => c.roomType === card.roomType)} 
