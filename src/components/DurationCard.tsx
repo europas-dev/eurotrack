@@ -135,8 +135,16 @@ export default function DurationCard({
 
   function handleEndDateChange(newEnd: string) {
     if (viewOnly) return;
-    // GUARD: Prevent Check-out from being earlier than or equal to Check-in[cite: 4, 6]
+
+    // ALLOW CLEARING: If the user clicks "Clear" in the calendar, newEnd is ""
+    if (newEnd === '') {
+      patch({ endDate: '' });
+      return;
+    }
+
+    // GUARD: Prevent Check-out from being earlier than Check-in
     if (local.startDate && newEnd <= local.startDate) return;
+
     patch({ endDate: newEnd });
   }
 
@@ -240,14 +248,30 @@ export default function DurationCard({
                       <span className={cn("text-[15px] font-bold", local.startDate ? (dk ? 'text-white' : 'text-slate-900') : 'text-slate-400')}>{forceDMY(local.startDate)}</span>
                   </div>
               </div>
+              {/* Arrow and Check-out Picker */}
               <ArrowRight size={14} className="mx-2 opacity-30" />
-              <div className={cn("relative w-[90px] h-full", viewOnly ? "cursor-default" : "cursor-pointer")} onClick={() => openPicker(outDateRef)}>
-                  <input disabled={viewOnly} ref={outDateRef} type="date" value={local.endDate || ''} min={local.startDate || undefined} onChange={e => handleEndDateChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
+              <div 
+                className={cn(
+                  "relative w-[90px] h-full", 
+                  (viewOnly || !local.startDate) ? "cursor-default opacity-50" : "cursor-pointer" // Visual cue that it's locked
+                )} 
+                onClick={() => local.startDate && openPicker(outDateRef)} // Only open if start date exists
+              >
+                  <input 
+                    disabled={viewOnly || !local.startDate} // HARD LOCK: Cannot click or tab into it without Check-in
+                    ref={outDateRef} 
+                    type="date" 
+                    value={local.endDate || ''} 
+                    min={local.startDate || undefined} 
+                    onChange={e => handleEndDateChange(e.target.value)} 
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                  />
                   <div className="absolute inset-0 flex items-center pointer-events-none">
-                      <span className={cn("text-[15px] font-bold", local.endDate ? (dk ? 'text-white' : 'text-slate-900') : 'text-slate-400')}>{forceDMY(local.endDate)}</span>
+                      <span className={cn("text-[15px] font-bold", local.endDate ? (dk ? 'text-white' : 'text-slate-900') : 'text-slate-400')}>
+                        {forceDMY(local.endDate)}
+                      </span>
                   </div>
               </div>
-          </div>
 
           {/* SMART PRESETS */}
           {/* SMART PRESETS WITH UNIT-SPECIFIC STEPPERS */}
