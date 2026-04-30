@@ -611,8 +611,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               <p className={cn('text-lg font-black', dk ? 'text-slate-300' : 'text-slate-700')}>{masterMath.totalBeds}</p>
             </div>
           
-            {/* DUAL COST BLOCK */}
 
+           {/* DUAL COST BLOCK - FIX: Duration-Based Monthly Sum */}
             <div className="flex flex-col items-end justify-center min-w-[130px] h-full">
               <p className="text-[10px] uppercase font-bold text-slate-500 mb-1 leading-none">
                 {selectedMonth !== null ? (lang === 'de' ? 'Monat' : 'Month') : (lang === 'de' ? 'Kosten' : 'Cost')}
@@ -622,17 +622,37 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 selectedMonth !== null ? 'text-md' : 'text-lg',
                 dk ? 'text-white' : 'text-slate-900'
               )}>
-                {formatCurrency(selectedMonth !== null ? calcHotelTotalCost(localHotel, selectedMonth, selectedYear) : masterMath.displayBrutto)}
+                {formatCurrency(selectedMonth !== null ? (() => {
+                  // LOCAL FIX: Only sum durations that have rooms and overlap this month
+                  return (localHotel.durations || []).reduce((durSum: number, dur: any) => {
+                    const durMoney = (dur.roomCards || []).reduce((rcSum: number, rc: any) => 
+                      rcSum + (parseFloat(calcRoomCardTotal(rc, dur.startDate, dur.endDate).toString()) || 0), 0
+                    );
+                    if (durMoney === 0) return durSum;
+
+                    const dStart = new Date(dur.startDate); const dEnd = new Date(dur.endDate);
+                    const mStart = new Date(selectedYear, selectedMonth, 1);
+                    const mEnd = new Date(selectedYear, selectedMonth + 1, 0);
+
+                    if (dStart > mEnd || dEnd < mStart) return durSum;
+
+                    const overlapStart = dStart > mStart ? dStart : mStart;
+                    const overlapEnd = dEnd < mEnd ? dEnd : mEnd;
+                    const overlapDays = Math.max(0, (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24) + 1);
+                    const totalDurDays = Math.max(1, (dEnd.getTime() - dStart.getTime()) / (1000 * 60 * 60 * 24) + 1);
+
+                    return durSum + (durMoney * (overlapDays / totalDurDays));
+                  }, 0);
+                })() : masterMath.displayBrutto)}
               </div>
+              
               {selectedMonth !== null && (
                 <div className="mt-2 flex justify-end">
                   <div 
-                    style={{ fontSize: '11.5px' }}
+                    style={{ fontSize: '12px' }}
                     className={cn(
                       "font-medium tracking-tighter px-1 py-0.5 rounded border leading-none transition-all text-right shrink-0 mr-[-1px]",
-                      dk 
-                        ? "bg-white/5 border-white/10 text-slate-400" 
-                        : "bg-slate-50 border-slate-200 text-slate-500"
+                      dk ? "bg-white/5 border-white/10 text-slate-400" : "bg-slate-50 border-slate-200 text-slate-500"
                     )}
                   >
                     {formatCurrency(masterMath.displayBrutto)}
