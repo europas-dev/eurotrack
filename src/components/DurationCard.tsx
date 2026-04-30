@@ -9,7 +9,7 @@ import {
 } from '../lib/utils'
 import { calcRoomCardTotal } from '../lib/roomCardUtils'
 import { enqueue } from '../lib/offlineSync'
-import type { Duration, RoofmCard } from '../lib/types'
+import type { Duration, RoomCard } from '../lib/types'
 import RoomCardComponent from './RoomCard'
 
 interface Props {
@@ -40,10 +40,7 @@ export default function DurationCard({
   const [saving, setSaving]         = useState(false)
   const [confirmDelete, setConfirm] = useState(false)
   const [roomCards, setRoomCards]   = useState<RoomCard[]>(duration.roomCards ?? [])
-  const [baseNights, setBaseNights] = useState(calculateNights(duration.startDate, duration.endDate));
-  const handlePriceApplied = () => {
-    setBaseNights(calculateNights(local.startDate, local.endDate));
-  };
+  
   const [addingType, setAddingType] = useState<string | null>(null)
   const [activePreset, setActivePreset] = useState<'1W' | '1M' | null>(null)
   const [isAddingWg, setIsAddingWg] = useState(false)
@@ -57,14 +54,13 @@ export default function DurationCard({
   useEffect(() => {
     setLocal(duration)
     setRoomCards(duration.roomCards ?? [])
-    // baseNights must NOT be here. It should only be set once at the top of the component.
-  }, [duration.id])
+  }, [duration])
 
   const nights   = calculateNights(local.startDate, local.endDate)
   const hasDates = !!(local.startDate && local.endDate && nights > 0)
 
-  const roomCardsTotal = roomCards.length === 0 ? 0 : roomCards.reduce(
-    (s, c) => s + (parseFloat(calcRoomCardTotal(c, duration.startDate, duration.endDate).toString()) || 0), 0
+  const roomCardsTotal = roomCards.reduce(
+    (s, c) => s + (parseFloat(calcRoomCardTotal(c, local.startDate, local.endDate).toString()) || 0), 0
   )
   const totalBeds = hasDates ? roomCards.reduce(
     (s, c) => s + (c.roomType === 'EZ' ? 1 : c.roomType === 'DZ' ? 2 : c.roomType === 'TZ' ? 3 : (c.bedCount || 2)),
@@ -93,24 +89,24 @@ export default function DurationCard({
   }
 
   // --- NEW: THE AUTO-EXTEND ENGINE ---
-  // --- [LAUNCH TEST: SMART EXTENSION ENGINE] ---
   function patch(changes: Partial<Duration>) {
     if (viewOnly) return;
     
-    // 1. Capture nights BEFORE the change
-    const oldNights = calculateNights(local.startDate, local.endDate);
-    
     let next = { ...local, ...changes } as Duration;
 
-    // ... (Keep existing employee extension logic)
+    // Check for Extension: If the endDate moved forward
     if (changes.endDate && local.endDate && changes.endDate > local.endDate) {
       const oldEnd = local.endDate;
       const newEnd = changes.endDate;
+
+      // Identify employees booked for the FULL duration and extend them
       const updatedCards = (next.roomCards || []).map(card => ({
         ...card,
         employees: (card.employees || []).map(emp => {
           if (emp.checkOut === oldEnd) {
+            // Extension match found!
             const updatedEmp = { ...emp, checkOut: newEnd };
+            // Sync to DB immediately
             enqueue({ type: 'updateEmployee', payload: { id: emp.id, checkOut: newEnd } });
             return updatedEmp;
           }
@@ -121,9 +117,6 @@ export default function DurationCard({
       setRoomCards(updatedCards);
     }
 
-    // 2. Calculate nights AFTER the change
-    const newNights = calculateNights(next.startDate, next.endDate);
-    
     setLocal(next); 
     queueSave(next);
   }
@@ -154,18 +147,25 @@ export default function DurationCard({
     }
   }
 
-  // --- [LAUNCH TEST: CONTEXTUAL STEPPER FIX] ---
-  // Now accepts 'unit' (7 or 30) so 1W and 1M steppers work correctly
-  function shiftEndDate(delta: number, unit: number) {
+  // --- NEW: SMART INCREMENT MATH ---
+  function shiftEndDate(delta: number) {
     if (!local.endDate || viewOnly) return;
-    // REMOVED: setActivePreset(null); <-- This was killing your teal color
+    setActivePreset(null); 
     
-    const daysToShift = delta * unit;
+    // If delta is 1 or -1, check if we should apply a week or month shift
+    let daysToShift = delta;
+    if (Math.abs(delta) === 1) {
+      if (activePreset === '1M') daysToShift = delta * 30;
+      else daysToShift = delta * 7; // Default to week increments
+    }
+
     const shifted = addDays(local.endDate, daysToShift);
-    
+    // Safety check: Don't shift before start
     if (local.startDate && shifted < local.startDate) return;
+    
     patch({ endDate: shifted });
   }
+
   function syncRoomCardsToParent(newCards: RoomCard[]) {
     const nextLocal = { ...local, roomCards: newCards } as Duration;
     setLocal(nextLocal);
@@ -254,16 +254,15 @@ export default function DurationCard({
               </div>
           </div>
 
-          {/* SMART PRESETS WITH UNIT-SPECIFIC STEPPERS */}
+          {/* SMART PRESETS */}
           {!viewOnly && local.startDate && (
               <div className="flex items-center h-[42px] shrink-0">
                 {[{ label: '1W', days: 7 }, { label: '1M', days: 30 }].map(p => (
                   <div key={p.label} className="flex items-center h-full">
                     <button onClick={() => togglePreset(p.label as any, p.days)} className={cn('px-2.5 h-full text-sm font-black border-y border-l transition-all shadow-sm', activePreset === p.label ? 'bg-teal-600 text-white border-teal-600' : dk ? 'border-white/10 text-slate-300 hover:bg-white/5 bg-[#1E293B]' : 'border-slate-200 text-slate-600 hover:bg-slate-50 bg-white')}>{p.label}</button>
                     <div className="flex flex-col h-full border-y border-r rounded-r-lg mr-1 overflow-hidden shadow-sm" style={{ borderColor: dk ? 'rgba(255,255,255,0.1)' : '#e2e8f0' }}>
-                      {/* FIX: Use p.days to ensure 1W adds 7 and 1M adds 30 */}
-                      <button onClick={() => shiftEndDate(1, p.days)} className={cn("flex-1 px-2 text-[9px] font-black border-b transition-colors", dk ? "hover:bg-white/10 text-slate-300 border-white/10" : "hover:bg-slate-100 text-slate-600 border-slate-200")}>+</button>
-                      <button onClick={() => shiftEndDate(-1, p.days)} className={cn("flex-1 px-2 text-[9px] font-black transition-colors", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")}>−</button>
+                      <button onClick={() => shiftEndDate(1)} className={cn("flex-1 px-2 text-[9px] font-black border-b transition-colors", dk ? "hover:bg-white/10 text-slate-300 border-white/10" : "hover:bg-slate-100 text-slate-600 border-slate-200")}>+</button>
+                      <button onClick={() => shiftEndDate(-1)} className={cn("flex-1 px-2 text-[9px] font-black transition-colors", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")}>−</button>
                     </div>
                   </div>
                 ))}
@@ -357,15 +356,11 @@ export default function DurationCard({
             card={card} 
             durationStart={local.startDate} 
             durationEnd={local.endDate} 
-            // Calculate nightsDiff relative to our locked baseline
-            nightsDiff={calculateNights(local.startDate, local.endDate) - baseNights}
             dk={dk} 
-            lang={lang}
+            lang={lang} 
             allCardsOfSameType={roomCards.filter(c => c.roomType === card.roomType)} 
             onUpdate={handleCardUpdate} 
             onDelete={handleCardDelete} 
-            // New callback to clear the badge
-            onPriceApplied={handlePriceApplied} 
             isMasterPricingActive={isMasterPricingActive} 
             viewOnly={viewOnly} 
             employeeOptions={employeeOptions}
