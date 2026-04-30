@@ -278,42 +278,43 @@ export default function DurationCard({
           {/* SMART PRESETS */}
 
           {/* --- [FIX: MODERN UI FOR PRESETS] --- */}
+          {/* --- [FIX: HIGH-CONTRAST STEPPERS] --- */}
           {!viewOnly && local.startDate && (
-            <div className="flex items-center gap-2 h-[42px] shrink-0 ml-1">
+            <div className="flex items-center gap-1.5 h-[42px] shrink-0 ml-1">
               {[
                 { label: '1W', days: 7 }, 
                 { label: '1M', days: 30 }
               ].map(p => (
-                <div key={p.label} className="flex items-center h-full group">
-                  {/* Main Label */}
+                <div key={p.label} className="flex items-center h-full">
+                  {/* Label: Stays faded if Check-out is already filled */}
                   <button 
-                    type="button" // Prevents accidental form submits
+                    type="button"
                     onClick={() => togglePreset(p.days)} 
                     disabled={!!local.endDate}
                     className={cn(
-                      "h-full px-3 text-sm font-black transition-all outline-none border-y border-l rounded-l-lg",
+                      "h-full px-2.5 text-[13px] font-black transition-all outline-none border-y border-l rounded-l-lg",
                       local.endDate 
-                        ? (dk ? "bg-white/5 border-white/10 text-slate-500 opacity-40 cursor-default" : "bg-slate-50 border-slate-200 text-slate-300 cursor-default")
-                        : (dk ? "bg-[#1E293B] border-white/10 text-slate-300 hover:bg-white/5" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50")
+                        ? (dk ? "bg-white/5 border-white/10 text-slate-600 cursor-default" : "bg-slate-50 border-slate-200 text-slate-300 cursor-default")
+                        : (dk ? "bg-[#1E293B] border-white/10 text-teal-400 hover:bg-white/5" : "bg-white border-slate-200 text-teal-600 hover:bg-slate-50")
                     )}
                   >
                     {p.label}
                   </button>
           
-                  {/* Stepper Container */}
+                  {/* Steppers: High contrast when enabled */}
                   <div className={cn(
-                    "flex flex-col h-full border rounded-r-lg overflow-hidden transition-all",
-                    dk ? "border-white/10" : "border-slate-200",
-                    !local.endDate && "opacity-100",
-                    local.endDate && "opacity-40"
+                    "flex flex-col h-full border rounded-r-lg overflow-hidden",
+                    dk ? "border-white/10" : "border-slate-300"
                   )}>
                     <button 
                       type="button"
                       disabled={!local.endDate}
                       onClick={() => shiftEndDate(1, p.days)} 
                       className={cn(
-                        "flex-1 px-2 text-[10px] font-black border-b transition-colors outline-none",
-                        dk ? "border-white/10 hover:bg-white/10 text-slate-400" : "border-slate-200 hover:bg-slate-100 text-slate-500"
+                        "flex-1 px-2 text-[11px] font-black border-b transition-colors outline-none",
+                        !local.endDate 
+                          ? (dk ? "text-slate-700 bg-white/5" : "text-slate-200 bg-slate-50") 
+                          : (dk ? "text-teal-400 hover:bg-white/10 bg-[#1E293B]" : "text-teal-600 hover:bg-teal-50 bg-white")
                       )}
                     >+</button>
                     <button 
@@ -321,8 +322,10 @@ export default function DurationCard({
                       disabled={!local.endDate}
                       onClick={() => shiftEndDate(-1, p.days)} 
                       className={cn(
-                        "flex-1 px-2 text-[10px] font-black transition-colors outline-none",
-                        dk ? "hover:bg-white/10 text-slate-400" : "hover:bg-slate-100 text-slate-500"
+                        "flex-1 px-2 text-[11px] font-black transition-colors outline-none",
+                        !local.endDate 
+                          ? (dk ? "text-slate-700 bg-white/5" : "text-slate-200 bg-slate-50") 
+                          : (dk ? "text-teal-400 hover:bg-white/10 bg-[#1E293B]" : "text-teal-600 hover:bg-teal-50 bg-white")
                       )}
                     >−</button>
                   </div>
@@ -330,6 +333,7 @@ export default function DurationCard({
               ))}
             </div>
           )}
+          
           
           {/* ULTRA-COMPACT ROOM ADDERS */}
           {hasDates && (
