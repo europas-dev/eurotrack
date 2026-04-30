@@ -45,8 +45,35 @@ export default function Sidebar({
   const currentDecade = Array.from({ length: 10 }, (_, i) => centerYear - 4 + i);
 
   // FIX: Monthly totals now use the EXACT same logic as the dashboard top bar
-  const monthlyTotals = monthNames.map((_, i) =>
-    hotels.reduce((sum, hotel) => sum + calcHotelTotalCost(hotel, i, selectedYear), 0)
+  // --- [FIX: DURATION-BASED ACCOUNTING] ---
+  // Sum individual duration costs month-by-month so empty durations don't steal money.
+  const monthlyTotals = monthNames.map((_, monthIndex) =>
+    hotels.reduce((totalSum, hotel) => {
+      const hotelMonthSum = (hotel.durations || []).reduce((durSum: number, dur: any) => {
+        // Calculate the actual money inside this specific duration box
+        const durationBrutto = (dur.roomCards || []).reduce((rcSum: number, rc: any) => {
+           return rcSum + (parseFloat(calcRoomCardTotal(rc, dur.startDate, dur.endDate).toString()) || 0);
+        }, 0);
+
+        if (durationBrutto === 0) return durSum;
+
+        // Pro-rata split of THIS duration's money into the target month
+        const dStart = new Date(dur.startDate);
+        const dEnd = new Date(dur.endDate);
+        const mStart = new Date(selectedYear, monthIndex, 1);
+        const mEnd = new Date(selectedYear, monthIndex + 1, 0);
+
+        if (dStart > mEnd || dEnd < mStart) return durSum;
+
+        const overlapStart = dStart > mStart ? dStart : mStart;
+        const overlapEnd = dEnd < mEnd ? dEnd : mEnd;
+        const overlapDays = Math.max(0, (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24) + 1);
+        const totalDurDays = Math.max(1, (dEnd.getTime() - dStart.getTime()) / (1000 * 60 * 60 * 24) + 1);
+
+        return durSum + (durationBrutto * (overlapDays / totalDurDays));
+      }, 0);
+      return totalSum + hotelMonthSum;
+    }, 0)
   );
 
   const yearlyTotal = hotels.reduce((sum, hotel) => 
