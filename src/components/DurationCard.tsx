@@ -57,6 +57,9 @@ export default function DurationCard({
   }, [duration])
 
   const nights   = calculateNights(local.startDate, local.endDate)
+  // Teal color stays if nights are exactly 7 or 30
+  const is1WActive = nights === 7;
+  const is1MActive = nights === 30;
   const hasDates = !!(local.startDate && local.endDate && nights > 0)
 
   const roomCardsTotal = roomCards.reduce(
@@ -124,47 +127,40 @@ export default function DurationCard({
   function handleStartDateChange(newStart: string) {
     if (viewOnly) return;
     let updates: Partial<Duration> = { startDate: newStart };
-    if (activePreset === '1W') updates.endDate = addDays(newStart, 7);
-    if (activePreset === '1M') updates.endDate = addDays(newStart, 30);
+    
+    // GUARD: If new Check-in >= current Check-out, push Check-out forward by 1 night
+    if (local.endDate && newStart >= local.endDate) {
+      updates.endDate = addDays(newStart, 1);
+    }
+    
+    // Maintain presets if they were active to keep the teal color locked
+    if (is1WActive) updates.endDate = addDays(newStart, 7);
+    if (is1MActive) updates.endDate = addDays(newStart, 30);
+    
     patch(updates);
   }
 
   function handleEndDateChange(newEnd: string) {
     if (viewOnly) return;
-    // SURGICAL FIX: Prevent endDate going before startDate
-    if (local.startDate && newEnd < local.startDate) return;
-    setActivePreset(null); 
+    // GUARD: Prevent Check-out from being earlier than or equal to Check-in[cite: 4, 6]
+    if (local.startDate && newEnd <= local.startDate) return;
     patch({ endDate: newEnd });
   }
 
-  function togglePreset(preset: '1W' | '1M', days: number) {
-    if (!local.startDate || viewOnly) return;
-    if (activePreset === preset) {
-      setActivePreset(null); 
-    } else {
-      setActivePreset(preset); 
-      patch({ endDate: addDays(local.startDate, days) });
-    }
-  }
-
-  // --- NEW: SMART INCREMENT MATH ---
-  function shiftEndDate(delta: number) {
+  // --- FIX: UNIT-AWARE STEPPERS ---
+  // Now accepts 'unit' (7 or 30) so 1W adds 7 and 1M adds 30 consistently
+  function shiftEndDate(delta: number, unit: number) {
     if (!local.endDate || viewOnly) return;
-    setActivePreset(null); 
     
-    // If delta is 1 or -1, check if we should apply a week or month shift
-    let daysToShift = delta;
-    if (Math.abs(delta) === 1) {
-      if (activePreset === '1M') daysToShift = delta * 30;
-      else daysToShift = delta * 7; // Default to week increments
-    }
-
+    const daysToShift = delta * unit;
     const shifted = addDays(local.endDate, daysToShift);
-    // Safety check: Don't shift before start
+    
+    // Safety check: Don't shift before start[cite: 4, 6]
     if (local.startDate && shifted < local.startDate) return;
     
     patch({ endDate: shifted });
   }
+ 
 
   function syncRoomCardsToParent(newCards: RoomCard[]) {
     const nextLocal = { ...local, roomCards: newCards } as Duration;
@@ -255,14 +251,26 @@ export default function DurationCard({
           </div>
 
           {/* SMART PRESETS */}
+          {/* SMART PRESETS WITH UNIT-SPECIFIC STEPPERS */}
           {!viewOnly && local.startDate && (
               <div className="flex items-center h-[42px] shrink-0">
-                {[{ label: '1W', days: 7 }, { label: '1M', days: 30 }].map(p => (
+                {[
+                  { label: '1W', days: 7, active: is1WActive }, 
+                  { label: '1M', days: 30, active: is1MActive }
+                ].map(p => (
                   <div key={p.label} className="flex items-center h-full">
-                    <button onClick={() => togglePreset(p.label as any, p.days)} className={cn('px-2.5 h-full text-sm font-black border-y border-l transition-all shadow-sm', activePreset === p.label ? 'bg-teal-600 text-white border-teal-600' : dk ? 'border-white/10 text-slate-300 hover:bg-white/5 bg-[#1E293B]' : 'border-slate-200 text-slate-600 hover:bg-slate-50 bg-white')}>{p.label}</button>
+                    <button 
+                      onClick={() => patch({ endDate: addDays(local.startDate, p.days) })} 
+                      className={cn(
+                        'px-2.5 h-full text-sm font-black border-y border-l transition-all shadow-sm', 
+                        p.active ? 'bg-teal-600 text-white border-teal-600' : dk ? 'border-white/10 text-slate-300 hover:bg-white/5 bg-[#1E293B]' : 'border-slate-200 text-slate-600 hover:bg-slate-50 bg-white'
+                      )}
+                    >
+                      {p.label}
+                    </button>
                     <div className="flex flex-col h-full border-y border-r rounded-r-lg mr-1 overflow-hidden shadow-sm" style={{ borderColor: dk ? 'rgba(255,255,255,0.1)' : '#e2e8f0' }}>
-                      <button onClick={() => shiftEndDate(1)} className={cn("flex-1 px-2 text-[9px] font-black border-b transition-colors", dk ? "hover:bg-white/10 text-slate-300 border-white/10" : "hover:bg-slate-100 text-slate-600 border-slate-200")}>+</button>
-                      <button onClick={() => shiftEndDate(-1)} className={cn("flex-1 px-2 text-[9px] font-black transition-colors", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")}>−</button>
+                      <button onClick={() => shiftEndDate(1, p.days)} className={cn("flex-1 px-2 text-[9px] font-black border-b transition-colors", dk ? "hover:bg-white/10 text-slate-300 border-white/10" : "hover:bg-slate-100 text-slate-600 border-slate-200")}>+</button>
+                      <button onClick={() => shiftEndDate(-1, p.days)} className={cn("flex-1 px-2 text-[9px] font-black transition-colors", dk ? "hover:bg-white/10 text-slate-300" : "hover:bg-slate-100 text-slate-600")}>−</button>
                     </div>
                   </div>
                 ))}
