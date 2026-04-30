@@ -763,10 +763,6 @@ export default function RoomCard({
                   </div>
                 )}
              </div>
-                
-                
-            <span className="text-xl font-black tabular-nums">{roomTotalDisplay}</span>}
-             </div>
              {/* SURGICAL FIX: Hide delete button on closed row for viewers */}
              {!viewOnly && (
                <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className={cn('p-2 rounded transition-all shrink-0 ml-4', dk ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-red-500 hover:bg-red-50')}><Trash2 size={18} /></button>
