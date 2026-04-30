@@ -527,7 +527,29 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     }
   };
 
-  const totalSpend = finalFiltered.reduce((s, h) => s + calcHotelTotalCost(h, selectedMonth, selectedYear), 0);
+  // --- [FIX: DASHBOARD TOTAL SPEND] ---
+  // Sum only the actual room costs inside durations
+  const totalSpend = finalFiltered.reduce((s, h) => {
+    const hotelSum = (h.durations || []).reduce((dSum: number, dur: any) => {
+      const durMoney = (dur.roomCards || []).reduce((rcSum: number, rc: any) => 
+        rcSum + (parseFloat(calcRoomCardTotal(rc, dur.startDate, dur.endDate).toString()) || 0), 0
+      );
+      
+      // If we are filtering by month, pro-rata THIS duration's specific money
+      if (selectedMonth !== null) {
+         const dStart = new Date(dur.startDate); const dEnd = new Date(dur.endDate);
+         const mStart = new Date(selectedYear, selectedMonth, 1); const mEnd = new Date(selectedYear, selectedMonth + 1, 0);
+         if (dStart > mEnd || dEnd < mStart) return dSum;
+         const overlapStart = dStart > mStart ? dStart : mStart;
+         const overlapEnd = dEnd < mEnd ? dEnd : mEnd;
+         const overlapDays = Math.max(0, (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24) + 1);
+         const totalDurDays = Math.max(1, (dEnd.getTime() - dStart.getTime()) / (1000 * 60 * 60 * 24) + 1);
+         return dSum + (durMoney * (overlapDays / totalDurDays));
+      }
+      return dSum + durMoney;
+    }, 0);
+    return s + hotelSum;
+  }, 0);
   const freeBedsTotal = finalFiltered.reduce((s, h) => s + calcHotelFreeBedsToday(h), 0);
 
   const closeMenu = () => { setShowFilterMenu(false); setShowTimelineMenu(false); setShowSortMenu(false); };
