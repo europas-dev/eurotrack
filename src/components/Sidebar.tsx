@@ -48,30 +48,33 @@ export default function Sidebar({
   // FIX: Monthly totals now use the EXACT same logic as the dashboard top bar
   // --- [FIX: DURATION-BASED ACCOUNTING] ---
   // Sum individual duration costs month-by-month so empty durations don't steal money.
+  // --- [FIX: NIGHT-BASED PRO-RATA] ---
   const monthlyTotals = monthNames.map((_, monthIndex) =>
     hotels.reduce((totalSum, hotel) => {
       const hotelMonthSum = (hotel.durations || []).reduce((durSum: number, dur: any) => {
-        // Calculate the actual money inside this specific duration box
         const durationBrutto = (dur.roomCards || []).reduce((rcSum: number, rc: any) => {
            return rcSum + (parseFloat(calcRoomCardTotal(rc, dur.startDate, dur.endDate).toString()) || 0);
         }, 0);
 
         if (durationBrutto === 0) return durSum;
 
-        // Pro-rata split of THIS duration's money into the target month
         const dStart = new Date(dur.startDate);
         const dEnd = new Date(dur.endDate);
+        // HOTEL FIX: Subtract 1 day from end date for night-based billing
+        const dEndNight = new Date(dEnd.getTime() - (1000 * 60 * 60 * 24));
+        
         const mStart = new Date(selectedYear, monthIndex, 1);
         const mEnd = new Date(selectedYear, monthIndex + 1, 0);
 
-        if (dStart > mEnd || dEnd < mStart) return durSum;
+        if (dStart > mEnd || dEndNight < mStart) return durSum;
 
         const overlapStart = dStart > mStart ? dStart : mStart;
-        const overlapEnd = dEnd < mEnd ? dEnd : mEnd;
-        const overlapDays = Math.max(0, (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24) + 1);
-        const totalDurDays = Math.max(1, (dEnd.getTime() - dStart.getTime()) / (1000 * 60 * 60 * 24) + 1);
+        const overlapEnd = dEndNight < mEnd ? dEndNight : mEnd;
+        
+        const overlapNights = Math.max(0, (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24) + 1);
+        const totalNights = calculateNights(dur.startDate, dur.endDate);
 
-        return durSum + (durationBrutto * (overlapDays / totalDurDays));
+        return durSum + (durationBrutto * (overlapNights / totalNights));
       }, 0);
       return totalSum + hotelMonthSum;
     }, 0)
