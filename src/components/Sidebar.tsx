@@ -49,6 +49,7 @@ export default function Sidebar({
   // --- [FIX: DURATION-BASED ACCOUNTING] ---
   // Sum individual duration costs month-by-month so empty durations don't steal money.
   // --- [FIX: NIGHT-BASED PRO-RATA] ---
+  // --- [FIX: NIGHT-BASED ACCOUNTING] ---
   const monthlyTotals = monthNames.map((_, monthIndex) =>
     hotels.reduce((totalSum, hotel) => {
       const hotelMonthSum = (hotel.durations || []).reduce((durSum: number, dur: any) => {
@@ -60,18 +61,19 @@ export default function Sidebar({
 
         const dStart = new Date(dur.startDate);
         const dEnd = new Date(dur.endDate);
-        // HOTEL FIX: Subtract 1 day from end date for night-based billing
-        const dEndNight = new Date(dEnd.getTime() - (1000 * 60 * 60 * 24));
+        // HOTEL FIX: Subtract 1 day from end date so check-out day is not billed
+        const lastNight = new Date(dEnd.getTime() - (1000 * 60 * 60 * 24));
         
         const mStart = new Date(selectedYear, monthIndex, 1);
         const mEnd = new Date(selectedYear, monthIndex + 1, 0);
 
-        if (dStart > mEnd || dEndNight < mStart) return durSum;
+        if (dStart > mEnd || lastNight < mStart) return durSum;
 
         const overlapStart = dStart > mStart ? dStart : mStart;
-        const overlapEnd = dEndNight < mEnd ? dEndNight : mEnd;
+        const overlapEnd = lastNight < mEnd ? lastNight : mEnd;
         
-        const overlapNights = Math.max(0, (overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24) + 1);
+        // Use Math.floor and add 1 to get exact whole nights
+        const overlapNights = Math.max(0, Math.floor((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
         const totalNights = calculateNights(dur.startDate, dur.endDate);
 
         return durSum + (durationBrutto * (overlapNights / totalNights));
