@@ -9,7 +9,7 @@ import {
 } from '../lib/utils'
 import { calcRoomCardTotal } from '../lib/roomCardUtils'
 import { enqueue } from '../lib/offlineSync'
-import type { Duration, RoomCard } from '../lib/types'
+import type { Duration, RoofmCard } from '../lib/types'
 import RoomCardComponent from './RoomCard'
 
 interface Props {
@@ -41,6 +41,9 @@ export default function DurationCard({
   const [confirmDelete, setConfirm] = useState(false)
   const [roomCards, setRoomCards]   = useState<RoomCard[]>(duration.roomCards ?? [])
   const [baseNights, setBaseNights] = useState(calculateNights(duration.startDate, duration.endDate));
+  const handlePriceApplied = () => {
+    setBaseNights(calculateNights(local.startDate, local.endDate));
+  };
   const [addingType, setAddingType] = useState<string | null>(null)
   const [activePreset, setActivePreset] = useState<'1W' | '1M' | null>(null)
   const [isAddingWg, setIsAddingWg] = useState(false)
@@ -54,6 +57,7 @@ export default function DurationCard({
   useEffect(() => {
     setLocal(duration)
     setRoomCards(duration.roomCards ?? [])
+    setBaseNights(calculateNights(duration.startDate, duration.endDate));
   }, [duration])
 
   const nights   = calculateNights(local.startDate, local.endDate)
@@ -353,12 +357,15 @@ export default function DurationCard({
             card={card} 
             durationStart={local.startDate} 
             durationEnd={local.endDate} 
+            // Calculate nightsDiff relative to our locked baseline
             nightsDiff={calculateNights(local.startDate, local.endDate) - baseNights}
             dk={dk} 
             lang={lang}
             allCardsOfSameType={roomCards.filter(c => c.roomType === card.roomType)} 
             onUpdate={handleCardUpdate} 
             onDelete={handleCardDelete} 
+            // New callback to clear the badge
+            onPriceApplied={handlePriceApplied} 
             isMasterPricingActive={isMasterPricingActive} 
             viewOnly={viewOnly} 
             employeeOptions={employeeOptions}
