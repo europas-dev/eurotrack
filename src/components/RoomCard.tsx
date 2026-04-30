@@ -550,13 +550,16 @@ function InlineNMBRow({
 export default function RoomCard({
   card, durationStart, durationEnd, dk, lang, allCardsOfSameType, isMasterPricingActive = false,
   onUpdate, onDelete, onApplyToSameType, viewOnly, employeeOptions,
-  nightsDiff = 0
+  nightsDiff = 0,
+  onPriceApplied // <-- ADD THIS PROP[cite: 4]
 }: {
   card: RoomCardType; durationStart: string; durationEnd: string; dk: boolean; lang: 'de'|'en';
   allCardsOfSameType: RoomCardType[]; isMasterPricingActive?: boolean;
   onUpdate: (id: string, patch: Partial<RoomCardType>) => void; onDelete: (id: string) => void; onApplyToSameType: (source: RoomCardType) => void;
   viewOnly?: boolean;
   employeeOptions?: string[];
+  nightsDiff?: number;
+  onPriceApplied?: () => void; // <-- ADD TO TYPE[cite: 4]
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [showPricing, setShowPricing] = useState(false)
@@ -717,15 +720,19 @@ export default function RoomCard({
               <div className="flex items-center">
                 {/* --- [SYNC BADGE LOGIC] --- */}
                 {/* Only show if we are in Total/Room mode and dates have shifted */}
+                {/* --- [LAUNCH TEST: SMART PRICE SYNC BADGE] --- */}
                 {activeTab === 'total_room' && nightsDiff !== 0 && (
                   <div className="group/sync relative flex items-center mr-3" onClick={e => e.stopPropagation()}>
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        // Calculate the suggested price based on the NEW total nights
+                        // Math logic: (Current Total / Current Nights) * (Target Nights)[cite: 4]
                         const suggestedNetto = (Number(card.totalNetto) / nights) * (nights + nightsDiff);
                         onUpdate(card.id, { totalNetto: Number(suggestedNetto.toFixed(2)) });
                         enqueue({ type: 'updateRoomCard', payload: { id: card.id, totalNetto: Number(suggestedNetto.toFixed(2)) } });
+                        
+                        // Reset the baseline so the badge disappears
+                        if (onPriceApplied) onPriceApplied();
                       }}
                       className={cn(
                         "flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-black transition-all shadow-md border animate-pulse hover:animate-none",
@@ -734,13 +741,12 @@ export default function RoomCard({
                          : "bg-amber-500/10 border-amber-500/40 text-amber-500 hover:bg-amber-500 hover:text-white"
                       )}
                     >
-                      {/* Show day count */}
                       {nightsDiff > 0 ? `+${nightsDiff}D` : `${nightsDiff}D`}? <Check size={12} strokeWidth={4}/>
                     </button>
           
-                    {/* HOVER RECEIPT[cite: 3] */}
+                    {/* HOVER RECEIPT - High Z-Index Fix[cite: 4] */}
                     <div className={cn(
-                      "absolute bottom-full right-0 mb-3 w-56 p-4 rounded-2xl border shadow-2xl opacity-0 group-hover/sync:opacity-100 pointer-events-none transition-all z-[100] translate-y-2 group-hover/sync:translate-y-0",
+                      "absolute bottom-full right-0 mb-3 w-64 p-4 rounded-2xl border shadow-2xl opacity-0 group-hover/sync:opacity-100 pointer-events-none transition-all z-[110] translate-y-2 group-hover/sync:translate-y-0",
                       dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"
                     )}>
                       <p className="text-[10px] font-black uppercase text-slate-500 mb-3 border-b pb-2 tracking-widest">
@@ -752,12 +758,13 @@ export default function RoomCard({
                           <span>{formatCurrency(calculatedFinalBrutto)}</span>
                         </div>
                         <div className={cn("flex justify-between py-1 border-t border-dashed", dk ? "border-white/10 text-teal-400" : "border-slate-100 text-teal-600")}>
+                          {/* Corrected labels for Extension vs. Reduction[cite: 4] */}
                           <span>{nights + nightsDiff}N ({nightsDiff > 0 ? (lang === 'de' ? 'Verlängerung' : 'Extension') : (lang === 'de' ? 'Kürzung' : 'Reduction')})</span> 
                           <span>{formatCurrency((calculatedFinalBrutto / nights) * (nights + nightsDiff))}</span>
                         </div>
                       </div>
                       <p className="mt-3 text-[10px] opacity-70 italic leading-tight">
-                        {lang === 'de' ? 'Klicken zum Übernehmen' : 'Click to apply'}
+                        {lang === 'de' ? 'Klicken zum Übernehmen' : 'Click checkmark to apply pro-rata math'}
                       </p>
                     </div>
                   </div>
