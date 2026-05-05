@@ -55,20 +55,14 @@ export default function DurationCard({
     setRoomCards(duration.roomCards ?? [])
   }, [duration])
 
-// DurationCard_4.tsx
-const nights = calculateNights(local.startDate, local.endDate);
+const nights   = calculateNights(local.startDate, local.endDate)
 
-// Define this variable clearly for the whole component scope
-const roomsWithMismatchedDuration = roomCards.filter(c => 
-  c.pricingTab === 'total_room' && 
-  c.baseNights !== undefined && 
-  c.baseNights !== null &&
-  Number(c.baseNights) !== nights &&
-  nights > 0
-);
+// NEW SYNC LOGIC: Check for locked rooms and night differences
+const lockedRoom = roomCards.find(c => c.basePrice !== null);
+const diffNights = lockedRoom ? (nights - (lockedRoom.baseNights || nights)) : 0;
+const showSync = !!lockedRoom && diffNights !== 0;
 
-const showSync = roomsWithMismatchedDuration.length > 0;
-const diffNights = showSync ? (nights - Number(roomsWithMismatchedDuration[0].baseNights)) : 0;
+// Teal color stays if nights are exactly 7 or 30
   
   const hasDates = !!(local.startDate && local.endDate && nights > 0)
 
@@ -262,13 +256,8 @@ const diffNights = showSync ? (nights - Number(roomsWithMismatchedDuration[0].ba
     setRoomCards(n);
     syncRoomCardsToParent(n);
   }
-  function handleCardDelete(id: string) {
-    if (viewOnly) return;
-    const n = roomCards.filter(c => c.id !== id);
-    setRoomCards(n);
-    syncRoomCardsToParent(n);
-  }
-  function handleSyncAllPrices() {
+
+ function handleSyncAllPrices() {
     if (viewOnly || !showSync) return;
     const updatedCards = roomCards.map(card => {
       if (card.basePrice && card.baseNights) {
@@ -281,7 +270,7 @@ const diffNights = showSync ? (nights - Number(roomsWithMismatchedDuration[0].ba
     setRoomCards(updatedCards);
     syncRoomCardsToParent(updatedCards);
   }
-
+  
   function forceDMY(isoString: string | null | undefined) {
     if (!isoString) return 'dd/mm/yyyy';
     const [y, m, d] = isoString.split('-');
@@ -430,50 +419,41 @@ const diffNights = showSync ? (nights - Number(roomsWithMismatchedDuration[0].ba
                       {!viewOnly && <button onClick={() => rt === 'WG' ? setIsAddingWg(true) : handleAddRoomCard(rt)} disabled={!!addingType} className={cn('px-2.5 h-full border-l transition-all', dk ? 'text-slate-400 hover:bg-teal-900/20 hover:text-teal-400' : 'text-slate-400 hover:bg-teal-50 hover:text-teal-600')}><Plus size={14} strokeWidth={3} /></button>}
                     </div>
                   );
-                })}
+             })}
               </div>
           )}
         </div>
   
-        {/* SYNC UI SECTION */}
+        {/* SYNC ALL SECTION (RED BOX) */}
         <div className="flex-1 flex justify-center px-2">
           {showSync && (
-            <div className="flex items-center">
-              <div className="group relative flex items-center h-[28px] px-2 rounded-l border border-amber-500/40 bg-amber-500/10 cursor-help">
-                <span className="text-[10px] font-black text-amber-500 whitespace-nowrap">
-                  {diffNights > 0 ? `+${diffNights}` : diffNights} N
+            <div className="group relative flex items-center">
+              <div className={cn(
+                "flex items-center gap-2 px-3 py-1.5 rounded-full border animate-in fade-in zoom-in cursor-help",
+                dk ? "bg-amber-500/10 border-amber-500/30" : "bg-amber-50 border-amber-200"
+              )}>
+                <Loader2 size={13} className="text-amber-500 animate-[spin_4s_linear_infinite]" />
+                <span className="text-[10px] font-black text-amber-600 uppercase tracking-tight">
+                  {diffNights > 0 ? `+${diffNights}` : diffNights} {lang === 'de' ? 'Nächte Sync' : 'Nights Sync'}
                 </span>
-                
-                {/* TOOLTIP */}
-                <div className={cn(
-                  "invisible group-hover:visible absolute bottom-full left-0 mb-2 w-52 p-3 rounded-xl border shadow-2xl z-50",
-                  dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"
-                )}>
-                  <p className="text-[9px] font-black text-slate-400 uppercase mb-2">Recalculate Totals</p>
-                  <div className="space-y-1">
-                    {/* FIXED: Using roomsWithMismatchedDuration here instead of roomsToSync */}
-                    {roomsWithMismatchedDuration.map((c, i) => (
-                      <div key={i} className="flex justify-between items-center text-[10px]">
-                        <span className="text-slate-500">{c.roomType}</span>
-                        <div className="flex items-center gap-1">
-                          <span className="opacity-30 line-through">{Math.round(c.roomBrutto || 0)}€</span>
-                          <ArrowRight size={10} />
-                          <span className="text-teal-500 font-bold">
-                            {formatCurrency((c.roomBrutto || 0) * (nights / (Number(c.baseNights) || 1)))}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
               </div>
 
-              <button 
-                onClick={handleSyncAllPrices}
-                className="h-[28px] px-3 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase rounded-r transition-colors shadow-sm"
-              >
-                Apply €
-              </button>
+              {/* Hover Popover */}
+              <div className={cn(
+                "invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-52 p-3 rounded-xl border shadow-2xl z-50",
+                dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"
+              )}>
+                <p className="text-[10px] font-bold text-slate-400 mb-2 text-center uppercase">
+                  {lang === 'de' ? 'Preise anpassen?' : 'Sync prices?'}
+                </p>
+                <button 
+                  onClick={handleSyncAllPrices}
+                  className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase rounded-lg transition-colors"
+                >
+                  {lang === 'de' ? 'Anwenden' : 'Apply'}
+                </button>
+                <div className={cn("absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent", dk ? "border-t-[#1E293B]" : "border-t-white")} />
+              </div>
             </div>
           )}
         </div>
