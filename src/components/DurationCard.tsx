@@ -55,9 +55,10 @@ export default function DurationCard({
     setRoomCards(duration.roomCards ?? [])
   }, [duration])
 
+// DurationCard_4.tsx
 const nights = calculateNights(local.startDate, local.endDate);
 
-// Define the variable properly for the whole scope
+// Define this variable clearly for the whole component scope
 const roomsWithMismatchedDuration = roomCards.filter(c => 
   c.pricingTab === 'total_room' && 
   c.baseNights !== undefined && 
@@ -197,12 +198,11 @@ const diffNights = showSync ? (nights - Number(roomsWithMismatchedDuration[0].ba
     if (viewOnly || !showSync) return;
 
     const updatedCards = roomCards.map(card => {
-      // Check if this specific card is one of the ones that needs syncing
-      const needsUpdate = card.pricingTab === 'total_room' && 
-                          card.baseNights && 
-                          Number(card.baseNights) !== nights;
+      const isMismatched = card.pricingTab === 'total_room' && 
+                           card.baseNights && 
+                           Number(card.baseNights) !== nights;
 
-      if (needsUpdate) {
+      if (isMismatched) {
         const oldNights = Number(card.baseNights);
         const ratio = nights / oldNights;
         
@@ -451,6 +451,7 @@ const diffNights = showSync ? (nights - Number(roomsWithMismatchedDuration[0].ba
                 )}>
                   <p className="text-[9px] font-black text-slate-400 uppercase mb-2">Recalculate Totals</p>
                   <div className="space-y-1">
+                    {/* FIXED: Using roomsWithMismatchedDuration here instead of roomsToSync */}
                     {roomsWithMismatchedDuration.map((c, i) => (
                       <div key={i} className="flex justify-between items-center text-[10px]">
                         <span className="text-slate-500">{c.roomType}</span>
