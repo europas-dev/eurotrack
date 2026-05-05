@@ -57,11 +57,16 @@ export default function DurationCard({
 
   const nights   = calculateNights(local.startDate, local.endDate)
 
-  // TRIGGER LOGIC: Only sync if a room is locked AND the active pricing tab is 'total_room'
-  const roomsToSync = roomCards.filter(c => c.basePrice !== null && c.pricingTab === 'total_room');
-  const hasSyncConflict = roomsToSync.some(c => c.baseNights !== nights);
-  const diffNights = roomsToSync.length > 0 ? (nights - (roomsToSync[0].baseNights || nights)) : 0;
-  const showSync = hasSyncConflict && roomsToSync.length > 0;
+// TRIGGER LOGIC: Only show if nights exist, and a room is locked with a real price in Total/Room mode
+const roomsToSync = roomCards.filter(c => 
+  c.pricingTab === 'total_room' && 
+  c.basePrice !== null && 
+  c.basePrice > 0 && 
+  nights > 0
+);
+const hasSyncConflict = roomsToSync.some(c => c.baseNights !== nights);
+const diffNights = roomsToSync.length > 0 ? (nights - (roomsToSync[0].baseNights || nights)) : 0;
+const showSync = hasSyncConflict && roomsToSync.length > 0;
   
   const hasDates = !!(local.startDate && local.endDate && nights > 0)
 
@@ -189,14 +194,30 @@ export default function DurationCard({
 
   function handleSyncAllPrices() {
     if (viewOnly || !showSync) return;
+    
     const updatedCards = roomCards.map(card => {
-      // Only sync rooms that are currently in 'total_room' mode and locked
+      // Only sync if the room is locked in Total/Room mode
       if (card.basePrice && card.baseNights && card.pricingTab === 'total_room') {
-        const bruttoPerNight = card.basePrice / card.baseNights;
-        return { ...card, baseNights: nights, basePrice: bruttoPerNight * nights };
+        const ratio = nights / card.baseNights;
+        
+        // Scale the stored metadata
+        const newBasePrice = card.basePrice * ratio;
+        
+        // Scale the ACTUAL UI values so the inputs update
+        const currentNetto = card.roomNetto || 0;
+        const currentBrutto = card.roomBrutto || 0;
+        
+        return { 
+          ...card, 
+          baseNights: nights, 
+          basePrice: newBasePrice,
+          roomNetto: currentNetto * ratio,
+          roomBrutto: currentBrutto * ratio
+        };
       }
       return card;
     });
+    
     setRoomCards(updatedCards);
     syncRoomCardsToParent(updatedCards);
   }
@@ -414,39 +435,42 @@ export default function DurationCard({
         {/* ULTRA-MINIMAL SYNC UI */}
         <div className="flex-1 flex justify-center px-2">
           {showSync && (
-            <div className="flex items-center gap-1">
-              {/* THE INDICATOR + HOVER BREAKDOWN */}
-              <div className="group relative flex items-center gap-1.5 px-2 py-1 rounded border border-amber-500/30 bg-amber-500/5 cursor-help">
+            <div className="flex items-center gap-1.5">
+              {/* INDICATOR: Shows +7 Nights with Breakdown on hover */}
+              <div className="group relative flex items-center h-[28px] px-2 rounded-l border border-amber-500/30 bg-amber-500/5 cursor-help">
                 <span className="text-[11px] font-black text-amber-500">
                   {diffNights > 0 ? `+${diffNights}` : diffNights}
                 </span>
-                <span className="text-[10px] font-bold text-amber-500/60 uppercase">Nights</span>
+                <span className="ml-1 text-[9px] font-bold text-amber-500/60 uppercase">Nights</span>
                 
-                {/* HOVER BREAKDOWN TABLE */}
+                {/* HOVER BREAKDOWN */}
                 <div className={cn(
                   "invisible group-hover:visible absolute bottom-full left-0 mb-2 w-48 p-2 rounded-lg border shadow-xl z-50",
                   dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"
                 )}>
-                  <div className="text-[9px] font-black text-slate-500 uppercase mb-2 px-1">Price Update Preview</div>
+                  <div className="text-[9px] font-black text-slate-500 uppercase mb-2">Price Sync Preview</div>
                   <div className="space-y-1">
-                    {syncBreakdown.map((item, idx) => (
-                      <div key={idx} className="flex justify-between text-[10px] border-b border-white/5 pb-1">
-                        <span className="text-slate-400 truncate w-20">{item.name}</span>
-                        <div className="flex items-center gap-1">
-                          <span className="line-through opacity-40">{Math.round(item.old!)}€</span>
-                          <ArrowRight size={8} />
-                          <span className="text-teal-500 font-bold">{formatCurrency(item.new)}</span>
+                    {roomsToSync.map((c, idx) => {
+                       const ratio = nights / (c.baseNights || 1);
+                       return (
+                        <div key={idx} className="flex justify-between text-[10px] border-b border-white/5 pb-1">
+                          <span className="text-slate-400 truncate w-16">{c.roomType}</span>
+                          <div className="flex items-center gap-1">
+                            <span className="opacity-40">{Math.round(c.roomBrutto || 0)}€</span>
+                            <ArrowRight size={8} />
+                            <span className="text-teal-500 font-bold">{formatCurrency((c.roomBrutto || 0) * ratio)}</span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                       )
+                    })}
                   </div>
                 </div>
               </div>
 
-              {/* APPLY BUTTON ON THE RIGHT */}
+              {/* ACTION BUTTON: Right side of indicator */}
               <button 
                 onClick={handleSyncAllPrices}
-                className="h-[26px] px-2 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase rounded transition-all shadow-sm flex items-center gap-1"
+                className="h-[28px] px-3 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase rounded-r transition-all shadow-sm"
               >
                 Apply €
               </button>
