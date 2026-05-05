@@ -947,7 +947,6 @@ export default function RoomCard({
               })}
            </div>
            {/* --- END OF SURGICAL FIX --- */}
-        </div>
       )}
            
       {confirmDelete && (
