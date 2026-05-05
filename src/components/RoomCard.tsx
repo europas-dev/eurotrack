@@ -946,7 +946,8 @@ export default function RoomCard({
                  )
               })}
            </div>
-           {/* --- END OF SURGICAL FIX --- */}
+          {/* --- END OF SURGICAL FIX --- */}
+        </div>
       )}
            
       {confirmDelete && (
@@ -960,3 +961,4 @@ export default function RoomCard({
     </div>
   )
 }
+      
