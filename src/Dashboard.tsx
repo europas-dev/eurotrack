@@ -722,7 +722,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           <div className="flex items-center justify-between flex-wrap gap-4 w-full">
             <div className="flex items-center gap-12 flex-wrap">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">{lang === 'de' ? 'Freie Betten Heute' : 'Free Beds Today'}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">{lang === 'de' ? 'Freie Betten' : 'Free Beds'}</p>
                 <p className={cn('text-3xl font-black', freeBedsTotal > 0 ? 'text-red-500' : 'text-slate-400')}>{freeBedsTotal}</p>
               </div>
               <div>
