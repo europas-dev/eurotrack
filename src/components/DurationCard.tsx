@@ -55,12 +55,19 @@ export default function DurationCard({
     setRoomCards(duration.roomCards ?? [])
   }, [duration])
 
-const nights   = calculateNights(local.startDate, local.endDate)
+// src/components/DurationCard.tsx
+const nights = calculateNights(local.startDate, local.endDate);
 
-// NEW SYNC LOGIC: Check for locked rooms and night differences
-const lockedRoom = roomCards.find(c => c.basePrice !== null);
-const diffNights = lockedRoom ? (nights - (lockedRoom.baseNights || nights)) : 0;
-const showSync = !!lockedRoom && diffNights !== 0;
+// This creates the array that the UI is currently crashing on
+const roomsToSync = roomCards.filter(c => 
+  c.pricingTab === 'total_room' && 
+  c.baseNights !== undefined && 
+  Number(c.baseNights) !== nights &&
+  nights > 0
+);
+
+const showSync = roomsToSync.length > 0;
+const diffNights = showSync ? (nights - Number(roomsToSync[0]?.baseNights || nights)) : 0;
 
 // Teal color stays if nights are exactly 7 or 30
   
@@ -187,36 +194,6 @@ const showSync = !!lockedRoom && diffNights !== 0;
     const newPrice = (c.basePrice! / c.baseNights!) * nights;
     return { name: c.name || c.roomType, old: c.basePrice, new: newPrice };
   });
-
-  function handleSyncAllPrices() {
-    if (viewOnly || !showSync) return;
-
-    const updatedCards = roomCards.map(card => {
-      const isMismatched = card.pricingTab === 'total_room' && 
-                           card.baseNights && 
-                           Number(card.baseNights) !== nights;
-
-      if (isMismatched) {
-        const oldNights = Number(card.baseNights);
-        const ratio = nights / oldNights;
-        
-        const newBrutto = (card.roomBrutto || 0) * ratio;
-        const newNetto = (card.roomNetto || 0) * ratio;
-
-        return { 
-          ...card, 
-          baseNights: nights,
-          basePrice: newBrutto,
-          roomBrutto: newBrutto,
-          roomNetto: newNetto
-        };
-      }
-      return card;
-    });
-
-    setRoomCards(updatedCards);
-    syncRoomCardsToParent(updatedCards);
-  }
   
   const typeCount: Record<string, number> = {}
   roomCards.forEach(c => { typeCount[c.roomType] = (typeCount[c.roomType] ?? 0) + 1 })
@@ -259,14 +236,31 @@ const showSync = !!lockedRoom && diffNights !== 0;
 
  function handleSyncAllPrices() {
     if (viewOnly || !showSync) return;
+
     const updatedCards = roomCards.map(card => {
-      if (card.basePrice && card.baseNights) {
-        const bruttoPerNight = card.basePrice / card.baseNights;
-        const newTargetBrutto = bruttoPerNight * nights;
-        return { ...card, baseNights: nights, basePrice: newTargetBrutto };
+      const isMismatched = card.pricingTab === 'total_room' && 
+                           card.baseNights && 
+                           Number(card.baseNights) !== nights;
+
+      if (isMismatched) {
+        const oldNights = Number(card.baseNights);
+        const ratio = nights / oldNights;
+        
+        // This ensures the price boxes actually change in the UI
+        const newBrutto = (card.roomBrutto || 0) * ratio;
+        const newNetto = (card.roomNetto || 0) * ratio;
+
+        return { 
+          ...card, 
+          baseNights: nights,
+          basePrice: newBrutto,
+          roomBrutto: newBrutto,
+          roomNetto: newNetto
+        };
       }
       return card;
     });
+
     setRoomCards(updatedCards);
     syncRoomCardsToParent(updatedCards);
   }
