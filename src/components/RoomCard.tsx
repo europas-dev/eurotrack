@@ -776,6 +776,7 @@ export default function RoomCard({
             )}
           </div> 
       </div>
+   </div>
       
       {isOpen && (
         <div className={cn("p-6 border-t", dk ? "bg-black/20 border-white/5" : "bg-slate-50/50 border-slate-100")}>
