@@ -55,19 +55,19 @@ export default function DurationCard({
     setRoomCards(duration.roomCards ?? [])
   }, [duration])
 
-  const nights = calculateNights(local.startDate, local.endDate);
+const nights = calculateNights(local.startDate, local.endDate);
 
-  // TRIGGER: Only sync if nights > 0 AND there's a locked room with a price > 0
-  const roomsToSync = roomCards.filter(c => 
-    c.pricingTab === 'total_room' && 
-    (c.roomBrutto || 0) > 0 && 
-    nights > 0
-  );
-  
-  // A conflict exists if the current nights differ from the nights the price was set for
-  const hasSyncConflict = roomsToSync.some(c => c.baseNights !== nights);
-  const diffNights = roomsToSync.length > 0 ? (nights - (roomsToSync[0].baseNights || nights)) : 0;
-  const showSync = hasSyncConflict && nights > 0;
+// Look for rooms where the current duration (nights) differs from the locked duration (baseNights)
+const roomsWithMismatchedDuration = roomCards.filter(c => 
+  c.pricingTab === 'total_room' && 
+  c.baseNights !== undefined && 
+  c.baseNights !== null &&
+  Number(c.baseNights) !== nights &&
+  nights > 0
+);
+
+const showSync = roomsWithMismatchedDuration.length > 0;
+const diffNights = showSync ? (nights - Number(roomsWithMismatchedDuration[0].baseNights)) : 0;
   
   const hasDates = !!(local.startDate && local.endDate && nights > 0)
 
@@ -197,18 +197,22 @@ export default function DurationCard({
     if (viewOnly || !showSync) return;
 
     const updatedCards = roomCards.map(card => {
-      // Only apply to rooms in Total/Room mode that were locked at a different night count
-      if (card.pricingTab === 'total_room' && (card.roomBrutto || 0) > 0 && card.baseNights) {
-        const ratio = nights / card.baseNights;
+      // Find the specific rooms that need the update
+      if (card.pricingTab === 'total_room' && card.baseNights && Number(card.baseNights) !== nights) {
+        
+        const oldNights = Number(card.baseNights);
+        const ratio = nights / oldNights;
+        
+        // Scale the actual UI values
         const newBrutto = (card.roomBrutto || 0) * ratio;
         const newNetto = (card.roomNetto || 0) * ratio;
 
         return { 
           ...card, 
-          baseNights: nights, // Update the reference nights
-          basePrice: newBrutto, // Update the reference price
-          roomBrutto: newBrutto, // Update the ACTUAL UI input
-          roomNetto: newNetto    // Update the ACTUAL UI input
+          baseNights: nights,      // This updates the (7N) to (14N) in the badge
+          basePrice: newBrutto,    // Updates the reference price
+          roomBrutto: newBrutto,   // Updates the ACTIVE input box
+          roomNetto: newNetto      // Updates the ACTIVE input box
         };
       }
       return card;
@@ -217,6 +221,7 @@ export default function DurationCard({
     setRoomCards(updatedCards);
     syncRoomCardsToParent(updatedCards);
   }
+  
   const typeCount: Record<string, number> = {}
   roomCards.forEach(c => { typeCount[c.roomType] = (typeCount[c.roomType] ?? 0) + 1 })
 
@@ -431,40 +436,38 @@ export default function DurationCard({
         {/* SYNC SECTION */}
         <div className="flex-1 flex justify-center px-2">
           {showSync && (
-            <div className="flex items-center gap-1.5">
-              <div className="group relative flex items-center h-[28px] px-2 rounded-l border border-amber-500/30 bg-amber-500/5">
-                <span className="text-[11px] font-black text-amber-500">
-                  {diffNights > 0 ? `+${diffNights}` : diffNights}
+            <div className="flex items-center">
+              {/* INDICATOR: Shows the change in nights */}
+              <div className="group relative flex items-center h-[28px] px-2 rounded-l border border-amber-500/40 bg-amber-500/10 cursor-help">
+                <span className="text-[10px] font-black text-amber-500 whitespace-nowrap">
+                  {diffNights > 0 ? `+${diffNights}` : diffNights} N
                 </span>
-                <span className="ml-1 text-[9px] font-bold text-amber-500/60 uppercase">Nights</span>
                 
-                {/* TOOLTIP BREAKDOWN */}
+                {/* TOOLTIP: Shows exactly what the new price will be */}
                 <div className={cn(
                   "invisible group-hover:visible absolute bottom-full left-0 mb-2 w-52 p-3 rounded-xl border shadow-2xl z-50",
                   dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"
                 )}>
-                  <div className="text-[9px] font-black text-slate-500 uppercase mb-2">Sync Calculation</div>
-                  <div className="space-y-1">
-                    {roomsToSync.map((c, i) => {
-                       const ratio = nights / (c.baseNights || 1);
-                       return (
-                        <div key={c.id || i} className="flex justify-between text-[10px]">
-                          <span className="text-slate-400">{c.roomType}</span>
-                          <div className="flex items-center gap-1">
-                            <span className="opacity-40">{Math.round(c.roomBrutto || 0)}€</span>
-                            <ArrowRight size={8} />
-                            <span className="text-teal-500 font-bold">{formatCurrency((c.roomBrutto || 0) * ratio)}</span>
-                          </div>
-                        </div>
-                       );
-                    })}
-                  </div>
+                  <p className="text-[9px] font-black text-slate-400 uppercase mb-2">Recalculate Totals</p>
+                  {roomsWithMismatchedDuration.map((c, i) => (
+                    <div key={i} className="flex justify-between items-center text-[10px]">
+                      <span className="text-slate-500">{c.roomType}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="opacity-30 line-through">{Math.round(c.roomBrutto || 0)}€</span>
+                        <ArrowRight size={10} />
+                        <span className="text-teal-500 font-bold">
+                          {formatCurrency((c.roomBrutto || 0) * (nights / (c.baseNights || 1)))}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
+              {/* APPLY BUTTON: Overwrites the old total with the new calculation */}
               <button 
                 onClick={handleSyncAllPrices}
-                className="h-[28px] px-3 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase rounded-r transition-all"
+                className="h-[28px] px-3 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase rounded-r transition-colors shadow-sm whitespace-nowrap"
               >
                 Apply €
               </button>
