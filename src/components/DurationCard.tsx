@@ -55,19 +55,20 @@ export default function DurationCard({
     setRoomCards(duration.roomCards ?? [])
   }, [duration])
 
-//
+// src/components/DurationCard.tsx
 const nights = calculateNights(local.startDate, local.endDate);
 
-// This variable MUST be named 'roomsToSync' to match your UI code at line 188
+// This creates the list for your sync button and tooltip
 const roomsToSync = roomCards.filter(c => 
   c.pricingTab === 'total_room' && 
   c.baseNights !== undefined && 
-  Number(c.baseNights) !== nights &&
-  nights > 0
+  c.baseNights !== null &&
+  Number(c.baseNights) > 0 && // Prevent division by zero
+  Number(c.baseNights) !== nights
 );
 
-const showSync = roomsToSync.length > 0;
-const diffNights = showSync ? (nights - Number(roomsToSync[0]?.baseNights || nights)) : 0;
+const showSync = nights > 0 && roomsToSync.length > 0;
+const diffNights = showSync ? (nights - Number(roomsToSync[0].baseNights)) : 0;
 
 // Teal color stays if nights are exactly 7 or 30
   
@@ -250,24 +251,22 @@ const diffNights = showSync ? (nights - Number(roomsToSync[0]?.baseNights || nig
     if (viewOnly || !showSync) return;
 
     const updatedCards = roomCards.map(card => {
-      const isMismatched = card.pricingTab === 'total_room' && 
-                           card.baseNights && 
-                           Number(card.baseNights) !== nights;
+      const oldNights = Number(card.baseNights);
+      const isMismatched = card.pricingTab === 'total_room' && oldNights > 0 && oldNights !== nights;
 
       if (isMismatched) {
-        const oldNights = Number(card.baseNights);
         const ratio = nights / oldNights;
         
-        // This ensures the price boxes actually change in the UI
+        // Update both the input fields and the base reference
         const newBrutto = (card.roomBrutto || 0) * ratio;
         const newNetto = (card.roomNetto || 0) * ratio;
 
         return { 
           ...card, 
-          baseNights: nights,
-          basePrice: newBrutto,
-          roomBrutto: newBrutto,
-          roomNetto: newNetto
+          baseNights: nights,     // Update reference nights
+          basePrice: newBrutto,   // Update reference price
+          roomBrutto: newBrutto,  // Update UI input
+          roomNetto: newNetto     // Update UI input
         };
       }
       return card;
@@ -431,35 +430,44 @@ const diffNights = showSync ? (nights - Number(roomsToSync[0]?.baseNights || nig
         </div>
   
         {/* SYNC ALL SECTION (RED BOX) */}
+        {/* SYNC SECTION */}
         <div className="flex-1 flex justify-center px-2">
           {showSync && (
-            <div className="group relative flex items-center">
-              <div className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-full border animate-in fade-in zoom-in cursor-help",
-                dk ? "bg-amber-500/10 border-amber-500/30" : "bg-amber-50 border-amber-200"
-              )}>
-                <Loader2 size={13} className="text-amber-500 animate-[spin_4s_linear_infinite]" />
-                <span className="text-[10px] font-black text-amber-600 uppercase tracking-tight">
-                  {diffNights > 0 ? `+${diffNights}` : diffNights} {lang === 'de' ? 'Nächte Sync' : 'Nights Sync'}
+            <div className="flex items-center gap-0.5">
+              <div className="group relative flex items-center h-[28px] px-2 rounded-l border border-amber-500/30 bg-amber-500/10 cursor-help">
+                <span className="text-[10px] font-black text-amber-500 whitespace-nowrap">
+                  {diffNights > 0 ? `+${diffNights}` : diffNights} N
                 </span>
+                
+                {/* HOVER TOOLTIP */}
+                <div className={cn(
+                  "invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 p-3 rounded-xl border shadow-2xl z-50",
+                  dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"
+                )}>
+                  <p className="text-[9px] font-black text-slate-400 uppercase mb-2 text-center">Sync Preview</p>
+                  <div className="space-y-1">
+                    {roomsToSync.map((c, i) => (
+                      <div key={i} className="flex justify-between items-center text-[10px]">
+                        <span className="text-slate-500 font-bold">{c.roomType}</span>
+                        <div className="flex items-center gap-1">
+                          <span className="opacity-30 line-through">{Math.round(c.roomBrutto || 0)}€</span>
+                          <ArrowRight size={10} className="text-slate-400" />
+                          <span className="text-teal-500 font-bold">
+                            {formatCurrency((c.roomBrutto || 0) * (nights / (Number(c.baseNights) || 1)))}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              {/* Hover Popover */}
-              <div className={cn(
-                "invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-52 p-3 rounded-xl border shadow-2xl z-50",
-                dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"
-              )}>
-                <p className="text-[10px] font-bold text-slate-400 mb-2 text-center uppercase">
-                  {lang === 'de' ? 'Preise anpassen?' : 'Sync prices?'}
-                </p>
-                <button 
-                  onClick={handleSyncAllPrices}
-                  className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase rounded-lg transition-colors"
-                >
-                  {lang === 'de' ? 'Anwenden' : 'Apply'}
-                </button>
-                <div className={cn("absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent", dk ? "border-t-[#1E293B]" : "border-t-white")} />
-              </div>
+              <button 
+                onClick={handleSyncAllPrices}
+                className="h-[28px] px-3 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase rounded-r transition-colors shadow-sm"
+              >
+                Apply €
+              </button>
             </div>
           )}
         </div>
