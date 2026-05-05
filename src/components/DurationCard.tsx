@@ -57,7 +57,7 @@ export default function DurationCard({
 
 const nights = calculateNights(local.startDate, local.endDate);
 
-// Look for rooms where the current duration (nights) differs from the locked duration (baseNights)
+// Define the variable properly for the whole scope
 const roomsWithMismatchedDuration = roomCards.filter(c => 
   c.pricingTab === 'total_room' && 
   c.baseNights !== undefined && 
@@ -197,22 +197,24 @@ const diffNights = showSync ? (nights - Number(roomsWithMismatchedDuration[0].ba
     if (viewOnly || !showSync) return;
 
     const updatedCards = roomCards.map(card => {
-      // Find the specific rooms that need the update
-      if (card.pricingTab === 'total_room' && card.baseNights && Number(card.baseNights) !== nights) {
-        
+      // Check if this specific card is one of the ones that needs syncing
+      const needsUpdate = card.pricingTab === 'total_room' && 
+                          card.baseNights && 
+                          Number(card.baseNights) !== nights;
+
+      if (needsUpdate) {
         const oldNights = Number(card.baseNights);
         const ratio = nights / oldNights;
         
-        // Scale the actual UI values
         const newBrutto = (card.roomBrutto || 0) * ratio;
         const newNetto = (card.roomNetto || 0) * ratio;
 
         return { 
           ...card, 
-          baseNights: nights,      // This updates the (7N) to (14N) in the badge
-          basePrice: newBrutto,    // Updates the reference price
-          roomBrutto: newBrutto,   // Updates the ACTIVE input box
-          roomNetto: newNetto      // Updates the ACTIVE input box
+          baseNights: nights,
+          basePrice: newBrutto,
+          roomBrutto: newBrutto,
+          roomNetto: newNetto
         };
       }
       return card;
@@ -433,41 +435,41 @@ const diffNights = showSync ? (nights - Number(roomsWithMismatchedDuration[0].ba
           )}
         </div>
   
-        {/* SYNC SECTION */}
+        {/* SYNC UI SECTION */}
         <div className="flex-1 flex justify-center px-2">
           {showSync && (
             <div className="flex items-center">
-              {/* INDICATOR: Shows the change in nights */}
               <div className="group relative flex items-center h-[28px] px-2 rounded-l border border-amber-500/40 bg-amber-500/10 cursor-help">
                 <span className="text-[10px] font-black text-amber-500 whitespace-nowrap">
                   {diffNights > 0 ? `+${diffNights}` : diffNights} N
                 </span>
                 
-                {/* TOOLTIP: Shows exactly what the new price will be */}
+                {/* TOOLTIP */}
                 <div className={cn(
                   "invisible group-hover:visible absolute bottom-full left-0 mb-2 w-52 p-3 rounded-xl border shadow-2xl z-50",
                   dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"
                 )}>
                   <p className="text-[9px] font-black text-slate-400 uppercase mb-2">Recalculate Totals</p>
-                  {roomsWithMismatchedDuration.map((c, i) => (
-                    <div key={i} className="flex justify-between items-center text-[10px]">
-                      <span className="text-slate-500">{c.roomType}</span>
-                      <div className="flex items-center gap-1">
-                        <span className="opacity-30 line-through">{Math.round(c.roomBrutto || 0)}€</span>
-                        <ArrowRight size={10} />
-                        <span className="text-teal-500 font-bold">
-                          {formatCurrency((c.roomBrutto || 0) * (nights / (c.baseNights || 1)))}
-                        </span>
+                  <div className="space-y-1">
+                    {roomsWithMismatchedDuration.map((c, i) => (
+                      <div key={i} className="flex justify-between items-center text-[10px]">
+                        <span className="text-slate-500">{c.roomType}</span>
+                        <div className="flex items-center gap-1">
+                          <span className="opacity-30 line-through">{Math.round(c.roomBrutto || 0)}€</span>
+                          <ArrowRight size={10} />
+                          <span className="text-teal-500 font-bold">
+                            {formatCurrency((c.roomBrutto || 0) * (nights / (Number(c.baseNights) || 1)))}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* APPLY BUTTON: Overwrites the old total with the new calculation */}
               <button 
                 onClick={handleSyncAllPrices}
-                className="h-[28px] px-3 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase rounded-r transition-colors shadow-sm whitespace-nowrap"
+                className="h-[28px] px-3 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase rounded-r transition-colors shadow-sm"
               >
                 Apply €
               </button>
