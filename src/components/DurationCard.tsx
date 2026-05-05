@@ -70,7 +70,6 @@ const roomsToSync = roomCards.filter(c =>
 
 const showSync = roomsToSync.length > 0;
 const diffNights = showSync ? (nights - Number(roomsToSync[0].baseNights)) : 0;
-
 // Teal color stays if nights are exactly 7 or 30
   
   const hasDates = !!(local.startDate && local.endDate && nights > 0)
@@ -248,7 +247,7 @@ const diffNights = showSync ? (nights - Number(roomsToSync[0].baseNights)) : 0;
     syncRoomCardsToParent(n);
   }
 
- function handleSyncAllPrices() {
+  function handleSyncAllPrices() {
     if (viewOnly || !showSync) return;
 
     const updatedCards = roomCards.map(card => {
@@ -279,6 +278,7 @@ const diffNights = showSync ? (nights - Number(roomsToSync[0].baseNights)) : 0;
     setRoomCards(updatedCards);
     syncRoomCardsToParent(updatedCards);
   }
+
   
   function forceDMY(isoString: string | null | undefined) {
     if (!isoString) return 'dd/mm/yyyy';
@@ -434,8 +434,7 @@ const diffNights = showSync ? (nights - Number(roomsToSync[0].baseNights)) : 0;
         </div>
   
         {/* SYNC ALL SECTION (RED BOX) */}
-        {/* SYNC SECTION */}
-        {/* SYNC UI SECTION */}
+   {/* SYNC UI SECTION */}
         <div className="flex-1 flex justify-center px-2">
           {showSync && (
             <div className="flex items-center gap-0.5 animate-in fade-in zoom-in">
