@@ -775,7 +775,6 @@ export default function RoomCard({
               </button>
             )}
           </div> 
-        )}
       </div>
       
       {isOpen && (
