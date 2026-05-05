@@ -963,6 +963,4 @@ export default function RoomCard({
       )}
     </div>
   );
-};
-
-export default RoomCard;
+}
