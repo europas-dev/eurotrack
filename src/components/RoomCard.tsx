@@ -942,8 +942,6 @@ export default function RoomCard({
           {/* --- END OF SURGICAL FIX --- */}
         </div>
       )}
-           
-      // src/components/RoomCard.tsx
 
       {confirmDelete && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
