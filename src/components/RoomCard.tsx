@@ -785,7 +785,6 @@ export default function RoomCard({
                     )}
                   </div>
                 </div>
-                
                 {/* Trash Icon remains on the far right */}
                 {!viewOnly && (
                   <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-2 text-slate-400 hover:text-red-500 shrink-0 ml-1"><Trash2 size={18} /></button>
