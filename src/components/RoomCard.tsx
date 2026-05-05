@@ -807,11 +807,12 @@ export default function RoomCard({
                             e.stopPropagation();
                             const isLocked = !!card.basePrice;
                             onUpdate(card.id, {
-                              basePrice: isLocked ? null : (card.totalPrice || 0),
+                              // We "grab" the actual number currently calculated on the screen
+                              basePrice: isLocked ? null : calculatedFinalBrutto,
                               baseNights: isLocked ? null : nights 
                             });
                           }}
-                          className={cn(
+                                                    className={cn(
                             "p-2 h-[38px] w-[42px] rounded-lg border transition-all flex items-center justify-center",
                             card.basePrice 
                               ? "bg-blue-600 border-blue-700 text-white shadow-md" 
@@ -835,31 +836,78 @@ export default function RoomCard({
                  </div>
                </div>
 
-               {/* RIGHT SIDE: DETAILED SUMMARY COLUMN */}
-               <div className={cn("w-full xl:w-[320px] shrink-0 p-5 flex flex-col justify-between rounded-b-xl xl:rounded-r-xl xl:rounded-bl-none", dk ? "bg-[#0B1224]" : "bg-slate-50")}>
-                  <div className="space-y-2 mb-4 text-[13px] font-medium">
-                     <div className="flex justify-between items-center"><span className={dk ? "text-slate-400" : "text-slate-500"}>{lang === 'de' ? 'Zimmer Netto' : 'Room Netto'}</span><span className={cn("font-bold", dk ? "text-white" : "text-slate-900")}>{formatCurrency(cRoomNetto)}</span></div>
-                     {cEnergyNetto > 0 && <div className="flex justify-between items-center text-yellow-600 dark:text-yellow-500"><span className="opacity-80">{lang === 'de' ? 'Energie Netto' : 'Energy Netto'}</span><span>{formatCurrency(cEnergyNetto)}</span></div>}
-                     
-                     {(cRoomMwst > 0 || cEnergyMwst > 0) && <div className={cn("w-full h-px my-2", dk ? "bg-white/10" : "bg-slate-200")} />}
-                     
-                     {cRoomMwst > 0 && <div className="flex justify-between items-center text-slate-500 dark:text-slate-400"><span>{lang === 'de' ? 'MwSt (Zimmer)' : 'MwSt (Room)'}</span><span>{formatCurrency(cRoomMwst)}</span></div>}
-                     {cEnergyMwst > 0 && <div className="flex justify-between items-center text-slate-500 dark:text-slate-400"><span>{lang === 'de' ? 'MwSt (Energie)' : 'MwSt (Energy)'}</span><span>{formatCurrency(cEnergyMwst)}</span></div>}
+               /* RoomCard.tsx */
+
+          {/* RIGHT SIDE: DETAILED SUMMARY COLUMN */}
+          <div className={cn(
+              "w-full xl:w-[320px] shrink-0 p-5 flex flex-col justify-between rounded-b-xl xl:rounded-r-xl xl:rounded-bl-none", 
+              dk ? "bg-[#0B1224]" : "bg-slate-50"
+          )}>
+              <div className="space-y-2 mb-4 text-[13px] font-medium">
+                  <div className="flex justify-between items-center">
+                      <span className={dk ? "text-slate-400" : "text-slate-500"}>
+                          {lang === 'de' ? 'Zimmer Netto' : 'Room Netto'}
+                      </span>
+                      <span className={cn("font-bold", dk ? "text-white" : "text-slate-900")}>
+                          {formatCurrency(cRoomNetto)}
+                      </span>
                   </div>
+          
+                  {cEnergyNetto > 0 && (
+                      <div className="flex justify-between items-center text-yellow-600 dark:text-yellow-500">
+                          <span className="opacity-80">{lang === 'de' ? 'Energie Netto' : 'Energy Netto'}</span>
+                          <span>{formatCurrency(cEnergyNetto)}</span>
+                      </div>
+                  )}
                   
-                  <div className={cn("pt-3 border-t", dk ? "border-white/10" : "border-slate-200")}>
-                     <div className="flex justify-between items-center">
-                        <span className="text-xs font-black uppercase text-slate-500">Brutto</span>
-                        <span className="text-xl font-black text-teal-600 dark:text-teal-400">{formatCurrency(calculatedFinalBrutto)}</span>
-                     </div>
-                     <div className="flex justify-between items-center mt-1 text-[11px] font-bold text-slate-400">
-                        <span>{lang === 'de' ? 'Preis / Bett (Netto)' : 'Price / Bed (Netto)'}</span>
-                        <span>{formatCurrency(pricePerBedPerNight)} / N</span>
-                     </div>
+                  {(cRoomMwst > 0 || cEnergyMwst > 0) && (
+                      <div className={cn("w-full h-px my-2", dk ? "bg-white/10" : "bg-slate-200")} />
+                  )}
+                  
+                  {cRoomMwst > 0 && (
+                      <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
+                          <span>{lang === 'de' ? 'MwSt (Zimmer)' : 'MwSt (Room)'}</span>
+                          <span>{formatCurrency(cRoomMwst)}</span>
+                      </div>
+                  )}
+          
+                  {cEnergyMwst > 0 && (
+                      <div className="flex justify-between items-center text-slate-500 dark:text-slate-400">
+                          <span>{lang === 'de' ? 'MwSt (Energie)' : 'MwSt (Energy)'}</span>
+                          <span>{formatCurrency(cEnergyMwst)}</span>
+                      </div>
+                  )}
+          
+                  {/* --- ADDED SECTION: BASE PRICE REFERENCE --- */}
+                  {/* We place it here so it's inside the summary box and appears just above the final total */}
+                  {activeTab === 'total_room' && card.basePrice && (
+                      <div className={cn(
+                          "flex justify-between items-center mt-4 mb-2 px-2 py-1 rounded border border-dashed",
+                          dk ? "bg-blue-500/5 border-blue-500/30" : "bg-blue-50 border-blue-200"
+                      )}>
+                          <span className="text-[10px] font-black text-blue-500 uppercase">
+                              {lang === 'de' ? 'Basiswert' : 'Base Value'}
+                          </span>
+                          <span className="text-xs font-bold text-blue-500">
+                              {formatCurrency(card.basePrice)} ({card.baseNights}N)
+                          </span>
+                      </div>
+                  )}
+              </div>
+              
+              <div className={cn("pt-3 border-t", dk ? "border-white/10" : "border-slate-200")}>
+                  <div className="flex justify-between items-center">
+                      <span className="text-xs font-black uppercase text-slate-500">Brutto</span>
+                      <span className="text-xl font-black text-teal-600 dark:text-teal-400">
+                          {formatCurrency(calculatedFinalBrutto)}
+                      </span>
                   </div>
-               </div>
-             </div>
-           )}
+                  <div className="flex justify-between items-center mt-1 text-[11px] font-bold text-slate-400">
+                      <span>{lang === 'de' ? 'Preis / Bett (Netto)' : 'Price / Bed (Netto)'}</span>
+                      <span>{formatCurrency(pricePerBedPerNight)} / N</span>
+                  </div>
+              </div>
+          </div>
            {/* --- SURGICAL FIX: PASSING EMPLOYEE OPTIONS TO ALL 3 BED SCENARIOS --- */}
            <div className="grid gap-6 items-start" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(400px, 1fr))` }}>
               {Array.from({ length: beds }).map((_, i) => {
