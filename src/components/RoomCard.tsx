@@ -764,32 +764,6 @@ export default function RoomCard({
                   <div className="flex flex-col items-end min-w-[100px]">
                     <span className="text-xl font-black">{roomTotalDisplay}</span>
                   </div>
-              
-                  {/* THE LOCK BUTTON */}
-                  {!viewOnly && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const isLocked = !!card.basePrice;
-                        onUpdate(card.id, {
-                          basePrice: isLocked ? null : calculatedFinalBrutto,
-                          baseNights: isLocked ? null : nights 
-                        });
-                      }}
-                      className={cn(
-                        "p-2 rounded-lg border transition-all flex items-center justify-center",
-                        card.basePrice 
-                          ? "bg-blue-600 border-blue-700 text-white shadow-md" 
-                          : dk ? "bg-white/5 border-white/10 text-slate-500 hover:text-white" : "bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100"
-                      )}
-                      title={card.basePrice ? "Price Locked" : "Lock this Total as Base"}
-                    >
-                      {card.basePrice ? <Lock size={16} /> : <Unlock size={16} />}
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
             
             {/* Trash Icon remains on the far right */}
             {!viewOnly && (
@@ -831,6 +805,31 @@ export default function RoomCard({
                      card={card} dk={dk} lang={lang} onPatch={queueSave} multiplier={multiplier} activeTab={activeTab} queueSave={queueSave}
                      viewOnly={viewOnly} // SURGICAL FIX: Pass prop down
                    />
+
+                   {/* ADD THIS SECTION BELOW */}
+                    {activeTab === 'total_room' && !viewOnly && (
+                      <div className="flex items-start pt-[26px]">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const isLocked = !!card.basePrice;
+                            onUpdate(card.id, {
+                              basePrice: isLocked ? null : (card.totalPrice || 0),
+                              baseNights: isLocked ? null : nights 
+                            });
+                          }}
+                          className={cn(
+                            "p-2 h-[38px] w-[42px] rounded-lg border transition-all flex items-center justify-center",
+                            card.basePrice 
+                              ? "bg-blue-600 border-blue-700 text-white shadow-md" 
+                              : dk ? "bg-white/5 border-white/10 text-slate-500 hover:text-white" : "bg-white border-slate-200 text-slate-400 hover:bg-slate-50"
+                          )}
+                          title={card.basePrice ? "Price Locked" : "Lock this Total as Base"}
+                        >
+                          {card.basePrice ? <Lock size={18} /> : <Unlock size={18} />}
+                        </button>
+                      </div>
+                    )}
                    
                    {/* SURGICAL FIX: Hide Copy All button for Viewers */}
                    {!viewOnly && allCardsOfSameType.length > 1 && (
