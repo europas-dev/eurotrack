@@ -774,9 +774,12 @@ export default function RoomCard({
                 <Trash2 size={18} />
               </button>
             )}
-          </div> 
+          </div>
+)}
+           </div>
+         </div>
+       )}
       </div>
-   </div>
       
       {isOpen && (
         <div className={cn("p-6 border-t", dk ? "bg-black/20 border-white/5" : "bg-slate-50/50 border-slate-100")}>
