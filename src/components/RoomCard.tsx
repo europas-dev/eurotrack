@@ -906,8 +906,16 @@ export default function RoomCard({
                       <span>{lang === 'de' ? 'Preis / Bett (Netto)' : 'Price / Bed (Netto)'}</span>
                       <span>{formatCurrency(pricePerBedPerNight)} / N</span>
                   </div>
+                  </div>
+                </div>
               </div>
+            )}
           </div>
+        ))}
+      </div>
+    </div>
+  );
+};
            {/* --- SURGICAL FIX: PASSING EMPLOYEE OPTIONS TO ALL 3 BED SCENARIOS --- */}
            <div className="grid gap-6 items-start" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(400px, 1fr))` }}>
               {Array.from({ length: beds }).map((_, i) => {
