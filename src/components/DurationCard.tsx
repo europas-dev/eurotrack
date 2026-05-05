@@ -57,13 +57,12 @@ export default function DurationCard({
 
   const nights   = calculateNights(local.startDate, local.endDate)
 
-  // Identify if any room has a Total/Room lock (basePrice)
-  const lockedRoom = roomCards.find(c => c.basePrice !== null);
-  // Calculate if the current global nights differ from the nights when the price was locked
-  const diffNights = lockedRoom ? (nights - (lockedRoom.baseNights || nights)) : 0;
-  // Show the sync button only if a lock exists and the duration has changed
-  const showSync = !!lockedRoom && diffNights !== 0;
-  // Teal color stays if nights are exactly 7 or 30
+  // TRIGGER LOGIC: Only sync if a room is locked AND the active pricing tab is 'total_room'
+  const roomsToSync = roomCards.filter(c => c.basePrice !== null && c.pricingTab === 'total_room');
+  const hasSyncConflict = roomsToSync.some(c => c.baseNights !== nights);
+  const diffNights = roomsToSync.length > 0 ? (nights - (roomsToSync[0].baseNights || nights)) : 0;
+  const showSync = hasSyncConflict && roomsToSync.length > 0;
+  
   const hasDates = !!(local.startDate && local.endDate && nights > 0)
 
   const roomCardsTotal = roomCards.reduce(
@@ -182,6 +181,25 @@ export default function DurationCard({
     onUpdate(local.id, nextLocal);
   }
 
+  // Calculate the breakdown for the hover tooltip
+  const syncBreakdown = roomsToSync.map(c => {
+    const newPrice = (c.basePrice! / c.baseNights!) * nights;
+    return { name: c.name || c.roomType, old: c.basePrice, new: newPrice };
+  });
+
+  function handleSyncAllPrices() {
+    if (viewOnly || !showSync) return;
+    const updatedCards = roomCards.map(card => {
+      // Only sync rooms that are currently in 'total_room' mode and locked
+      if (card.basePrice && card.baseNights && card.pricingTab === 'total_room') {
+        const bruttoPerNight = card.basePrice / card.baseNights;
+        return { ...card, baseNights: nights, basePrice: bruttoPerNight * nights };
+      }
+      return card;
+    });
+    setRoomCards(updatedCards);
+    syncRoomCardsToParent(updatedCards);
+  }
   const typeCount: Record<string, number> = {}
   roomCards.forEach(c => { typeCount[c.roomType] = (typeCount[c.roomType] ?? 0) + 1 })
 
@@ -393,36 +411,45 @@ export default function DurationCard({
           )}
         </div>
   
-        {/* SYNC ALL SECTION (RED BOX) */}
+        {/* ULTRA-MINIMAL SYNC UI */}
         <div className="flex-1 flex justify-center px-2">
           {showSync && (
-            <div className="group relative flex items-center">
-              <div className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-full border animate-in fade-in zoom-in cursor-help",
-                dk ? "bg-amber-500/10 border-amber-500/30" : "bg-amber-50 border-amber-200"
-              )}>
-                <Loader2 size={13} className="text-amber-500 animate-[spin_4s_linear_infinite]" />
-                <span className="text-[10px] font-black text-amber-600 uppercase tracking-tight">
-                  {diffNights > 0 ? `+${diffNights}` : diffNights} {lang === 'de' ? 'Nächte Sync' : 'Nights Sync'}
+            <div className="flex items-center gap-1">
+              {/* THE INDICATOR + HOVER BREAKDOWN */}
+              <div className="group relative flex items-center gap-1.5 px-2 py-1 rounded border border-amber-500/30 bg-amber-500/5 cursor-help">
+                <span className="text-[11px] font-black text-amber-500">
+                  {diffNights > 0 ? `+${diffNights}` : diffNights}
                 </span>
+                <span className="text-[10px] font-bold text-amber-500/60 uppercase">Nights</span>
+                
+                {/* HOVER BREAKDOWN TABLE */}
+                <div className={cn(
+                  "invisible group-hover:visible absolute bottom-full left-0 mb-2 w-48 p-2 rounded-lg border shadow-xl z-50",
+                  dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"
+                )}>
+                  <div className="text-[9px] font-black text-slate-500 uppercase mb-2 px-1">Price Update Preview</div>
+                  <div className="space-y-1">
+                    {syncBreakdown.map((item, idx) => (
+                      <div key={idx} className="flex justify-between text-[10px] border-b border-white/5 pb-1">
+                        <span className="text-slate-400 truncate w-20">{item.name}</span>
+                        <div className="flex items-center gap-1">
+                          <span className="line-through opacity-40">{Math.round(item.old!)}€</span>
+                          <ArrowRight size={8} />
+                          <span className="text-teal-500 font-bold">{formatCurrency(item.new)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              {/* Hover Popover */}
-              <div className={cn(
-                "invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-52 p-3 rounded-xl border shadow-2xl z-50",
-                dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"
-              )}>
-                <p className="text-[10px] font-bold text-slate-400 mb-2 text-center uppercase">
-                  {lang === 'de' ? 'Preise anpassen?' : 'Sync prices?'}
-                </p>
-                <button 
-                  onClick={handleSyncAllPrices}
-                  className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase rounded-lg transition-colors"
-                >
-                  {lang === 'de' ? 'Anwenden' : 'Apply'}
-                </button>
-                <div className={cn("absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent", dk ? "border-t-[#1E293B]" : "border-t-white")} />
-              </div>
+              {/* APPLY BUTTON ON THE RIGHT */}
+              <button 
+                onClick={handleSyncAllPrices}
+                className="h-[26px] px-2 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase rounded transition-all shadow-sm flex items-center gap-1"
+              >
+                Apply €
+              </button>
             </div>
           )}
         </div>
