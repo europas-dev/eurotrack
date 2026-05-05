@@ -56,6 +56,13 @@ export default function DurationCard({
   }, [duration])
 
   const nights   = calculateNights(local.startDate, local.endDate)
+
+  // Identify if any room has a Total/Room lock (basePrice)
+  const lockedRoom = roomCards.find(c => c.basePrice !== null);
+  // Calculate if the current global nights differ from the nights when the price was locked
+  const diffNights = lockedRoom ? (nights - (lockedRoom.baseNights || nights)) : 0;
+  // Show the sync button only if a lock exists and the duration has changed
+  const showSync = !!lockedRoom && diffNights !== 0;
   // Teal color stays if nights are exactly 7 or 30
   const hasDates = !!(local.startDate && local.endDate && nights > 0)
 
@@ -219,6 +226,19 @@ export default function DurationCard({
     setRoomCards(n);
     syncRoomCardsToParent(n);
   }
+  function handleSyncAllPrices() {
+    if (viewOnly || !showSync) return;
+    const updatedCards = roomCards.map(card => {
+      if (card.basePrice && card.baseNights) {
+        const bruttoPerNight = card.basePrice / card.baseNights;
+        const newTargetBrutto = bruttoPerNight * nights;
+        return { ...card, baseNights: nights, basePrice: newTargetBrutto };
+      }
+      return card;
+    });
+    setRoomCards(updatedCards);
+    syncRoomCardsToParent(updatedCards);
+  }
 
   function forceDMY(isoString: string | null | undefined) {
     if (!isoString) return 'dd/mm/yyyy';
@@ -373,9 +393,43 @@ export default function DurationCard({
           )}
         </div>
   
+        {/* SYNC ALL SECTION (RED BOX) */}
+        <div className="flex-1 flex justify-center px-2">
+          {showSync && (
+            <div className="group relative flex items-center">
+              <div className={cn(
+                "flex items-center gap-2 px-3 py-1.5 rounded-full border animate-in fade-in zoom-in cursor-help",
+                dk ? "bg-amber-500/10 border-amber-500/30" : "bg-amber-50 border-amber-200"
+              )}>
+                <Loader2 size={13} className="text-amber-500 animate-[spin_4s_linear_infinite]" />
+                <span className="text-[10px] font-black text-amber-600 uppercase tracking-tight">
+                  {diffNights > 0 ? `+${diffNights}` : diffNights} {lang === 'de' ? 'Nächte Sync' : 'Nights Sync'}
+                </span>
+              </div>
+
+              {/* Hover Popover */}
+              <div className={cn(
+                "invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-52 p-3 rounded-xl border shadow-2xl z-50",
+                dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"
+              )}>
+                <p className="text-[10px] font-bold text-slate-400 mb-2 text-center uppercase">
+                  {lang === 'de' ? 'Preise anpassen?' : 'Sync prices?'}
+                </p>
+                <button 
+                  onClick={handleSyncAllPrices}
+                  className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase rounded-lg transition-colors"
+                >
+                  {lang === 'de' ? 'Anwenden' : 'Apply'}
+                </button>
+                <div className={cn("absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent", dk ? "border-t-[#1E293B]" : "border-t-white")} />
+              </div>
+            </div>
+          )}
+        </div>
+  
         {/* RIGHT: CLEAN, LARGE INFO DISPLAY & TRASH */}
         {/* SURGICAL FIX: Removed hasDates guard to ensure TRASH is always visible for NEW durations */}
-        <div className="flex items-center gap-4 shrink-0 ml-auto">
+        <div className="flex items-center gap-4 shrink-0">
           {hasDates && (
             <>
               <div className="flex items-center gap-4 text-slate-400">
