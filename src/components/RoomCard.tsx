@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
   Bed, ChevronDown, ChevronUp, Copy, Loader2, Phone,
-  Minus, Plus, Tag, Trash2, X, Zap, CornerDownRight, Moon, Calendar, Check, Ticket
+  Minus, Plus, Tag, Trash2, X, Zap, CornerDownRight, Moon, Calendar, Check, Ticket, Lock, Unlock
 } from 'lucide-react'
 import { cn, calculateNights, formatCurrency, normalizeNumberInput, getEmployeeStatus } from '../lib/utils'
 import { bedsForType, calcRoomCardTotal, calcRoomCardNettoSum } from '../lib/roomCardUtils'
@@ -447,17 +447,44 @@ function InlineNMBRow({
       <div className="flex flex-col gap-1">
         <div className="flex items-start gap-1 flex-nowrap">
           <div className="flex flex-col shrink-0 pr-1.5">
-            <p className={lbl}>Netto (€)</p>
-            {/* SURGICAL FIX: Disabled flag combined with viewOnly */}
-            <input type="number" min={0} step="0.01" value={nVal} onChange={e => updateNetto(e.target.value)} disabled={disabled || viewOnly} style={noSpinner} className={cn((disabled || viewOnly) ? disabledInputCls : inputClsBase, 'w-24', card[bruttoKey] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} placeholder="Auto" />
-            <div className={cn(sumLbl, "min-h-[16px]")}>
-              {showSum && tNetto > 0 && <span>Σ {formatCurrency(tNetto)}</span>}
-              {dNettoTotal !== tNetto && (
-                 <span className={cn("ml-1 font-black flex items-center gap-0.5", dk ? "text-teal-400" : "text-teal-600")}>
-                   ↳ {formatCurrency(dNettoTotal / multiplier)} {multiplier > 1 && <span className="text-[9px] opacity-70 font-bold">({formatCurrency(dNettoTotal)})</span>}
-                 </span>
-              )}
-            </div>
+              <p className={lbl}>Netto (€)</p>
+              <div className="flex items-center gap-1.5">
+                <input 
+                  type="number" 
+                  min={0} 
+                  step="0.01" 
+                  value={nVal} 
+                  onChange={e => updateNetto(e.target.value)} 
+                  disabled={disabled || viewOnly} 
+                  style={noSpinner} 
+                  className={cn((disabled || viewOnly) ? disabledInputCls : inputClsBase, 'w-24', card[bruttoKey] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} 
+                  placeholder="Auto" 
+                />
+            
+                {/* NEW: PRICE LOCK BUTTON - Only shows in the Total/Room tab */}
+                      {activeTab === 'total_room' && !viewOnly && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const isLocked = !!card.basePrice; 
+                            // 'onPatch' is the function provided in your InlineNMBRow props
+                            onPatch({
+                              basePrice: isLocked ? null : Number(card.totalNetto),
+                              baseNights: isLocked ? null : multiplier // multiplier is 'nights' in total_room tab
+                            } as any);
+                          }}
+                          className={cn(
+                            "p-2 h-[38px] rounded-lg border transition-all flex items-center justify-center",
+                            card.basePrice 
+                              ? "bg-blue-600 border-blue-700 text-white shadow-sm" 
+                              : dk ? "bg-[#1E293B] border-white/10 text-slate-500" : "bg-white border-slate-200 text-slate-400"
+                          )}
+                          title={card.basePrice ? "Price Locked" : "Set as Base Price"}
+                        >
+                          {card.basePrice ? <Lock size={14} /> : <Unlock size={14} />}
+                        </button>
+                      )}
+                    </div>
           </div>
           
           {currentDiscountValue == null ? (
@@ -627,7 +654,7 @@ export default function RoomCard({
     }, 400)
   }
 
-  const multiplier = activeTab === 'per_bed' ? (beds * nights) : activeTab === 'per_room' ? nights : 1;
+  const multiplier = activeTab === 'per_bed' ? (beds * nights) : (activeTab === 'per_room' || activeTab === 'total_room') ? nights : 1;
   const calculatedFinalBrutto = calcRoomCardTotal(card, durationStart, durationEnd);
   
   let baseNetto = 0; let mwstRate = 0;
