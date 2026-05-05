@@ -471,17 +471,6 @@ export default function DurationCard({
             </div>
           )}
         </div>
-
-              {/* ACTION BUTTON: Right side of indicator */}
-              <button 
-                onClick={handleSyncAllPrices}
-                className="h-[28px] px-3 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase rounded-r transition-all shadow-sm"
-              >
-                Apply €
-              </button>
-            </div>
-          )}
-        </div>
   
         {/* RIGHT: CLEAN, LARGE INFO DISPLAY & TRASH */}
         {/* SURGICAL FIX: Removed hasDates guard to ensure TRASH is always visible for NEW durations */}
