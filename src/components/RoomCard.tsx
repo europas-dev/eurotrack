@@ -447,44 +447,17 @@ function InlineNMBRow({
       <div className="flex flex-col gap-1">
         <div className="flex items-start gap-1 flex-nowrap">
           <div className="flex flex-col shrink-0 pr-1.5">
-              <p className={lbl}>Netto (€)</p>
-              <div className="flex items-center gap-1.5">
-                <input 
-                  type="number" 
-                  min={0} 
-                  step="0.01" 
-                  value={nVal} 
-                  onChange={e => updateNetto(e.target.value)} 
-                  disabled={disabled || viewOnly} 
-                  style={noSpinner} 
-                  className={cn((disabled || viewOnly) ? disabledInputCls : inputClsBase, 'w-24', card[bruttoKey] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} 
-                  placeholder="Auto" 
-                />
-            
-                {/* NEW: PRICE LOCK BUTTON - Only shows in the Total/Room tab */}
-                      {activeTab === 'total_room' && !viewOnly && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const isLocked = !!card.basePrice; 
-                            // 'onPatch' is the function provided in your InlineNMBRow props
-                            onPatch({
-                              basePrice: isLocked ? null : Number(card.totalNetto),
-                              baseNights: isLocked ? null : multiplier // multiplier is 'nights' in total_room tab
-                            } as any);
-                          }}
-                          className={cn(
-                            "p-2 h-[38px] rounded-lg border transition-all flex items-center justify-center",
-                            card.basePrice 
-                              ? "bg-blue-600 border-blue-700 text-white shadow-sm" 
-                              : dk ? "bg-[#1E293B] border-white/10 text-slate-500" : "bg-white border-slate-200 text-slate-400"
-                          )}
-                          title={card.basePrice ? "Price Locked" : "Set as Base Price"}
-                        >
-                          {card.basePrice ? <Lock size={14} /> : <Unlock size={14} />}
-                        </button>
-                      )}
-                    </div>
+            <p className={lbl}>Netto (€)</p>
+            {/* SURGICAL FIX: Disabled flag combined with viewOnly */}
+            <input type="number" min={0} step="0.01" value={nVal} onChange={e => updateNetto(e.target.value)} disabled={disabled || viewOnly} style={noSpinner} className={cn((disabled || viewOnly) ? disabledInputCls : inputClsBase, 'w-24', card[bruttoKey] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} placeholder="Auto" />
+            <div className={cn(sumLbl, "min-h-[16px]")}>
+              {showSum && tNetto > 0 && <span>Σ {formatCurrency(tNetto)}</span>}
+              {dNettoTotal !== tNetto && (
+                 <span className={cn("ml-1 font-black flex items-center gap-0.5", dk ? "text-teal-400" : "text-teal-600")}>
+                   ↳ {formatCurrency(dNettoTotal / multiplier)} {multiplier > 1 && <span className="text-[9px] opacity-70 font-bold">({formatCurrency(dNettoTotal)})</span>}
+                 </span>
+              )}
+            </div>
           </div>
           
           {currentDiscountValue == null ? (
@@ -776,20 +749,49 @@ export default function RoomCard({
              
              {!isMasterPricingActive && (
                <div className="flex items-center shrink-0">
-                 {/* SURGICAL FIX: Allow viewing pricing view, but stop DB queueSave when toggling tab if viewOnly */}
-                 <button onClick={(e) => { 
-                    e.stopPropagation(); 
-                    setShowPricing(!showPricing);
-                 }} className={tabBtn(showPricing)}>{lang === 'de' ? 'Preis' : 'Price'}</button>
-                 <div className="flex flex-col items-end min-w-[100px] ml-3"><span className="text-xl font-black">{roomTotalDisplay}</span></div>
-               </div>
-             )}
-             {/* SURGICAL FIX: Hide delete button on open row for viewers */}
-             {!viewOnly && (
-               <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-2 text-slate-400 hover:text-red-500 shrink-0 ml-1"><Trash2 size={18} /></button>
-             )}
-           </div>
-        )}
+                  <button onClick={(e) => { 
+                     e.stopPropagation(); 
+                     setShowPricing(!showPricing);
+                  }} className={tabBtn(showPricing)}>{lang === 'de' ? 'Preis' : 'Price'}</button>
+                  
+                  {/* NEW: PRICE DISPLAY WITH LOCK ICON */}
+                  <div className="flex items-center gap-3 ml-3">
+                    <div className="flex flex-col items-end min-w-[100px]">
+                      <span className="text-xl font-black">{roomTotalDisplay}</span>
+                    </div>
+                
+                    {/* THE LOCK BUTTON: Placed in the top right empty space */}
+                    {!viewOnly && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const isLocked = !!card.basePrice;
+                          onUpdate(card.id, {
+                            // We save the FINAL CALCULATED BRUTTO and CURRENT NIGHTS as the anchor
+                            basePrice: isLocked ? null : calculatedFinalBrutto,
+                            baseNights: isLocked ? null : nights 
+                          });
+                        }}
+                        className={cn(
+                          "p-2 rounded-lg border transition-all flex items-center justify-center",
+                          card.basePrice 
+                            ? "bg-blue-600 border-blue-700 text-white shadow-md" 
+                            : dk ? "bg-white/5 border-white/10 text-slate-500 hover:text-white" : "bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100"
+                        )}
+                        title={card.basePrice ? "Price Locked" : "Lock this Total as Base"}
+                      >
+                        {card.basePrice ? <Lock size={16} /> : <Unlock size={16} />}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Trash Icon remains on the far right */}
+                {!viewOnly && (
+                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-2 text-slate-400 hover:text-red-500 shrink-0 ml-1"><Trash2 size={18} /></button>
+                )}
+                </div>
+                )}
       </div>
       {isOpen && (
         <div className={cn("p-6 border-t", dk ? "bg-black/20 border-white/5" : "bg-slate-50/50 border-slate-100")}>
