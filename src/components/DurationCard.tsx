@@ -55,18 +55,19 @@ export default function DurationCard({
     setRoomCards(duration.roomCards ?? [])
   }, [duration])
 
-  const nights   = calculateNights(local.startDate, local.endDate)
+  const nights = calculateNights(local.startDate, local.endDate);
 
-// TRIGGER LOGIC: Only show if nights exist, and a room is locked with a real price in Total/Room mode
-const roomsToSync = roomCards.filter(c => 
-  c.pricingTab === 'total_room' && 
-  c.basePrice !== null && 
-  c.basePrice > 0 && 
-  nights > 0
-);
-const hasSyncConflict = roomsToSync.some(c => c.baseNights !== nights);
-const diffNights = roomsToSync.length > 0 ? (nights - (roomsToSync[0].baseNights || nights)) : 0;
-const showSync = hasSyncConflict && roomsToSync.length > 0;
+  // TRIGGER: Only sync if nights > 0 AND there's a locked room with a price > 0
+  const roomsToSync = roomCards.filter(c => 
+    c.pricingTab === 'total_room' && 
+    (c.roomBrutto || 0) > 0 && 
+    nights > 0
+  );
+  
+  // A conflict exists if the current nights differ from the nights the price was set for
+  const hasSyncConflict = roomsToSync.some(c => c.baseNights !== nights);
+  const diffNights = roomsToSync.length > 0 ? (nights - (roomsToSync[0].baseNights || nights)) : 0;
+  const showSync = hasSyncConflict && nights > 0;
   
   const hasDates = !!(local.startDate && local.endDate && nights > 0)
 
@@ -194,30 +195,25 @@ const showSync = hasSyncConflict && roomsToSync.length > 0;
 
   function handleSyncAllPrices() {
     if (viewOnly || !showSync) return;
-    
+
     const updatedCards = roomCards.map(card => {
-      // Only sync if the room is locked in Total/Room mode
-      if (card.basePrice && card.baseNights && card.pricingTab === 'total_room') {
+      // Only apply to rooms in Total/Room mode that were locked at a different night count
+      if (card.pricingTab === 'total_room' && (card.roomBrutto || 0) > 0 && card.baseNights) {
         const ratio = nights / card.baseNights;
-        
-        // Scale the stored metadata
-        const newBasePrice = card.basePrice * ratio;
-        
-        // Scale the ACTUAL UI values so the inputs update
-        const currentNetto = card.roomNetto || 0;
-        const currentBrutto = card.roomBrutto || 0;
-        
+        const newBrutto = (card.roomBrutto || 0) * ratio;
+        const newNetto = (card.roomNetto || 0) * ratio;
+
         return { 
           ...card, 
-          baseNights: nights, 
-          basePrice: newBasePrice,
-          roomNetto: currentNetto * ratio,
-          roomBrutto: currentBrutto * ratio
+          baseNights: nights, // Update the reference nights
+          basePrice: newBrutto, // Update the reference price
+          roomBrutto: newBrutto, // Update the ACTUAL UI input
+          roomNetto: newNetto    // Update the ACTUAL UI input
         };
       }
       return card;
     });
-    
+
     setRoomCards(updatedCards);
     syncRoomCardsToParent(updatedCards);
   }
@@ -432,40 +428,49 @@ const showSync = hasSyncConflict && roomsToSync.length > 0;
           )}
         </div>
   
-        {/* ULTRA-MINIMAL SYNC UI */}
+        {/* SYNC SECTION */}
         <div className="flex-1 flex justify-center px-2">
           {showSync && (
             <div className="flex items-center gap-1.5">
-              {/* INDICATOR: Shows +7 Nights with Breakdown on hover */}
-              <div className="group relative flex items-center h-[28px] px-2 rounded-l border border-amber-500/30 bg-amber-500/5 cursor-help">
+              <div className="group relative flex items-center h-[28px] px-2 rounded-l border border-amber-500/30 bg-amber-500/5">
                 <span className="text-[11px] font-black text-amber-500">
                   {diffNights > 0 ? `+${diffNights}` : diffNights}
                 </span>
                 <span className="ml-1 text-[9px] font-bold text-amber-500/60 uppercase">Nights</span>
                 
-                {/* HOVER BREAKDOWN */}
+                {/* TOOLTIP BREAKDOWN */}
                 <div className={cn(
-                  "invisible group-hover:visible absolute bottom-full left-0 mb-2 w-48 p-2 rounded-lg border shadow-xl z-50",
+                  "invisible group-hover:visible absolute bottom-full left-0 mb-2 w-52 p-3 rounded-xl border shadow-2xl z-50",
                   dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"
                 )}>
-                  <div className="text-[9px] font-black text-slate-500 uppercase mb-2">Price Sync Preview</div>
+                  <div className="text-[9px] font-black text-slate-500 uppercase mb-2">Sync Calculation</div>
                   <div className="space-y-1">
-                    {roomsToSync.map((c, idx) => {
+                    {roomsToSync.map((c, i) => {
                        const ratio = nights / (c.baseNights || 1);
                        return (
-                        <div key={idx} className="flex justify-between text-[10px] border-b border-white/5 pb-1">
-                          <span className="text-slate-400 truncate w-16">{c.roomType}</span>
+                        <div key={c.id || i} className="flex justify-between text-[10px]">
+                          <span className="text-slate-400">{c.roomType}</span>
                           <div className="flex items-center gap-1">
                             <span className="opacity-40">{Math.round(c.roomBrutto || 0)}€</span>
                             <ArrowRight size={8} />
                             <span className="text-teal-500 font-bold">{formatCurrency((c.roomBrutto || 0) * ratio)}</span>
                           </div>
                         </div>
-                       )
+                       );
                     })}
                   </div>
                 </div>
               </div>
+
+              <button 
+                onClick={handleSyncAllPrices}
+                className="h-[28px] px-3 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-black uppercase rounded-r transition-all"
+              >
+                Apply €
+              </button>
+            </div>
+          )}
+        </div>
 
               {/* ACTION BUTTON: Right side of indicator */}
               <button 
