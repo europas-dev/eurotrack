@@ -55,10 +55,10 @@ export default function DurationCard({
     setRoomCards(duration.roomCards ?? [])
   }, [duration])
 
-// src/components/DurationCard.tsx
+//
 const nights = calculateNights(local.startDate, local.endDate);
 
-// This creates the array that the UI is currently crashing on
+// This variable MUST be named 'roomsToSync' to match your UI code at line 188
 const roomsToSync = roomCards.filter(c => 
   c.pricingTab === 'total_room' && 
   c.baseNights !== undefined && 
@@ -214,6 +214,18 @@ const diffNights = showSync ? (nights - Number(roomsToSync[0]?.baseNights || nig
     finally { setAddingType(null) }
   }
 
+  //
+  async function handleCardDelete(id: string) {
+    if (viewOnly) return;
+    try {
+      await enqueue({ type: 'deleteRoomCard', payload: { id } });
+      const n = roomCards.filter(c => c.id !== id);
+      setRoomCards(n);
+      syncRoomCardsToParent(n);
+    } catch (e) {
+      console.error("Failed to delete room card:", e);
+    }
+  }
   async function handleRemoveLastOfType(roomType: string) {
     if (viewOnly) return;
     const cards = roomCards.filter(c => c.roomType === roomType)
