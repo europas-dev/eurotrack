@@ -300,24 +300,39 @@ function handleSyncAllPrices() {
       
       const newTotalNetto = newRoomNetto + newEnergyNetto;
 
+      console.log('SYNC DEBUG:', {
+        cardId: card.id,
+        originalBaseNights,
+        nights,
+        baseRoomBrutto,
+        baseEnergyBrutto,
+        roomPerNight,
+        energyPerNight,
+        newRoomBrutto,
+        newEnergyBrutto,
+        newRoomNetto,
+        newEnergyNetto,
+        newTotalNetto,
+        newTotalBrutto
+      });
+
       const updatedCard = {
         ...card,
-        totalNetto: newTotalNetto,
-        totalBrutto: newTotalBrutto,
-        totalEnergyNetto: newEnergyNetto,
-        totalEnergyBrutto: newEnergyBrutto,
+        totalNetto: Number(newTotalNetto.toFixed(2)),
+        totalBrutto: Number(newTotalBrutto.toFixed(2)),
+        totalEnergyNetto: Number(newEnergyNetto.toFixed(2)),
+        totalEnergyBrutto: Number(newEnergyBrutto.toFixed(2)),
         lastSyncedEndDate: local.endDate
       };
 
-      // ✅ FIX: Include energy fields in the payload
       enqueue({
         type: 'updateRoomCard',
         payload: {
           id: card.id,
           totalNetto: Number(newTotalNetto.toFixed(2)),
           totalBrutto: Number(newTotalBrutto.toFixed(2)),
-          totalEnergyNetto: Number(newEnergyNetto.toFixed(2)),      // ✅ ADD THIS
-          totalEnergyBrutto: Number(newEnergyBrutto.toFixed(2)),    // ✅ ADD THIS
+          totalEnergyNetto: Number(newEnergyNetto.toFixed(2)),
+          totalEnergyBrutto: Number(newEnergyBrutto.toFixed(2)),
           lastSyncedEndDate: local.endDate
         }
       });
@@ -328,6 +343,7 @@ function handleSyncAllPrices() {
     return card;
   });
 
+  // ✅ Update state AND parent immediately
   setRoomCards(updatedCards);
   syncRoomCardsToParent(updatedCards);
 }
