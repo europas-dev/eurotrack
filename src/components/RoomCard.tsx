@@ -618,7 +618,7 @@ export default function RoomCard({
   const labelCls = cn('text-[10px] font-black uppercase tracking-widest', dk ? 'text-slate-500' : 'text-slate-400')
   const tabBtn = (active: boolean) => cn('px-5 py-2.5 rounded-lg text-sm font-black border transition-all shadow-sm', active ? 'bg-blue-600 text-white border-transparent' : dk ? 'bg-[#1E293B] text-slate-400 border-white/10 hover:bg-white/5 hover:text-white' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50')
 
-  function queueSave(patch: Partial<RoomCardType>) {
+    function queueSave(patch: Partial<RoomCardType>) {
     if (viewOnly) return; // SURGICAL LOCK
     clearTimeout(saveTimer.current)
     onUpdate(card.id, patch)
@@ -628,13 +628,14 @@ export default function RoomCard({
     }, 400)
   }
 
-    // ✅ ADD THIS NEW FUNCTION HERE
+  // ✅ ADD THIS INSIDE COMPONENT
   function handleLockPrice() {
     if (viewOnly) return;
     const isLocked = !!card.basePrice;
     const patch = {
       basePrice: isLocked ? null : calculatedFinalBrutto,
-      baseNights: isLocked ? null : nights
+      baseNights: isLocked ? null : nights,
+      lastSyncedEndDate: isLocked ? null : durationEnd // Reset when unlocking
     };
     queueSave(patch);
   }
@@ -683,7 +684,12 @@ export default function RoomCard({
   const cRoomMwst = cRoomNetto * (mwstRate / 100);
   const cEnergyMwst = cEnergyNetto * (eMwstRate / 100);
 
-  const pricePerBedPerNight = (beds > 0 && nights > 0) ? cRoomNetto / (beds * nights) : 0;
+  // Price per bed should stay constant based on locked base
+  const pricePerBedPerNight = (beds > 0 && nights > 0) 
+  ? (card.basePrice && card.baseNights && activeTab === 'total_room')
+    ? (card.basePrice / (card.baseNights * beds)) // Use locked base
+    : (cRoomNetto / (beds * nights))
+  : 0;
   const roomTotalDisplay = formatCurrency(calculatedFinalBrutto)
 
   return (
