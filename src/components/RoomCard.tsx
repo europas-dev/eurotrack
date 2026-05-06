@@ -428,13 +428,23 @@ function InlineNMBRow({
       if (currentDiscountType === 'percentage') {
           dNettoTotal = tNetto * (1 - currentDiscountValue/100);
       } else {
-          const rawUnit = card[nettoKey] != null ? Number(card[nettoKey]) : Number(bNettoDisplay) || 0;
-          const discountedUnit = Math.max(0, rawUnit - currentDiscountValue);
-          dNettoTotal = discountedUnit * multiplier;
+          // ✅ For total_room, the value is already total, don't multiply again
+          if (activeTab === 'total_room') {
+              dNettoTotal = Math.max(0, tNetto - currentDiscountValue);
+          } else {
+              const rawUnit = card[nettoKey] != null ? Number(card[nettoKey]) : Number(bNettoDisplay) || 0;
+              const discountedUnit = Math.max(0, rawUnit - currentDiscountValue);
+              dNettoTotal = discountedUnit * multiplier;
+          }
       }
   }
 
-  const dBruttoTotal = dNettoTotal * (1 + (Number(card[mwstKey]) || 0) / 100);
+  const dBruttoTotal = dNettoTotal * (1 + (Number(card[mwstKey]) || 0)const dBruttoTotal = dNettoTotal * (1 + (Number(card[mwstKey]) || 0) / 100);
+
+// ✅ For total_room, show the discounted amount directly
+const displayNettoAfterDiscount = activeTab === 'total_room' 
+  ? dNettoTotal 
+  : dNettoTotal / multiplier; / 100);
 
   const nVal = card[nettoKey] === 0 ? '' : (card[nettoKey] != null ? card[nettoKey] : bNettoDisplay);
   const bVal = card[bruttoKey] === 0 ? '' : (card[bruttoKey] != null ? card[bruttoKey] : bBruttoDisplay);
@@ -654,36 +664,54 @@ export default function RoomCard({
   
     const multiplier = activeTab === 'per_bed' ? (beds * nights) : (activeTab === 'per_room' || activeTab === 'total_room') ? nights : 1;
   
-  let baseNetto = 0; 
-  let mwstRate = 0;
-  let cEnergyNetto = 0; 
-  let eMwstRate = 0;
-  let currentDiscountValue = 0; 
-  let currentDiscountType: 'percentage' | 'fixed' = 'percentage';
-
-  if (activeTab === 'per_bed') {
-     baseNetto = (Number(card.bedNetto) || 0) * multiplier;
-     mwstRate = Number(card.bedMwst) || 0;
-     cEnergyNetto = (Number(card.bedEnergyNetto) || 0) * multiplier;
-     eMwstRate = Number(card.bedEnergyMwst) || 0;
-     currentDiscountValue = Number(card.bedDiscountValue) || 0;
-     currentDiscountType = card.bedDiscountType || 'percentage';
-  } else if (activeTab === 'per_room') {
-     baseNetto = (Number(card.roomNetto) || 0) * multiplier;
-     mwstRate = Number(card.roomMwst) || 0;
-     cEnergyNetto = (Number(card.roomEnergyNetto) || 0) * multiplier;
-     eMwstRate = Number(card.roomEnergyMwst) || 0;
-     currentDiscountValue = Number(card.roomDiscountValue) || 0;
-     currentDiscountType = card.roomDiscountType || 'percentage';
-  } else {
-     baseNetto = Number(card.totalNetto) || 0;
-     mwstRate = Number(card.totalMwst) || 0;
-     cEnergyNetto = Number(card.totalEnergyNetto) || 0;
-     eMwstRate = Number(card.totalEnergyMwst) || 0;
-     currentDiscountValue = Number(card.totalDiscountValue) || 0;
-     currentDiscountType = card.totalDiscountType || 'percentage';
-  }
-
+      let baseNetto = 0; 
+      let mwstRate = 0;
+      let cEnergyNetto = 0; 
+      let eMwstRate = 0;
+      let currentDiscountValue = 0; 
+      let currentDiscountType: 'percentage' | 'fixed' = 'percentage';
+      
+      if (activeTab === 'per_bed') {
+         baseNetto = (Number(card.bedNetto) || 0) * multiplier;
+         mwstRate = Number(card.bedMwst) || 0;
+         cEnergyNetto = (Number(card.bedEnergyNetto) || 0) * multiplier;
+         eMwstRate = Number(card.bedEnergyMwst) || 0;
+         currentDiscountValue = Number(card.bedDiscountValue) || 0;
+         currentDiscountType = card.bedDiscountType || 'percentage';
+      } else if (activeTab === 'per_room') {
+         baseNetto = (Number(card.roomNetto) || 0) * multiplier;
+         mwstRate = Number(card.roomMwst) || 0;
+         cEnergyNetto = (Number(card.roomEnergyNetto) || 0) * multiplier;
+         eMwstRate = Number(card.roomEnergyMwst) || 0;
+         currentDiscountValue = Number(card.roomDiscountValue) || 0;
+         currentDiscountType = card.roomDiscountType || 'percentage';
+      } else {
+         // ✅ For total_room: values are already totals for the duration
+         baseNetto = Number(card.totalNetto) || 0;
+         mwstRate = Number(card.totalMwst) || 0;
+         cEnergyNetto = Number(card.totalEnergyNetto) || 0;  // ✅ NOT multiplied
+         eMwstRate = Number(card.totalEnergyMwst) || 0;
+         currentDiscountValue = Number(card.totalDiscountValue) || 0;  // ✅ ADD THIS
+         currentDiscountType = card.totalDiscountType || 'percentage';  // ✅ ADD THIS
+      }
+      
+      // ✅ Apply discount correctly for all tabs
+      let cRoomNetto = baseNetto;
+      if (currentDiscountValue > 0) {
+         if (currentDiscountType === 'percentage') {
+             cRoomNetto = baseNetto * (1 - currentDiscountValue/100);
+         } else {
+             // ✅ FIX: For total_room, don't multiply - value is already total
+             if (activeTab === 'total_room') {
+                 cRoomNetto = Math.max(0, baseNetto - currentDiscountValue);
+             } else {
+                 const baseUnit = (activeTab === 'per_bed' ? Number(card.bedNetto) : activeTab === 'per_room' ? Number(card.roomNetto) : Number(card.totalNetto)) || 0;
+                 const discountedUnit = Math.max(0, baseUnit - currentDiscountValue);
+                 cRoomNetto = discountedUnit * multiplier;
+             }
+         }
+      }
+  
   let cRoomNetto = baseNetto;
   if (currentDiscountValue > 0) {
      if (currentDiscountType === 'percentage') {
