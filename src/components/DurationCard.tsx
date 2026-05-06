@@ -1,5 +1,5 @@
 // src/components/DurationCard.tsx
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useMemo } from 'react'
 import {
   CalendarDays, Loader2, Minus, Plus, Trash2, 
   Moon, DoorClosed, Bed, ArrowRight, X
@@ -83,13 +83,21 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
   
   const hasDates = !!(local.startDate && local.endDate && nights > 0)
 
-  const roomCardsTotal = roomCards.reduce(
-    (s, c) => s + (parseFloat(calcRoomCardTotal(c, local.startDate, local.endDate).toString()) || 0), 0
-  )
-  const totalBeds = hasDates ? roomCards.reduce(
-    (s, c) => s + (c.roomType === 'EZ' ? 1 : c.roomType === 'DZ' ? 2 : c.roomType === 'TZ' ? 3 : (c.bedCount || 2)),
-    0
-  ) : 0
+  // ✅ FIX: Wrap in useMemo with proper dependencies
+  const roomCardsTotal = useMemo(() => {
+    return roomCards.reduce(
+      (s, c) => s + (parseFloat(calcRoomCardTotal(c, local.startDate, local.endDate).toString()) || 0),
+      0
+    )
+  }, [roomCards, local.startDate, local.endDate])
+
+  // ✅ FIX: Also wrap totalBeds in useMemo
+  const totalBeds = useMemo(() => {
+    return hasDates ? roomCards.reduce(
+      (s, c) => s + (c.roomType === 'EZ' ? 1 : c.roomType === 'DZ' ? 2 : c.roomType === 'TZ' ? 3 : (c.bedCount || 2)),
+      0
+    ) : 0
+  }, [roomCards, hasDates])
   
   const today = new Date().toISOString().split('T')[0];
   const freeBeds = calcDurationFreeBeds({ ...local, roomCards }, today);
