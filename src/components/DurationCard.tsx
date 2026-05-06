@@ -251,43 +251,43 @@ const diffNights = showSync ? (nights - Number(roomsToSync[0].baseNights)) : 0;
   if (viewOnly || !showSync) return;
 
   const updatedCards = roomCards.map(card => {
-    const oldNights = Number(card.baseNights);
-    
+    const originalBaseNights = Number(card.baseNights);
+
     // Check if the card is a candidate for syncing
-    if (card.pricingTab === 'total_room' && oldNights > 0 && oldNights !== nights && card.basePrice != null) {
-      const ratio = nights / oldNights;
+    if (card.pricingTab === 'total_room' && originalBaseNights > 0 && card.basePrice != null) {
       
-      // *** THE FIX ***: Use the locked 'basePrice' as the source of truth, not 'roomBrutto'.
-      const lockedBasePrice = card.basePrice;
-      const newTotalBrutto = lockedBasePrice * ratio;
+      // --- THE CORRECTED LOGIC ---
       
-      // Recalculate 'totalNetto' based on the current MwSt rate for accuracy.
+      // 1. Calculate the original, locked price per night. This is our fixed reference.
+      const lockedPricePerNight = card.basePrice / originalBaseNights;
+
+      // 2. Calculate the new total price based on the NEW duration (`nights`).
+      const newTotalBrutto = lockedPricePerNight * nights;
+
+      // 3. Recalculate the corresponding 'totalNetto' for accuracy.
       const mwstRate = Number(card.totalMwst) || 0;
-      const newTotalNetto = mwstRate > 0 
-        ? newTotalBrutto / (1 + mwstRate / 100) 
+      const newTotalNetto = mwstRate > 0
+        ? newTotalBrutto / (1 + mwstRate / 100)
         : newTotalBrutto;
 
-      // Prepare the updated card object
-      const updatedCard = { 
-        ...card, 
-        baseNights: nights,        // Update the reference night count
-        basePrice: newTotalBrutto, // Update the locked price to the new total
-        totalBrutto: newTotalBrutto, // Update the total brutto field
-        totalNetto: newTotalNetto    // Update the total netto field
+      // 4. Prepare the updated card object, ONLY changing the total values.
+      //    We DO NOT touch `basePrice` or `baseNights`. They remain locked.
+      const updatedCard = {
+        ...card,
+        totalBrutto: newTotalBrutto,
+        totalNetto: newTotalNetto
       };
 
-      // Also queue an immediate database update for this card.
-      enqueue({ 
-        type: 'updateRoomCard', 
-        payload: { 
+      // 5. Queue an immediate database update with ONLY the changed total fields.
+      enqueue({
+        type: 'updateRoomCard',
+        payload: {
           id: card.id,
-          baseNights: updatedCard.baseNights,
-          basePrice: updatedCard.basePrice,
-          totalBrutto: updatedCard.totalBrutto,
-          totalNetto: updatedCard.totalNetto
-        } 
+          totalBrutto: newTotalBrutto,
+          totalNetto: newTotalNetto,
+        }
       });
-      
+
       return updatedCard;
     }
     
