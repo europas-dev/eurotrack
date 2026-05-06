@@ -273,12 +273,21 @@ function handleSyncAllPrices() {
   if (viewOnly || !showSync) return;
 
   const updatedCards = roomCards.map(card => {
-    const originalBaseNights = Number(card.baseNights);
+  const originalBaseNights = Number(card.baseNights);
 
     if (card.pricingTab === 'total_room' && originalBaseNights > 0 && card.basePrice != null) {
       
       const baseRoomBrutto = card.baseRoomPrice || card.basePrice;
       const baseEnergyBrutto = card.baseEnergyPrice || 0;
+      
+      // ✅ Get the LOCKED room and energy netto from when they were locked
+      const baseRoomNetto = card.totalNetto ? 
+        (Number(card.totalNetto) * baseRoomBrutto) / (baseRoomBrutto + baseEnergyBrutto)
+        : baseRoomBrutto / (1 + (Number(card.totalMwst) || 0) / 100);
+      
+      const baseEnergyNetto = card.totalEnergyNetto ? 
+        Number(card.totalEnergyNetto)
+        : baseEnergyBrutto / (1 + (Number(card.totalEnergyMwst) || 0) / 100);
       
       const roomPerNight = baseRoomBrutto / originalBaseNights;
       const energyPerNight = baseEnergyBrutto / originalBaseNights;
@@ -286,18 +295,13 @@ function handleSyncAllPrices() {
       const newRoomBrutto = roomPerNight * nights;
       const newEnergyBrutto = energyPerNight * nights;
       const newTotalBrutto = newRoomBrutto + newEnergyBrutto;
-
+      
+      // ✅ Calculate netto from locked rates
       const roomMwst = Number(card.totalMwst) || 0;
       const energyMwst = Number(card.totalEnergyMwst) || 0;
       
-      const newRoomNetto = roomMwst > 0
-        ? newRoomBrutto / (1 + roomMwst / 100)
-        : newRoomBrutto;
-      
-      const newEnergyNetto = energyMwst > 0
-        ? newEnergyBrutto / (1 + energyMwst / 100)
-        : newEnergyBrutto;
-      
+      const newRoomNetto = Number((newRoomBrutto / (1 + roomMwst / 100)).toFixed(2));
+      const newEnergyNetto = Number((newEnergyBrutto / (1 + energyMwst / 100)).toFixed(2));
       const newTotalNetto = newRoomNetto + newEnergyNetto;
 
       console.log('SYNC DEBUG:', {
