@@ -267,65 +267,41 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
 
   //Sync Function
 
- // src/components/DurationCard.tsx
-
-function handleSyncAllPrices() {
+ function handleSyncAllPrices() {
   if (viewOnly || !showSync) return;
 
   const updatedCards = roomCards.map(card => {
-  const originalBaseNights = Number(card.baseNights);
+    const originalBaseNights = Number(card.baseNights);
 
     if (card.pricingTab === 'total_room' && originalBaseNights > 0 && card.basePrice != null) {
       
+      // ✅ Use the LOCKED room and energy brutto directly
       const baseRoomBrutto = card.baseRoomPrice || card.basePrice;
       const baseEnergyBrutto = card.baseEnergyPrice || 0;
       
-      // ✅ Get the LOCKED room and energy netto from when they were locked
-      const baseRoomNetto = card.totalNetto ? 
-        (Number(card.totalNetto) * baseRoomBrutto) / (baseRoomBrutto + baseEnergyBrutto)
-        : baseRoomBrutto / (1 + (Number(card.totalMwst) || 0) / 100);
-      
-      const baseEnergyNetto = card.totalEnergyNetto ? 
-        Number(card.totalEnergyNetto)
-        : baseEnergyBrutto / (1 + (Number(card.totalEnergyMwst) || 0) / 100);
-      
+      // ✅ Calculate per-night rates from brutto
       const roomPerNight = baseRoomBrutto / originalBaseNights;
       const energyPerNight = baseEnergyBrutto / originalBaseNights;
       
-      const newRoomBrutto = roomPerNight * nights;
-      const newEnergyBrutto = energyPerNight * nights;
+      // ✅ Apply to new nights
+      const newRoomBrutto = Number((roomPerNight * nights).toFixed(2));
+      const newEnergyBrutto = Number((energyPerNight * nights).toFixed(2));
       const newTotalBrutto = newRoomBrutto + newEnergyBrutto;
-      
-      // ✅ Calculate netto from locked rates
+
+      // ✅ Calculate netto from the NEW brutto using the LOCKED mwst rates
       const roomMwst = Number(card.totalMwst) || 0;
       const energyMwst = Number(card.totalEnergyMwst) || 0;
       
       const newRoomNetto = Number((newRoomBrutto / (1 + roomMwst / 100)).toFixed(2));
       const newEnergyNetto = Number((newEnergyBrutto / (1 + energyMwst / 100)).toFixed(2));
-      const newTotalNetto = newRoomNetto + newEnergyNetto;
-
-      console.log('SYNC DEBUG:', {
-        cardId: card.id,
-        originalBaseNights,
-        nights,
-        baseRoomBrutto,
-        baseEnergyBrutto,
-        roomPerNight,
-        energyPerNight,
-        newRoomBrutto,
-        newEnergyBrutto,
-        newRoomNetto,
-        newEnergyNetto,
-        newTotalNetto,
-        newTotalBrutto
-      });
+      const newTotalNetto = Number((newRoomNetto + newEnergyNetto).toFixed(2));
 
       const updatedCard = {
         ...card,
-        totalNetto: Number(newTotalNetto.toFixed(2)),
-        totalBrutto: Number(newTotalBrutto.toFixed(2)),
-        totalEnergyNetto: Number(newEnergyNetto.toFixed(2)),
-        totalEnergyBrutto: Number(newEnergyBrutto.toFixed(2)),
+        totalNetto: newTotalNetto,
+        totalBrutto: newTotalBrutto,
+        totalEnergyNetto: newEnergyNetto,
+        totalEnergyBrutto: newEnergyBrutto,
         lastSyncedEndDate: local.endDate
       };
 
@@ -333,10 +309,10 @@ function handleSyncAllPrices() {
         type: 'updateRoomCard',
         payload: {
           id: card.id,
-          totalNetto: Number(newTotalNetto.toFixed(2)),
-          totalBrutto: Number(newTotalBrutto.toFixed(2)),
-          totalEnergyNetto: Number(newEnergyNetto.toFixed(2)),
-          totalEnergyBrutto: Number(newEnergyBrutto.toFixed(2)),
+          totalNetto: newTotalNetto,
+          totalBrutto: newTotalBrutto,
+          totalEnergyNetto: newEnergyNetto,
+          totalEnergyBrutto: newEnergyBrutto,
           lastSyncedEndDate: local.endDate
         }
       });
@@ -347,7 +323,6 @@ function handleSyncAllPrices() {
     return card;
   });
 
-  // ✅ Update state AND parent immediately
   setRoomCards(updatedCards);
   syncRoomCardsToParent(updatedCards);
 }
