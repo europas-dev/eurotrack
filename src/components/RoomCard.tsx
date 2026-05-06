@@ -671,14 +671,13 @@ export default function RoomCard({
 
   const cRoomMwst = cRoomNetto * (mwstRate / 100);
   const cEnergyMwst = cEnergyNetto * (eMwstRate / 100);
-
+  const roomTotalDisplay = formatCurrency(calculatedFinalBrutto)
   // Price per bed should stay constant based on locked base
   const pricePerBedPerNight = (beds > 0 && nights > 0) 
   ? (card.basePrice && card.baseNights && activeTab === 'total_room')
     ? (card.basePrice / (card.baseNights * beds)) // Use locked base
     : (cRoomNetto / (beds * nights))
   : 0;
-  const roomTotalDisplay = formatCurrency(calculatedFinalBrutto)
 
   return (
     <div className={cn('rounded-xl border transition-all shadow-sm flex flex-col w-full overflow-hidden', dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')}>
