@@ -54,17 +54,6 @@ function MwstInput({ value, onChange, isDarkMode, disabled }: { value: string | 
   );
 }
 
-  // This new function handles both state update and DB persistence for the lock.
-  function handleLockPrice() {
-      if (viewOnly) return;
-      const isLocked = !!card.basePrice;
-      const patch = {
-          basePrice: isLocked ? null : calculatedFinalBrutto,
-          baseNights: isLocked ? null : nights
-      };
-      // Use queueSave to ensure the change is saved to the database.
-      queueSave(patch);
-  }
 
 function CompactEmployeePill({ emp, dk, durationStart, durationEnd, isSubstitute }: any) {
   const [showPhone, setShowPhone] = useState(false);
@@ -639,6 +628,17 @@ export default function RoomCard({
     }, 400)
   }
 
+    // ✅ ADD THIS NEW FUNCTION HERE
+  function handleLockPrice() {
+    if (viewOnly) return;
+    const isLocked = !!card.basePrice;
+    const patch = {
+      basePrice: isLocked ? null : calculatedFinalBrutto,
+      baseNights: isLocked ? null : nights
+    };
+    queueSave(patch);
+  }
+  
   const multiplier = activeTab === 'per_bed' ? (beds * nights) : (activeTab === 'per_room' || activeTab === 'total_room') ? nights : 1;
   const calculatedFinalBrutto = calcRoomCardTotal(card, durationStart, durationEnd);
   
@@ -705,27 +705,48 @@ export default function RoomCard({
                  <Bed size={18} /> <span className="text-[16px] lg:text-[18px]">{beds}</span>
                </span>
              </div>
-             
              <div className="flex-1 flex gap-2 items-center px-4 overflow-x-auto no-scrollbar">
-                {Array.from({ length: beds }).flatMap((_, i) => {
-                   const slotE = employees.filter(e => (e.slotIndex ?? 0) === i).sort((a,b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
-                   return slotE.map((emp, empIdx) => {
-                     return <CompactEmployeePill key={emp.id} emp={emp} dk={dk} lang={lang} durationStart={durationStart} durationEnd={durationEnd} isSubstitute={empIdx > 0} />
-                   });
-                })}
-                {(() => {
-                  const occupiedSlots = new Set(employees.map(e => e.slotIndex ?? 0)).size;
-                  const freeSlots = beds - occupiedSlots;
-                  if (freeSlots > 0) {
-                    return <div className={cn("flex items-center gap-2 px-5 py-2 rounded-full text-[14px] font-black whitespace-nowrap border-2 border-dashed", dk ? "border-amber-500/40 text-amber-500 bg-amber-500/5" : "border-amber-400 text-amber-600 bg-amber-50")}><Plus size={16} /> {freeSlots} {lang === 'de' ? 'Frei' : 'Empty'}</div>;
-                  }
-                  return null;
-                })()}
-             </div>
-
-             {!viewOnly && (
-               <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className={cn('p-2 rounded transition-all shrink-0 ml-4', dk ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-red-500 hover:bg-red-50')}><Trash2 size={18} /></button>
-             )}
+             {Array.from({ length: beds }).flatMap((_, i) => {
+                const slotE = employees.filter(e => (e.slotIndex ?? 0) === i).sort((a,b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
+                return slotE.map((emp, empIdx) => {
+                  return <CompactEmployeePill key={emp.id} emp={emp} dk={dk} lang={lang} durationStart={durationStart} durationEnd={durationEnd} isSubstitute={empIdx > 0} />
+                });
+             })}
+             {(() => {
+               const occupiedSlots = new Set(employees.map(e => e.slotIndex ?? 0)).size;
+               const freeSlots = beds - occupiedSlots;
+               if (freeSlots > 0) {
+                 return <div className={cn("flex items-center gap-2 px-5 py-2 rounded-full text-[14px] font-black whitespace-nowrap border-2 border-dashed", dk ? "border-amber-500/40 text-amber-500 bg-amber-500/5" : "border-amber-400 text-amber-600 bg-amber-50")}><Plus size={16} /> {freeSlots} {lang === 'de' ? 'Frei' : 'Empty'}</div>;
+               }
+               return null;
+             })()}
+          </div>
+          
+          {/* ✅ SHOW PRICE OR MASTER STATUS - clicking price opens pricing tab */}
+          {isMasterPricingActive ? (
+            <span className="text-xs font-black text-slate-500 uppercase tracking-widest shrink-0 px-3">
+              {lang === 'de' ? 'Master aktiv' : 'Master active'}
+            </span>
+          ) : (
+            <button 
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                setIsOpen(true); 
+                setShowPricing(true); 
+              }} 
+              className={cn(
+                "px-4 py-2 rounded-lg text-lg font-black transition-all shrink-0",
+                dk ? "text-teal-400 hover:bg-white/5" : "text-teal-600 hover:bg-slate-50"
+              )}
+            >
+              {roomTotalDisplay}
+            </button>
+          )}
+          
+          {!viewOnly && (
+            <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className={cn('p-2 rounded transition-all shrink-0', dk ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-red-500 hover:bg-red-50')}><Trash2 size={18} /></button>
+          )}
+             
            </>
         ) : (
            <div className="flex items-center gap-3 flex-1 flex-wrap sm:flex-nowrap">
@@ -843,18 +864,31 @@ export default function RoomCard({
                                {/* RIGHT SIDE: DETAILED SUMMARY COLUMN */}
                <div className={cn("w-full xl:w-[320px] shrink-0 p-5 flex flex-col justify-between rounded-b-xl xl:rounded-r-xl xl:rounded-bl-none", dk ? "bg-[#0B1224]" : "bg-slate-50")}>
                  {activeTab === 'total_room' && card.basePrice && (
-                   <div className={cn(
-                     "flex justify-between items-center mb-2 px-2 py-1 rounded border border-dashed",
-                     dk ? "bg-blue-500/5 border-blue-500/30" : "bg-blue-50 border-blue-200"
-                   )}>
-                     <span className="text-[10px] font-black text-blue-500 uppercase">
-                       {lang === 'de' ? 'Basiswert' : 'Base Value'}
-                     </span>
-                     <span className="text-xs font-bold text-blue-500">
-                       {formatCurrency(card.basePrice)} ({card.baseNights}N)
-                     </span>
-                   </div>
-                 )}
+                  <div className={cn(
+                    "flex flex-col gap-1.5 mb-3 px-3 py-2 rounded-lg border",
+                    dk ? "bg-blue-500/10 border-blue-500/30" : "bg-blue-50 border-blue-300"
+                  )}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Lock size={12} className="text-blue-500" />
+                        <span className="text-[10px] font-black text-blue-500 uppercase">
+                          {lang === 'de' ? 'Gesperrter Basiswert' : 'Locked Base'}
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold text-blue-600">
+                        {card.baseNights}N
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[11px] font-bold text-slate-500">
+                        {formatCurrency(card.basePrice / (card.baseNights || 1))} / N
+                      </span>
+                      <span className="text-sm font-black text-blue-600">
+                        {formatCurrency(card.basePrice)}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                  <div className="space-y-2 mb-4 text-[13px] font-medium">
                    <div className="flex justify-between items-center">
