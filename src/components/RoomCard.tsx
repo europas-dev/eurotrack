@@ -619,25 +619,13 @@ export default function RoomCard({
   const tabBtn = (active: boolean) => cn('px-5 py-2.5 rounded-lg text-sm font-black border transition-all shadow-sm', active ? 'bg-blue-600 text-white border-transparent' : dk ? 'bg-[#1E293B] text-slate-400 border-white/10 hover:bg-white/5 hover:text-white' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50')
 
     function queueSave(patch: Partial<RoomCardType>) {
-    if (viewOnly) return; // SURGICAL LOCK
+    if (viewOnly) return;
     clearTimeout(saveTimer.current)
     onUpdate(card.id, patch)
     saveTimer.current = setTimeout(async () => {
       try { await enqueue({ type: 'updateRoomCard', payload: { id: card.id, ...patch } }) }
       catch (e) { console.error(e) }
     }, 400)
-  }
-
-  // ✅ ADD THIS INSIDE COMPONENT
-  function handleLockPrice() {
-    if (viewOnly) return;
-    const isLocked = !!card.basePrice;
-    const patch = {
-      basePrice: isLocked ? null : calculatedFinalBrutto,
-      baseNights: isLocked ? null : nights,
-      lastSyncedEndDate: isLocked ? null : durationEnd // Reset when unlocking
-    };
-    queueSave(patch);
   }
   
   const multiplier = activeTab === 'per_bed' ? (beds * nights) : (activeTab === 'per_room' || activeTab === 'total_room') ? nights : 1;
@@ -840,22 +828,30 @@ export default function RoomCard({
 
                    {/* ADD THIS SECTION BELOW */}
                     {activeTab === 'total_room' && !viewOnly && (
-                      <div className="flex items-start pt-[26px]">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleLockPrice(); }}
-                                                    className={cn(
-                            "p-2 h-[38px] w-[42px] rounded-lg border transition-all flex items-center justify-center",
-                            card.basePrice 
-                              ? "bg-blue-600 border-blue-700 text-white shadow-md" 
-                              : dk ? "bg-white/5 border-white/10 text-slate-500 hover:text-white" : "bg-white border-slate-200 text-slate-400 hover:bg-slate-50"
-                          )}
-                          title={card.basePrice ? "Price Locked" : "Lock this Total as Base"}
-                        >
-                          {card.basePrice ? <Lock size={18} /> : <Unlock size={18} />}
-                        </button>
-                      </div>
-                    )}
-                   
+                    <div className="flex items-start pt-[26px]">
+                      <button
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          const isLocked = !!card.basePrice;
+                          queueSave({
+                            basePrice: isLocked ? null : calculatedFinalBrutto,
+                            baseNights: isLocked ? null : nights,
+                            lastSyncedEndDate: isLocked ? null : durationEnd
+                          });
+                        }}
+                        className={cn(
+                          "p-2 h-[38px] w-[42px] rounded-lg border transition-all flex items-center justify-center",
+                          card.basePrice 
+                            ? "bg-blue-600 border-blue-700 text-white shadow-md" 
+                            : dk ? "bg-white/5 border-white/10 text-slate-500 hover:text-white" : "bg-white border-slate-200 text-slate-400 hover:bg-slate-50"
+                        )}
+                        title={card.basePrice ? "Price Locked" : "Lock this Total as Base"}
+                      >
+                        {card.basePrice ? <Lock size={18} /> : <Unlock size={18} />}
+                      </button>
+                    </div>
+                  )}
+                                     
                    {/* SURGICAL FIX: Hide Copy All button for Viewers */}
                    {!viewOnly && allCardsOfSameType.length > 1 && (
                      <div className="flex items-start h-full pt-[22px]">
