@@ -306,16 +306,18 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
       };
 
       enqueue({
-        type: 'updateRoomCard',
-        payload: {
-          id: card.id,
-          totalNetto: newTotalNetto,
-          totalBrutto: newTotalBrutto,
-          totalEnergyNetto: newEnergyNetto,
-          totalEnergyBrutto: newEnergyBrutto,
-          lastSyncedEndDate: local.endDate
-        }
-      });
+      type: 'updateRoomCard',
+      payload: {
+        id: card.id,
+        total_netto: newTotalNetto,           // ✅ Changed
+        total_brutto: newTotalBrutto,         // ✅ Changed
+        total_energy_netto: newEnergyNetto,   // ✅ Changed
+        total_energy_brutto: newEnergyBrutto, // ✅ Changed
+        last_synced_end_date: local.endDate   // ✅ Changed
+      }
+    }).catch(err => {
+      console.error('❌ SYNC FAILED for card', card.id, ':', err);
+    });
 
       return updatedCard;
     }
