@@ -248,37 +248,56 @@ const diffNights = showSync ? (nights - Number(roomsToSync[0].baseNights)) : 0;
   }
 
   function handleSyncAllPrices() {
-    if (viewOnly || !showSync) return;
+  if (viewOnly || !showSync) return;
 
-    const updatedCards = roomCards.map(card => {
-      const oldNights = Number(card.baseNights);
+  const updatedCards = roomCards.map(card => {
+    const oldNights = Number(card.baseNights);
+    
+    // Check if the card is a candidate for syncing
+    if (card.pricingTab === 'total_room' && oldNights > 0 && oldNights !== nights && card.basePrice != null) {
+      const ratio = nights / oldNights;
       
-      // Double check this specific room is a candidate for sync
-      if (card.pricingTab === 'total_room' && oldNights > 0 && oldNights !== nights) {
-        const ratio = nights / oldNights;
-        
-        // We use roomBrutto (the 214,00€ you see) as the calculation base
-        const currentBrutto = card.roomBrutto || 0;
-        const currentNetto = card.roomNetto || 0;
+      // *** THE FIX ***: Use the locked 'basePrice' as the source of truth, not 'roomBrutto'.
+      const lockedBasePrice = card.basePrice;
+      const newTotalBrutto = lockedBasePrice * ratio;
+      
+      // Recalculate 'totalNetto' based on the current MwSt rate for accuracy.
+      const mwstRate = Number(card.totalMwst) || 0;
+      const newTotalNetto = mwstRate > 0 
+        ? newTotalBrutto / (1 + mwstRate / 100) 
+        : newTotalBrutto;
 
-        const newBrutto = currentBrutto * ratio;
-        const newNetto = currentNetto * ratio;
+      // Prepare the updated card object
+      const updatedCard = { 
+        ...card, 
+        baseNights: nights,        // Update the reference night count
+        basePrice: newTotalBrutto, // Update the locked price to the new total
+        totalBrutto: newTotalBrutto, // Update the total brutto field
+        totalNetto: newTotalNetto    // Update the total netto field
+      };
 
-        return { 
-          ...card, 
-          baseNights: nights,     // Updates the badge (e.g., 7N -> 14N)
-          basePrice: newBrutto,   // Updates the internal reference
-          roomBrutto: newBrutto,  // Updates the actual input box in the UI
-          roomNetto: newNetto     // Updates the actual input box in the UI
-        };
-      }
-      return card;
-    });
+      // Also queue an immediate database update for this card.
+      enqueue({ 
+        type: 'updateRoomCard', 
+        payload: { 
+          id: card.id,
+          baseNights: updatedCard.baseNights,
+          basePrice: updatedCard.basePrice,
+          totalBrutto: updatedCard.totalBrutto,
+          totalNetto: updatedCard.totalNetto
+        } 
+      });
+      
+      return updatedCard;
+    }
+    
+    // If not a candidate, return the card unchanged.
+    return card;
+  });
 
-    setRoomCards(updatedCards);
-    syncRoomCardsToParent(updatedCards);
-  }
-
+  setRoomCards(updatedCards);
+  syncRoomCardsToParent(updatedCards);
+}
   
   function forceDMY(isoString: string | null | undefined) {
     if (!isoString) return 'dd/mm/yyyy';
@@ -452,19 +471,23 @@ const diffNights = showSync ? (nights - Number(roomsToSync[0].baseNights)) : 0;
                   <p className="text-[9px] font-black text-slate-400 uppercase mb-2">Sync Preview</p>
                   <div className="space-y-1.5">
                     {roomsToSync.map((c) => {
-                      const ratio = nights / (Number(c.baseNights) || 1);
-                      const previewPrice = (c.roomBrutto || 0) * ratio;
-                      return (
-                        <div key={c.id} className="flex justify-between items-center text-[10px]">
-                          <span className="text-slate-500 font-bold">{c.roomType}</span>
-                          <div className="flex items-center gap-1.5">
-                            <span className="opacity-30 line-through">{Math.round(c.roomBrutto || 0)}€</span>
-                            <ArrowRight size={10} className="text-slate-400" />
-                            <span className="text-teal-500 font-bold">{formatCurrency(previewPrice)}</span>
-                          </div>
+                    const ratio = nights / (Number(c.baseNights) || 1);
+                    
+                    // *** THE FIX ***: Calculate preview using the locked 'basePrice', not the current 'roomBrutto'.
+                    const previewPrice = (c.basePrice || 0) * ratio;
+                    
+                    return (
+                      <div key={c.id} className="flex justify-between items-center text-[10px]">
+                        <span className="text-slate-500 font-bold">{c.roomType || c.name}</span>
+                        <div className="flex items-center gap-1.5">
+                          {/* Show the original locked price as the "from" value */}
+                          <span className="opacity-30 line-through">{formatCurrency(c.basePrice || 0)}</span>
+                          <ArrowRight size={10} className="text-slate-400" />
+                          <span className="text-teal-500 font-bold">{formatCurrency(previewPrice)}</span>
                         </div>
-                      );
-                    })}
+                      </div>
+                    );
+                  })}
                   </div>
                 </div>
               </div>
