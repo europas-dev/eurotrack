@@ -267,29 +267,26 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
 
   //Sync Function
 
+ // src/components/DurationCard.tsx
+
 function handleSyncAllPrices() {
   if (viewOnly || !showSync) return;
 
   const updatedCards = roomCards.map(card => {
     const originalBaseNights = Number(card.baseNights);
 
-    // Check if the card is a candidate for syncing
     if (card.pricingTab === 'total_room' && originalBaseNights > 0 && card.basePrice != null) {
       
-      // ✅ Get the locked prices
       const baseRoomBrutto = card.baseRoomPrice || card.basePrice;
       const baseEnergyBrutto = card.baseEnergyPrice || 0;
       
-      // ✅ Calculate per-night rates from LOCKED values
       const roomPerNight = baseRoomBrutto / originalBaseNights;
       const energyPerNight = baseEnergyBrutto / originalBaseNights;
       
-      // ✅ Apply to NEW nights for DISPLAY only
       const newRoomBrutto = roomPerNight * nights;
       const newEnergyBrutto = energyPerNight * nights;
       const newTotalBrutto = newRoomBrutto + newEnergyBrutto;
 
-      // ✅ Recalculate netto from new brutto
       const roomMwst = Number(card.totalMwst) || 0;
       const energyMwst = Number(card.totalEnergyMwst) || 0;
       
@@ -305,24 +302,22 @@ function handleSyncAllPrices() {
 
       const updatedCard = {
         ...card,
-        // ✅ UPDATE ONLY DISPLAY VALUES
         totalNetto: newTotalNetto,
         totalBrutto: newTotalBrutto,
         totalEnergyNetto: newEnergyNetto,
         totalEnergyBrutto: newEnergyBrutto,
         lastSyncedEndDate: local.endDate
-        // ✅ DO NOT CHANGE: basePrice, baseRoomPrice, baseEnergyPrice, baseNights
       };
 
-      // Save to database
+      // ✅ FIX: Include energy fields in the payload
       enqueue({
         type: 'updateRoomCard',
         payload: {
           id: card.id,
-          totalNetto: newTotalNetto,
-          totalBrutto: newTotalBrutto,
-          totalEnergyNetto: newEnergyNetto,
-          totalEnergyBrutto: newEnergyBrutto,
+          totalNetto: Number(newTotalNetto.toFixed(2)),
+          totalBrutto: Number(newTotalBrutto.toFixed(2)),
+          totalEnergyNetto: Number(newEnergyNetto.toFixed(2)),      // ✅ ADD THIS
+          totalEnergyBrutto: Number(newEnergyBrutto.toFixed(2)),    // ✅ ADD THIS
           lastSyncedEndDate: local.endDate
         }
       });
