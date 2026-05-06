@@ -454,17 +454,7 @@ function InlineNMBRow({
           <div className="flex flex-col shrink-0 pr-1.5">
             <p className={lbl}>Netto (€)</p>
             {/* SURGICAL FIX: Disabled flag combined with viewOnly */}
-            <input 
-              type="number" 
-              min={0} 
-              step="0.01" 
-              value={card[energyNettoKey!] != null ? card[energyNettoKey!] : ''} 
-              onChange={e => updateEnergyNetto(e.target.value)} 
-              disabled={disabled || viewOnly} 
-              style={noSpinner} 
-              className={cn((disabled || viewOnly) ? disabledInputCls : inputClsBase, 'w-24 h-[38px]', card[energyBruttoKey!] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} 
-              placeholder="0" 
-            />
+            <input type="number" min={0} step="0.01" value={nVal} onChange={e => updateNetto(e.target.value)} disabled={disabled || viewOnly} style={noSpinner} className={cn((disabled || viewOnly) ? disabledInputCls : inputClsBase, 'w-24', card[bruttoKey] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} placeholder="Auto" />
             <div className={cn(sumLbl, "min-h-[16px]")}>
               {showSum && tNetto > 0 && <span>Σ {formatCurrency(tNetto)}</span>}
               {dNettoTotal !== tNetto && (
@@ -543,7 +533,17 @@ function InlineNMBRow({
         <div className={cn("flex items-start gap-4 px-4 py-2.5 rounded-xl border border-dashed ml-2 shrink-0", dk ? "border-yellow-500/30 bg-yellow-500/5" : "border-yellow-400/60 bg-yellow-50/50")}>
           <div className="flex flex-col shrink-0">
             <p className={cn(lbl, dk ? "text-yellow-600/80" : "text-yellow-600/70")}><Zap size={10} className="inline mr-1 text-yellow-500" />{lang === 'de' ? 'En. Netto' : 'En. Netto'}</p>
-            <input type="number" min={0} step="0.01" value={enVal} onChange={e => updateEnergyNetto(e.target.value)} disabled={disabled || viewOnly} style={noSpinner} className={cn((disabled || viewOnly) ? disabledInputCls : inputClsBase, 'w-24 h-[38px]', card[energyBruttoKey!] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} placeholder="Auto" />
+            <input 
+            type="number" 
+            min={0} 
+            step="0.01" 
+            value={card[energyNettoKey!] != null ? card[energyNettoKey!] : ''} 
+            onChange={e => updateEnergyNetto(e.target.value)} 
+            disabled={disabled || viewOnly} 
+            style={noSpinner} 
+            className={cn((disabled || viewOnly) ? disabledInputCls : inputClsBase, 'w-24 h-[38px]', card[energyBruttoKey!] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} 
+            placeholder="0" 
+          />
             <div className={cn(sumLbl, dk ? "text-yellow-600/80" : "text-yellow-600/70")}>{showSum && tENetto > 0 && `Σ ${formatCurrency(tENetto)}`}</div>
           </div>
           <div className="flex flex-col shrink-0">
@@ -553,7 +553,17 @@ function InlineNMBRow({
           </div>
           <div className="flex flex-col shrink-0">
             <p className={cn(lbl, dk ? "text-yellow-600/80" : "text-yellow-600/70")}>{lang === 'de' ? 'En. Brutto' : 'En. Brutto'}</p>
-            <input type="number" min={0} step="0.01" value={ebVal} onChange={e => updateEnergyBrutto(e.target.value)} disabled={disabled || viewOnly} style={noSpinner} className={cn((disabled || viewOnly) ? disabledInputCls : inputClsBase, 'w-24 h-[38px]', card[energyNettoKey!] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} placeholder="Auto" />
+            <input 
+            type="number" 
+            min={0} 
+            step="0.01" 
+            value={card[energyBruttoKey!] != null ? card[energyBruttoKey!] : ''} 
+            onChange={e => updateEnergyBrutto(e.target.value)} 
+            disabled={disabled || viewOnly} 
+            style={noSpinner} 
+            className={cn((disabled || viewOnly) ? disabledInputCls : inputClsBase, 'w-24 h-[38px]', card[energyNettoKey!] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} 
+            placeholder="0" 
+          />
             <div className={cn(sumLbl, dk ? "text-yellow-600/80" : "text-yellow-600/70")}>{showSum && tEBrutto > 0 && `Σ ${formatCurrency(tEBrutto)}`}</div>
           </div>
         </div>
