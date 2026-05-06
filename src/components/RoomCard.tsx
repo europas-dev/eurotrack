@@ -428,7 +428,6 @@ function InlineNMBRow({
       if (currentDiscountType === 'percentage') {
           dNettoTotal = tNetto * (1 - currentDiscountValue/100);
       } else {
-          // ✅ For total_room, the value is already total, don't multiply again
           if (activeTab === 'total_room') {
               dNettoTotal = Math.max(0, tNetto - currentDiscountValue);
           } else {
@@ -696,33 +695,23 @@ export default function RoomCard({
       }
       
       // ✅ Apply discount correctly for all tabs
-      let cRoomNetto = baseNetto;
-      if (currentDiscountValue > 0) {
-         if (currentDiscountType === 'percentage') {
-             cRoomNetto = baseNetto * (1 - currentDiscountValue/100);
-         } else {
-             // ✅ FIX: For total_room, don't multiply - value is already total
-             if (activeTab === 'total_room') {
-                 cRoomNetto = Math.max(0, baseNetto - currentDiscountValue);
-             } else {
-                 const baseUnit = (activeTab === 'per_bed' ? Number(card.bedNetto) : activeTab === 'per_room' ? Number(card.roomNetto) : Number(card.totalNetto)) || 0;
-                 const discountedUnit = Math.max(0, baseUnit - currentDiscountValue);
-                 cRoomNetto = discountedUnit * multiplier;
-             }
-         }
-      }
-  
+      // ✅ Apply discount correctly for all tabs
   let cRoomNetto = baseNetto;
   if (currentDiscountValue > 0) {
      if (currentDiscountType === 'percentage') {
          cRoomNetto = baseNetto * (1 - currentDiscountValue/100);
      } else {
-         const baseUnit = (activeTab === 'per_bed' ? Number(card.bedNetto) : activeTab === 'per_room' ? Number(card.roomNetto) : Number(card.totalNetto)) || 0;
-         const discountedUnit = Math.max(0, baseUnit - currentDiscountValue);
-         cRoomNetto = discountedUnit * multiplier;
+         if (activeTab === 'total_room') {
+             cRoomNetto = Math.max(0, baseNetto - currentDiscountValue);
+         } else {
+             const baseUnit = (activeTab === 'per_bed' ? Number(card.bedNetto) : activeTab === 'per_room' ? Number(card.roomNetto) : Number(card.totalNetto)) || 0;
+             const discountedUnit = Math.max(0, baseUnit - currentDiscountValue);
+             cRoomNetto = discountedUnit * multiplier;
+         }
      }
   }
-
+  
+  // DELETE EVERYTHING AFTER THIS UNTIL const cRoomMwst
   const cRoomMwst = cRoomNetto * (mwstRate / 100);
   const cEnergyMwst = cEnergyNetto * (eMwstRate / 100);
   
