@@ -438,12 +438,7 @@ function InlineNMBRow({
       }
   }
 
-const dBruttoTotal = dNettoTotal * (1 + (Number(card[mwstKey]) || 0) / 100);
-
-// ✅ For total_room, show the discounted amount directly
-const displayNettoAfterDiscount = activeTab === 'total_room' 
-  ? dNettoTotal 
-  : dNettoTotal / multiplier; / 100);
+  const dBruttoTotal = dNettoTotal * (1 + (Number(card[mwstKey]) || 0) / 100);
 
   const nVal = card[nettoKey] === 0 ? '' : (card[nettoKey] != null ? card[nettoKey] : bNettoDisplay);
   const bVal = card[bruttoKey] === 0 ? '' : (card[bruttoKey] != null ? card[bruttoKey] : bBruttoDisplay);
