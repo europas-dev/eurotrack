@@ -54,6 +54,18 @@ function MwstInput({ value, onChange, isDarkMode, disabled }: { value: string | 
   );
 }
 
+  // This new function handles both state update and DB persistence for the lock.
+  function handleLockPrice() {
+      if (viewOnly) return;
+      const isLocked = !!card.basePrice;
+      const patch = {
+          basePrice: isLocked ? null : calculatedFinalBrutto,
+          baseNights: isLocked ? null : nights
+      };
+      // Use queueSave to ensure the change is saved to the database.
+      queueSave(patch);
+  }
+
 function CompactEmployeePill({ emp, dk, durationStart, durationEnd, isSubstitute }: any) {
   const [showPhone, setShowPhone] = useState(false);
   const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
@@ -803,15 +815,7 @@ export default function RoomCard({
                     {activeTab === 'total_room' && !viewOnly && (
                       <div className="flex items-start pt-[26px]">
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const isLocked = !!card.basePrice;
-                            onUpdate(card.id, {
-                              // We "grab" the actual number currently calculated on the screen
-                              basePrice: isLocked ? null : calculatedFinalBrutto,
-                              baseNights: isLocked ? null : nights 
-                            });
-                          }}
+                          onClick={(e) => { e.stopPropagation(); handleLockPrice(); }}
                                                     className={cn(
                             "p-2 h-[38px] w-[42px] rounded-lg border transition-all flex items-center justify-center",
                             card.basePrice 
