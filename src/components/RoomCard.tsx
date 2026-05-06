@@ -438,8 +438,12 @@ function InlineNMBRow({
 
   const nVal = card[nettoKey] === 0 ? '' : (card[nettoKey] != null ? card[nettoKey] : bNettoDisplay);
   const bVal = card[bruttoKey] === 0 ? '' : (card[bruttoKey] != null ? card[bruttoKey] : bBruttoDisplay);
-  const enVal = energyNettoKey && card[energyNettoKey] === 0 ? '' : (card[energyNettoKey!] != null ? card[energyNettoKey!] : eNettoDisplay);
-  const ebVal = energyBruttoKey && card[energyBruttoKey] === 0 ? '' : (card[energyBruttoKey!] != null ? card[energyBruttoKey!] : eBruttoDisplay);
+  const enVal = card[energyNettoKey!] !== null && card[energyNettoKey!] !== undefined 
+  ? (card[energyNettoKey!] === 0 ? '' : card[energyNettoKey!]) 
+  : (eNettoDisplay || '');
+  const ebVal = card[energyBruttoKey!] !== null && card[energyBruttoKey!] !== undefined 
+  ? (card[energyBruttoKey!] === 0 ? '' : card[energyBruttoKey!]) 
+  : (eBruttoDisplay || '');
 
   return (
     <div className={cn("flex items-start gap-4 flex-wrap", disabled && "opacity-50 pointer-events-none")}>
@@ -450,7 +454,17 @@ function InlineNMBRow({
           <div className="flex flex-col shrink-0 pr-1.5">
             <p className={lbl}>Netto (€)</p>
             {/* SURGICAL FIX: Disabled flag combined with viewOnly */}
-            <input type="number" min={0} step="0.01" value={nVal} onChange={e => updateNetto(e.target.value)} disabled={disabled || viewOnly} style={noSpinner} className={cn((disabled || viewOnly) ? disabledInputCls : inputClsBase, 'w-24', card[bruttoKey] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} placeholder="Auto" />
+            <input 
+              type="number" 
+              min={0} 
+              step="0.01" 
+              value={card[energyNettoKey!] != null ? card[energyNettoKey!] : ''} 
+              onChange={e => updateEnergyNetto(e.target.value)} 
+              disabled={disabled || viewOnly} 
+              style={noSpinner} 
+              className={cn((disabled || viewOnly) ? disabledInputCls : inputClsBase, 'w-24 h-[38px]', card[energyBruttoKey!] != null && (dk ? 'bg-white/5 text-slate-400' : 'bg-slate-100 text-slate-400'))} 
+              placeholder="0" 
+            />
             <div className={cn(sumLbl, "min-h-[16px]")}>
               {showSum && tNetto > 0 && <span>Σ {formatCurrency(tNetto)}</span>}
               {dNettoTotal !== tNetto && (
