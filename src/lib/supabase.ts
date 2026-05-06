@@ -302,6 +302,7 @@ export async function updateRoomCard(id: string, data: any) {
   if (data.bedCount !== undefined) payload.bed_count = data.bedCount;
   if (data.pricingTab !== undefined) payload.pricing_tab = data.pricingTab;
   
+  // Pricing fields
   if (data.roomNetto !== undefined) payload.room_netto = data.roomNetto;
   if (data.roomMwst !== undefined) payload.room_mwst = data.roomMwst;
   if (data.roomBrutto !== undefined) payload.room_brutto = data.roomBrutto;
@@ -312,6 +313,7 @@ export async function updateRoomCard(id: string, data: any) {
   if (data.totalMwst !== undefined) payload.total_mwst = data.totalMwst;
   if (data.totalBrutto !== undefined) payload.total_brutto = data.totalBrutto;
   
+  // Energy fields
   if (data.roomEnergyNetto !== undefined) payload.room_energy_netto = data.roomEnergyNetto;
   if (data.roomEnergyMwst !== undefined) payload.room_energy_mwst = data.roomEnergyMwst;
   if (data.roomEnergyBrutto !== undefined) payload.room_energy_brutto = data.roomEnergyBrutto;
@@ -322,14 +324,18 @@ export async function updateRoomCard(id: string, data: any) {
   if (data.totalEnergyMwst !== undefined) payload.total_energy_mwst = data.totalEnergyMwst;
   if (data.totalEnergyBrutto !== undefined) payload.total_energy_brutto = data.totalEnergyBrutto;
 
-  // FIXED: Removed old global discounts and mapped the 6 new tab-specific columns
-  // Note: The SQL created these as camelCase inside quotes, so we map them exactly as named.
+  // Discount fields
   if (data.bedDiscountType !== undefined) payload['bedDiscountType'] = data.bedDiscountType;
   if (data.bedDiscountValue !== undefined) payload['bedDiscountValue'] = data.bedDiscountValue;
   if (data.roomDiscountType !== undefined) payload['roomDiscountType'] = data.roomDiscountType;
   if (data.roomDiscountValue !== undefined) payload['roomDiscountValue'] = data.roomDiscountValue;
   if (data.totalDiscountType !== undefined) payload['totalDiscountType'] = data.totalDiscountType;
   if (data.totalDiscountValue !== undefined) payload['totalDiscountValue'] = data.totalDiscountValue;
+
+  // ✅ ADD THESE NEW FIELDS
+  if (data.basePrice !== undefined) payload.base_price = data.basePrice;
+  if (data.baseNights !== undefined) payload.base_nights = data.baseNights;
+  if (data.lastSyncedEndDate !== undefined) payload.last_synced_end_date = data.lastSyncedEndDate;
 
   if (Object.keys(payload).length > 0) {
     const { error } = await supabase.from('room_cards').update(payload).eq('id', id)
