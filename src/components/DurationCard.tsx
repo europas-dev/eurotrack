@@ -68,8 +68,8 @@ const roomsToSync = roomCards.filter(c =>
   nights > 0
 );
 
-// Calculate incremental nights from last sync
-const diffNights = showSync && roomsToSync[0] 
+// ✅ FIX: Calculate diffNights without relying on showSync
+const diffNights = roomsToSync[0] 
   ? (() => {
       const lastSyncedDate = roomsToSync[0].lastSyncedEndDate || local.startDate;
       const previousNights = calculateNights(local.startDate, lastSyncedDate);
@@ -77,6 +77,7 @@ const diffNights = showSync && roomsToSync[0]
     })()
   : 0;
 
+// Now safely evaluate showSync
 const showSync = roomsToSync.length > 0 && diffNights !== 0;
   
 // Teal color stays if nights are exactly 7 or 30
