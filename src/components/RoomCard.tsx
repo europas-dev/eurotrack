@@ -682,7 +682,12 @@ export default function RoomCard({
   let pricePerBedPerNight = 0;
   if (beds > 0 && nights > 0) {
     if (card.basePrice && card.baseNights && activeTab === 'total_room') {
-      pricePerBedPerNight = card.basePrice / (card.baseNights * beds);
+      // ✅ FIX: Calculate NETTO from locked base price
+      const baseMwst = Number(card.totalMwst) || 0;
+      const baseNetto = baseMwst > 0 
+        ? card.basePrice / (1 + baseMwst / 100)
+        : card.basePrice;
+      pricePerBedPerNight = baseNetto / (card.baseNights * beds);
     } else {
       pricePerBedPerNight = cRoomNetto / (beds * nights);
     }
@@ -891,8 +896,14 @@ export default function RoomCard({
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-[11px] font-bold text-slate-500">
-                        {formatCurrency(card.basePrice / (card.baseNights || 1))} / N
-                      </span>
+                      {(() => {
+                        const baseMwst = Number(card.totalMwst) || 0;
+                        const baseNetto = baseMwst > 0 
+                          ? card.basePrice / (1 + baseMwst / 100)
+                          : card.basePrice;
+                        return formatCurrency(baseNetto / (card.baseNights || 1));
+                      })()} / N
+                    </span>
                       <span className="text-sm font-black text-blue-600">
                         {formatCurrency(card.basePrice)}
                       </span>
