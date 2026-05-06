@@ -628,12 +628,14 @@ export default function RoomCard({
     }, 400)
   }
   
-  const multiplier = activeTab === 'per_bed' ? (beds * nights) : (activeTab === 'per_room' || activeTab === 'total_room') ? nights : 1;
-  const calculatedFinalBrutto = calcRoomCardTotal(card, durationStart, durationEnd);
+    const multiplier = activeTab === 'per_bed' ? (beds * nights) : (activeTab === 'per_room' || activeTab === 'total_room') ? nights : 1;
   
-  let baseNetto = 0; let mwstRate = 0;
-  let cEnergyNetto = 0; let eMwstRate = 0;
-  let currentDiscountValue = 0; let currentDiscountType = 'percentage';
+  let baseNetto = 0; 
+  let mwstRate = 0;
+  let cEnergyNetto = 0; 
+  let eMwstRate = 0;
+  let currentDiscountValue = 0; 
+  let currentDiscountType: 'percentage' | 'fixed' = 'percentage';
 
   if (activeTab === 'per_bed') {
      baseNetto = (Number(card.bedNetto) || 0) * multiplier;
@@ -669,21 +671,22 @@ export default function RoomCard({
      }
   }
 
-    const cRoomMwst = cRoomNetto * (mwstRate / 100);
+  const cRoomMwst = cRoomNetto * (mwstRate / 100);
   const cEnergyMwst = cEnergyNetto * (eMwstRate / 100);
   
-  const roomTotalDisplay = formatCurrency(calculatedFinalBrutto)
+  // ✅ CALCULATE THIS FIRST
+  const calculatedFinalBrutto = calcRoomCardTotal(card, durationStart, durationEnd);
+  const roomTotalDisplay = formatCurrency(calculatedFinalBrutto);
 
-  // Function to avoid hoisting issues
-  const getPricePerBedPerNight = () => {
-    if (beds === 0 || nights === 0) return 0;
+  // ✅ THEN CALCULATE PRICE PER BED (moved to the END)
+  let pricePerBedPerNight = 0;
+  if (beds > 0 && nights > 0) {
     if (card.basePrice && card.baseNights && activeTab === 'total_room') {
-      return card.basePrice / (card.baseNights * beds);
+      pricePerBedPerNight = card.basePrice / (card.baseNights * beds);
+    } else {
+      pricePerBedPerNight = cRoomNetto / (beds * nights);
     }
-    return cRoomNetto / (beds * nights);
-  };
-
-  const pricePerBedPerNight = getPricePerBedPerNight();
+  }
 
   return (
     <div className={cn('rounded-xl border transition-all shadow-sm flex flex-col w-full overflow-hidden', dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')}>
