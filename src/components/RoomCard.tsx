@@ -689,22 +689,22 @@ export default function RoomCard({
          currentDiscountType = card.totalDiscountType || 'percentage';  // ✅ ADD THIS
       }
       
-      // ✅ Apply discount correctly for all tabs
-      // ✅ Apply discount correctly for all tabs
-  let cRoomNetto = baseNetto;
-  if (currentDiscountValue > 0) {
-     if (currentDiscountType === 'percentage') {
-         cRoomNetto = baseNetto * (1 - currentDiscountValue/100);
-     } else {
-         if (activeTab === 'total_room') {
-             cRoomNetto = Math.max(0, baseNetto - currentDiscountValue);
+      // ✅ CORRECT - For total_room, use the exact stored value
+      let cRoomNetto = baseNetto;
+      if (currentDiscountValue > 0) {
+         if (currentDiscountType === 'percentage') {
+             cRoomNetto = baseNetto * (1 - currentDiscountValue/100);
          } else {
-             const baseUnit = (activeTab === 'per_bed' ? Number(card.bedNetto) : activeTab === 'per_room' ? Number(card.roomNetto) : Number(card.totalNetto)) || 0;
-             const discountedUnit = Math.max(0, baseUnit - currentDiscountValue);
-             cRoomNetto = discountedUnit * multiplier;
+             if (activeTab === 'total_room') {
+                 // ✅ For total_room: totalNetto is already the final amount, don't subtract discount
+                 cRoomNetto = baseNetto; // Keep as is
+             } else {
+                 const baseUnit = (activeTab === 'per_bed' ? Number(card.bedNetto) : activeTab === 'per_room' ? Number(card.roomNetto) : Number(card.totalNetto)) || 0;
+                 const discountedUnit = Math.max(0, baseUnit - currentDiscountValue);
+                 cRoomNetto = discountedUnit * multiplier;
+             }
          }
-     }
-  }
+      }
   
   // DELETE EVERYTHING AFTER THIS UNTIL const cRoomMwst
   const cRoomMwst = cRoomNetto * (mwstRate / 100);
