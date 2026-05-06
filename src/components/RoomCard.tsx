@@ -679,15 +679,20 @@ export default function RoomCard({
   const roomTotalDisplay = formatCurrency(calculatedFinalBrutto);
 
   // ✅ THEN CALCULATE PRICE PER BED (moved to the END)
+  // ✅ CORRECTED CALCULATION
   let pricePerBedPerNight = 0;
   if (beds > 0 && nights > 0) {
     if (card.basePrice && card.baseNights && activeTab === 'total_room') {
-      // ✅ FIX: Calculate NETTO from locked base price
+      // ✅ FIX: Use baseRoomPrice (room-only) instead of basePrice (total)
+      const baseRoomBrutto = card.baseRoomPrice || card.basePrice; // Fallback for old data
       const baseMwst = Number(card.totalMwst) || 0;
-      const baseNetto = baseMwst > 0 
-        ? card.basePrice / (1 + baseMwst / 100)
-        : card.basePrice;
-      pricePerBedPerNight = baseNetto / (card.baseNights * beds);
+      
+      // Calculate netto from room-only brutto
+      const baseRoomNetto = baseMwst > 0 
+        ? baseRoomBrutto / (1 + baseMwst / 100)
+        : baseRoomBrutto;
+      
+      pricePerBedPerNight = baseRoomNetto / (card.baseNights * beds);
     } else {
       pricePerBedPerNight = cRoomNetto / (beds * nights);
     }
@@ -844,14 +849,38 @@ export default function RoomCard({
                     <div className="flex items-start pt-[26px]">
                       <button
                         onClick={(e) => { 
-                          e.stopPropagation(); 
-                          const isLocked = !!card.basePrice;
+                        e.stopPropagation(); 
+                        const isLocked = !!card.basePrice;
+                        
+                        if (!isLocked) {
+                          // ✅ LOCK CALCULATION: Store room and energy separately
+                          const roomNetto = Number(card.totalNetto) || 0;
+                          const energyNetto = Number(card.totalEnergyNetto) || 0;
+                          const roomMwst = Number(card.totalMwst) || 0;
+                          
+                          // Calculate room brutto (without energy)
+                          const roomBrutto = roomMwst > 0 
+                            ? roomNetto * (1 + roomMwst / 100)
+                            : roomNetto;
+                          
+                          // Calculate TOTAL brutto (with energy) for display
+                          const totalBrutto = calculatedFinalBrutto;
+                          
                           queueSave({
-                            basePrice: isLocked ? null : calculatedFinalBrutto,
-                            baseNights: isLocked ? null : nights,
-                            lastSyncedEndDate: isLocked ? null : durationEnd
+                            basePrice: totalBrutto,        // Locked total (for display in blue box)
+                            baseRoomPrice: roomBrutto,     // ✅ NEW: Room-only price (for calculations)
+                            baseNights: nights,
+                            lastSyncedEndDate: durationEnd
                           });
-                        }}
+                        } else {
+                          queueSave({
+                            basePrice: null,
+                            baseRoomPrice: null,            // ✅ NEW: Clear room-only price
+                            baseNights: null,
+                            lastSyncedEndDate: null
+                          });
+                        }
+                      }}
                         className={cn(
                           "p-2 h-[38px] w-[42px] rounded-lg border transition-all flex items-center justify-center",
                           card.basePrice 
@@ -896,15 +925,18 @@ export default function RoomCard({
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-[11px] font-bold text-slate-500">
-                      {(() => {
-                        const baseMwst = Number(card.totalMwst) || 0;
-                        const baseNetto = baseMwst > 0 
-                          ? card.basePrice / (1 + baseMwst / 100)
-                          : card.basePrice;
-                        return formatCurrency(baseNetto / (card.baseNights || 1));
-                      })()} / N
-                    </span>
+                        {/* ✅ FIX: Calculate from room-only base, not total */}
+                        {(() => {
+                          const baseRoomBrutto = card.baseRoomPrice || card.basePrice;
+                          const baseMwst = Number(card.totalMwst) || 0;
+                          const baseRoomNetto = baseMwst > 0 
+                            ? baseRoomBrutto / (1 + baseMwst / 100)
+                            : baseRoomBrutto;
+                          return formatCurrency(baseRoomNetto / (card.baseNights || 1));
+                        })()} / N
+                      </span>
                       <span className="text-sm font-black text-blue-600">
+                        {/* Display total (with energy) */}
                         {formatCurrency(card.basePrice)}
                       </span>
                     </div>
