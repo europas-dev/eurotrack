@@ -876,35 +876,50 @@ export default function RoomCard({
                         e.stopPropagation(); 
                         const isLocked = !!card.basePrice;
                         
-                        if (!isLocked) {
-                          // ✅ LOCK CALCULATION: Store room and energy separately
-                          const roomNetto = Number(card.totalNetto) || 0;
-                          const energyNetto = Number(card.totalEnergyNetto) || 0;
-                          const roomMwst = Number(card.totalMwst) || 0;
-                          
-                          // Calculate room brutto (without energy)
-                          const roomBrutto = roomMwst > 0 
-                            ? roomNetto * (1 + roomMwst / 100)
-                            : roomNetto;
-                          
-                          // Calculate TOTAL brutto (with energy) for display
-                          const totalBrutto = calculatedFinalBrutto;
-                          
-                          queueSave({
-                            basePrice: totalBrutto,        // Locked total (for display in blue box)
-                            baseRoomPrice: roomBrutto,     // ✅ NEW: Room-only price (for calculations)
-                            baseNights: nights,
-                            lastSyncedEndDate: durationEnd
-                          });
-                        } else {
-                          queueSave({
-                            basePrice: null,
-                            baseRoomPrice: null,            // ✅ NEW: Clear room-only price
-                            baseNights: null,
-                            lastSyncedEndDate: null
-                          });
-                        }
-                      }}
+                        {activeTab === 'total_room' && !viewOnly && (
+  <div className="flex items-start pt-[26px]">
+    <button
+      onClick={(e) => { 
+        e.stopPropagation(); 
+        const isLocked = !!card.basePrice;
+        
+        if (!isLocked) {
+          // ✅ LOCK CALCULATION: Store room and energy separately
+          const roomNetto = Number(card.totalNetto) || 0;
+          const energyNetto = Number(card.totalEnergyNetto) || 0;
+          const roomMwst = Number(card.totalMwst) || 0;
+          const energyMwst = Number(card.totalEnergyMwst) || 0;
+          
+          // Calculate room brutto (without energy)
+          const roomBrutto = roomMwst > 0 
+            ? roomNetto * (1 + roomMwst / 100)
+            : roomNetto;
+          
+          // Calculate energy brutto
+          const energyBrutto = energyMwst > 0 
+            ? energyNetto * (1 + energyMwst / 100)
+            : energyNetto;
+          
+          // Calculate TOTAL brutto (with energy) for display
+          const totalBrutto = calculatedFinalBrutto;
+          
+          queueSave({
+            basePrice: totalBrutto,           // Locked total (for display in blue box)
+            baseRoomPrice: roomBrutto,        // Room-only price (for calculations)
+            baseEnergyPrice: energyBrutto,    // ✅ ADD THIS: Energy price
+            baseNights: nights,
+            lastSyncedEndDate: durationEnd
+          });
+        } else {
+          queueSave({
+            basePrice: null,
+            baseRoomPrice: null,
+            baseEnergyPrice: null,            // ✅ ADD THIS: Clear energy price
+            baseNights: null,
+            lastSyncedEndDate: null
+          });
+        }
+      }}
                         className={cn(
                           "p-2 h-[38px] w-[42px] rounded-lg border transition-all flex items-center justify-center",
                           card.basePrice 
