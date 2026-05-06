@@ -265,32 +265,31 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
     syncRoomCardsToParent(n);
   }
 
-  function handleSyncAllPrices() {
+  //Sync Function
+
+function handleSyncAllPrices() {
   if (viewOnly || !showSync) return;
 
   const updatedCards = roomCards.map(card => {
     const originalBaseNights = Number(card.baseNights);
 
+    // Check if the card is a candidate for syncing
     if (card.pricingTab === 'total_room' && originalBaseNights > 0 && card.basePrice != null) {
       
-      // ✅ FIX: Both room and energy scale by nights ratio
+      // ✅ Get the locked prices
       const baseRoomBrutto = card.baseRoomPrice || card.basePrice;
       const baseEnergyBrutto = card.baseEnergyPrice || 0;
-      const baseRoomNetto = card.totalNetto 
-        ? (Number(card.totalNetto) / (Number(card.totalEnergyNetto) || 1 + Number(card.totalNetto)))
-        : 0;
-      const baseEnergyNetto = Number(card.totalEnergyNetto) || 0;
       
-      // Calculate per-night rates (both room and energy)
+      // ✅ Calculate per-night rates from LOCKED values
       const roomPerNight = baseRoomBrutto / originalBaseNights;
       const energyPerNight = baseEnergyBrutto / originalBaseNights;
       
-      // Recalculate for new nights (scale both)
+      // ✅ Apply to NEW nights for DISPLAY only
       const newRoomBrutto = roomPerNight * nights;
       const newEnergyBrutto = energyPerNight * nights;
       const newTotalBrutto = newRoomBrutto + newEnergyBrutto;
 
-      // Recalculate netto values
+      // ✅ Recalculate netto from new brutto
       const roomMwst = Number(card.totalMwst) || 0;
       const energyMwst = Number(card.totalEnergyMwst) || 0;
       
@@ -306,15 +305,13 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
 
       const updatedCard = {
         ...card,
+        // ✅ UPDATE ONLY DISPLAY VALUES
         totalNetto: newTotalNetto,
         totalBrutto: newTotalBrutto,
-        totalEnergyNetto: newEnergyNetto,      // ✅ Update energy netto
-        totalEnergyBrutto: newEnergyBrutto,    // ✅ Update energy brutto
-        // Update locked values for next sync
-        basePrice: newTotalBrutto,
-        baseRoomPrice: newRoomBrutto,
-        baseEnergyPrice: newEnergyBrutto,
+        totalEnergyNetto: newEnergyNetto,
+        totalEnergyBrutto: newEnergyBrutto,
         lastSyncedEndDate: local.endDate
+        // ✅ DO NOT CHANGE: basePrice, baseRoomPrice, baseEnergyPrice, baseNights
       };
 
       // Save to database
@@ -326,9 +323,6 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
           totalBrutto: newTotalBrutto,
           totalEnergyNetto: newEnergyNetto,
           totalEnergyBrutto: newEnergyBrutto,
-          basePrice: newTotalBrutto,
-          baseRoomPrice: newRoomBrutto,
-          baseEnergyPrice: newEnergyBrutto,
           lastSyncedEndDate: local.endDate
         }
       });
