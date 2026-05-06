@@ -60,6 +60,9 @@ export function calcRoomCardNettoSum(card: any, durationStart: string, durationE
 }
 
 export function calcRoomCardTotal(card: any, durationStart: string, durationEnd: string): number {
+  // ✅ ADD these safety checks
+  if (!card) return 0
+  if (!durationStart || !durationEnd) return 0
   const nights = calculateNights(durationStart, durationEnd)
   if (nights === 0) return 0
   const beds = bedsForType(card.roomType, card.bedCount)
