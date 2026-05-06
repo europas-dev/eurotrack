@@ -456,8 +456,8 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
           )}
         </div>
   
-        {/* SYNC ALL SECTION (RED BOX) */}
-   {/* SYNC UI SECTION */}
+                {/* SYNC ALL SECTION (RED BOX) */}
+        {/* SYNC UI SECTION */}
         <div className="flex-1 flex justify-center px-2">
           {showSync && (
             <div className="flex items-center gap-0.5 animate-in fade-in zoom-in">
@@ -468,72 +468,66 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
                 </span>
                 
                 {/* TOOLTIP PREVIEW */}
-              <div className={cn(
-                "invisible group-hover:visible absolute bottom-full left-0 mb-2 w-64 p-3 rounded-xl border shadow-2xl z-50",
-                dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"
-              )}>
-                <p className="text-[9px] font-black text-slate-400 uppercase mb-2">
-                  {lang === 'de' ? 'Sync-Vorschau' : 'Sync Preview'}
-                </p>
-                <div className="space-y-2">
-                  {roomsToSync.map((c) => {
-                    const baseNights = Number(c.baseNights) || 1;
-                    const basePricePerNight = (c.basePrice || 0) / baseNights;
-                    
-                    // Calculate current total (before sync)
-                    const lastSyncedDate = c.lastSyncedEndDate || local.startDate;
-                    const currentNights = calculateNights(local.startDate, lastSyncedDate);
-                    const currentTotal = basePricePerNight * currentNights;
-                    
-                    // Calculate new total (after sync)
-                    const newTotal = basePricePerNight * nights;
-                    
-                    // Only show 3 prices if current differs from base
-                    const showThreePrices = Math.abs(currentTotal - c.basePrice) > 0.01;
-                    
-                    return (
-                      <div key={c.id} className="space-y-1">
-                        <div className="text-[9px] font-bold text-slate-500 mb-1">
-                          {c.roomType} ({c.roomNo || '---'})
-                        </div>
-                        <div className="flex items-center gap-1.5 text-[11px]">
-                          {/* Base Price */}
-                          <div className="flex flex-col items-center">
-                            <span className="text-[8px] text-blue-500 font-bold uppercase">Base</span>
-                            <span className="font-black text-blue-600">{formatCurrency(c.basePrice || 0)}</span>
-                            <span className="text-[8px] text-slate-400">{baseNights}N</span>
+                <div className={cn(
+                  "invisible group-hover:visible absolute bottom-full left-0 mb-2 w-64 p-3 rounded-xl border shadow-2xl z-50",
+                  dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"
+                )}>
+                  <p className="text-[9px] font-black text-slate-400 uppercase mb-2">
+                    {lang === 'de' ? 'Sync-Vorschau' : 'Sync Preview'}
+                  </p>
+                  <div className="space-y-2">
+                    {roomsToSync.map((c) => {
+                      const baseNights = Number(c.baseNights) || 1;
+                      const basePricePerNight = (c.basePrice || 0) / baseNights;
+                      
+                      const lastSyncedDate = c.lastSyncedEndDate || local.startDate;
+                      const currentNights = calculateNights(local.startDate, lastSyncedDate);
+                      const currentTotal = basePricePerNight * currentNights;
+                      
+                      const newTotal = basePricePerNight * nights;
+                      const showThreePrices = Math.abs(currentTotal - (c.basePrice || 0)) > 0.01;
+                      
+                      return (
+                        <div key={c.id} className="space-y-1">
+                          <div className="text-[9px] font-bold text-slate-500 mb-1">
+                            {c.roomType} ({c.roomNo || '---'})
                           </div>
-                          
-                          {showThreePrices && (
-                            <>
-                              <ArrowRight size={10} className="text-slate-400" />
-                              {/* Current Total */}
-                              <div className="flex flex-col items-center">
-                                <span className="text-[8px] text-slate-500 font-bold uppercase">
-                                  {lang === 'de' ? 'Aktuell' : 'Current'}
-                                </span>
-                                <span className="font-black text-slate-600 line-through opacity-60">
-                                  {formatCurrency(currentTotal)}
-                                </span>
-                                <span className="text-[8px] text-slate-400">{currentNights}N</span>
-                              </div>
-                            </>
-                          )}
-                          
-                          <ArrowRight size={10} className="text-slate-400" />
-                          
-                          {/* New Total */}
-                          <div className="flex flex-col items-center">
-                            <span className="text-[8px] text-teal-500 font-bold uppercase">
-                              {lang === 'de' ? 'Neu' : 'New'}
-                            </span>
-                            <span className="font-black text-teal-600">{formatCurrency(newTotal)}</span>
-                            <span className="text-[8px] text-slate-400">{nights}N</span>
+                          <div className="flex items-center gap-1.5 text-[11px]">
+                            <div className="flex flex-col items-center">
+                              <span className="text-[8px] text-blue-500 font-bold uppercase">Base</span>
+                              <span className="font-black text-blue-600">{formatCurrency(c.basePrice || 0)}</span>
+                              <span className="text-[8px] text-slate-400">{baseNights}N</span>
+                            </div>
+                            
+                            {showThreePrices && (
+                              <>
+                                <ArrowRight size={10} className="text-slate-400" />
+                                <div className="flex flex-col items-center">
+                                  <span className="text-[8px] text-slate-500 font-bold uppercase">
+                                    {lang === 'de' ? 'Aktuell' : 'Current'}
+                                  </span>
+                                  <span className="font-black text-slate-600 line-through opacity-60">
+                                    {formatCurrency(currentTotal)}
+                                  </span>
+                                  <span className="text-[8px] text-slate-400">{currentNights}N</span>
+                                </div>
+                              </>
+                            )}
+                            
+                            <ArrowRight size={10} className="text-slate-400" />
+                            
+                            <div className="flex flex-col items-center">
+                              <span className="text-[8px] text-teal-500 font-bold uppercase">
+                                {lang === 'de' ? 'Neu' : 'New'}
+                              </span>
+                              <span className="font-black text-teal-600">{formatCurrency(newTotal)}</span>
+                              <span className="text-[8px] text-slate-400">{nights}N</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -549,7 +543,6 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
         </div>
   
         {/* RIGHT: CLEAN, LARGE INFO DISPLAY & TRASH */}
-        {/* SURGICAL FIX: Removed hasDates guard to ensure TRASH is always visible for NEW durations */}
         <div className="flex items-center gap-4 shrink-0">
           {hasDates && (
             <>
