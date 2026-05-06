@@ -62,14 +62,23 @@ const nights = calculateNights(local.startDate, local.endDate);
 // and that count no longer matches the current calendar duration.
 const roomsToSync = roomCards.filter(c => 
   c.pricingTab === 'total_room' && 
-  c.baseNights != null &&             // Must have a saved base duration
-  Number(c.baseNights) > 0 &&        // Must be a valid number
-  Number(c.baseNights) !== nights && // Must be different from current nights
+  c.baseNights != null &&
+  Number(c.baseNights) > 0 &&
+  c.basePrice != null &&
   nights > 0
 );
 
-const showSync = roomsToSync.length > 0;
-const diffNights = showSync ? (nights - Number(roomsToSync[0].baseNights)) : 0;
+// Calculate incremental nights from last sync
+const diffNights = showSync && roomsToSync[0] 
+  ? (() => {
+      const lastSyncedDate = roomsToSync[0].lastSyncedEndDate || local.startDate;
+      const previousNights = calculateNights(local.startDate, lastSyncedDate);
+      return nights - previousNights;
+    })()
+  : 0;
+
+const showSync = roomsToSync.length > 0 && diffNights !== 0;
+  
 // Teal color stays if nights are exactly 7 or 30
   
   const hasDates = !!(local.startDate && local.endDate && nights > 0)
@@ -256,42 +265,37 @@ const diffNights = showSync ? (nights - Number(roomsToSync[0].baseNights)) : 0;
     // Check if the card is a candidate for syncing
     if (card.pricingTab === 'total_room' && originalBaseNights > 0 && card.basePrice != null) {
       
-      // --- THE CORRECTED LOGIC ---
-      
-      // 1. Calculate the original, locked price per night. This is our fixed reference.
+      // Calculate the new total price based on the locked base
       const lockedPricePerNight = card.basePrice / originalBaseNights;
-
-      // 2. Calculate the new total price based on the NEW duration (`nights`).
       const newTotalBrutto = lockedPricePerNight * nights;
 
-      // 3. Recalculate the corresponding 'totalNetto' for accuracy.
+      // Recalculate netto
       const mwstRate = Number(card.totalMwst) || 0;
       const newTotalNetto = mwstRate > 0
         ? newTotalBrutto / (1 + mwstRate / 100)
         : newTotalBrutto;
 
-      // 4. Prepare the updated card object, ONLY changing the total values.
-      //    We DO NOT touch `basePrice` or `baseNights`. They remain locked.
       const updatedCard = {
         ...card,
         totalBrutto: newTotalBrutto,
-        totalNetto: newTotalNetto
+        totalNetto: newTotalNetto,
+        lastSyncedEndDate: local.endDate // Track last sync
       };
 
-      // 5. Queue an immediate database update with ONLY the changed total fields.
+      // Save to database
       enqueue({
         type: 'updateRoomCard',
         payload: {
           id: card.id,
           totalBrutto: newTotalBrutto,
           totalNetto: newTotalNetto,
+          lastSyncedEndDate: local.endDate
         }
       });
 
       return updatedCard;
     }
     
-    // If not a candidate, return the card unchanged.
     return card;
   });
 
@@ -464,31 +468,72 @@ const diffNights = showSync ? (nights - Number(roomsToSync[0].baseNights)) : 0;
                 </span>
                 
                 {/* TOOLTIP PREVIEW */}
-                <div className={cn(
-                  "invisible group-hover:visible absolute bottom-full left-0 mb-2 w-56 p-3 rounded-xl border shadow-2xl z-50",
-                  dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"
-                )}>
-                  <p className="text-[9px] font-black text-slate-400 uppercase mb-2">Sync Preview</p>
-                  <div className="space-y-1.5">
-                    {roomsToSync.map((c) => {
-                    const ratio = nights / (Number(c.baseNights) || 1);
+              <div className={cn(
+                "invisible group-hover:visible absolute bottom-full left-0 mb-2 w-64 p-3 rounded-xl border shadow-2xl z-50",
+                dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"
+              )}>
+                <p className="text-[9px] font-black text-slate-400 uppercase mb-2">
+                  {lang === 'de' ? 'Sync-Vorschau' : 'Sync Preview'}
+                </p>
+                <div className="space-y-2">
+                  {roomsToSync.map((c) => {
+                    const baseNights = Number(c.baseNights) || 1;
+                    const basePricePerNight = (c.basePrice || 0) / baseNights;
                     
-                    // *** THE FIX ***: Calculate preview using the locked 'basePrice', not the current 'roomBrutto'.
-                    const previewPrice = (c.basePrice || 0) * ratio;
+                    // Calculate current total (before sync)
+                    const lastSyncedDate = c.lastSyncedEndDate || local.startDate;
+                    const currentNights = calculateNights(local.startDate, lastSyncedDate);
+                    const currentTotal = basePricePerNight * currentNights;
+                    
+                    // Calculate new total (after sync)
+                    const newTotal = basePricePerNight * nights;
+                    
+                    // Only show 3 prices if current differs from base
+                    const showThreePrices = Math.abs(currentTotal - c.basePrice) > 0.01;
                     
                     return (
-                      <div key={c.id} className="flex justify-between items-center text-[10px]">
-                        <span className="text-slate-500 font-bold">{c.roomType || c.name}</span>
-                        <div className="flex items-center gap-1.5">
-                          {/* Show the original locked price as the "from" value */}
-                          <span className="opacity-30 line-through">{formatCurrency(c.basePrice || 0)}</span>
+                      <div key={c.id} className="space-y-1">
+                        <div className="text-[9px] font-bold text-slate-500 mb-1">
+                          {c.roomType} ({c.roomNo || '---'})
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[11px]">
+                          {/* Base Price */}
+                          <div className="flex flex-col items-center">
+                            <span className="text-[8px] text-blue-500 font-bold uppercase">Base</span>
+                            <span className="font-black text-blue-600">{formatCurrency(c.basePrice || 0)}</span>
+                            <span className="text-[8px] text-slate-400">{baseNights}N</span>
+                          </div>
+                          
+                          {showThreePrices && (
+                            <>
+                              <ArrowRight size={10} className="text-slate-400" />
+                              {/* Current Total */}
+                              <div className="flex flex-col items-center">
+                                <span className="text-[8px] text-slate-500 font-bold uppercase">
+                                  {lang === 'de' ? 'Aktuell' : 'Current'}
+                                </span>
+                                <span className="font-black text-slate-600 line-through opacity-60">
+                                  {formatCurrency(currentTotal)}
+                                </span>
+                                <span className="text-[8px] text-slate-400">{currentNights}N</span>
+                              </div>
+                            </>
+                          )}
+                          
                           <ArrowRight size={10} className="text-slate-400" />
-                          <span className="text-teal-500 font-bold">{formatCurrency(previewPrice)}</span>
+                          
+                          {/* New Total */}
+                          <div className="flex flex-col items-center">
+                            <span className="text-[8px] text-teal-500 font-bold uppercase">
+                              {lang === 'de' ? 'Neu' : 'New'}
+                            </span>
+                            <span className="font-black text-teal-600">{formatCurrency(newTotal)}</span>
+                            <span className="text-[8px] text-slate-400">{nights}N</span>
+                          </div>
                         </div>
                       </div>
                     );
                   })}
-                  </div>
                 </div>
               </div>
 
