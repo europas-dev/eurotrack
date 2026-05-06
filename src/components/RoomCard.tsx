@@ -831,7 +831,7 @@ export default function RoomCard({
                      viewOnly={viewOnly} // SURGICAL FIX: Pass prop down
                    />
 
-                   {/* ADD THIS SECTION BELOW 
+                   {/* ADD THIS SECTION BELOW  */}
                     {activeTab === 'total_room' && !viewOnly && (
                     <div className="flex items-start pt-[26px]">
                       <button
@@ -865,7 +865,6 @@ export default function RoomCard({
                        </button>
                      </div>
                    )}
-                   */}
                  </div>
                </div>
 
