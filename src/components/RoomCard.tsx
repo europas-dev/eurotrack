@@ -656,7 +656,7 @@ export default function RoomCard({
     }, 400)
   }
   
-    const multiplier = activeTab === 'per_bed' ? (beds * nights) : (activeTab === 'per_room' || activeTab === 'total_room') ? nights : 1;
+    const multiplier = activeTab === 'per_bed' ? (beds * nights) : activeTab === 'per_room' ? nights : 1;
   
       let baseNetto = 0; 
       let mwstRate = 0;
@@ -696,8 +696,8 @@ export default function RoomCard({
              cRoomNetto = baseNetto * (1 - currentDiscountValue/100);
          } else {
              if (activeTab === 'total_room') {
-                 // ✅ For total_room: totalNetto is already the final amount, don't subtract discount
-                 cRoomNetto = baseNetto; // Keep as is
+                 // SURGICAL FIX: Actually apply the fixed discount to the total room netto!
+                 cRoomNetto = Math.max(0, baseNetto - currentDiscountValue);
              } else {
                  const baseUnit = (activeTab === 'per_bed' ? Number(card.bedNetto) : activeTab === 'per_room' ? Number(card.roomNetto) : Number(card.totalNetto)) || 0;
                  const discountedUnit = Math.max(0, baseUnit - currentDiscountValue);
