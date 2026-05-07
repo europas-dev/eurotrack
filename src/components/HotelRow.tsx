@@ -186,6 +186,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [saving, setSaving] = useState(false);
   const [creatingDuration, setCreatingDuration] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null); // SURGICAL FIX: Invoice delete modal state
   const [activeDurationTab, setActiveDurationTab] = useState(0);
   const saveTimer = useRef<any>(null);
 
@@ -802,12 +803,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                    }} className="p-1.5 text-white bg-teal-500 hover:bg-teal-600 rounded-md transition-all shadow-sm shrink-0"><Check size={14}/></button>
                                    
                                    {/* DELETE BUTTON (Red block, spaced away with safety prompt) */}
-                                   <button onClick={() => {
-                                      if (window.confirm(lang === 'de' ? 'Rechnung löschen?' : 'Delete invoice?')) {
-                                         patchHotel({ invoices: localHotel.invoices.filter((i: any) => i.id !== inv.id) });
-                                         setEditingInvoiceId(null); setInvoiceDraft(null);
-                                      }
-                                   }} className="p-1.5 text-white bg-red-500 hover:bg-red-600 rounded-md transition-all shadow-sm shrink-0 ml-1"><Trash2 size={14} /></button>
+                                   {/* DELETE BUTTON (Triggers beautiful custom modal instead of browser popup) */}
+                                   <button onClick={() => setInvoiceToDelete(inv.id)} className="p-1.5 text-white bg-red-500 hover:bg-red-600 rounded-md transition-all shadow-sm shrink-0 ml-1">
+                                      <Trash2 size={14} />
+                                   </button>
                                 </div>
                                 <textarea value={invoiceDraft.note} rows={3} onChange={(e) => setInvoiceDraft({ ...invoiceDraft, note: e.target.value })} className="w-full text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-transparent outline-none p-1 mt-1 resize-none overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full" placeholder={lang === 'de' ? "+ Notiz..." : "+ Add note..."} />
                              </div>
@@ -1075,6 +1074,31 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             <div className="flex justify-end gap-3">
               <button onClick={() => setConfirmDelete(false)} className={cn("px-6 py-2.5 font-bold rounded-xl border transition-all", dk ? "border-white/10 hover:bg-white/10 text-white" : "border-slate-200 hover:bg-slate-100 text-slate-700")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
               <button onClick={async () => { await deleteHotel(localHotel.id); onDelete(localHotel.id); setConfirmDelete(false); }} className="px-6 py-2.5 font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all shadow-md">{lang === 'de' ? 'Löschen' : 'Delete'}</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+      {/* SURGICAL FIX: Beautiful Custom Invoice Delete Modal */}
+      {invoiceToDelete && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className={cn('w-full max-w-sm rounded-3xl border p-6 shadow-2xl animate-in zoom-in-95', dk ? 'bg-[#1E293B] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200')}>
+            <h3 className="text-xl font-black mb-2">{lang === 'de' ? 'Rechnung löschen?' : 'Delete invoice?'}</h3>
+            <p className="text-sm font-bold text-slate-500 mb-6">{lang === 'de' ? 'Diese Aktion kann nicht rückgängig gemacht werden.' : 'This action cannot be undone.'}</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setInvoiceToDelete(null)} className={cn("px-5 py-2 font-bold rounded-xl border transition-all", dk ? "border-white/10 hover:bg-white/10 text-white" : "border-slate-200 hover:bg-slate-100 text-slate-700")}>
+                 {lang === 'de' ? 'Abbrechen' : 'Cancel'}
+              </button>
+              <button onClick={() => { 
+                  patchHotel({ invoices: localHotel.invoices.filter((i: any) => i.id !== invoiceToDelete) });
+                  setEditingInvoiceId(null); 
+                  setInvoiceDraft(null);
+                  setInvoiceToDelete(null); 
+                }} 
+                className="px-5 py-2 font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all shadow-md"
+              >
+                 {lang === 'de' ? 'Löschen' : 'Delete'}
+              </button>
             </div>
           </div>
         </div>,
