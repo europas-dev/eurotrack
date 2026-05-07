@@ -601,6 +601,48 @@ export default function RoomCard({
   const activeTab: PricingTab = card.pricingTab ?? 'per_bed'
   const employees = card.employees ?? []
 
+  // --- SURGICAL FIX: LOCKED TOTAL DATE SCALING ENGINE ---
+  useEffect(() => {
+    if (viewOnly) return; 
+    
+    // Only run if the price is actually locked and we are in the total_room tab
+    if (activeTab === 'total_room' && card.basePrice && card.baseNights && card.baseRoomPrice) {
+      
+      // If the current nights don't match the locked baseNights, we need to scale the price
+      if (nights !== card.baseNights && nights > 0) {
+        
+        // 1. Calculate the extension ratio
+        const ratio = nights / card.baseNights;
+
+        // 2. Scale the room base price (strip MwSt to get Netto)
+        const roomMwst = Number(card.totalMwst) || 0;
+        const baseRoomNetto = roomMwst > 0 ? card.baseRoomPrice / (1 + roomMwst / 100) : card.baseRoomPrice;
+        const scaledRoomNetto = Number((baseRoomNetto * ratio).toFixed(2));
+        const scaledRoomBrutto = Number((scaledRoomNetto * (1 + roomMwst / 100)).toFixed(2));
+
+        // 3. Scale the energy base price (if it exists)
+        const energyMwst = Number(card.totalEnergyMwst) || 0;
+        const baseEnergyPrice = card.baseEnergyPrice || 0;
+        const baseEnergyNetto = energyMwst > 0 ? baseEnergyPrice / (1 + energyMwst / 100) : baseEnergyPrice;
+        const scaledEnergyNetto = Number((baseEnergyNetto * ratio).toFixed(2));
+        const scaledEnergyBrutto = Number((scaledEnergyNetto * (1 + energyMwst / 100)).toFixed(2));
+
+        // 4. Push the newly scaled values directly back into the card
+        queueSave({
+          totalNetto: scaledRoomNetto,
+          totalBrutto: scaledRoomBrutto,
+          totalEnergyNetto: scaledEnergyNetto > 0 ? scaledEnergyNetto : null,
+          totalEnergyBrutto: scaledEnergyBrutto > 0 ? scaledEnergyBrutto : null,
+          // Crucial: Update the locked variables so it doesn't loop infinitely
+          baseNights: nights,
+          basePrice: scaledRoomBrutto + scaledEnergyBrutto,
+          baseRoomPrice: scaledRoomBrutto,
+          baseEnergyPrice: scaledEnergyBrutto
+        });
+      }
+    }
+  }, [nights, card.baseNights, activeTab, viewOnly]);
+
   // DATE BOUNDARY CLAMPING ENGINE
   const employeesStr = JSON.stringify(card.employees ?? []);
   useEffect(() => {
