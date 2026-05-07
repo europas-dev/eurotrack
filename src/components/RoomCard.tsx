@@ -608,10 +608,10 @@ export default function RoomCard({
     // Only run if the price is actually locked and we are in the total_room tab
     if (activeTab === 'total_room' && card.basePrice && card.baseNights && card.baseRoomPrice) {
       
-      // If the current nights don't match the locked baseNights, we need to scale the price
-      if (nights !== card.baseNights && nights > 0) {
+      // Use lastSyncedEndDate to detect a REAL date change, not just a render
+      if (card.lastSyncedEndDate && durationEnd !== card.lastSyncedEndDate) {
         
-        // 1. Calculate the extension ratio
+        // 1. Calculate the extension ratio based on the safely LOCKED baseNights
         const ratio = nights / card.baseNights;
 
         // 2. Scale the room base price (strip MwSt to get Netto)
@@ -627,21 +627,18 @@ export default function RoomCard({
         const scaledEnergyNetto = Number((baseEnergyNetto * ratio).toFixed(2));
         const scaledEnergyBrutto = Number((scaledEnergyNetto * (1 + energyMwst / 100)).toFixed(2));
 
-        // 4. Push the newly scaled values directly back into the card
+        // 4. Update the active totals, and ONLY update the sync date to prevent loops.
+        // NEVER touch basePrice, baseNights, baseRoomPrice, or baseEnergyPrice!
         queueSave({
           totalNetto: scaledRoomNetto,
           totalBrutto: scaledRoomBrutto,
           totalEnergyNetto: scaledEnergyNetto > 0 ? scaledEnergyNetto : null,
           totalEnergyBrutto: scaledEnergyBrutto > 0 ? scaledEnergyBrutto : null,
-          // Crucial: Update the locked variables so it doesn't loop infinitely
-          baseNights: nights,
-          basePrice: scaledRoomBrutto + scaledEnergyBrutto,
-          baseRoomPrice: scaledRoomBrutto,
-          baseEnergyPrice: scaledEnergyBrutto
+          lastSyncedEndDate: durationEnd // <--- This stops the loop without breaking the lock
         });
       }
     }
-  }, [nights, card.baseNights, activeTab, viewOnly]);
+  }, [durationEnd, card.lastSyncedEndDate, nights, card.baseNights, activeTab, viewOnly]);
 
   // DATE BOUNDARY CLAMPING ENGINE
   const employeesStr = JSON.stringify(card.employees ?? []);
