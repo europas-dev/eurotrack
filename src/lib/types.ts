@@ -81,6 +81,13 @@ export interface RoomCard {
   pricingSynced?: boolean
   pricingMode?: 'simple' | 'brutto_netto'
 
+  // ✅ ADDED: The 5 critical fields for the Lock & Sync Engine
+  basePrice?: number | null
+  baseRoomPrice?: number | null
+  baseEnergyPrice?: number | null
+  baseNights?: number | null
+  lastSyncedEndDate?: string | null
+
   sortOrder: number
   employees: Employee[]
 }
