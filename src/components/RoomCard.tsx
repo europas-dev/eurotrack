@@ -603,9 +603,6 @@ export default function RoomCard({
 
   // DATE BOUNDARY CLAMPING ENGINE
   const employeesStr = JSON.stringify(card.employees ?? []);
-
-  // DATE BOUNDARY CLAMPING ENGINE
-  const employeesStr = JSON.stringify(card.employees ?? []);
   useEffect(() => {
     if (viewOnly) return; // SURGICAL LOCK: Do not allow engine to modify state if viewOnly
     const currentEmps = card.employees ?? [];
