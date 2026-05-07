@@ -601,46 +601,6 @@ export default function RoomCard({
   const activeTab: PricingTab = card.pricingTab ?? 'per_bed'
   const employees = card.employees ?? []
 
-  /* --- SURGICAL FIX: LOCKED TOTAL DATE SCALING ENGINE (DISABLED) ---
-  useEffect(() => {
-    if (viewOnly) return; 
-    
-    // Only run if the price is actually locked and we are in the total_room tab
-    if (activeTab === 'total_room' && card.basePrice && card.baseNights && card.baseRoomPrice) {
-      
-      // Use lastSyncedEndDate to detect a REAL date change, not just a render
-      if (card.lastSyncedEndDate && durationEnd !== card.lastSyncedEndDate) {
-        
-        // 1. Calculate the extension ratio based on the safely LOCKED baseNights
-        const ratio = nights / card.baseNights;
-
-        // 2. Scale the room base price (strip MwSt to get Netto)
-        const roomMwst = Number(card.totalMwst) || 0;
-        const baseRoomNetto = roomMwst > 0 ? card.baseRoomPrice / (1 + roomMwst / 100) : card.baseRoomPrice;
-        const scaledRoomNetto = Number((baseRoomNetto * ratio).toFixed(2));
-        const scaledRoomBrutto = Number((scaledRoomNetto * (1 + roomMwst / 100)).toFixed(2));
-
-        // 3. Scale the energy base price (if it exists)
-        const energyMwst = Number(card.totalEnergyMwst) || 0;
-        const baseEnergyPrice = card.baseEnergyPrice || 0;
-        const baseEnergyNetto = energyMwst > 0 ? baseEnergyPrice / (1 + energyMwst / 100) : baseEnergyPrice;
-        const scaledEnergyNetto = Number((baseEnergyNetto * ratio).toFixed(2));
-        const scaledEnergyBrutto = Number((scaledEnergyNetto * (1 + energyMwst / 100)).toFixed(2));
-
-        // 4. Update the active totals, and ONLY update the sync date to prevent loops.
-        // NEVER touch basePrice, baseNights, baseRoomPrice, or baseEnergyPrice!
-        queueSave({
-          totalNetto: scaledRoomNetto,
-          totalBrutto: scaledRoomBrutto,
-          totalEnergyNetto: scaledEnergyNetto > 0 ? scaledEnergyNetto : null,
-          totalEnergyBrutto: scaledEnergyBrutto > 0 ? scaledEnergyBrutto : null,
-          lastSyncedEndDate: durationEnd // <--- This stops the loop without breaking the lock
-        });
-      }
-    }
-  }, [durationEnd, card.lastSyncedEndDate, nights, card.baseNights, activeTab, viewOnly]);
-  ------------------------------------------------------------------- */
-
   // DATE BOUNDARY CLAMPING ENGINE
   const employeesStr = JSON.stringify(card.employees ?? []);
 
