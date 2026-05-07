@@ -165,6 +165,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   // SURGICAL FIX: Draft state for safe editing
   const [invoiceDraft, setInvoiceDraft] = useState<any>(null);
   const [isAddingInvoice, setIsAddingInvoice] = useState(false);
+  const [invoiceFilter, setInvoiceFilter] = useState<'all' | 'paid' | 'unpaid'>('all'); // SURGICAL FIX: Invoice Filter State
 
   const [isBookmarked, setIsBookmarked] = useState(() => {
     try { return JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]').includes(entry.id); } catch { return false; }
@@ -499,6 +500,17 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
   const targetOptions = lang === 'de' ? ['Gesamt Netto', 'Gesamt Brutto'] : ['Total Netto', 'Total Brutto'];
   const currentTarget = localHotel.global_discount_target === 'brutto' ? targetOptions[1] : targetOptions[0];
+  // SURGICAL FIX: Compute counts and filter the invoice list
+  const totalInvs = (localHotel.invoices || []).length;
+  const paidInvs = (localHotel.invoices || []).filter((i: any) => i.isPaid).length;
+  const unpaidInvs = totalInvs - paidInvs;
+  
+  const filteredInvoices = (localHotel.invoices || []).filter((inv: any) => {
+     if (inv.id === editingInvoiceId) return true; // Safety: Never hide the invoice currently being edited
+     if (invoiceFilter === 'paid') return inv.isPaid;
+     if (invoiceFilter === 'unpaid') return !inv.isPaid;
+     return true;
+  });
   return (
     /* FIXED: Removed hover:z-[110] to stop internal dropdown conflicts */
     <div className="space-y-1 relative" style={{ zIndex: 40 - (index % 30) }}>
@@ -728,10 +740,26 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             <div className={cn("rounded-2xl border flex flex-col xl:flex-row shadow-md", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}>
 
             {/* 1. DYNAMIC INVOICE LEDGER */}
-            <div className={cn("w-full xl:w-[300px] shrink-0 p-5 flex flex-col gap-3 border-b xl:border-b-0 xl:border-r rounded-tl-2xl rounded-bl-2xl", dk ? "border-white/10 bg-[#0F172A]/50" : "border-slate-200 bg-slate-50/50")}>
-                <div className="flex items-center justify-between mb-1">
-                   <label className={labelCls}><Receipt size={12}/> {lang === 'de' ? 'Rechnungsnr.' : 'Invoice No.'}</label>
-                   {!viewOnly && (
+                <div className={cn("w-full xl:w-[310px] shrink-0 p-5 flex flex-col gap-3 border-b xl:border-b-0 xl:border-r rounded-tl-2xl rounded-bl-2xl", dk ? "border-white/10 bg-[#0F172A]/50" : "border-slate-200 bg-slate-50/50")}>
+                    <div className="flex items-center justify-between mb-1">
+                       <label className={labelCls}><Receipt size={12}/> {lang === 'de' ? 'Rechn.' : 'Inv.'}</label>
+                       
+                       {/* SURGICAL FIX: The Mini Dashboard Filter */}
+                       {totalInvs > 0 && (
+                         <div className={cn("flex items-center gap-1.5 px-1.5 py-0.5 rounded-md border shadow-sm", dk ? "bg-black/20 border-white/5" : "bg-white border-slate-200/60")}>
+                           <button onClick={() => setInvoiceFilter('all')} className={cn("flex items-center gap-1 text-[10px] font-black transition-colors px-1", invoiceFilter === 'all' ? (dk ? "text-white" : "text-slate-800") : "text-slate-400 hover:text-slate-600")} title="All">
+                             <FileText size={10} /> {totalInvs}
+                           </button>
+                           <button onClick={() => setInvoiceFilter('paid')} className={cn("flex items-center gap-1 text-[10px] font-black transition-colors px-1 border-l", dk ? "border-white/10" : "border-slate-200", invoiceFilter === 'paid' ? "text-emerald-500" : "text-slate-400 hover:text-emerald-500")} title="Paid">
+                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {paidInvs}
+                           </button>
+                           <button onClick={() => setInvoiceFilter('unpaid')} className={cn("flex items-center gap-1 text-[10px] font-black transition-colors px-1 border-l", dk ? "border-white/10" : "border-slate-200", invoiceFilter === 'unpaid' ? "text-red-500" : "text-slate-400 hover:text-red-500")} title="Unpaid">
+                             <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> {unpaidInvs}
+                           </button>
+                         </div>
+                       )}
+
+                       {!viewOnly && (
                      <button 
                        onClick={() => {
                          const newId = Math.random().toString();
@@ -774,11 +802,16 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       </div>
                    )}
 
-                   {(localHotel.invoices || []).length === 0 && !isAddingInvoice ? (
-                     <p className="text-[11px] font-medium italic text-slate-400 mt-2">{lang === 'de' ? 'Keine Rechnungen' : 'No invoices'}</p>
-                   ) : (
-                     localHotel.invoices.map((inv: any) => {
-                       const isEditing = editingInvoiceId === inv.id;
+                   {/* SURGICAL FIX: Map over filteredInvoices instead of localHotel.invoices */}
+                       {filteredInvoices.length === 0 && !isAddingInvoice ? (
+                         <p className="text-[11px] font-medium italic text-slate-400 mt-2">
+                           {totalInvs === 0 
+                             ? (lang === 'de' ? 'Keine Rechnungen' : 'No invoices') 
+                             : (lang === 'de' ? 'Keine Treffer' : 'No matches')}
+                         </p>
+                       ) : (
+                         filteredInvoices.map((inv: any) => {
+                           const isEditing = editingInvoiceId === inv.id;
                        
                        /* --- EXPANDED EDIT MODE (Safe Draft) --- */
                        if (isEditing && invoiceDraft) {
