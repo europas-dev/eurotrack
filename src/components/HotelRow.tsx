@@ -741,39 +741,59 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
             {/* 1. DYNAMIC INVOICE LEDGER */}
                 <div className={cn("w-full xl:w-[310px] shrink-0 p-5 flex flex-col gap-3 border-b xl:border-b-0 xl:border-r rounded-tl-2xl rounded-bl-2xl", dk ? "border-white/10 bg-[#0F172A]/50" : "border-slate-200 bg-slate-50/50")}>
-                    <div className="flex items-center justify-between mb-1">
-                       <label className={labelCls}><Receipt size={12}/> {lang === 'de' ? 'Rechn.' : 'Inv.'}</label>
+                    
+                    <div className="flex items-center justify-between mb-2">
+                       <label className={labelCls}><Receipt size={14}/> {lang === 'de' ? 'Rechnungen' : 'Invoices'}</label>
                        
-                       {/* SURGICAL FIX: The Mini Dashboard Filter */}
-                       {totalInvs > 0 && (
-                         <div className={cn("flex items-center gap-1.5 px-1.5 py-0.5 rounded-md border shadow-sm", dk ? "bg-black/20 border-white/5" : "bg-white border-slate-200/60")}>
-                           <button onClick={() => setInvoiceFilter('all')} className={cn("flex items-center gap-1 text-[10px] font-black transition-colors px-1", invoiceFilter === 'all' ? (dk ? "text-white" : "text-slate-800") : "text-slate-400 hover:text-slate-600")} title="All">
-                             <FileText size={10} /> {totalInvs}
-                           </button>
-                           <button onClick={() => setInvoiceFilter('paid')} className={cn("flex items-center gap-1 text-[10px] font-black transition-colors px-1 border-l", dk ? "border-white/10" : "border-slate-200", invoiceFilter === 'paid' ? "text-emerald-500" : "text-slate-400 hover:text-emerald-500")} title="Paid">
-                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {paidInvs}
-                           </button>
-                           <button onClick={() => setInvoiceFilter('unpaid')} className={cn("flex items-center gap-1 text-[10px] font-black transition-colors px-1 border-l", dk ? "border-white/10" : "border-slate-200", invoiceFilter === 'unpaid' ? "text-red-500" : "text-slate-400 hover:text-red-500")} title="Unpaid">
-                             <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> {unpaidInvs}
-                           </button>
-                         </div>
-                       )}
+                       <div className="flex items-center gap-2">
+                           {/* SURGICAL FIX: Upgraded Mini Dashboard Filter */}
+                           {totalInvs > 0 && (
+                             <div className={cn("flex items-center rounded-lg border shadow-sm overflow-hidden", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
+                               <button 
+                                 onClick={() => setInvoiceFilter('all')} 
+                                 className={cn("flex items-center gap-1.5 text-[11px] font-black transition-colors px-2.5 py-1", invoiceFilter === 'all' ? (dk ? "bg-white/10 text-white" : "bg-slate-100 text-slate-800") : "text-slate-400 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-white/5")} 
+                                 title={lang === 'de' ? 'Alle' : 'All'}
+                               >
+                                 <FileText size={11} className={invoiceFilter === 'all' ? "opacity-100" : "opacity-60"} /> {totalInvs}
+                               </button>
+                               
+                               <div className={cn("w-px h-3.5", dk ? "bg-white/10" : "bg-slate-200")} />
+                               
+                               <button 
+                                 onClick={() => setInvoiceFilter('paid')} 
+                                 className={cn("flex items-center gap-1.5 text-[11px] font-black transition-colors px-2.5 py-1", invoiceFilter === 'paid' ? (dk ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600") : "text-slate-400 hover:text-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-500/10")} 
+                                 title={lang === 'de' ? 'Bezahlt' : 'Paid'}
+                               >
+                                 <span className="w-2 h-2 rounded-full shrink-0 bg-emerald-500" /> {paidInvs}
+                               </button>
+                               
+                               <div className={cn("w-px h-3.5", dk ? "bg-white/10" : "bg-slate-200")} />
+                               
+                               <button 
+                                 onClick={() => setInvoiceFilter('unpaid')} 
+                                 className={cn("flex items-center gap-1.5 text-[11px] font-black transition-colors px-2.5 py-1", invoiceFilter === 'unpaid' ? (dk ? "bg-red-500/10 text-red-400" : "bg-red-50 text-red-600") : "text-slate-400 hover:text-red-500 hover:bg-red-50/50 dark:hover:bg-red-500/10")} 
+                                 title={lang === 'de' ? 'Offen' : 'Unpaid'}
+                               >
+                                 <span className="w-2 h-2 rounded-full shrink-0 bg-red-500" /> {unpaidInvs}
+                               </button>
+                             </div>
+                           )}
 
-                       {!viewOnly && (
-                     <button 
-                       onClick={() => {
-                         const newId = Math.random().toString();
-                         // SURGICAL FIX: Add isPaid: false by default
-                         const newInv = { id: newId, number: '', note: '', isPaid: false };
-                         patchHotel({ invoices: [newInv, ...(localHotel.invoices || [])] });
-                         setEditingInvoiceId(newId);
-                       }}
-                       className="p-1.5 rounded-md text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-500/20 transition-all"
-                     >
-                       <Plus size={14} strokeWidth={3} />
-                     </button>
-                   )}
-                </div>
+                           {!viewOnly && (
+                             <button 
+                               onClick={() => {
+                                 // SURGICAL FIX: Open Draft Mode safely without saving to DB yet
+                                 setIsAddingInvoice(true);
+                                 setEditingInvoiceId(null);
+                                 setInvoiceDraft({ id: Math.random().toString(), number: '', note: '', isPaid: false });
+                               }}
+                               className="p-1.5 rounded-md text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-500/20 transition-all shrink-0"
+                             >
+                               <Plus size={14} strokeWidth={3} />
+                             </button>
+                           )}
+                       </div>
+                    </div>
                 
                 {/* Scrollbar styled with Webkit classes, capped max-height so it scrolls instead of breaking layout */}
                 <div className="flex-1 overflow-y-auto space-y-2 pr-2 max-h-[160px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
