@@ -305,15 +305,16 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
         lastSyncedEndDate: local.endDate
       };
 
+      // SURGICAL FIX: Send camelCase keys so supabase.ts can read them!
       enqueue({
       type: 'updateRoomCard',
       payload: {
         id: card.id,
-        total_netto: newTotalNetto,           // ✅ Changed
-        total_brutto: newTotalBrutto,         // ✅ Changed
-        total_energy_netto: newEnergyNetto,   // ✅ Changed
-        total_energy_brutto: newEnergyBrutto, // ✅ Changed
-        last_synced_end_date: local.endDate   // ✅ Changed
+        totalNetto: newTotalNetto,
+        totalBrutto: newTotalBrutto,
+        totalEnergyNetto: newEnergyNetto,
+        totalEnergyBrutto: newEnergyBrutto,
+        lastSyncedEndDate: local.endDate
       }
     }).catch(err => {
       console.error('❌ SYNC FAILED for card', card.id, ':', err);
