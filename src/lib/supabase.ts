@@ -333,8 +333,12 @@ export async function updateRoomCard(id: string, data: any) {
   if (data.totalDiscountValue !== undefined) payload['totalDiscountValue'] = data.totalDiscountValue;
 
   // ✅ ADD THESE NEW FIELDS
+  // ✅ ADD THESE NEW FIELDS
   if (data.basePrice !== undefined) payload.base_price = data.basePrice;
   if (data.baseNights !== undefined) payload.base_nights = data.baseNights;
+  // SURGICAL FIX: Add the missing split base fields so they actually save
+  if (data.baseRoomPrice !== undefined) payload.base_room_price = data.baseRoomPrice;
+  if (data.baseEnergyPrice !== undefined) payload.base_energy_price = data.baseEnergyPrice;
   if (data.lastSyncedEndDate !== undefined) payload.last_synced_end_date = data.lastSyncedEndDate;
 
   if (Object.keys(payload).length > 0) {
