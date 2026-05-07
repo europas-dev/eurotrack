@@ -275,9 +275,16 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
 
     if (card.pricingTab === 'total_room' && originalBaseNights > 0 && card.basePrice != null) {
       
-      // ✅ Use the LOCKED room and energy brutto directly
-      const baseRoomBrutto = card.baseRoomPrice || card.basePrice;
-      const baseEnergyBrutto = card.baseEnergyPrice || 0;
+      let baseRoomBrutto = card.baseRoomPrice;
+      let baseEnergyBrutto = card.baseEnergyPrice || 0;
+
+      // BULLETPROOF FALLBACK: If state dropped the split price, reverse-engineer it cleanly!
+      if (baseRoomBrutto == null) {
+          const energyMwst = Number(card.totalEnergyMwst) || 0;
+          const currentEnergyNetto = Number(card.totalEnergyNetto) || 0;
+          baseEnergyBrutto = currentEnergyNetto * (1 + energyMwst / 100);
+          baseRoomBrutto = card.basePrice - baseEnergyBrutto; // Safely strip energy from the grand total
+      }
       
       // ✅ Calculate per-night rates from brutto
       const roomPerNight = baseRoomBrutto / originalBaseNights;
