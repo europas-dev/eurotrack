@@ -726,7 +726,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
             <div className={cn("rounded-2xl border flex flex-col xl:flex-row shadow-md", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}>
 
-                {/* 1. DYNAMIC INVOICE LEDGER */}
+            {/* 1. DYNAMIC INVOICE LEDGER */}
             <div className={cn("w-full xl:w-[300px] shrink-0 p-5 flex flex-col gap-3 border-b xl:border-b-0 xl:border-r rounded-tl-2xl rounded-bl-2xl", dk ? "border-white/10 bg-[#0F172A]/50" : "border-slate-200 bg-slate-50/50")}>
                 <div className="flex items-center justify-between mb-1">
                    <label className={labelCls}><Receipt size={12}/> {lang === 'de' ? 'Rechnungsnr.' : 'Invoice No.'}</label>
@@ -857,6 +857,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                      })
                    )}
                 </div>
+              </div>
               
                 {/* 2. MIDDLE COLUMN (Base Costs & Extras) */}
                 <div className="flex-1 p-5 flex flex-col gap-5 min-w-[320px]">
