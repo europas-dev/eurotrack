@@ -601,7 +601,7 @@ export default function RoomCard({
   const activeTab: PricingTab = card.pricingTab ?? 'per_bed'
   const employees = card.employees ?? []
 
-  // --- SURGICAL FIX: LOCKED TOTAL DATE SCALING ENGINE ---
+  /* --- SURGICAL FIX: LOCKED TOTAL DATE SCALING ENGINE (DISABLED) ---
   useEffect(() => {
     if (viewOnly) return; 
     
@@ -639,6 +639,10 @@ export default function RoomCard({
       }
     }
   }, [durationEnd, card.lastSyncedEndDate, nights, card.baseNights, activeTab, viewOnly]);
+  ------------------------------------------------------------------- */
+
+  // DATE BOUNDARY CLAMPING ENGINE
+  const employeesStr = JSON.stringify(card.employees ?? []);
 
   // DATE BOUNDARY CLAMPING ENGINE
   const employeesStr = JSON.stringify(card.employees ?? []);
