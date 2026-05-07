@@ -175,9 +175,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     durations: entry?.durations ?? [],
     extraCosts: entry?.extra_costs ?? [],
     baseCosts: initialBaseCosts,
-    // NEW: Handle dynamic invoices array
+    // SURGICAL FIX: Handle legacy invoices and inherit the master paid status
     invoices: Array.isArray(entry?.invoices) ? entry.invoices : 
-             (entry?.rechnung_nr ? [{ id: 'init', number: entry.rechnung_nr, note: '' }] : [])
+             (entry?.rechnung_nr ? [{ id: 'init', number: entry.rechnung_nr, note: '', isPaid: entry.is_paid || entry.isPaid || false }] : [])
   });
   
   const [saving, setSaving] = useState(false);
@@ -378,7 +378,20 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
   function patchHotel(changes: any) {
     if (viewOnly) return; 
-    const next = { ...localHotel, ...changes };
+    
+    let next = { ...localHotel, ...changes };
+    
+    // --- SURGICAL FIX: Smart Invoice Status Sync ---
+    // If invoices are updated, recalculate the Master Paid status automatically
+    if ('invoices' in changes) {
+       const hasInvs = next.invoices && next.invoices.length > 0;
+       if (hasInvs) {
+          const allPaid = next.invoices.every((inv: any) => inv.isPaid);
+          next.isPaid = allPaid;
+          changes.isPaid = allPaid; // Force it to save to Supabase!
+       }
+    }
+    
     setLocalHotel(next);
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
@@ -715,7 +728,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                      <button 
                        onClick={() => {
                          const newId = Math.random().toString();
-                         const newInv = { id: newId, number: '', note: '' };
+                         // SURGICAL FIX: Add isPaid: false by default
+                         const newInv = { id: newId, number: '', note: '', isPaid: false };
                          patchHotel({ invoices: [newInv, ...(localHotel.invoices || [])] });
                          setEditingInvoiceId(newId);
                        }}
@@ -746,6 +760,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                      className={cn("w-full text-[12px] font-black border-none bg-transparent outline-none p-0 placeholder:opacity-30", dk ? "text-white" : "text-slate-900")}
                                      placeholder="RE-..."
                                    />
+                                   {/* SURGICAL FIX: Invoice Paid Toggle Button */}
+                                   <button 
+                                      onClick={() => patchHotel({ invoices: localHotel.invoices.map((i: any) => i.id === inv.id ? { ...i, isPaid: !i.isPaid } : i) })} 
+                                      className={cn("px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider transition-colors", inv.isPaid ? "bg-emerald-500/20 text-emerald-500" : "bg-slate-200 dark:bg-slate-700 text-slate-500")}
+                                   >
+                                      {inv.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid')}
+                                   </button>
                                    <button onClick={() => setEditingInvoiceId(null)} className="p-1 text-teal-500 hover:bg-teal-500/10 rounded transition-all"><Check size={12}/></button>
                                    <button onClick={() => {
                                       patchHotel({ invoices: localHotel.invoices.filter((i: any) => i.id !== inv.id) });
@@ -784,9 +805,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                       </div>
                                    </div>
                                 )}
-                                <span className={cn("text-[11px] font-bold truncate", dk ? "text-slate-300" : "text-slate-700")}>
-                                   <HighlightText text={inv.number || (lang === 'de' ? 'Unbenannt' : 'Unnamed')} query={searchScope === 'all' || searchScope === 'invoice' ? searchQuery : ''} />
-                                </span>
+                                <div className="flex items-center gap-1.5 overflow-hidden">
+                                   {/* SURGICAL FIX: Visual status dot for invoice */}
+                                   <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", inv.isPaid ? "bg-emerald-500" : "bg-red-500")} />
+                                   <span className={cn("text-[11px] font-bold truncate", dk ? "text-slate-300" : "text-slate-700")}>
+                                      <HighlightText text={inv.number || (lang === 'de' ? 'Unbenannt' : 'Unnamed')} query={searchScope === 'all' || searchScope === 'invoice' ? searchQuery : ''} />
+                                   </span>
+                                </div>
                              </div>
                              {!viewOnly && (
                                 <button onClick={() => setEditingInvoiceId(inv.id)} className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-teal-500 transition-all shrink-0">
@@ -902,7 +927,16 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                             <input disabled={viewOnly} type="number" value={localHotel.depositAmount || ''} onChange={e => patchHotel({depositAmount: e.target.value === '' ? null : e.target.value})} className={cn(inputCls, 'w-[100px] h-[34px] px-2 text-xs text-amber-500 border-amber-500/30')} placeholder="0.00" />
                          ) : null}
                       </div>
-                      <button disabled={viewOnly} onClick={() => patchHotel({isPaid: !localHotel.isPaid})} className={cn("px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all border h-[34px]", localHotel.isPaid ? "bg-emerald-500/20 text-emerald-500 border-emerald-500/40" : "bg-red-500/10 text-red-500 border-red-500/30")}>
+                      {/* SURGICAL FIX: Master Toggle locks if invoices exist */}
+                      <button 
+                        disabled={viewOnly || (localHotel.invoices && localHotel.invoices.length > 0)} 
+                        onClick={() => patchHotel({isPaid: !localHotel.isPaid})} 
+                        title={(localHotel.invoices && localHotel.invoices.length > 0) ? (lang === 'de' ? 'Status wird durch Rechnungen gesteuert' : 'Status is controlled by invoices') : ''}
+                        className={cn(
+                          "px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all border h-[34px]", 
+                          localHotel.isPaid ? "bg-emerald-500/20 text-emerald-500 border-emerald-500/40" : "bg-red-500/10 text-red-500 border-red-500/30",
+                          (localHotel.invoices && localHotel.invoices.length > 0) && "opacity-50 cursor-not-allowed"
+                        )}>
                          {localHotel.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid')}
                       </button>
                    </div>
