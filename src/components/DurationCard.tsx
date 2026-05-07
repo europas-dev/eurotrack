@@ -268,74 +268,65 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
   //Sync Function
 
  function handleSyncAllPrices() {
-  if (viewOnly || !showSync) return;
+    if (viewOnly || !showSync) return;
 
-  const updatedCards = roomCards.map(card => {
-    const originalBaseNights = Number(card.baseNights);
-
-    if (card.pricingTab === 'total_room' && originalBaseNights > 0 && card.basePrice != null) {
+    const updatedCards = roomCards.map(card => {
       
-      let baseRoomBrutto = card.baseRoomPrice;
-      let baseEnergyBrutto = card.baseEnergyPrice || 0;
+      // Check if it's a locked total_room tab AND has our split base prices saved
+      if (card.pricingTab === 'total_room' && card.basePrice && card.baseNights && card.baseRoomPrice) {
+        
+        // --- TRANSPLANTED FROM THE FLAWLESS USE-EFFECT ---
+        
+        // 1. Calculate the extension ratio based on the safely LOCKED baseNights
+        const ratio = nights / card.baseNights;
 
-      // BULLETPROOF FALLBACK: If state dropped the split price, reverse-engineer it cleanly!
-      if (baseRoomBrutto == null) {
-          const energyMwst = Number(card.totalEnergyMwst) || 0;
-          const currentEnergyNetto = Number(card.totalEnergyNetto) || 0;
-          baseEnergyBrutto = currentEnergyNetto * (1 + energyMwst / 100);
-          baseRoomBrutto = card.basePrice - baseEnergyBrutto; // Safely strip energy from the grand total
+        // 2. Scale the room base price (strip MwSt to get Netto)
+        const roomMwst = Number(card.totalMwst) || 0;
+        const baseRoomNetto = roomMwst > 0 ? card.baseRoomPrice / (1 + roomMwst / 100) : card.baseRoomPrice;
+        const scaledRoomNetto = Number((baseRoomNetto * ratio).toFixed(2));
+        const scaledRoomBrutto = Number((scaledRoomNetto * (1 + roomMwst / 100)).toFixed(2));
+
+        // 3. Scale the energy base price (if it exists)
+        const energyMwst = Number(card.totalEnergyMwst) || 0;
+        const baseEnergyPrice = card.baseEnergyPrice || 0;
+        const baseEnergyNetto = energyMwst > 0 ? baseEnergyPrice / (1 + energyMwst / 100) : baseEnergyPrice;
+        const scaledEnergyNetto = Number((baseEnergyNetto * ratio).toFixed(2));
+        const scaledEnergyBrutto = Number((scaledEnergyNetto * (1 + energyMwst / 100)).toFixed(2));
+
+        // 4. Build the updated card
+        const updatedCard = {
+          ...card,
+          totalNetto: scaledRoomNetto,
+          totalBrutto: scaledRoomBrutto,
+          totalEnergyNetto: scaledEnergyNetto > 0 ? scaledEnergyNetto : null,
+          totalEnergyBrutto: scaledEnergyBrutto > 0 ? scaledEnergyBrutto : null,
+          lastSyncedEndDate: local.endDate
+        };
+
+        // 5. Send the perfect camelCase payload to the database
+        enqueue({
+          type: 'updateRoomCard',
+          payload: {
+            id: card.id,
+            totalNetto: scaledRoomNetto,
+            totalBrutto: scaledRoomBrutto,
+            totalEnergyNetto: scaledEnergyNetto > 0 ? scaledEnergyNetto : null,
+            totalEnergyBrutto: scaledEnergyBrutto > 0 ? scaledEnergyBrutto : null,
+            lastSyncedEndDate: local.endDate
+          }
+        }).catch(err => {
+          console.error('❌ SYNC FAILED for card', card.id, ':', err);
+        });
+
+        return updatedCard;
       }
-      
-      // ✅ Calculate per-night rates from brutto
-      const roomPerNight = baseRoomBrutto / originalBaseNights;
-      const energyPerNight = baseEnergyBrutto / originalBaseNights;
-      
-      // ✅ Apply to new nights
-      const newRoomBrutto = Number((roomPerNight * nights).toFixed(2));
-      const newEnergyBrutto = Number((energyPerNight * nights).toFixed(2));
-      const newTotalBrutto = newRoomBrutto + newEnergyBrutto;
 
-      // ✅ Calculate netto from the NEW brutto using the LOCKED mwst rates
-      const roomMwst = Number(card.totalMwst) || 0;
-      const energyMwst = Number(card.totalEnergyMwst) || 0;
-      
-      const newRoomNetto = Number((newRoomBrutto / (1 + roomMwst / 100)).toFixed(2));
-      const newEnergyNetto = Number((newEnergyBrutto / (1 + energyMwst / 100)).toFixed(2));
-      const newTotalNetto = Number((newRoomNetto + newEnergyNetto).toFixed(2));
-
-      const updatedCard = {
-        ...card,
-        totalNetto: newTotalNetto,
-        totalBrutto: newTotalBrutto,
-        totalEnergyNetto: newEnergyNetto,
-        totalEnergyBrutto: newEnergyBrutto,
-        lastSyncedEndDate: local.endDate
-      };
-
-      // SURGICAL FIX: Send camelCase keys so supabase.ts can read them!
-      enqueue({
-      type: 'updateRoomCard',
-      payload: {
-        id: card.id,
-        totalNetto: newTotalNetto,
-        totalBrutto: newTotalBrutto,
-        totalEnergyNetto: newEnergyNetto,
-        totalEnergyBrutto: newEnergyBrutto,
-        lastSyncedEndDate: local.endDate
-      }
-    }).catch(err => {
-      console.error('❌ SYNC FAILED for card', card.id, ':', err);
+      return card;
     });
 
-      return updatedCard;
-    }
-
-    return card;
-  });
-
-  setRoomCards(updatedCards);
-  syncRoomCardsToParent(updatedCards);
-}
+    setRoomCards(updatedCards);
+    syncRoomCardsToParent(updatedCards);
+  }
   
   function forceDMY(isoString: string | null | undefined) {
     if (!isoString) return 'dd/mm/yyyy';
