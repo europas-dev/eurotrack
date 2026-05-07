@@ -7,7 +7,7 @@ import {
 import {
   cn, calculateNights, formatCurrency, calcDurationFreeBeds
 } from '../lib/utils'
-import { calcRoomCardTotal } from '../lib/roomCardUtils'
+import { calcRoomCardTotal, extractPricingFields } from '../lib/roomCardUtils'
 import { enqueue } from '../lib/offlineSync'
 import type { Duration, RoomCard } from '../lib/types'
 import RoomCardComponent from './RoomCard'
@@ -263,6 +263,41 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
     const n = roomCards.map(c => c.id === id ? { ...c, ...p } : c);
     setRoomCards(n);
     syncRoomCardsToParent(n);
+  }
+
+
+// SURGICAL FIX: The function that actually copies the data!
+  function handleApplyToSameType(sourceCard: RoomCard) {
+    if (viewOnly) return;
+    
+    // 1. Extract all the complex pricing from the source card
+    const pricingFields = extractPricingFields(sourceCard);
+    
+    // 2. Also grab our new lock fields so the sync toolkit works everywhere!
+    const lockFields = {
+        basePrice: sourceCard.basePrice,
+        baseRoomPrice: sourceCard.baseRoomPrice,
+        baseEnergyPrice: sourceCard.baseEnergyPrice,
+        baseNights: sourceCard.baseNights,
+        lastSyncedEndDate: sourceCard.lastSyncedEndDate
+    };
+
+    // 3. Find all matching rooms and apply the patch
+    const updatedCards = roomCards.map(c => {
+      if (c.roomType === sourceCard.roomType && c.id !== sourceCard.id) {
+        const patch = { ...pricingFields, ...lockFields };
+        
+        // Save to Supabase
+        enqueue({ type: 'updateRoomCard', payload: { id: c.id, ...patch } });
+        
+        // Update local UI
+        return { ...c, ...patch };
+      }
+      return c;
+    });
+
+    setRoomCards(updatedCards);
+    syncRoomCardsToParent(updatedCards);
   }
 
   //Sync Function
@@ -620,6 +655,7 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
             allCardsOfSameType={roomCards.filter(c => c.roomType === card.roomType)} 
             onUpdate={handleCardUpdate} 
             onDelete={handleCardDelete} 
+            onApplyToSameType={handleApplyToSameType}
             isMasterPricingActive={isMasterPricingActive} 
             viewOnly={viewOnly} 
             employeeOptions={employeeOptions}
