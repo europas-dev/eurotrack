@@ -231,6 +231,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [editingTotal, setEditingTotal] = useState(false);
   
   const [invoiceFilter, setInvoiceFilter] = useState<'all' | 'paid' | 'unpaid'>('all'); 
+  const [itemSearchQuery, setItemSearchQuery] = useState(''); // SURGICAL FIX: Master Search State
+  
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [activeDurationTab, setActiveDurationTab] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -457,6 +459,37 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
      return true;
   });
 
+  // --- SURGICAL FIX: Master View Search Filter ---
+  const filteredMasterInvoices = useMemo(() => {
+    if (!itemSearchQuery.trim()) return filteredInvoices;
+    const lowerQ = itemSearchQuery.toLowerCase();
+    
+    return filteredInvoices.map((inv: any) => {
+        const matchesInvNum = inv.number?.toLowerCase().includes(lowerQ);
+        
+        if (inv.billingMode === 'total') {
+            if (matchesInvNum || inv.totalNetto?.toString().includes(lowerQ) || inv.totalMwst?.toString().includes(lowerQ)) {
+                return inv;
+            }
+            return null;
+        }
+
+        const matchingItems = (inv.items || []).filter((item: any) => {
+            const typeText = getTranslation(COST_TYPES, item.type || 'room', lang).toLowerCase();
+            return typeText.includes(lowerQ) || 
+                   item.note?.toLowerCase().includes(lowerQ) ||
+                   item.netto?.toString().includes(lowerQ) ||
+                   item.brutto?.toString().includes(lowerQ) ||
+                   matchesInvNum; // If the invoice number matches, show all its items
+        });
+
+        if (matchingItems.length > 0) {
+            return { ...inv, items: matchingItems };
+        }
+        return null;
+    }).filter(Boolean);
+  }, [filteredInvoices, itemSearchQuery, lang]);
+
   return (
     <div className="space-y-1 relative" style={{ zIndex: 40 - (index % 30) }}>
       
@@ -678,7 +711,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                        <button onClick={() => { setSelectedInvoiceId(null); setEditingItemId(null); setEditingTotal(false); }} className="p-1 rounded bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-slate-500 transition-colors"><X size={14}/></button>
                                     </div>
                                     
-                                    {/* SURGICAL FIX: Billing Period Dates */}
                                     <div className="grid grid-cols-2 gap-2 mt-1">
                                        <div className="flex flex-col gap-0.5">
                                           <label className="text-[9px] uppercase font-bold text-slate-500 flex items-center gap-1"><Calendar size={10}/> Start</label>
@@ -690,7 +722,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                        </div>
                                     </div>
 
-                                    {/* SURGICAL FIX: Payment Status & Date */}
                                     <div className="flex items-center gap-2 mt-1">
                                        <button onClick={() => patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === inv.id ? {...i, isPaid: !i.isPaid} : i) })} className={cn("px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider transition-colors shrink-0", inv.isPaid ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-black/10 dark:bg-white/10 text-slate-500")}>
                                           {inv.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid')}
@@ -740,10 +771,27 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 {/* 2. THE SMART SPREADSHEET (Middle Column) */}
                 <div className="flex-1 p-0 flex flex-col min-w-[500px] bg-slate-50/50 dark:bg-[#0B1224]/30 z-10 border-r border-slate-200 dark:border-white/10">
                    <div className={cn("px-5 h-[50px] border-b flex items-center justify-between shrink-0", dk ? "border-white/10" : "border-slate-200", activeInvoice ? (dk ? "bg-[#1E293B]" : "bg-white") : "bg-transparent")}>
-                      <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                         {activeInvoice ? (lang === 'de' ? 'Rechnung Bearbeiten' : 'Edit Invoice') : (lang === 'de' ? 'Alle Posten (Übersicht)' : 'All Line Items')}
-                         {activeInvoice && activeInvoice.startDate && <span className="normal-case font-medium bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded text-slate-400">{formatShortDate(activeInvoice.startDate, lang)} - {formatShortDate(activeInvoice.endDate, lang)}</span>}
-                      </span>
+                      <div className="flex items-center gap-4 flex-1">
+                          <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                             {activeInvoice ? (lang === 'de' ? 'Rechnung Bearbeiten' : 'Edit Invoice') : (lang === 'de' ? 'Alle Posten (Übersicht)' : 'All Line Items')}
+                             {activeInvoice && activeInvoice.startDate && <span className="normal-case font-medium bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded text-slate-400">{formatShortDate(activeInvoice.startDate, lang)} - {formatShortDate(activeInvoice.endDate, lang)}</span>}
+                          </span>
+                          
+                          {/* SURGICAL FIX: The Global Master Search Bar */}
+                          {!activeInvoice && (
+                              <div className={cn("flex items-center px-2 py-1 rounded-md border w-48 max-w-sm transition-colors focus-within:border-teal-500", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
+                                  <Search size={12} className={dk ? "text-slate-500" : "text-slate-400"} />
+                                  <input 
+                                      value={itemSearchQuery} 
+                                      onChange={(e) => setItemSearchQuery(e.target.value)} 
+                                      className={cn("w-full bg-transparent border-none outline-none text-[11px] font-bold px-2 placeholder-slate-400 focus:ring-0", dk ? "text-white" : "text-slate-900")} 
+                                      placeholder={lang === 'de' ? "Suchen..." : "Search..."} 
+                                  />
+                                  {itemSearchQuery && <button onClick={() => setItemSearchQuery('')} className="text-slate-400 hover:text-slate-600"><X size={12}/></button>}
+                              </div>
+                          )}
+                      </div>
+
                       {activeInvoice && !viewOnly && (
                          <div className={cn("flex items-center p-0.5 rounded-lg border", dk ? "bg-black/40 border-white/10" : "bg-slate-100 border-slate-200")}>
                             <button onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, billingMode: 'total'} : i) }); setEditingTotal(false); setEditingItemId(null); }} className={cn("px-3 py-1 text-[10px] font-bold rounded-md transition-all", activeInvoice.billingMode === 'total' ? (dk ? "bg-teal-500 text-white" : "bg-white shadow-sm text-teal-700") : "text-slate-400 hover:text-slate-600")}>💰 {lang === 'de' ? 'Gesamtbetrag' : 'Total'}</button>
@@ -756,7 +804,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       {activeInvoice ? (
                          activeInvoice.billingMode === 'total' ? (
                             <div className="p-5">
-                               {/* SURGICAL FIX: View/Edit mode for Gesamtbetrag */}
                                <div className={cn("flex flex-wrap items-end gap-3 p-5 rounded-2xl border shadow-sm animate-in fade-in slide-in-from-top-2", dk ? "bg-[#1E293B] border-teal-500/30" : "bg-white border-teal-300")}>
                                   <div className="flex-1 min-w-[120px]">
                                      <label className={labelCls}>Netto</label>
@@ -783,7 +830,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                             </div>
                          ) : (
                             <div className="flex flex-col animate-in fade-in pb-5">
-                               {/* SURGICAL FIX: Sticky Header to prevent scrolling away */}
                                <div className={cn("sticky top-0 z-10 flex items-center gap-2 px-3 py-2 border-b", dk ? "bg-[#0B1224]/95 border-white/10 backdrop-blur-md" : "bg-slate-50/95 border-slate-200 backdrop-blur-md")}>
                                   <div className="w-[160px] text-[9px] font-black text-slate-400 uppercase tracking-widest">{lang === 'de' ? 'Kostenart' : 'Type'}</div>
                                   <div className="w-[80px] text-[9px] font-black text-slate-400 uppercase tracking-widest">Netto</div>
@@ -826,15 +872,17 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                <div className="w-[60px] text-[9px] font-black text-slate-400 uppercase tracking-widest">MwSt</div>
                                <div className="w-[80px] text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Brutto</div>
                             </div>
-                            {localHotel.invoices && localHotel.invoices.length > 0 ? localHotel.invoices.map((inv: any) => (
+                            {filteredMasterInvoices.length > 0 ? filteredMasterInvoices.map((inv: any) => (
                                <div key={inv.id} className="flex flex-col mb-4 px-3">
-                                  <span className="text-[10px] font-black text-teal-600 dark:text-teal-400 mb-1.5 px-1">{inv.number || 'Draft'}</span>
+                                  <span className="text-[10px] font-black text-teal-600 dark:text-teal-400 mb-1.5 px-1">
+                                     <HighlightText text={inv.number || 'Draft'} query={itemSearchQuery} />
+                                  </span>
                                   {inv.billingMode === 'total' ? (
                                      <div className="flex items-center gap-2 px-2 py-2 rounded-lg bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-white/10 shadow-sm">
                                         <div className="w-[140px] text-[11px] font-bold text-slate-600 dark:text-slate-300">{lang === 'de' ? 'Gesamtbetrag' : 'Total'}</div>
-                                        <div className="flex-1 text-[11px] font-bold text-slate-700 dark:text-slate-300">{formatCurrency(parseFloat(inv.totalNetto)||0)}</div>
+                                        <div className="flex-1 text-[11px] font-bold text-slate-700 dark:text-slate-300"><HighlightText text={formatCurrency(parseFloat(inv.totalNetto)||0)} query={itemSearchQuery} /></div>
                                         <div className="w-[60px] text-[11px] font-bold text-slate-500">{inv.totalMwst}%</div>
-                                        <div className="w-[80px] text-[11px] font-black text-slate-900 dark:text-white text-right">{formatCurrency((parseFloat(inv.totalNetto)||0) * (1 + (parseFloat(inv.totalMwst)||0)/100))}</div>
+                                        <div className="w-[80px] text-[11px] font-black text-slate-900 dark:text-white text-right"><HighlightText text={formatCurrency((parseFloat(inv.totalNetto)||0) * (1 + (parseFloat(inv.totalMwst)||0)/100))} query={itemSearchQuery} /></div>
                                      </div>
                                   ) : (
                                      <div className="flex flex-col rounded-lg border border-slate-200 dark:border-white/10 overflow-hidden bg-white dark:bg-[#1E293B] shadow-sm">
@@ -843,12 +891,15 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                            return (
                                               <div key={item.id} className="flex items-center gap-2 px-2 py-1.5 border-b border-slate-100 dark:border-white/5 last:border-0">
                                                  <div className="w-[140px] flex flex-col">
-                                                   <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{getTranslation(COST_TYPES, item.type || 'room', lang)}</span>
+                                                   <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">
+                                                      <HighlightText text={getTranslation(COST_TYPES, item.type || 'room', lang)} query={itemSearchQuery} />
+                                                   </span>
                                                    {item.method === 'per_bed' && <span className="text-[8px] text-slate-400 font-bold uppercase">{item.beds}🛏️ × {item.nights}🌙</span>}
+                                                   {item.note && <span className="text-[8px] italic text-slate-400 mt-0.5"><HighlightText text={item.note} query={itemSearchQuery} /></span>}
                                                  </div>
-                                                 <div className="flex-1 text-[11px] font-bold text-slate-700 dark:text-slate-300">{formatCurrency(finalNetto)}</div>
+                                                 <div className="flex-1 text-[11px] font-bold text-slate-700 dark:text-slate-300"><HighlightText text={formatCurrency(finalNetto)} query={itemSearchQuery} /></div>
                                                  <div className="w-[60px] text-[11px] font-bold text-slate-500">{mwst}%</div>
-                                                 <div className="w-[80px] text-[11px] font-black text-slate-900 dark:text-white text-right">{formatCurrency(brutto)}</div>
+                                                 <div className="w-[80px] text-[11px] font-black text-slate-900 dark:text-white text-right"><HighlightText text={formatCurrency(brutto)} query={itemSearchQuery} /></div>
                                               </div>
                                            )
                                         })}
@@ -857,7 +908,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                   )}
                                </div>
                             )) : (
-                               <p className="text-[11px] font-bold text-slate-400 italic mt-2 mx-5 text-center py-4 bg-slate-100 dark:bg-white/5 rounded-xl border border-dashed border-slate-300 dark:border-white/10">{lang === 'de' ? 'Keine Daten. Wähle eine Rechnung auf der linken Seite aus.' : 'No data. Select an invoice on the left.'}</p>
+                               <p className="text-[11px] font-bold text-slate-400 italic mt-2 mx-5 text-center py-4 bg-slate-100 dark:bg-white/5 rounded-xl border border-dashed border-slate-300 dark:border-white/10">
+                                   {itemSearchQuery ? (lang === 'de' ? 'Keine Ergebnisse für diese Suche.' : 'No results found.') : (lang === 'de' ? 'Keine Daten. Wähle eine Rechnung auf der linken Seite aus.' : 'No data. Select an invoice on the left.')}
+                               </p>
                             )}
                          </div>
                       )}
@@ -922,15 +975,16 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                             <span onClick={() => {!viewOnly && !activeInvoice && setEditingOBrutto(true);}} className={cn("text-[20px] font-black", masterMath.isOverriddenBrutto && !activeInvoice ? "text-yellow-500" : (dk ? "text-white" : "text-slate-900"), !viewOnly && !activeInvoice && "cursor-pointer rounded px-1 -mr-1 transition-colors hover:bg-black/5")}>{formatCurrency(activeInvoice ? masterMath.activeBrutto : masterMath.displayBrutto)}</span>
                          )}
                       </div>
-                      
-                      {!activeInvoice && (
-                         <div className="flex items-center justify-between gap-1.5 mt-auto pt-4 border-t border-slate-100 dark:border-white/10">
-                            <button disabled={viewOnly} onClick={() => patchHotel({depositEnabled: !localHotel.depositEnabled})} className={cn("px-2 py-1.5 text-[9px] font-black uppercase rounded-lg border transition-all", localHotel.depositEnabled ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30" : dk ? "border-white/10 text-slate-500 hover:text-white" : "border-slate-200 text-slate-400")}>{lang === 'de' ? 'Kaution' : 'Deposit'}</button>
-                            {localHotel.depositEnabled && (
-                               <input disabled={viewOnly} type="number" value={localHotel.depositAmount || ''} onChange={e => patchHotel({depositAmount: e.target.value === '' ? null : e.target.value})} className={cn(inputCls, 'w-[90px] h-[28px] px-2 text-[11px] text-amber-500 border-amber-500/30 font-black')} placeholder="0.00" />
-                            )}
-                         </div>
-                      )}
+                      <div className="flex justify-between items-center group w-full">
+                        <span className={cn("text-[11px] font-bold shrink-0", dk ? "text-slate-500" : "text-slate-400")}>{lang === 'de' ? 'Preis / Bett' : 'Price / Bed'}</span>
+                        {!viewOnly && editingPriceBed ? (
+                            <input autoFocus type="number" value={editPriceBedValue} onChange={e => setEditPriceBedValue(e.target.value)} onBlur={() => {patchHotel({override_price_per_bed: editPriceBedValue === '' ? null : editPriceBedValue}); setEditingPriceBed(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-20 text-right px-1 rounded bg-yellow-500/20 text-yellow-600 font-bold text-[14px] outline-none ml-auto")} />
+                        ) : (
+                            <span onClick={() => {!viewOnly && setEditingPriceBed(true);}} className={cn("text-[14px] font-bold", masterMath.isOverriddenBed && "text-yellow-600", !viewOnly && "cursor-pointer rounded px-1 -mr-1 transition-colors group-hover:bg-black/5 text-right ml-auto")}>
+                               {!masterMath.isOverriddenBed && masterMath.pricePerBed > 0 ? 'ab ' : ''}{formatCurrency(masterMath.pricePerBed)} / N {!viewOnly && <Edit3 size={11} className="opacity-0 group-hover:opacity-100 ml-1 inline-block"/>}
+                            </span>
+                        )}
+                      </div>
                    </div>
                 </div>
             </div>
