@@ -1,7 +1,7 @@
 // src/components/HotelRow.tsx
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, ChevronRight, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, FileText, Tag, Calculator, Edit3, PlusCircle, Ticket, Calendar, ChevronUp } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, FileText, Tag, Calculator, Edit3, PlusCircle, Ticket, Calendar } from 'lucide-react';
 import {
   cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatDateChip, formatLastUpdated, calculateNights, calcHotelTotalCost
 } from '../lib/utils';
@@ -72,12 +72,10 @@ export function calcInvoiceItem(item: any) {
   let finalNetto = 0;
   let brutto = 0;
 
-  // If user typed Brutto manually, Netto is auto-calculated backwards.
   if (item.brutto != null && item.brutto !== '') {
       brutto = parseFloat(item.brutto);
       finalNetto = brutto / (1 + mwst / 100);
   } else {
-      // Otherwise, standard forward math from Netto
       let baseNetto = parseFloat(item.netto) || 0;
       if (item.method === 'per_bed') {
         const beds = parseFloat(item.beds) || 1;
@@ -104,13 +102,11 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
   const hasNettoInput = item.netto != null && item.netto !== '';
   const hasBruttoInput = item.brutto != null && item.brutto !== '';
 
-  // STRICT EDIT MODE: Single Horizontal Line
   if (isEditing && !viewOnly) {
     const isPerBedAllowed = item.type === 'room' || item.type === 'energy' || item.type === 'tax';
     
     return (
       <div className={cn("flex items-center gap-1 p-1 border-b transition-all w-full", dk ? "bg-white/5 border-white/10" : "bg-slate-50 border-slate-200")}>
-        {/* TYPE */}
         <select value={item.type || 'room'} onChange={e => {
             const newType = e.target.value;
             const newMethod = (newType === 'base' || newType === 'extra') ? 'total' : item.method;
@@ -119,12 +115,10 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
           {COST_TYPES.map(o => <option key={o.id} value={o.id}>{lang === 'de' ? o.de : o.en}</option>)}
         </select>
 
-        {/* METHOD */}
         <select disabled={!isPerBedAllowed} value={!isPerBedAllowed ? 'total' : (item.method || 'total')} onChange={e => onChange({ method: e.target.value })} className={cn(inputClass, "w-[85px] shrink-0 disabled:opacity-50")}>
              {COST_METHODS.map(m => <option key={m.id} value={m.id}>{lang === 'de' ? m.de : m.en}</option>)}
         </select>
 
-        {/* BEDS & NIGHTS (Only if Per Bed) */}
         {item.method === 'per_bed' && isPerBedAllowed ? (
           <div className="flex items-center gap-0.5 shrink-0">
             <input type="number" title={lang === 'de' ? 'Betten' : 'Beds'} value={item.beds ?? 1} onChange={e => onChange({ beds: e.target.value })} className={cn(inputClass, "w-[38px] px-1 text-center")} placeholder="🛏️" />
@@ -135,10 +129,9 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
             </div>
           </div>
         ) : (
-          <div className="w-[90px] shrink-0" /> // Spacer to keep columns aligned
+          <div className="w-[90px] shrink-0" />
         )}
 
-        {/* NETTO (Locks if Brutto has value) */}
         <div className="relative w-[70px] shrink-0">
             <input type="number" disabled={hasBruttoInput} placeholder="Netto" value={item.netto ?? ''} onChange={e => onChange({ netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 disabled:bg-transparent")} />
             {(!showDiscount && !hasBruttoInput) && (
@@ -146,7 +139,6 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
             )}
         </div>
 
-        {/* DISCOUNT TOGGLE */}
         {showDiscount && !hasBruttoInput && (
             <div className="flex items-center w-[75px] shrink-0 transition-all animate-in fade-in zoom-in-95">
                <input type="number" value={item.discountValue ?? ''} onChange={e => onChange({ discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-full px-1.5")} placeholder="Rabatt" />
@@ -154,18 +146,14 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
             </div>
         )}
 
-        {/* MWST */}
         <select value={item.mwst ?? 7} onChange={e => onChange({ mwst: e.target.value })} className={cn(inputClass, "w-[50px] shrink-0 px-1 ml-auto")}>
             <option value="7">7%</option><option value="19">19%</option><option value="0">0%</option>
         </select>
 
-        {/* BRUTTO (Locks if Netto has value) */}
         <input type="number" disabled={hasNettoInput} placeholder="Brutto" value={item.brutto ?? ''} onChange={e => onChange({ brutto: e.target.value, netto: null })} className={cn(inputClass, "w-[75px] shrink-0 disabled:opacity-30 disabled:bg-transparent")} />
 
-        {/* NOTE */}
         <input value={item.note || ''} onChange={e => onChange({ note: e.target.value })} className={cn(inputClass, "flex-1 min-w-[60px]")} placeholder={lang === 'de' ? "Notiz..." : "Note..."} />
 
-        {/* ACTIONS */}
         <div className="flex items-center gap-1 shrink-0 ml-1">
            <button onClick={onSave} className="p-1 h-[26px] w-[26px] flex items-center justify-center text-white bg-teal-500 hover:bg-teal-600 rounded transition-all shadow-sm"><Check size={14} strokeWidth={3}/></button>
            <button onClick={onDelete} className="p-1 h-[26px] w-[26px] flex items-center justify-center text-white bg-red-500 hover:bg-red-600 rounded transition-all shadow-sm"><Trash2 size={12}/></button>
@@ -174,7 +162,6 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
     )
   }
 
-  // STRICT VIEW MODE: Compact Single Row
   return (
     <div className={cn("flex items-center gap-2 px-3 py-1.5 border-b last:border-b-0 transition-colors group", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
        <div className="w-[200px] flex items-center gap-1.5 shrink-0 overflow-hidden">
@@ -210,7 +197,6 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
   )
 }
 
-// --- SEAMLESS AUTOCOMPLETE INPUT ---
 function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, className, textClass, searchQuery, disabled }: any) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value || '');
@@ -242,7 +228,6 @@ function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, clas
   );
 }
 
-// --- MINI DROPDOWN COMPONENT FOR MWST ---
 function MwstInput({ value, onChange, isDarkMode, disabled }: { value: string | null, onChange: (v: string | null) => void, isDarkMode: boolean, disabled?: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -260,100 +245,6 @@ function MwstInput({ value, onChange, isDarkMode, disabled }: { value: string | 
   );
 }
 
-// --- COMPANY TAG MULTI-SELECT ---
-export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange, onDeleteOption, onAddOption, disabled, searchQuery }: any) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [localMemory, setLocalMemory] = useState<string[]>([]);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => { function handle(e: any) { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setQuery(''); } } document.addEventListener('mousedown', handle); return () => document.removeEventListener('mousedown', handle); }, []);
-  const safeOptions = Array.isArray(options) ? options : [];
-  const safeSelected = Array.isArray(selected) ? selected : (typeof selected === 'string' && selected ? [selected] : []);
-  const combinedOptions = Array.from(new Set([...safeOptions, ...localMemory]));
-  const filteredOptions = combinedOptions.filter((o: string) => o.toLowerCase().includes(query.toLowerCase()));
-  const exactMatchExists = combinedOptions.some((o: string) => o.toLowerCase() === query.trim().toLowerCase());
-  const isAlreadySelected = safeSelected.some((o: string) => o.toLowerCase() === query.trim().toLowerCase());
-  const handleToggle = (opt: string) => { if (disabled) return; onChange(safeSelected.includes(opt) ? safeSelected.filter((t: any) => t !== opt) : [...safeSelected, opt]); setQuery(''); };
-  const handleAddNew = async () => { if (disabled) return; const val = query.trim(); if (val && !isAlreadySelected) { setLocalMemory(prev => Array.from(new Set([...prev, val]))); onChange([...safeSelected, val]); setQuery(''); if (onAddOption) { await onAddOption(val); } } };
-  return (
-    <div ref={ref} className={cn("relative min-h-[30px] flex items-center w-full", disabled ? "cursor-default" : "cursor-pointer")} onClick={(e) => { if (disabled) return; e.stopPropagation(); setOpen(true); }}>
-      <div className="flex flex-wrap gap-1.5 w-full">
-        {safeSelected.length > 0 ? safeSelected.map((tag: string) => (
-          <span key={tag} className={cn('px-2.5 py-1 rounded-md text-xs font-bold border flex items-center gap-1.5 shadow-sm', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800')}>
-            <HighlightText text={tag} query={searchQuery} />
-          </span>
-        )) : <span className={cn("text-xs font-bold border border-dashed px-3 py-1 rounded-md transition-colors w-full flex items-center", isDarkMode ? "text-slate-500 border-white/20 hover:text-teal-400 hover:border-teal-400" : "text-slate-400 border-slate-300 hover:text-teal-600 hover:border-teal-500")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
-      </div>
-      {open && !disabled && (
-        <div className={cn('absolute top-full mt-2 left-0 z-[200] rounded-xl border shadow-xl min-w-[240px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')} onClick={e => e.stopPropagation()}>
-          <div className={cn("flex items-center px-3 py-2 border-b", isDarkMode ? "border-white/10 bg-[#1E293B]" : "border-slate-100 bg-slate-50")}>
-            <Search size={14} className={isDarkMode ? "text-slate-400" : "text-slate-500"} />
-            <input autoFocus value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAddNew(); }} placeholder={lang === 'de' ? "Suchen..." : "Search..."} className={cn("ml-2 bg-transparent text-sm font-bold outline-none w-full", isDarkMode ? "text-white placeholder:text-slate-500" : "text-slate-900 placeholder:text-slate-400")} />
-          </div>
-          <div className="max-h-48 overflow-y-auto no-scrollbar py-1">
-            {query.trim() && !exactMatchExists && !isAlreadySelected && (
-              <button onClick={handleAddNew} className={cn('w-full text-left px-4 py-2 text-sm font-bold flex items-center gap-2 transition-all', isDarkMode ? 'text-teal-400 hover:bg-white/10' : 'text-teal-600 hover:bg-teal-50')}><span className="opacity-70 text-xs">Create</span> "{query.trim()}"</button>
-            )}
-            {filteredOptions.map((opt: string) => {
-              const isSelected = safeSelected.includes(opt);
-              return (
-                <div key={opt} className={cn('w-full flex items-center justify-between group transition-all', isSelected ? (isDarkMode ? 'bg-teal-500/10' : 'bg-teal-50') : (isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'))}>
-                  <button onClick={() => handleToggle(opt)} className="flex-1 text-left px-4 py-2 text-sm font-bold flex items-center gap-2">
-                    <div className={cn("w-3.5 h-3.5 rounded flex items-center justify-center shrink-0 border", isSelected ? "bg-teal-500 border-teal-500" : isDarkMode ? "border-slate-500" : "border-slate-400")}>{isSelected && <Check size={10} className="text-white" strokeWidth={4} />}</div>
-                    <span className={cn(isSelected ? (isDarkMode ? 'text-teal-400' : 'text-teal-700') : (isDarkMode ? 'text-slate-300' : 'text-slate-700'))}>{opt}</span>
-                  </button>
-                  {onDeleteOption && (<button onClick={(e) => { e.stopPropagation(); onDeleteOption(opt); setLocalMemory(prev => prev.filter(m => m !== opt)); }} className="px-3 py-2 text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete from system"><Trash2 size={13} /></button>)}
-                </div>
-              )
-            })}
-            {filteredOptions.length === 0 && !query.trim() && (<div className="px-4 py-3 text-xs font-bold text-slate-500 text-center">{lang === 'de' ? 'Keine Firmen gefunden' : 'No companies found'}</div>)}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export function ModernDropdown({ value, options, onChange, isDarkMode, lang, placeholder = 'Select', allowAdd = true, disabled }: any) {
-  const [open, setOpen] = useState(false);
-  const [addingNew, setAddingNew] = useState(false);
-  const [newVal, setNewVal] = useState('');
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => { function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setAddingNew(false); setNewVal(''); } } document.addEventListener('mousedown', handle); return () => document.removeEventListener('mousedown', handle); }, []);
-  const displayValue = (val: string) => { if (lang !== 'de') return val; const de: any = { 'Germany': 'Deutschland', 'Switzerland': 'Schweiz', 'Austria': 'Österreich', 'Netherlands': 'Niederlande', 'Poland': 'Polen', 'Belgium': 'Belgien', 'France': 'Frankreich', 'Luxembourg': 'Luxemburg' }; return de[val] || val; };
-  return (
-    <div ref={ref} className="relative w-full h-[34px]">
-      <button disabled={disabled} onClick={() => setOpen(!open)} className={cn('w-full h-full px-3 flex items-center justify-between rounded-lg border text-sm font-bold outline-none transition-all', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white hover:border-teal-500' : 'bg-white border-slate-200 text-slate-900 hover:border-teal-500', disabled && "opacity-60 cursor-not-allowed")}>
-        <span className="truncate">{displayValue(value) || placeholder}</span>
-        <ChevronDown size={16} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
-      </button>
-      {open && !disabled && (
-        <div className={cn('absolute top-full mt-1 left-0 right-0 z-[200] rounded-xl border shadow-xl py-1 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
-          <div className="max-h-48 overflow-y-auto no-scrollbar">
-            {options.map((opt:any) => (
-              <button key={opt} onClick={() => { onChange(opt); setOpen(false); }} className={cn('w-full text-left px-4 py-2.5 text-sm font-bold transition-all', value === opt ? (isDarkMode ? 'bg-teal-500/20 text-teal-400' : 'bg-teal-50 text-teal-700') : (isDarkMode ? 'text-slate-300 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'))}>{displayValue(opt)}</button>
-            ))}
-          </div>
-          {allowAdd ? (
-            <>
-              <div className={cn('my-1 border-t', isDarkMode ? 'border-white/10' : 'border-slate-100')} />
-              {!addingNew ? (
-                <button onClick={() => setAddingNew(true)} className={cn('w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 transition-all', isDarkMode ? 'text-teal-400 hover:bg-white/10' : 'text-teal-600 hover:bg-teal-50')}><Plus size={16} strokeWidth={3} /> {lang === 'de' ? 'Neu hinzufügen' : 'Add New'}</button>
-              ) : (
-                <div className="px-3 py-2 flex items-center gap-2 bg-black/10 dark:bg-white/5">
-                  <input autoComplete="off" autoFocus value={newVal} onChange={e => setNewVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && newVal.trim()) { onChange(newVal.trim()); setOpen(false); setAddingNew(false); } }} className={cn('flex-1 text-sm font-bold outline-none border-b bg-transparent py-1.5', isDarkMode ? 'border-teal-500 text-white' : 'border-teal-600 text-slate-900')} placeholder={lang === 'de' ? 'Tippen & Enter...' : 'Type & Enter...'} />
-                  <button onClick={() => { if(newVal.trim()) { onChange(newVal.trim()); setOpen(false); setAddingNew(false); } }} className="p-1.5 bg-teal-600 text-white rounded-md hover:bg-teal-500"><Check size={16} strokeWidth={3} /></button>
-                </div>
-              )}
-            </>
-          ) : null}
-        </div>
-      )}
-    </div>
-  );
-}
-
-
 export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onAddOption, viewOnly, isSelected = false, onSelect = () => {}, isBulkActive = false}: any) {
   const [open, setOpen] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
@@ -366,9 +257,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingTotal, setEditingTotal] = useState(false);
-  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null); // For left column metadata
-  const [invoiceDraft, setInvoiceDraft] = useState<any>(null); // Meta draft
-  const [expandedInvoices, setExpandedInvoices] = useState<string[]>([]); // Accordion state for All Items
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
+  const [invoiceDraft, setInvoiceDraft] = useState<any>(null);
+  const [expandedInvoices, setExpandedInvoices] = useState<string[]>([]);
   
   const [invoiceFilter, setInvoiceFilter] = useState<'all' | 'paid' | 'unpaid'>('all'); 
   const [itemSearchQuery, setItemSearchQuery] = useState(''); 
@@ -415,7 +306,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     return null;
   }, [localHotel, searchQuery, searchScope, lang]);
 
-  // --- THE ENTERPRISE INVOICE ENGINE ---
   const masterMath = useMemo(() => {
     let tFree = 0; let tBeds = 0; const allEmps: any[] = [];
     const today = new Date().toISOString().split('T')[0];
@@ -827,7 +717,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                     
                     <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[300px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
                        
-                       {/* SURGICAL FIX: Active Draft Creation Form */}
                        {editingInvoiceId && invoiceDraft && !localHotel.invoices.find((i:any) => i.id === editingInvoiceId) && (
                           <div className={cn("group relative flex flex-col gap-2 p-3 rounded-xl transition-all border shadow-md", dk ? "bg-teal-900/30 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
                              <div className="flex items-center justify-between gap-2">
@@ -880,7 +769,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                            const isActiveSelection = selectedInvoiceId === inv.id;
                            const isEditingMeta = editingInvoiceId === inv.id;
                            
-                           // EDIT METADATA FORM (ACTIVE)
                            if (isEditingMeta) {
                               const draft = invoiceDraft || inv;
                               return (
@@ -933,8 +821,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                               );
                            }
 
-                           // MINIMAL VIEW (INACTIVE)
-                           // Calculate inv brutto for the chip
                            let invBrutto = 0;
                            if (inv.billingMode === 'total') {
                               invBrutto = (parseFloat(inv.totalNetto)||0) * (1 + (parseFloat(inv.totalMwst)||0)/100);
@@ -947,7 +833,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                  <div className="flex items-center gap-2">
                                     <div className={cn("relative flex items-center justify-center group/info cursor-help shrink-0")}>
                                        <div className={cn("w-4 h-4 rounded-full border flex items-center justify-center text-[10px] font-bold transition-colors", dk ? "border-slate-600 text-slate-400" : "border-slate-300 text-slate-400 group-hover/info:border-teal-500 group-hover/info:text-teal-500")}>i</div>
-                                       {/* SURGICAL FIX: The 'i' Info Tooltip Restored */}
                                        <div className={cn("absolute left-7 top-0 w-max min-w-[200px] max-w-[250px] p-3 rounded-xl shadow-2xl border opacity-0 group-hover/info:opacity-100 pointer-events-none transition-all z-[9999] -translate-x-2 group-hover/info:translate-x-0 flex flex-col gap-1", dk ? "bg-slate-800 border-white/10" : "bg-white border-slate-200")}>
                                          <p className={cn("text-[12px] font-black leading-tight border-b pb-1 mb-1", dk ? "text-white border-white/10" : "text-slate-900 border-slate-100")}>{inv.number || 'Unnamed'}</p>
                                          <p className={cn("text-[10px] font-bold", dk ? "text-slate-300" : "text-slate-600")}><span className="opacity-60">Period:</span> {inv.startDate ? `${formatShortDate(inv.startDate, lang)} - ${formatShortDate(inv.endDate, lang)}` : '--'}</p>
@@ -984,7 +869,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                           {activeInvoice ? (
                              <div className="flex items-center gap-3">
                                 <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">{lang === 'de' ? 'Posten' : 'Items'}</span>
-                                {/* SURGICAL FIX: Middle Column Header Dynamic Text */}
                                 {activeInvoice.startDate && (
                                    <div className="flex items-center gap-2 text-[11px] font-bold bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-md text-slate-600 dark:text-slate-300">
                                       <Calendar size={12} className="opacity-50"/> 
@@ -1004,7 +888,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                              <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">{lang === 'de' ? 'Alle Posten (Übersicht)' : 'All Line Items'}</span>
                           )}
                           
-                          {/* SURGICAL FIX: The Global Master Search Bar */}
                           {!activeInvoice && (
                               <div className={cn("flex items-center px-2 py-1 rounded-md border w-48 max-w-sm transition-colors focus-within:border-teal-500", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
                                   <Search size={12} className={dk ? "text-slate-500" : "text-slate-400"} />
@@ -1031,7 +914,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       {activeInvoice ? (
                          activeInvoice.billingMode === 'total' ? (
                             <div className="p-5">
-                               {/* SURGICAL FIX: View/Edit mode for Gesamtbetrag */}
                                <div className={cn("flex flex-wrap items-end gap-3 p-5 rounded-2xl border shadow-sm animate-in fade-in slide-in-from-top-2", dk ? "bg-[#1E293B] border-teal-500/30" : "bg-white border-teal-300")}>
                                   <div className="flex-1 min-w-[120px]">
                                      <label className={labelCls}>Netto</label>
@@ -1058,7 +940,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                             </div>
                          ) : (
                             <div className="flex flex-col animate-in fade-in pb-5">
-                               {/* SURGICAL FIX: Sticky Header to prevent scrolling away */}
                                <div className={cn("sticky top-0 z-10 flex items-center gap-2 px-3 py-2 border-b", dk ? "bg-[#0B1224]/95 border-white/10 backdrop-blur-md" : "bg-slate-50/95 border-slate-200 backdrop-blur-md")}>
                                   <div className="w-[185px] text-[9px] font-black text-slate-400 uppercase tracking-widest">{lang === 'de' ? 'Kostenart' : 'Type'}</div>
                                   <div className="w-[80px] text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">Netto</div>
@@ -1096,7 +977,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                          )
                       ) : (
                          <div className="flex flex-col animate-in fade-in pb-5">
-                            {/* SURGICAL FIX: Master View All Items Accordion */}
                             <div className={cn("sticky top-0 z-10 flex items-center gap-2 px-3 py-2 border-b mb-3", dk ? "bg-[#0B1224]/95 border-white/10 backdrop-blur-md" : "bg-slate-50/95 border-slate-200 backdrop-blur-md")}>
                                <div className="w-[140px] text-[9px] font-black text-slate-400 uppercase tracking-widest">{lang === 'de' ? 'Rechnung / Posten' : 'Invoice / Item'}</div>
                                <div className="flex-1 text-[9px] font-black text-slate-400 uppercase tracking-widest">Netto</div>
@@ -1209,7 +1089,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                          )}
                       </div>
 
-                      {/* SURGICAL FIX: Total Paid and Total Unpaid Details */}
                       {!activeInvoice && (
                          <div className="flex flex-col gap-1 mt-1 mb-2">
                              <div className="flex justify-between items-center text-[11px] font-bold">
@@ -1312,103 +1191,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
         </div>,
         document.body
-      )}
-    </div>
-  );
-}
-
-// --- DROPDOWN COMPONENTS ---
-// (You already have CompanyMultiSelect and ModernDropdown, they can stay exactly as they are in your code)
-
-
-// --- DROPDOWN COMPONENTS ---
-export function ModernDropdown({ value, options, onChange, isDarkMode, lang, placeholder = 'Select', allowAdd = true, disabled }: any) {
-  const [open, setOpen] = useState(false);
-  const [addingNew, setAddingNew] = useState(false);
-  const [newVal, setNewVal] = useState('');
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => { function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setAddingNew(false); setNewVal(''); } } document.addEventListener('mousedown', handle); return () => document.removeEventListener('mousedown', handle); }, []);
-  const displayValue = (val: string) => { if (lang !== 'de') return val; const de: any = { 'Germany': 'Deutschland', 'Switzerland': 'Schweiz', 'Austria': 'Österreich', 'Netherlands': 'Niederlande', 'Poland': 'Polen', 'Belgium': 'Belgien', 'France': 'Frankreich', 'Luxembourg': 'Luxemburg' }; return de[val] || val; };
-  return (
-    <div ref={ref} className="relative w-full h-[34px]">
-      <button disabled={disabled} onClick={() => setOpen(!open)} className={cn('w-full h-full px-3 flex items-center justify-between rounded-lg border text-sm font-bold outline-none transition-all', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white hover:border-teal-500' : 'bg-white border-slate-200 text-slate-900 hover:border-teal-500', disabled && "opacity-60 cursor-not-allowed")}>
-        <span className="truncate">{displayValue(value) || placeholder}</span>
-        <ChevronDown size={16} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
-      </button>
-      {open && !disabled && (
-        <div className={cn('absolute top-full mt-1 left-0 right-0 z-[200] rounded-xl border shadow-xl py-1 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
-          <div className="max-h-48 overflow-y-auto no-scrollbar">
-            {options.map((opt:any) => (
-              <button key={opt} onClick={() => { onChange(opt); setOpen(false); }} className={cn('w-full text-left px-4 py-2.5 text-sm font-bold transition-all', value === opt ? (isDarkMode ? 'bg-teal-500/20 text-teal-400' : 'bg-teal-50 text-teal-700') : (isDarkMode ? 'text-slate-300 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'))}>{displayValue(opt)}</button>
-            ))}
-          </div>
-          {allowAdd ? (
-            <>
-              <div className={cn('my-1 border-t', isDarkMode ? 'border-white/10' : 'border-slate-100')} />
-              {!addingNew ? (
-                <button onClick={() => setAddingNew(true)} className={cn('w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 transition-all', isDarkMode ? 'text-teal-400 hover:bg-white/10' : 'text-teal-600 hover:bg-teal-50')}><Plus size={16} strokeWidth={3} /> {lang === 'de' ? 'Neu hinzufügen' : 'Add New'}</button>
-              ) : (
-                <div className="px-3 py-2 flex items-center gap-2 bg-black/10 dark:bg-white/5">
-                  <input autoComplete="off" autoFocus value={newVal} onChange={e => setNewVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && newVal.trim()) { onChange(newVal.trim()); setOpen(false); setAddingNew(false); } }} className={cn('flex-1 text-sm font-bold outline-none border-b bg-transparent py-1.5', isDarkMode ? 'border-teal-500 text-white' : 'border-teal-600 text-slate-900')} placeholder={lang === 'de' ? 'Tippen & Enter...' : 'Type & Enter...'} />
-                  <button onClick={() => { if(newVal.trim()) { onChange(newVal.trim()); setOpen(false); setAddingNew(false); } }} className="p-1.5 bg-teal-600 text-white rounded-md hover:bg-teal-500"><Check size={16} strokeWidth={3} /></button>
-                </div>
-              )}
-            </>
-          ) : null}
-        </div>
-      )}
-    </div>
-  );
-}
-
-export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange, onDeleteOption, onAddOption, disabled, searchQuery }: any) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [localMemory, setLocalMemory] = useState<string[]>([]);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => { function handle(e: any) { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setQuery(''); } } document.addEventListener('mousedown', handle); return () => document.removeEventListener('mousedown', handle); }, []);
-  const safeOptions = Array.isArray(options) ? options : [];
-  const safeSelected = Array.isArray(selected) ? selected : (typeof selected === 'string' && selected ? [selected] : []);
-  const combinedOptions = Array.from(new Set([...safeOptions, ...localMemory]));
-  const filteredOptions = combinedOptions.filter((o: string) => o.toLowerCase().includes(query.toLowerCase()));
-  const exactMatchExists = combinedOptions.some((o: string) => o.toLowerCase() === query.trim().toLowerCase());
-  const isAlreadySelected = safeSelected.some((o: string) => o.toLowerCase() === query.trim().toLowerCase());
-  const handleToggle = (opt: string) => { if (disabled) return; onChange(safeSelected.includes(opt) ? safeSelected.filter((t: any) => t !== opt) : [...safeSelected, opt]); setQuery(''); };
-  const handleAddNew = async () => { if (disabled) return; const val = query.trim(); if (val && !isAlreadySelected) { setLocalMemory(prev => Array.from(new Set([...prev, val]))); onChange([...safeSelected, val]); setQuery(''); if (onAddOption) { await onAddOption(val); } } };
-  return (
-    <div ref={ref} className={cn("relative min-h-[30px] flex items-center w-full", disabled ? "cursor-default" : "cursor-pointer")} onClick={(e) => { if (disabled) return; e.stopPropagation(); setOpen(true); }}>
-      <div className="flex flex-wrap gap-1.5 w-full">
-        {safeSelected.length > 0 ? safeSelected.map((tag: string) => (
-          <span key={tag} className={cn('px-2.5 py-1 rounded-md text-xs font-bold border flex items-center gap-1.5 shadow-sm', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800')}>
-            <HighlightText text={tag} query={searchQuery} />
-          </span>
-        )) : <span className={cn("text-xs font-bold border border-dashed px-3 py-1 rounded-md transition-colors w-full flex items-center", isDarkMode ? "text-slate-500 border-white/20 hover:text-teal-400 hover:border-teal-400" : "text-slate-400 border-slate-300 hover:text-teal-600 hover:border-teal-500")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
-      </div>
-      {open && !disabled && (
-        <div className={cn('absolute top-full mt-2 left-0 z-[200] rounded-xl border shadow-xl min-w-[240px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')} onClick={e => e.stopPropagation()}>
-          <div className={cn("flex items-center px-3 py-2 border-b", isDarkMode ? "border-white/10 bg-[#1E293B]" : "border-slate-100 bg-slate-50")}>
-            <Search size={14} className={isDarkMode ? "text-slate-400" : "text-slate-500"} />
-            <input autoFocus value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAddNew(); }} placeholder={lang === 'de' ? "Suchen..." : "Search..."} className={cn("ml-2 bg-transparent text-sm font-bold outline-none w-full", isDarkMode ? "text-white placeholder:text-slate-500" : "text-slate-900 placeholder:text-slate-400")} />
-          </div>
-          <div className="max-h-48 overflow-y-auto no-scrollbar py-1">
-            {query.trim() && !exactMatchExists && !isAlreadySelected && (
-              <button onClick={handleAddNew} className={cn('w-full text-left px-4 py-2 text-sm font-bold flex items-center gap-2 transition-all', isDarkMode ? 'text-teal-400 hover:bg-white/10' : 'text-teal-600 hover:bg-teal-50')}><span className="opacity-70 text-xs">Create</span> "{query.trim()}"</button>
-            )}
-            {filteredOptions.map((opt: string) => {
-              const isSelected = safeSelected.includes(opt);
-              return (
-                <div key={opt} className={cn('w-full flex items-center justify-between group transition-all', isSelected ? (isDarkMode ? 'bg-teal-500/10' : 'bg-teal-50') : (isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'))}>
-                  <button onClick={() => handleToggle(opt)} className="flex-1 text-left px-4 py-2 text-sm font-bold flex items-center gap-2">
-                    <div className={cn("w-3.5 h-3.5 rounded flex items-center justify-center shrink-0 border", isSelected ? "bg-teal-500 border-teal-500" : isDarkMode ? "border-slate-500" : "border-slate-400")}>{isSelected && <Check size={10} className="text-white" strokeWidth={4} />}</div>
-                    <span className={cn(isSelected ? (isDarkMode ? 'text-teal-400' : 'text-teal-700') : (isDarkMode ? 'text-slate-300' : 'text-slate-700'))}>{opt}</span>
-                  </button>
-                  {onDeleteOption && (<button onClick={(e) => { e.stopPropagation(); onDeleteOption(opt); setLocalMemory(prev => prev.filter(m => m !== opt)); }} className="px-3 py-2 text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete from system"><Trash2 size={13} /></button>)}
-                </div>
-              )
-            })}
-            {filteredOptions.length === 0 && !query.trim() && (<div className="px-4 py-3 text-xs font-bold text-slate-500 text-center">{lang === 'de' ? 'Keine Firmen gefunden' : 'No companies found'}</div>)}
-          </div>
-        </div>
       )}
     </div>
   );
