@@ -97,63 +97,85 @@ export function calcInvoiceItem(item: any) {
 export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onDelete, viewOnly, dk, lang, defaultNights = 1 }: any) {
   const { finalNetto, mwst, brutto } = calcInvoiceItem(item);
   const [showDiscount, setShowDiscount] = useState(parseFloat(item.discountValue || 0) > 0);
+  const [showDates, setShowDates] = useState(false);
   const inputClass = cn('px-1.5 py-1 rounded text-[11px] font-bold outline-none border transition-all h-[26px]', dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-teal-500' : 'bg-white border-slate-200 text-slate-900 focus:border-teal-500');
 
   const hasNettoInput = item.netto != null && item.netto !== '';
   const hasBruttoInput = item.brutto != null && item.brutto !== '';
+  const isPerBedAllowed = item.type === 'room' || item.type === 'energy' || item.type === 'tax';
 
+  // STRICT EDIT MODE: Single Horizontal Line
   if (isEditing && !viewOnly) {
-    const isPerBedAllowed = item.type === 'room' || item.type === 'energy' || item.type === 'tax';
-    
     return (
-      <div className={cn("flex items-center gap-1 p-1 border-b transition-all w-full", dk ? "bg-white/5 border-white/10" : "bg-slate-50 border-slate-200")}>
-        <select value={item.type || 'room'} onChange={e => {
-            const newType = e.target.value;
-            const newMethod = (newType === 'base' || newType === 'extra') ? 'total' : item.method;
-            onChange({ type: newType, method: newMethod });
-        }} className={cn(inputClass, "w-[110px] shrink-0")}>
-          {COST_TYPES.map(o => <option key={o.id} value={o.id}>{lang === 'de' ? o.de : o.en}</option>)}
-        </select>
+      <div className={cn("flex items-center gap-2 p-1.5 border-b transition-all w-full", dk ? "bg-white/5 border-white/10" : "bg-slate-50 border-slate-200")}>
+        
+        {/* COL 1: TYPE & METHOD (180px space) */}
+        <div className="w-[180px] flex items-center gap-1.5 shrink-0">
+            <select value={item.type || 'room'} onChange={e => {
+                const newType = e.target.value;
+                const newMethod = (newType === 'base' || newType === 'extra') ? 'total' : item.method;
+                onChange({ type: newType, method: newMethod });
+            }} className={cn(inputClass, "w-[95px]")}>
+              {COST_TYPES.map(o => <option key={o.id} value={o.id}>{lang === 'de' ? o.de : o.en}</option>)}
+            </select>
+            <select disabled={!isPerBedAllowed} value={!isPerBedAllowed ? 'total' : (item.method || 'total')} onChange={e => onChange({ method: e.target.value })} className={cn(inputClass, "flex-1 disabled:opacity-50")}>
+                 {COST_METHODS.map(m => <option key={m.id} value={m.id}>{lang === 'de' ? m.de : m.en}</option>)}
+            </select>
+        </div>
 
-        <select disabled={!isPerBedAllowed} value={!isPerBedAllowed ? 'total' : (item.method || 'total')} onChange={e => onChange({ method: e.target.value })} className={cn(inputClass, "w-[85px] shrink-0 disabled:opacity-50")}>
-             {COST_METHODS.map(m => <option key={m.id} value={m.id}>{lang === 'de' ? m.de : m.en}</option>)}
-        </select>
-
-        {item.method === 'per_bed' && isPerBedAllowed ? (
-          <div className="flex items-center gap-0.5 shrink-0">
-            <input type="number" title={lang === 'de' ? 'Betten' : 'Beds'} value={item.beds ?? 1} onChange={e => onChange({ beds: e.target.value })} className={cn(inputClass, "w-[38px] px-1 text-center")} placeholder="🛏️" />
-            <span className="text-[10px] text-slate-400 font-bold mx-0.5">×</span>
-            <div className="relative">
-               <input type="number" title={lang === 'de' ? 'Nächte' : 'Nights'} value={item.nights ?? defaultNights} onChange={e => onChange({ nights: e.target.value })} className={cn(inputClass, "w-[38px] px-1 pl-4 text-center")} placeholder="🌙" />
-               <Calendar size={10} className="absolute left-1 top-[8px] text-slate-400 pointer-events-none" />
-            </div>
-          </div>
-        ) : (
-          <div className="w-[90px] shrink-0" />
-        )}
-
-        <div className="relative w-[70px] shrink-0">
-            <input type="number" disabled={hasBruttoInput} placeholder="Netto" value={item.netto ?? ''} onChange={e => onChange({ netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 disabled:bg-transparent")} />
-            {(!showDiscount && !hasBruttoInput) && (
-               <button onClick={() => setShowDiscount(true)} className="absolute right-1 top-1 text-slate-400 hover:text-teal-500"><Ticket size={12}/></button>
+        {/* COL 2: NETTO(BED) + Multipliers (140px space) */}
+        <div className="w-[140px] flex items-center gap-1.5 shrink-0">
+            {item.method === 'per_bed' && isPerBedAllowed ? (
+              <>
+                 <input type="number" disabled={hasBruttoInput} placeholder="0.00" value={item.netto ?? ''} onChange={e => onChange({ netto: e.target.value, brutto: null })} className={cn(inputClass, "w-[50px] disabled:opacity-30")} />
+                 <input type="number" title={lang === 'de' ? 'Betten' : 'Beds'} value={item.beds ?? 1} onChange={e => onChange({ beds: e.target.value })} className={cn(inputClass, "w-[32px] px-1 text-center")} placeholder="🛏️" />
+                 <span className="text-[10px] text-slate-400 font-bold">×</span>
+                 <div className="relative flex items-center">
+                    <input type="number" title={lang === 'de' ? 'Nächte' : 'Nights'} value={item.nights ?? defaultNights} onChange={e => onChange({ nights: e.target.value })} className={cn(inputClass, "w-[32px] px-1 text-center")} placeholder="🌙" />
+                    <button onClick={() => setShowDates(!showDates)} className="ml-1 text-slate-400 hover:text-teal-500"><Calendar size={12}/></button>
+                    {showDates && (
+                       <div className={cn("absolute top-full left-0 mt-1 p-2 rounded-lg border shadow-xl z-50 flex flex-col gap-2 w-[120px]", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+                          <input type="date" value={item.startDate || ''} onChange={e => { const s = e.target.value; onChange({ startDate: s, nights: calculateNights(s, item.endDate || s) }); }} className={cn(inputClass, "w-full")} />
+                          <input type="date" value={item.endDate || ''} onChange={e => { const end = e.target.value; onChange({ endDate: end, nights: calculateNights(item.startDate || end, end) }); }} className={cn(inputClass, "w-full")} />
+                       </div>
+                    )}
+                 </div>
+              </>
+            ) : (
+               <span className="text-[10px] italic text-slate-400 opacity-50 px-2">--</span>
             )}
         </div>
 
-        {showDiscount && !hasBruttoInput && (
-            <div className="flex items-center w-[75px] shrink-0 transition-all animate-in fade-in zoom-in-95">
-               <input type="number" value={item.discountValue ?? ''} onChange={e => onChange({ discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-full px-1.5")} placeholder="Rabatt" />
-               <button onClick={() => onChange({ discountType: item.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("px-1.5 h-[26px] rounded-r border text-[10px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{item.discountType === 'percentage' ? '%' : '€'}</button>
-            </div>
-        )}
+        {/* COL 3: TOTAL NETTO (110px space) */}
+        <div className="w-[110px] flex items-center gap-1 shrink-0 relative">
+            {item.method === 'total' || !isPerBedAllowed ? (
+                <input type="number" disabled={hasBruttoInput} placeholder="Netto" value={item.netto ?? ''} onChange={e => onChange({ netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30")} />
+            ) : (
+                <div className={cn(inputClass, "w-full flex items-center bg-transparent border-transparent px-0")}>{formatCurrency(finalNetto)}</div>
+            )}
+            {(!showDiscount && !hasBruttoInput) && (
+               <button onClick={() => setShowDiscount(true)} className="absolute right-1 top-1 text-slate-400 hover:text-teal-500"><Ticket size={12}/></button>
+            )}
+            {showDiscount && !hasBruttoInput && (
+                <div className="absolute inset-0 flex items-center w-full bg-white dark:bg-[#1E293B] z-10">
+                   <input type="number" value={item.discountValue ?? ''} onChange={e => onChange({ discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-full px-1.5")} placeholder="Rabatt" />
+                   <button onClick={() => onChange({ discountType: item.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("px-1.5 h-[26px] rounded-r border text-[10px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{item.discountType === 'percentage' ? '%' : '€'}</button>
+                </div>
+            )}
+        </div>
 
-        <select value={item.mwst ?? 7} onChange={e => onChange({ mwst: e.target.value })} className={cn(inputClass, "w-[50px] shrink-0 px-1 ml-auto")}>
+        {/* COL 4: MWST (60px space) */}
+        <select value={item.mwst ?? 7} onChange={e => onChange({ mwst: e.target.value })} className={cn(inputClass, "w-[60px] shrink-0 px-1")}>
             <option value="7">7%</option><option value="19">19%</option><option value="0">0%</option>
         </select>
 
-        <input type="number" disabled={hasNettoInput} placeholder="Brutto" value={item.brutto ?? ''} onChange={e => onChange({ brutto: e.target.value, netto: null })} className={cn(inputClass, "w-[75px] shrink-0 disabled:opacity-30 disabled:bg-transparent")} />
+        {/* COL 5: TOTAL BRUTTO (100px space) */}
+        <input type="number" disabled={hasNettoInput} placeholder="Brutto" value={item.brutto ?? ''} onChange={e => onChange({ brutto: e.target.value, netto: null })} className={cn(inputClass, "w-[100px] shrink-0 disabled:opacity-30 disabled:bg-transparent")} />
 
-        <input value={item.note || ''} onChange={e => onChange({ note: e.target.value })} className={cn(inputClass, "flex-1 min-w-[60px]")} placeholder={lang === 'de' ? "Notiz..." : "Note..."} />
+        {/* COL 6: NOTE (flex-1) */}
+        <input value={item.note || ''} onChange={e => onChange({ note: e.target.value })} className={cn(inputClass, "flex-1 min-w-[50px]")} placeholder="..." />
 
+        {/* ACTIONS */}
         <div className="flex items-center gap-1 shrink-0 ml-1">
            <button onClick={onSave} className="p-1 h-[26px] w-[26px] flex items-center justify-center text-white bg-teal-500 hover:bg-teal-600 rounded transition-all shadow-sm"><Check size={14} strokeWidth={3}/></button>
            <button onClick={onDelete} className="p-1 h-[26px] w-[26px] flex items-center justify-center text-white bg-red-500 hover:bg-red-600 rounded transition-all shadow-sm"><Trash2 size={12}/></button>
@@ -162,42 +184,65 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
     )
   }
 
+  // STRICT VIEW MODE: Compact Single Row with Iterative Stacking in Description
   return (
-    <div className={cn("flex items-center gap-2 px-3 py-1.5 border-b last:border-b-0 transition-colors group", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
-       <div className="w-[200px] flex items-center gap-1.5 shrink-0 overflow-hidden">
-          <span className={cn("text-[11px] font-bold truncate", dk ? "text-slate-200" : "text-slate-800")}>{getTranslation(COST_TYPES, item.type || 'room', lang)}</span>
-          {item.method === 'per_bed' && <span className="text-[9px] font-bold text-slate-400 uppercase shrink-0">({item.beds||1}🛏️ × {item.nights||1}🌙)</span>}
+    <div className={cn("flex items-start gap-2 px-3 py-2 border-b last:border-b-0 transition-colors group", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
+       
+       {/* COL 1: BESCHREIBUNG (Type, Dates, Notes) */}
+       <div className="w-[180px] flex flex-col gap-0.5 shrink-0 overflow-hidden pr-2">
+          <div className="flex items-center gap-1.5">
+             <span className={cn("text-[11px] font-bold truncate", dk ? "text-slate-200" : "text-slate-800")}>{getTranslation(COST_TYPES, item.type || 'room', lang)}</span>
+             {item.method === 'per_bed' && <span className="text-[9px] font-bold text-slate-400 uppercase shrink-0">({item.nights||1}🌙, {item.beds||1}🛏️)</span>}
+          </div>
+          {(item.startDate || item.endDate) && (
+             <span className="text-[9px] text-slate-500 italic">
+                {item.startDate ? formatShortDate(item.startDate, lang) : ''} - {item.endDate ? formatShortDate(item.endDate, lang) : ''}
+             </span>
+          )}
+          {item.note && (
+             <span className="text-[9px] font-medium text-slate-500 italic mt-0.5 whitespace-pre-wrap leading-tight">{item.note}</span>
+          )}
        </div>
 
-       <div className="w-[80px] shrink-0 flex items-center gap-1">
+       {/* COL 2: NETTO(BED) */}
+       <div className="w-[140px] shrink-0 flex items-start pt-0.5">
+          {item.method === 'per_bed' ? (
+             <span className={cn("text-[11px] font-bold", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(parseFloat(item.netto)||0)}</span>
+          ) : (
+             <span className="text-[10px] italic text-slate-400 opacity-50">--</span>
+          )}
+       </div>
+
+       {/* COL 3: TOTAL NETTO */}
+       <div className="w-[110px] shrink-0 flex flex-col pt-0.5">
           <span className={cn("text-[11px] font-bold", dk ? "text-slate-300" : "text-slate-700")}>
-             {hasBruttoInput ? (lang === 'de' ? 'Auto' : 'Auto') : formatCurrency(parseFloat(item.netto)||0)}
+             {hasBruttoInput ? (lang === 'de' ? 'Auto' : 'Auto') : formatCurrency(finalNetto)}
           </span>
-          {item.discountValue > 0 && !hasBruttoInput && <span className="text-[9px] font-black text-teal-500 bg-teal-500/10 px-1 rounded">-{item.discountType === 'percentage' ? `${item.discountValue}%` : `${item.discountValue}€`}</span>}
+          {item.discountValue > 0 && !hasBruttoInput && <span className="text-[9px] font-black text-teal-500 leading-none mt-0.5 border border-teal-500/20 bg-teal-500/10 px-1 py-0.5 w-max rounded">-{item.discountType === 'percentage' ? `${item.discountValue}%` : `${item.discountValue}€`}</span>}
        </div>
 
-       <div className="w-[50px] shrink-0 text-right">
+       {/* COL 4: MWST */}
+       <div className="w-[60px] shrink-0 pt-0.5">
           <span className={cn("text-[11px] font-bold", dk ? "text-slate-400" : "text-slate-500")}>{item.mwst ?? 7}%</span>
        </div>
 
-       <div className="w-[80px] shrink-0 text-right">
+       {/* COL 5: TOTAL BRUTTO */}
+       <div className="w-[100px] shrink-0 pt-0.5">
           <span className={cn("text-[11px] font-black", dk ? "text-white" : "text-slate-900")}>
              {hasNettoInput ? formatCurrency(brutto) : formatCurrency(parseFloat(item.brutto)||0)}
           </span>
        </div>
 
-       <div className="flex-1 px-4 truncate">
-          {item.note && <span className="text-[10px] font-medium text-slate-500 italic truncate">{item.note}</span>}
-       </div>
-
-       <div className="w-[40px] shrink-0 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {!viewOnly && <button onClick={onEdit} className="p-1 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5"><Edit3 size={12}/></button>}
+       {/* COL 6: ACTIONS */}
+       <div className="flex-1 flex items-start justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity pt-0.5">
+          {!viewOnly && <button onClick={onEdit} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5"><Edit3 size={12}/></button>}
        </div>
     </div>
   )
 }
 
-function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, className, textClass, searchQuery, disabled }: any) {
+// --- SEAMLESS AUTOCOMPLETE INPUT ---
+export function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, className, textClass, searchQuery, disabled }: any) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value || '');
   const [showOptions, setShowOptions] = useState(false);
@@ -228,7 +273,8 @@ function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, clas
   );
 }
 
-function MwstInput({ value, onChange, isDarkMode, disabled }: { value: string | null, onChange: (v: string | null) => void, isDarkMode: boolean, disabled?: boolean }) {
+// --- MINI DROPDOWN COMPONENT FOR MWST ---
+export function MwstInput({ value, onChange, isDarkMode, disabled }: { value: string | null, onChange: (v: string | null) => void, isDarkMode: boolean, disabled?: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }; document.addEventListener('mousedown', handle); return () => document.removeEventListener('mousedown', handle); }, []);
@@ -239,6 +285,98 @@ function MwstInput({ value, onChange, isDarkMode, disabled }: { value: string | 
       {open && !disabled && (
         <div className={cn("absolute top-full right-0 mt-1 w-20 z-[999] rounded-lg shadow-xl overflow-hidden border", isDarkMode ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
           {[7, 19, 0].map(v => <button key={v} onClick={() => { onChange(v.toString()); setOpen(false); }} className={cn("w-full text-center py-2 text-sm font-bold transition-all", isDarkMode ? "text-white hover:bg-white/10" : "text-slate-900 hover:bg-slate-100")}>{v}%</button>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function ModernDropdown({ value, options, onChange, isDarkMode, lang, placeholder = 'Select', allowAdd = true, disabled }: any) {
+  const [open, setOpen] = useState(false);
+  const [addingNew, setAddingNew] = useState(false);
+  const [newVal, setNewVal] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => { function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setAddingNew(false); setNewVal(''); } } document.addEventListener('mousedown', handle); return () => document.removeEventListener('mousedown', handle); }, []);
+  const displayValue = (val: string) => { if (lang !== 'de') return val; const de: any = { 'Germany': 'Deutschland', 'Switzerland': 'Schweiz', 'Austria': 'Österreich', 'Netherlands': 'Niederlande', 'Poland': 'Polen', 'Belgium': 'Belgien', 'France': 'Frankreich', 'Luxembourg': 'Luxemburg' }; return de[val] || val; };
+  return (
+    <div ref={ref} className="relative w-full h-[34px]">
+      <button disabled={disabled} onClick={() => setOpen(!open)} className={cn('w-full h-full px-3 flex items-center justify-between rounded-lg border text-sm font-bold outline-none transition-all', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white hover:border-teal-500' : 'bg-white border-slate-200 text-slate-900 hover:border-teal-500', disabled && "opacity-60 cursor-not-allowed")}>
+        <span className="truncate">{displayValue(value) || placeholder}</span>
+        <ChevronDown size={16} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
+      </button>
+      {open && !disabled && (
+        <div className={cn('absolute top-full mt-1 left-0 right-0 z-[200] rounded-xl border shadow-xl py-1 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
+          <div className="max-h-48 overflow-y-auto no-scrollbar">
+            {options.map((opt:any) => (
+              <button key={opt} onClick={() => { onChange(opt); setOpen(false); }} className={cn('w-full text-left px-4 py-2.5 text-sm font-bold transition-all', value === opt ? (isDarkMode ? 'bg-teal-500/20 text-teal-400' : 'bg-teal-50 text-teal-700') : (isDarkMode ? 'text-slate-300 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'))}>{displayValue(opt)}</button>
+            ))}
+          </div>
+          {allowAdd ? (
+            <>
+              <div className={cn('my-1 border-t', isDarkMode ? 'border-white/10' : 'border-slate-100')} />
+              {!addingNew ? (
+                <button onClick={() => setAddingNew(true)} className={cn('w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 transition-all', isDarkMode ? 'text-teal-400 hover:bg-white/10' : 'text-teal-600 hover:bg-teal-50')}><Plus size={16} strokeWidth={3} /> {lang === 'de' ? 'Neu hinzufügen' : 'Add New'}</button>
+              ) : (
+                <div className="px-3 py-2 flex items-center gap-2 bg-black/10 dark:bg-white/5">
+                  <input autoComplete="off" autoFocus value={newVal} onChange={e => setNewVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && newVal.trim()) { onChange(newVal.trim()); setOpen(false); setAddingNew(false); } }} className={cn('flex-1 text-sm font-bold outline-none border-b bg-transparent py-1.5', isDarkMode ? 'border-teal-500 text-white' : 'border-teal-600 text-slate-900')} placeholder={lang === 'de' ? 'Tippen & Enter...' : 'Type & Enter...'} />
+                  <button onClick={() => { if(newVal.trim()) { onChange(newVal.trim()); setOpen(false); setAddingNew(false); } }} className="p-1.5 bg-teal-600 text-white rounded-md hover:bg-teal-500"><Check size={16} strokeWidth={3} /></button>
+                </div>
+              )}
+            </>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange, onDeleteOption, onAddOption, disabled, searchQuery }: any) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [localMemory, setLocalMemory] = useState<string[]>([]);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => { function handle(e: any) { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setQuery(''); } } document.addEventListener('mousedown', handle); return () => document.removeEventListener('mousedown', handle); }, []);
+  const safeOptions = Array.isArray(options) ? options : [];
+  const safeSelected = Array.isArray(selected) ? selected : (typeof selected === 'string' && selected ? [selected] : []);
+  const combinedOptions = Array.from(new Set([...safeOptions, ...localMemory]));
+  const filteredOptions = combinedOptions.filter((o: string) => o.toLowerCase().includes(query.toLowerCase()));
+  const exactMatchExists = combinedOptions.some((o: string) => o.toLowerCase() === query.trim().toLowerCase());
+  const isAlreadySelected = safeSelected.some((o: string) => o.toLowerCase() === query.trim().toLowerCase());
+  const handleToggle = (opt: string) => { if (disabled) return; onChange(safeSelected.includes(opt) ? safeSelected.filter((t: any) => t !== opt) : [...safeSelected, opt]); setQuery(''); };
+  const handleAddNew = async () => { if (disabled) return; const val = query.trim(); if (val && !isAlreadySelected) { setLocalMemory(prev => Array.from(new Set([...prev, val]))); onChange([...safeSelected, val]); setQuery(''); if (onAddOption) { await onAddOption(val); } } };
+  return (
+    <div ref={ref} className={cn("relative min-h-[30px] flex items-center w-full", disabled ? "cursor-default" : "cursor-pointer")} onClick={(e) => { if (disabled) return; e.stopPropagation(); setOpen(true); }}>
+      <div className="flex flex-wrap gap-1.5 w-full">
+        {safeSelected.length > 0 ? safeSelected.map((tag: string) => (
+          <span key={tag} className={cn('px-2.5 py-1 rounded-md text-xs font-bold border flex items-center gap-1.5 shadow-sm', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800')}>
+            <HighlightText text={tag} query={searchQuery} />
+          </span>
+        )) : <span className={cn("text-xs font-bold border border-dashed px-3 py-1 rounded-md transition-colors w-full flex items-center", isDarkMode ? "text-slate-500 border-white/20 hover:text-teal-400 hover:border-teal-400" : "text-slate-400 border-slate-300 hover:text-teal-600 hover:border-teal-500")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
+      </div>
+      {open && !disabled && (
+        <div className={cn('absolute top-full mt-2 left-0 z-[200] rounded-xl border shadow-xl min-w-[240px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')} onClick={e => e.stopPropagation()}>
+          <div className={cn("flex items-center px-3 py-2 border-b", isDarkMode ? "border-white/10 bg-[#1E293B]" : "border-slate-100 bg-slate-50")}>
+            <Search size={14} className={isDarkMode ? "text-slate-400" : "text-slate-500"} />
+            <input autoFocus value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAddNew(); }} placeholder={lang === 'de' ? "Suchen..." : "Search..."} className={cn("ml-2 bg-transparent text-sm font-bold outline-none w-full", isDarkMode ? "text-white placeholder:text-slate-500" : "text-slate-900 placeholder:text-slate-400")} />
+          </div>
+          <div className="max-h-48 overflow-y-auto no-scrollbar py-1">
+            {query.trim() && !exactMatchExists && !isAlreadySelected && (
+              <button onClick={handleAddNew} className={cn('w-full text-left px-4 py-2 text-sm font-bold flex items-center gap-2 transition-all', isDarkMode ? 'text-teal-400 hover:bg-white/10' : 'text-teal-600 hover:bg-teal-50')}><span className="opacity-70 text-xs">Create</span> "{query.trim()}"</button>
+            )}
+            {filteredOptions.map((opt: string) => {
+              const isSelected = safeSelected.includes(opt);
+              return (
+                <div key={opt} className={cn('w-full flex items-center justify-between group transition-all', isSelected ? (isDarkMode ? 'bg-teal-500/10' : 'bg-teal-50') : (isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'))}>
+                  <button onClick={() => handleToggle(opt)} className="flex-1 text-left px-4 py-2 text-sm font-bold flex items-center gap-2">
+                    <div className={cn("w-3.5 h-3.5 rounded flex items-center justify-center shrink-0 border", isSelected ? "bg-teal-500 border-teal-500" : isDarkMode ? "border-slate-500" : "border-slate-400")}>{isSelected && <Check size={10} className="text-white" strokeWidth={4} />}</div>
+                    <span className={cn(isSelected ? (isDarkMode ? 'text-teal-400' : 'text-teal-700') : (isDarkMode ? 'text-slate-300' : 'text-slate-700'))}>{opt}</span>
+                  </button>
+                  {onDeleteOption && (<button onClick={(e) => { e.stopPropagation(); onDeleteOption(opt); setLocalMemory(prev => prev.filter(m => m !== opt)); }} className="px-3 py-2 text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete from system"><Trash2 size={13} /></button>)}
+                </div>
+              )
+            })}
+            {filteredOptions.length === 0 && !query.trim() && (<div className="px-4 py-3 text-xs font-bold text-slate-500 text-center">{lang === 'de' ? 'Keine Firmen gefunden' : 'No companies found'}</div>)}
+          </div>
         </div>
       )}
     </div>
@@ -708,8 +846,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                            {!viewOnly && (
                              <button onClick={() => {
                                  const newId = Math.random().toString();
-                                 setInvoiceDraft({ id: newId, number: '', note: '', isPaid: false, billingMode: 'detailed', items: [], startDate: null, endDate: null, paymentDate: null });
+                                 const newDraft = { id: newId, number: '', note: '', isPaid: false, billingMode: 'detailed', items: [], startDate: null, endDate: null, paymentDate: null };
+                                 setInvoiceDraft(newDraft);
                                  setEditingInvoiceId(newId);
+                                 setSelectedInvoiceId(newId); // Immediately select it so middle column shows it
                              }} className="p-1.5 rounded-md text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-500/20 transition-all shrink-0"><Plus size={14} strokeWidth={3} /></button>
                            )}
                        </div>
@@ -726,7 +866,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                    </div>
                                    <input autoFocus value={invoiceDraft.number} onChange={e => setInvoiceDraft({...invoiceDraft, number: e.target.value})} className="w-full text-[13px] font-black border-none bg-transparent outline-none p-0 focus:ring-0 placeholder:text-slate-400" placeholder="RE-..." />
                                 </div>
-                                <button onClick={() => { setEditingInvoiceId(null); setInvoiceDraft(null); }} className="p-1 rounded bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-slate-500 transition-colors"><X size={14}/></button>
+                                <button onClick={() => { setEditingInvoiceId(null); setInvoiceDraft(null); setSelectedInvoiceId(null); }} className="p-1 rounded bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-slate-500 transition-colors"><X size={14}/></button>
                              </div>
                              <div className="grid grid-cols-2 gap-2 mt-1">
                                 <div className="flex flex-col gap-0.5">
@@ -879,7 +1019,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                       {activeInvoice.isPaid ? (
                                          <span className="text-emerald-600 dark:text-emerald-400">{lang==='de'?'Bezahlt: ':'Paid: '} {formatShortDate(activeInvoice.paymentDate, lang)}</span>
                                       ) : (
-                                         <span className="text-red-500">{lang==='de'?'Offen':'Unpaid'}</span>
+                                         <span className="text-red-500">{lang==='de'?'Fällig: ':'Due: '} {activeInvoice.paymentDate ? formatShortDate(activeInvoice.paymentDate, lang) : '--'}</span>
                                       )}
                                    </div>
                                 )}
@@ -940,13 +1080,14 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                             </div>
                          ) : (
                             <div className="flex flex-col animate-in fade-in pb-5">
-                               <div className={cn("sticky top-0 z-10 flex items-center gap-2 px-3 py-2 border-b", dk ? "bg-[#0B1224]/95 border-white/10 backdrop-blur-md" : "bg-slate-50/95 border-slate-200 backdrop-blur-md")}>
-                                  <div className="w-[185px] text-[9px] font-black text-slate-400 uppercase tracking-widest">{lang === 'de' ? 'Kostenart' : 'Type'}</div>
-                                  <div className="w-[80px] text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">Netto</div>
-                                  <div className="w-[50px] text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">MwSt</div>
-                                  <div className="w-[80px] text-[9px] font-black text-slate-400 uppercase tracking-widest text-right pr-2">Brutto</div>
-                                  <div className="flex-1 text-[9px] font-black text-slate-400 uppercase tracking-widest pl-4">Note</div>
-                                  <div className="w-[40px]"></div>
+                               {/* STRICT HEADER ALIGNMENT (CSS GRID for perfection) */}
+                               <div className={cn("sticky top-0 z-10 flex items-center gap-2 px-3 py-2 border-b backdrop-blur-md", dk ? "bg-[#0B1224]/95 border-white/10" : "bg-slate-50/95 border-slate-200")}>
+                                  <div className="w-[180px] text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">{lang === 'de' ? 'Beschreibung' : 'Description'}</div>
+                                  <div className="w-[140px] text-[9px] font-black text-slate-400 uppercase tracking-widest">Netto (Bed)</div>
+                                  <div className="w-[110px] text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Netto</div>
+                                  <div className="w-[60px] text-[9px] font-black text-slate-400 uppercase tracking-widest">MwSt</div>
+                                  <div className="w-[100px] text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Brutto</div>
+                                  <div className="flex-1"></div>
                                </div>
                                
                                {(activeInvoice.items || []).length === 0 && <p className="text-[11px] font-bold text-slate-400 italic mt-4 mx-5 text-center py-4 bg-slate-100 dark:bg-white/5 rounded-xl border border-dashed border-slate-300 dark:border-white/10">{lang === 'de' ? 'Noch keine Posten vorhanden. Klicke unten, um zu starten.' : 'No line items. Click below to start.'}</p>}
@@ -969,7 +1110,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                {!viewOnly && (
                                   <button onClick={() => {
                                       const newId = Math.random().toString();
-                                      patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: [...(i.items||[]), { id: newId, type: 'room', method: 'total', netto: null, mwst: 7, brutto: null }]} : i) });
+                                      patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: [...(i.items||[]), { id: newId, type: 'room', method: 'per_bed', netto: null, mwst: 7, brutto: null }]} : i) });
                                       setEditingItemId(newId);
                                   }} className="mt-3 mx-5 py-2 rounded-lg border border-dashed text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-teal-500 hover:border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-500/10 transition-all">+ {lang === 'de' ? 'Zeile hinzufügen' : 'Add Row'}</button>
                                )}
@@ -1108,7 +1249,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                             <input autoFocus type="number" value={editPriceBedValue} onChange={e => setEditPriceBedValue(e.target.value)} onBlur={() => {patchHotel({override_price_per_bed: editPriceBedValue === '' ? null : editPriceBedValue}); setEditingPriceBed(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-20 text-right px-1 rounded bg-yellow-500/20 text-yellow-600 font-bold text-[14px] outline-none ml-auto")} />
                         ) : (
                             <span onClick={() => {!viewOnly && setEditingPriceBed(true);}} className={cn("text-[14px] font-bold", masterMath.isOverriddenBed && "text-yellow-600", !viewOnly && "cursor-pointer rounded px-1 -mr-1 transition-colors group-hover:bg-black/5 text-right ml-auto")}>
-                               {!masterMath.isOverriddenBed && masterMath.pricePerBed > 0 ? 'ab ' : ''}{formatCurrency(masterMath.pricePerBed)} / N {!viewOnly && <Edit3 size={11} className="opacity-0 group-hover:opacity-100 ml-1 inline-block"/>}
+                               {!masterMath.isOverriddenBed && masterMath.pricePerBed > 0 ? 'ab ' : ''}{masterMath.pricePerBed === 0 && !masterMath.isOverriddenBed ? '0,00 €' : formatCurrency(masterMath.pricePerBed)} / N {!viewOnly && <Edit3 size={11} className="opacity-0 group-hover:opacity-100 ml-1 inline-block"/>}
                             </span>
                         )}
                       </div>
@@ -1191,99 +1332,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
         </div>,
         document.body
-      )}
-    </div>
-  );
-}
-
-// --- DROPDOWN COMPONENTS ---
-export function ModernDropdown({ value, options, onChange, isDarkMode, lang, placeholder = 'Select', allowAdd = true, disabled }: any) {
-  const [open, setOpen] = useState(false);
-  const [addingNew, setAddingNew] = useState(false);
-  const [newVal, setNewVal] = useState('');
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => { function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setAddingNew(false); setNewVal(''); } } document.addEventListener('mousedown', handle); return () => document.removeEventListener('mousedown', handle); }, []);
-  const displayValue = (val: string) => { if (lang !== 'de') return val; const de: any = { 'Germany': 'Deutschland', 'Switzerland': 'Schweiz', 'Austria': 'Österreich', 'Netherlands': 'Niederlande', 'Poland': 'Polen', 'Belgium': 'Belgien', 'France': 'Frankreich', 'Luxembourg': 'Luxemburg' }; return de[val] || val; };
-  return (
-    <div ref={ref} className="relative w-full h-[34px]">
-      <button disabled={disabled} onClick={() => setOpen(!open)} className={cn('w-full h-full px-3 flex items-center justify-between rounded-lg border text-sm font-bold outline-none transition-all', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white hover:border-teal-500' : 'bg-white border-slate-200 text-slate-900 hover:border-teal-500', disabled && "opacity-60 cursor-not-allowed")}>
-        <span className="truncate">{displayValue(value) || placeholder}</span>
-        <ChevronDown size={16} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
-      </button>
-      {open && !disabled && (
-        <div className={cn('absolute top-full mt-1 left-0 right-0 z-[200] rounded-xl border shadow-xl py-1 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
-          <div className="max-h-48 overflow-y-auto no-scrollbar">
-            {options.map((opt:any) => (
-              <button key={opt} onClick={() => { onChange(opt); setOpen(false); }} className={cn('w-full text-left px-4 py-2.5 text-sm font-bold transition-all', value === opt ? (isDarkMode ? 'bg-teal-500/20 text-teal-400' : 'bg-teal-50 text-teal-700') : (isDarkMode ? 'text-slate-300 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'))}>{displayValue(opt)}</button>
-            ))}
-          </div>
-          {allowAdd ? (
-            <>
-              <div className={cn('my-1 border-t', isDarkMode ? 'border-white/10' : 'border-slate-100')} />
-              {!addingNew ? (
-                <button onClick={() => setAddingNew(true)} className={cn('w-full text-left px-4 py-3 text-sm font-bold flex items-center gap-2 transition-all', isDarkMode ? 'text-teal-400 hover:bg-white/10' : 'text-teal-600 hover:bg-teal-50')}><Plus size={16} strokeWidth={3} /> {lang === 'de' ? 'Neu hinzufügen' : 'Add New'}</button>
-              ) : (
-                <div className="px-3 py-2 flex items-center gap-2 bg-black/10 dark:bg-white/5">
-                  <input autoComplete="off" autoFocus value={newVal} onChange={e => setNewVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && newVal.trim()) { onChange(newVal.trim()); setOpen(false); setAddingNew(false); } }} className={cn('flex-1 text-sm font-bold outline-none border-b bg-transparent py-1.5', isDarkMode ? 'border-teal-500 text-white' : 'border-teal-600 text-slate-900')} placeholder={lang === 'de' ? 'Tippen & Enter...' : 'Type & Enter...'} />
-                  <button onClick={() => { if(newVal.trim()) { onChange(newVal.trim()); setOpen(false); setAddingNew(false); } }} className="p-1.5 bg-teal-600 text-white rounded-md hover:bg-teal-500"><Check size={16} strokeWidth={3} /></button>
-                </div>
-              )}
-            </>
-          ) : null}
-        </div>
-      )}
-    </div>
-  );
-}
-
-export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange, onDeleteOption, onAddOption, disabled, searchQuery }: any) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [localMemory, setLocalMemory] = useState<string[]>([]);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => { function handle(e: any) { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setQuery(''); } } document.addEventListener('mousedown', handle); return () => document.removeEventListener('mousedown', handle); }, []);
-  const safeOptions = Array.isArray(options) ? options : [];
-  const safeSelected = Array.isArray(selected) ? selected : (typeof selected === 'string' && selected ? [selected] : []);
-  const combinedOptions = Array.from(new Set([...safeOptions, ...localMemory]));
-  const filteredOptions = combinedOptions.filter((o: string) => o.toLowerCase().includes(query.toLowerCase()));
-  const exactMatchExists = combinedOptions.some((o: string) => o.toLowerCase() === query.trim().toLowerCase());
-  const isAlreadySelected = safeSelected.some((o: string) => o.toLowerCase() === query.trim().toLowerCase());
-  const handleToggle = (opt: string) => { if (disabled) return; onChange(safeSelected.includes(opt) ? safeSelected.filter((t: any) => t !== opt) : [...safeSelected, opt]); setQuery(''); };
-  const handleAddNew = async () => { if (disabled) return; const val = query.trim(); if (val && !isAlreadySelected) { setLocalMemory(prev => Array.from(new Set([...prev, val]))); onChange([...safeSelected, val]); setQuery(''); if (onAddOption) { await onAddOption(val); } } };
-  return (
-    <div ref={ref} className={cn("relative min-h-[30px] flex items-center w-full", disabled ? "cursor-default" : "cursor-pointer")} onClick={(e) => { if (disabled) return; e.stopPropagation(); setOpen(true); }}>
-      <div className="flex flex-wrap gap-1.5 w-full">
-        {safeSelected.length > 0 ? safeSelected.map((tag: string) => (
-          <span key={tag} className={cn('px-2.5 py-1 rounded-md text-xs font-bold border flex items-center gap-1.5 shadow-sm', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800')}>
-            <HighlightText text={tag} query={searchQuery} />
-          </span>
-        )) : <span className={cn("text-xs font-bold border border-dashed px-3 py-1 rounded-md transition-colors w-full flex items-center", isDarkMode ? "text-slate-500 border-white/20 hover:text-teal-400 hover:border-teal-400" : "text-slate-400 border-slate-300 hover:text-teal-600 hover:border-teal-500")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
-      </div>
-      {open && !disabled && (
-        <div className={cn('absolute top-full mt-2 left-0 z-[200] rounded-xl border shadow-xl min-w-[240px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')} onClick={e => e.stopPropagation()}>
-          <div className={cn("flex items-center px-3 py-2 border-b", isDarkMode ? "border-white/10 bg-[#1E293B]" : "border-slate-100 bg-slate-50")}>
-            <Search size={14} className={isDarkMode ? "text-slate-400" : "text-slate-500"} />
-            <input autoFocus value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAddNew(); }} placeholder={lang === 'de' ? "Suchen..." : "Search..."} className={cn("ml-2 bg-transparent text-sm font-bold outline-none w-full", isDarkMode ? "text-white placeholder:text-slate-500" : "text-slate-900 placeholder:text-slate-400")} />
-          </div>
-          <div className="max-h-48 overflow-y-auto no-scrollbar py-1">
-            {query.trim() && !exactMatchExists && !isAlreadySelected && (
-              <button onClick={handleAddNew} className={cn('w-full text-left px-4 py-2 text-sm font-bold flex items-center gap-2 transition-all', isDarkMode ? 'text-teal-400 hover:bg-white/10' : 'text-teal-600 hover:bg-teal-50')}><span className="opacity-70 text-xs">Create</span> "{query.trim()}"</button>
-            )}
-            {filteredOptions.map((opt: string) => {
-              const isSelected = safeSelected.includes(opt);
-              return (
-                <div key={opt} className={cn('w-full flex items-center justify-between group transition-all', isSelected ? (isDarkMode ? 'bg-teal-500/10' : 'bg-teal-50') : (isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'))}>
-                  <button onClick={() => handleToggle(opt)} className="flex-1 text-left px-4 py-2 text-sm font-bold flex items-center gap-2">
-                    <div className={cn("w-3.5 h-3.5 rounded flex items-center justify-center shrink-0 border", isSelected ? "bg-teal-500 border-teal-500" : isDarkMode ? "border-slate-500" : "border-slate-400")}>{isSelected && <Check size={10} className="text-white" strokeWidth={4} />}</div>
-                    <span className={cn(isSelected ? (isDarkMode ? 'text-teal-400' : 'text-teal-700') : (isDarkMode ? 'text-slate-300' : 'text-slate-700'))}>{opt}</span>
-                  </button>
-                  {onDeleteOption && (<button onClick={(e) => { e.stopPropagation(); onDeleteOption(opt); setLocalMemory(prev => prev.filter(m => m !== opt)); }} className="px-3 py-2 text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete from system"><Trash2 size={13} /></button>)}
-                </div>
-              )
-            })}
-            {filteredOptions.length === 0 && !query.trim() && (<div className="px-4 py-3 text-xs font-bold text-slate-500 text-center">{lang === 'de' ? 'Keine Firmen gefunden' : 'No companies found'}</div>)}
-          </div>
-        </div>
       )}
     </div>
   );
