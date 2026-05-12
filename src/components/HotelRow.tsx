@@ -202,11 +202,9 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
                )}
            </div>
 
-           {/* COL 4: MWST */}
-           <div className="w-[70px] shrink-0">
-               <select value={item.mwst ?? 7} onChange={e => onChange({ mwst: e.target.value })} className={cn(inputClass, "w-full px-1 text-center")}>
-                   <option value="7">7%</option><option value="19">19%</option><option value="0">0%</option>
-               </select>
+           {/* COL 4: MWST (70px) */}
+           <div className="w-[70px] shrink-0 pl-1">
+               <MwstInput value={item.mwst} onChange={(v:any) => onChange({ mwst: v })} isDarkMode={dk} disabled={false} />
            </div>
 
            {/* COL 5: TOTAL BRUTTO */}
@@ -508,7 +506,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
     if (activeMonthFilter !== 'all') {
         filtered = filtered.filter((inv:any) => {
-            const dateStr = inv.isPaid ? inv.paymentDate : inv.dueDate;
+            const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
             if (!dateStr) return false;
             const d = new Date(dateStr);
             return d.getMonth() === activeMonthFilter && d.getFullYear() === (selectedYear || new Date().getFullYear());
@@ -1154,20 +1152,22 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                <div className={cn("flex flex-col p-4 rounded-2xl border shadow-sm animate-in fade-in slide-in-from-top-2", dk ? "bg-[#1E293B] border-teal-500/30" : "bg-white border-teal-300")}>
                                   <div className="flex items-start gap-3 w-full">
                                      
-                                     {/* NETTO */}
-                                     <div className="flex-1 min-w-[150px]">
+                                     {/* NETTO & INLINE DISCOUNT */}
+                                     <div className="flex-1 flex flex-col min-w-[150px]">
                                         <label className={labelCls}>Netto</label>
-                                        <div className="flex items-center gap-1.5 mt-1">
+                                        <div className="flex items-center gap-1.5 mt-1 relative w-full">
                                             <input disabled={viewOnly || !editingTotal || activeInvoice.totalBrutto} type="number" value={activeInvoice.totalNetto || ''} onChange={e => patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, totalNetto: e.target.value, totalBrutto: null} : i) })} className={cn(inputCls, "w-[120px] disabled:opacity-30")} placeholder="0.00" />
-                                            {(!showTotalDiscount && !activeInvoice.totalBrutto) && <button onClick={() => setShowTotalDiscount(true)} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5"><Ticket size={14}/></button>}
+                                            
+                                            {(!showTotalDiscount && !activeInvoice.totalBrutto) && <button onClick={() => setShowTotalDiscount(true)} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 shrink-0"><Ticket size={14}/></button>}
+                                            
+                                            {showTotalDiscount && !activeInvoice.totalBrutto && (
+                                                <div className="flex items-center w-[120px] shrink-0 animate-in fade-in slide-in-from-left-2 ml-1">
+                                                   <input type="number" value={activeInvoice.discountValue ?? ''} onChange={e => patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, discountValue: e.target.value} : i) })} className={cn(inputCls, "rounded-r-none border-r-0 w-[50px] px-1.5")} placeholder="Rabatt" />
+                                                   <button onClick={() => patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, discountType: i.discountType === 'percentage' ? 'fixed' : 'percentage'} : i) })} className={cn("w-[35px] h-[30px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{activeInvoice.discountType === 'percentage' ? '%' : '€'}</button>
+                                                   <button onClick={() => { setShowTotalDiscount(false); patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, discountValue: null} : i) }); }} className={cn("w-[25px] h-[30px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
+                                                </div>
+                                            )}
                                         </div>
-                                        {showTotalDiscount && !activeInvoice.totalBrutto && (
-                                            <div className="flex items-center w-[130px] mt-1.5 animate-in fade-in slide-in-from-top-1">
-                                               <input type="number" value={activeInvoice.discountValue ?? ''} onChange={e => patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, discountValue: e.target.value} : i) })} className={cn(inputCls, "rounded-r-none border-r-0 w-[60px] px-1.5")} placeholder="0" />
-                                               <button onClick={() => patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, discountType: i.discountType === 'percentage' ? 'fixed' : 'percentage'} : i) })} className={cn("w-[35px] h-[34px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{activeInvoice.discountType === 'percentage' ? '%' : '€'}</button>
-                                               <button onClick={() => { setShowTotalDiscount(false); patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, discountValue: null} : i) }); }} className={cn("w-[25px] h-[34px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
-                                            </div>
-                                        )}
                                      </div>
 
                                      {/* MWST */}
@@ -1258,8 +1258,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                             
                             {filteredMasterInvoices.length > 0 ? filteredMasterInvoices.map((inv: any) => {
                                const isExpanded = expandedInvoices.includes(inv.id);
-                               let invBrutto = inv.billingMode === 'total' ? (parseFloat(inv.totalNetto)||0) * (1 + (parseFloat(inv.totalMwst)||0)/100) : (inv.items||[]).reduce((sum:number, it:any) => sum + calcInvoiceItem(it, 1).brutto, 0);
-
+                               const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
+                               let invBrutto = inv.billingMode === 'total' ? (parseFloat(inv.totalNetto)||0) * (1 + (parseFloat(inv.totalMwst)||0)/100) : (inv.items||[]).reduce((sum:number, it:any) => sum + calcInvoiceItem(it, defaultN).brutto, 0);
                                return (
                                <div key={inv.id} className="flex flex-col mb-3 px-3">
                                   <button onClick={() => setExpandedInvoices(prev => isExpanded ? prev.filter(id => id !== inv.id) : [...prev, inv.id])} className={cn("flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg transition-colors group border shadow-sm", inv.isPaid ? (dk ? "bg-emerald-950/20 border-emerald-500/20" : "bg-emerald-50 border-emerald-200") : (dk ? "bg-red-950/20 border-red-500/20" : "bg-red-50 border-red-200"))}>
