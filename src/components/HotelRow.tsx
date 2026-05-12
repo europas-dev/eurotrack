@@ -782,10 +782,23 @@ return (
 
           <div className="w-[150px] shrink-0 pr-2 flex flex-wrap gap-1.5">
               {visibleDurs.map((d: any, i: number) => {
+                // 1. Hover Title Logic (Rooms & Nights)
+                const typeCount: any = {};
+                (d.roomCards || []).forEach((c:any) => { typeCount[c.roomType] = (typeCount[c.roomType] || 0) + 1 });
+                const roomStr = Object.entries(typeCount).map(([rt, count]) => `${count} ${rt}`).join(', ');
                 const n = calculateNights(d.startDate, d.endDate);
+                const title = `${n} N, ${(d.roomCards || []).length} Rooms ${roomStr ? `(${roomStr})` : ''}`;
+                
+                // 2. Format as '02 Dec'
+                const formatChipDate = (iso: string) => {
+                    const date = new Date(iso);
+                    const locale = lang === 'de' ? 'de-DE' : 'en-GB';
+                    return date.toLocaleDateString(locale, { day: '2-digit', month: 'short' }).replace('.', '');
+                };
+
                 return (
-                  <button key={d.id} onClick={(e) => { e.stopPropagation(); onToggle(); setActiveTab('bookings'); setActiveDurationTab(i); }} className={cn('px-2 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all', dk ? 'bg-[#0F172A] border-white/10 text-slate-300 hover:bg-white/10' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100')}>
-                    {d.startDate ? `${new Date(d.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} (${n}N)` : 'New'}
+                  <button key={d.id} title={title} onClick={(e) => { e.stopPropagation(); onToggle(); setActiveTab('bookings'); setActiveDurationTab(i); }} className={cn('px-2 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all', dk ? 'bg-[#0F172A] border-white/10 text-slate-300 hover:bg-white/10' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100')}>
+                    {d.startDate && d.endDate ? `${formatChipDate(d.startDate)} - ${formatChipDate(d.endDate)}` : 'New'}
                   </button>
                 )
               })}
@@ -821,7 +834,7 @@ return (
               {hiddenEmps.length > 0 && (
                  <div className="relative group">
                     <button onClick={(e) => { e.stopPropagation(); onToggle(); setActiveTab('bookings'); }} className="px-2 py-0.5 rounded-full border border-dashed border-slate-400 text-[10px] font-bold flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">+{hiddenEmps.length}</button>
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max max-w-[200px] px-3 py-2 bg-slate-800 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[200] shadow-xl flex flex-wrap gap-1">
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max max-w-[200px] px-3 py-2 bg-slate-800 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[9999] shadow-xl flex flex-wrap gap-1">
                         {hiddenEmps.map(e => <span key={e.id} className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded">{e.name?.trim().split(' ').pop()}</span>)}
                     </div>
                  </div>
@@ -842,6 +855,30 @@ return (
                   <Search size={10} strokeWidth={3} /> {hiddenMatchText}
                </div>
             )}
+            
+            <div className={cn('font-black leading-none text-right', selectedMonth !== null ? 'text-md' : 'text-lg', dk ? 'text-white' : 'text-slate-900')}>
+              {formatCurrency(masterMath.displayBrutto)}
+            </div>
+            
+            {showGlobalFinancials && (
+               <div className="flex flex-col items-end mt-1 space-y-0.5">
+                  <span className="text-emerald-500 text-[10px] font-bold leading-none">{formatCurrency(masterMath.totalPaid)}</span>
+                  <span className="text-red-500 text-[10px] font-bold leading-none">{formatCurrency(masterMath.totalUnpaid)}</span>
+               </div>
+            )}
+
+            {/* RESTORED ICONS */}
+            <div className="flex items-center justify-end gap-1 mt-2 opacity-30 hover:opacity-100 transition-opacity">
+               <button onClick={handleBookmarkToggle} className={cn("p-1 rounded transition-colors", isBookmarked ? "text-yellow-500" : "text-slate-500 hover:text-slate-800 dark:hover:text-white")}><Star size={12} className={isBookmarked ? "fill-yellow-500" : ""} /></button>
+               <div className="relative group">
+                  <button onClick={(e) => e.stopPropagation()} className="p-1 rounded text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors"><Clock size={12} /></button>
+                  <div className={cn("absolute right-0 bottom-full mb-2 w-max px-2 py-1 text-[9px] font-bold rounded opacity-0 group-hover:opacity-100 z-[9999] whitespace-nowrap pointer-events-none shadow-xl border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-700 border-slate-200")}>{formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}</div>
+               </div>
+               {!viewOnly && (
+                 <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-1 rounded text-slate-500 hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
+               )}
+            </div>
+          </div>
             
             <div className={cn('font-black leading-none text-right', selectedMonth !== null ? 'text-md' : 'text-lg', dk ? 'text-white' : 'text-slate-900')}>
               {formatCurrency(masterMath.displayBrutto)}
