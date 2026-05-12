@@ -122,7 +122,6 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
     return (
       <div className={cn("flex flex-col p-2 border-b transition-all w-full", dk ? "bg-white/5 border-white/10" : "bg-slate-50 border-slate-200")}>
         <div className="flex items-start w-full">
-           
            <div className="flex-1 min-w-[200px] flex items-center gap-1.5 shrink-0 pr-2">
                <select value={item.type || 'room'} onChange={e => {
                    const newType = e.target.value;
@@ -145,12 +144,10 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
                         <span className="w-[26px] text-center text-[11px] font-bold">{activeNights}</span>
                         <div className={cn("px-1 border-l h-full flex items-center", dk ? "border-white/10 text-slate-400" : "border-slate-200 text-slate-400")}><Calendar size={12}/></div>
                     </div>
-
                     <div className="relative w-[75px] ml-1 shrink-0">
                        <input type="number" disabled={hasBruttoInput} placeholder="0.00" value={item.netto ?? ''} onChange={e => onChange({ netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 pr-6 text-right")} />
                        {(!showDiscount && !hasBruttoInput) && <button onClick={() => setShowDiscount(true)} className="absolute right-1 top-[5px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
                     </div>
-                    
                     {calOpen && (
                         <div className={cn("absolute top-full right-0 mt-2 p-3 rounded-xl border shadow-2xl z-[9999] flex flex-col gap-3 w-[260px]", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
                            <div className="flex items-center gap-2 w-full">
@@ -170,7 +167,6 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
                ) : (
                  <span className="text-[10px] italic text-slate-400 opacity-50 px-2 w-full text-right h-[30px] flex items-center justify-end">--</span>
                )}
-               
                {showDiscount && !hasBruttoInput && (
                   <div className="flex items-center justify-end w-[130px] animate-in fade-in slide-in-from-top-1 mt-1 mr-[-2px]">
                      <input type="number" value={item.discountValue ?? ''} onChange={e => onChange({ discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-[60px] px-1.5 text-right")} placeholder="0" />
@@ -403,7 +399,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
   );
 }
 
-export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onAddOption, viewOnly, isSelected = false, onSelect = () => {}, isBulkActive = false, isOpen = false, onToggle = () => {}, showGlobalFinancials = false }: any) {
+export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onAddOption, viewOnly, isSelected = false, onSelect = () => {}, isBulkActive = false, isOpen = false, onToggle = () => {}, showGlobalFinancials = false, activeSort = 'created_at' }: any) {
   const [activeTab, setActiveTab] = useState<'bookings'|'billing'|'info'>('bookings');
   
   const [showNotes, setShowNotes] = useState(false);
@@ -786,6 +782,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
                 const borderCls = status === 'active' ? "border-emerald-500/50" : status === 'upcoming' ? "border-blue-500/50" : status === 'ending-soon' ? "border-red-500/50" : "border-slate-500/40";
                 const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
+                
                 const shortName = emp.name ? emp.name.trim().split(' ').pop() : '_ _ _';
                 const n = calculateNights(emp.checkIn||'', emp.checkOut||'');
                 
@@ -796,7 +793,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
                       <HighlightText text={shortName} query={searchScope === 'all' || searchScope === 'employee' ? searchQuery : ''} />
                     </button>
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-2 bg-slate-800 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[9999] shadow-xl text-center">
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-2 bg-slate-800 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[99999] shadow-xl text-center">
                         <p className="text-xs font-bold">{emp.name}</p>
                         <p className="text-[10px] text-slate-300">{formatShortDate(emp.checkIn, lang)} ➔ {formatShortDate(emp.checkOut, lang)} ({n}N)</p>
                     </div>
@@ -807,7 +804,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               {hiddenEmps.length > 0 && (
                  <div className="relative group">
                     <button onClick={(e) => { e.stopPropagation(); onToggle(); setActiveTab('bookings'); }} className="px-2 py-0.5 rounded-full border border-dashed border-slate-400 text-[10px] font-bold flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">+{hiddenEmps.length}</button>
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max max-w-[200px] px-3 py-2 bg-slate-800 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[9999] shadow-xl flex flex-wrap gap-1">
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max max-w-[200px] px-3 py-2 bg-slate-800 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[99999] shadow-xl flex flex-wrap gap-1">
                         {hiddenEmps.map(e => <span key={e.id} className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded">{e.name?.trim().split(' ').pop()}</span>)}
                     </div>
                  </div>
@@ -840,11 +837,17 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                </div>
             )}
 
+            {!showGlobalFinancials && activeSort === 'payment_due' && (
+               <div className="text-[10px] font-bold text-red-500 mt-1">
+                  {masterMath.totalUnpaid > 0 ? (lang === 'de' ? 'Fällig' : 'Due') : ''}
+               </div>
+            )}
+
             <div className="flex items-center justify-end gap-1.5 mt-2 opacity-40 hover:opacity-100 transition-opacity">
                <button onClick={handleBookmarkToggle} className={cn("p-1 rounded transition-colors", isBookmarked ? "text-yellow-500" : "text-slate-500 hover:text-slate-800 dark:hover:text-white")}><Star size={12} className={isBookmarked ? "fill-yellow-500" : ""} /></button>
                <div className="relative group">
                   <button onClick={(e) => e.stopPropagation()} className="p-1 rounded text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors"><Clock size={12} /></button>
-                  <div className={cn("absolute right-0 bottom-full mb-2 w-max px-2 py-1 text-[9px] font-bold rounded opacity-0 group-hover:opacity-100 z-[9999] whitespace-nowrap pointer-events-none shadow-xl border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-700 border-slate-200")}>{formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}</div>
+                  <div className={cn("absolute right-0 bottom-full mb-2 w-max px-2 py-1 text-[9px] font-bold rounded opacity-0 group-hover:opacity-100 z-[99999] whitespace-nowrap pointer-events-none shadow-xl border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-700 border-slate-200")}>{formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}</div>
                </div>
                {!viewOnly && (
                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-1 rounded text-slate-500 hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
@@ -1111,6 +1114,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       {activeInvoice ? (
                          activeInvoice.billingMode === 'total' ? (
                             <div className="p-4">
+                               {/* SLEEK TOTAL MODE (Single Line + Note) */}
                                <div className={cn("flex flex-col p-4 rounded-2xl border shadow-sm animate-in fade-in slide-in-from-top-2", dk ? "bg-[#1E293B] border-teal-500/30" : "bg-white border-teal-300")}>
                                   <div className="flex items-center gap-3 w-full">
                                      <div className="flex-1 flex items-center gap-2 min-w-[250px]">
