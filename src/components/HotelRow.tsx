@@ -593,6 +593,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     };
   }, [localHotel, activeInvoice]);
 
+  const visibleEmps = masterMath.employees.slice(0, 6);
+  const hiddenEmpsCount = masterMath.employees.length > 6 ? masterMath.employees.length - 6 : 0;
+
   function patchHotel(changes: any) {
     if (viewOnly) return; 
     let next = { ...localHotel, ...changes };
