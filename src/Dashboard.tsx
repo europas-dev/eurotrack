@@ -125,17 +125,23 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
   // Dropdown dismiss logic
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (yearMenuRef.current && !yearMenuRef.current.contains(event.target as Node)) {
-        setShowYearMenu(false); setYearOffset(0);
-      }
-      if (monthMenuRef.current && !monthMenuRef.current.contains(event.target as Node)) {
-        setShowMonthMenu(false);
-      }
+  function handleClickOutside(event: MouseEvent) {
+    if (yearMenuRef.current && !yearMenuRef.current.contains(event.target as Node)) {
+      setShowYearMenu(false);
+      setYearOffset(0);
     }
+    if (monthMenuRef.current && !monthMenuRef.current.contains(event.target as Node)) {
+      setShowMonthMenu(false);
+    }
+  }
+  
+  if (showYearMenu || showMonthMenu) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }
+  
+  return () => {};
+}, [showYearMenu, showMonthMenu]);
 
   useEffect(() => {
     let isMounted = true;
@@ -719,42 +725,87 @@ finalFiltered.forEach(h => {
               <div className="flex items-center gap-2">
                 
                 {/* MODERN YEAR SELECTOR */}
-                <div className="relative" ref={yearMenuRef}>
-                    <button onClick={() => { setShowYearMenu(!showYearMenu); setShowMonthMenu(false); closeMenu(); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-bold flex items-center gap-2 transition-all shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800")}>
-                        {selectedYear} <ChevronDown size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} />
-                    </button>
-                    {showYearMenu && (
-                        <div className={cn(popupCls, "w-[200px] p-3")}>
-                            <button onClick={() => setYearOffset(prev => prev - 10)} className="w-full py-1.5 mb-2 rounded border border-dashed text-xs font-bold text-slate-500 hover:text-teal-500 flex items-center justify-center gap-1"><ChevronUp size={12}/> 10 {lang === 'de' ? 'Jahre' : 'Years'}</button>
-                            <div className="grid grid-cols-2 gap-1">
-                                {Array.from({ length: 10 }, (_, i) => selectedYear + yearOffset - 4 + i).map(y => (
-                                    <button key={y} onClick={() => { setSelectedYear(y); setShowYearMenu(false); setYearOffset(0); }} className={cn("py-2 rounded-lg text-sm font-bold transition-all", selectedYear === y ? btnActive : btnInactive)}>{y}</button>
-                                ))}
-                            </div>
-                            <button onClick={() => setYearOffset(prev => prev + 10)} className="w-full py-1.5 mt-2 rounded border border-dashed text-xs font-bold text-slate-500 hover:text-teal-500 flex items-center justify-center gap-1">10 {lang === 'de' ? 'Jahre' : 'Years'} <ChevronDown size={12}/></button>
-                        </div>
-                    )}
-                </div>
+<div className="relative" ref={yearMenuRef}>
+  <button 
+    onClick={() => { 
+      setShowYearMenu(!showYearMenu); 
+      setShowMonthMenu(false); 
+    }} 
+    className={cn("px-4 py-2.5 rounded-xl border text-sm font-bold flex items-center gap-2 transition-all shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800")}
+  >
+    {selectedYear} <ChevronDown size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} />
+  </button>
+  {showYearMenu && (
+    <div className={cn(popupCls, "w-[200px] p-3")} onClick={(e) => e.stopPropagation()}>
+      <button 
+        onClick={() => setYearOffset(prev => prev - 10)} 
+        className="w-full py-1.5 mb-2 rounded border border-dashed text-xs font-bold text-slate-500 hover:text-teal-500 flex items-center justify-center gap-1"
+      >
+        <ChevronUp size={12}/> 10 {lang === 'de' ? 'Jahre' : 'Years'}
+      </button>
+      <div className="grid grid-cols-2 gap-1">
+        {Array.from({ length: 10 }, (_, i) => selectedYear + yearOffset - 4 + i).map(y => (
+          <button 
+            key={y} 
+            onClick={() => { 
+              setSelectedYear(y); 
+              setShowYearMenu(false); 
+              setYearOffset(0); 
+            }} 
+            className={cn("py-2 rounded-lg text-sm font-bold transition-all", selectedYear === y ? btnActive : btnInactive)}
+          >
+            {y}
+          </button>
+        ))}
+      </div>
+      <button 
+        onClick={() => setYearOffset(prev => prev + 10)} 
+        className="w-full py-1.5 mt-2 rounded border border-dashed text-xs font-bold text-slate-500 hover:text-teal-500 flex items-center justify-center gap-1"
+      >
+        10 {lang === 'de' ? 'Jahre' : 'Years'} <ChevronDown size={12}/>
+      </button>
+    </div>
+  )}
+</div>
 
-                {/* MODERN MONTH SELECTOR */}
-                <div className="relative" ref={monthMenuRef}>
-                    <button onClick={() => { setShowMonthMenu(!showMonthMenu); setShowYearMenu(false); closeMenu(); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-bold flex items-center gap-2 transition-all shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800")}>
-                        {selectedMonth === null ? (lang === 'de' ? 'Alle Monate' : 'All Months') : (lang === 'de' ? monthNamesDe[selectedMonth] : monthNamesEn[selectedMonth])} <ChevronDown size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} />
-                    </button>
-                    {showMonthMenu && (
-                        <div className={cn(popupCls, "w-[200px] p-2 flex flex-col gap-1")}>
-                            <button onClick={() => { setSelectedMonth(null); setShowMonthMenu(false); }} className={cn("py-2 px-3 rounded-lg text-sm font-bold transition-all text-left", selectedMonth === null ? btnActive : btnInactive)}>
-                                {lang === 'de' ? 'Alle Monate' : 'All Months'}
-                            </button>
-                            <div className="w-full h-px bg-slate-200 dark:bg-white/10 my-1"></div>
-                            {(lang === 'de' ? monthNamesDe : monthNamesEn).map((m, i) => (
-                                <button key={i} onClick={() => { setSelectedMonth(i); setShowMonthMenu(false); }} className={cn("py-1.5 px-3 rounded-lg text-sm font-bold transition-all text-left", selectedMonth === i ? btnActive : btnInactive)}>
-                                    {m}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
+{/* MODERN MONTH SELECTOR */}
+<div className="relative" ref={monthMenuRef}>
+  <button 
+    onClick={() => { 
+      setShowMonthMenu(!showMonthMenu); 
+      setShowYearMenu(false); 
+    }} 
+    className={cn("px-4 py-2.5 rounded-xl border text-sm font-bold flex items-center gap-2 transition-all shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800")}
+  >
+    {selectedMonth === null ? (lang === 'de' ? 'Alle Monate' : 'All Months') : (lang === 'de' ? monthNamesDe[selectedMonth] : monthNamesEn[selectedMonth])} <ChevronDown size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} />
+  </button>
+  {showMonthMenu && (
+    <div className={cn(popupCls, "w-[200px] p-2 flex flex-col gap-1")} onClick={(e) => e.stopPropagation()}>
+      <button 
+        onClick={() => { 
+          setSelectedMonth(null); 
+          setShowMonthMenu(false); 
+        }} 
+        className={cn("py-2 px-3 rounded-lg text-sm font-bold transition-all text-left", selectedMonth === null ? btnActive : btnInactive)}
+      >
+        {lang === 'de' ? 'Alle Monate' : 'All Months'}
+      </button>
+      <div className="w-full h-px bg-slate-200 dark:bg-white/10 my-1"></div>
+      {(lang === 'de' ? monthNamesDe : monthNamesEn).map((m, i) => (
+        <button 
+          key={i} 
+          onClick={() => { 
+            setSelectedMonth(i); 
+            setShowMonthMenu(false); 
+          }} 
+          className={cn("py-1.5 px-3 rounded-lg text-sm font-bold transition-all text-left", selectedMonth === i ? btnActive : btnInactive)}
+        >
+          {m}
+        </button>
+      ))}
+    </div>
+  )}
+</div>
 
                 {/* TIMELINE */}
                 <div className="relative">
