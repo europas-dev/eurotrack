@@ -1,10 +1,10 @@
 // src/Dashboard.tsx
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { supabase, deleteHotel, createHotel } from './lib/supabase';
+import React, { useState, useEffect, useMemo } from 'react';
+import { supabase, createHotel } from './lib/supabase';
 import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday, calculateNights } from './lib/utils';
-import { calcRoomCardTotal, calcRoomCardNettoSum } from './lib/roomCardUtils';
+import { calcRoomCardNettoSum, calcRoomCardTotal } from './lib/roomCardUtils';
 import type { AccessLevel } from './lib/supabase';
-import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Undo2, Redo2, Star, Calendar, MapPin, Building, Building2, CloudOff, Globe, Trash2, Copy, Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Star, Calendar, MapPin, Building, Building2, CloudOff, Globe, Trash2, Copy, Eye, EyeOff, ChevronDown, Download } from 'lucide-react';
 import Header from './components/Header';
 import { HotelRow, ModernDropdown, CompanyMultiSelect, getCountryOptions } from './components/HotelRow';
 import ExportStudio from './components/ExportStudio';
@@ -69,14 +69,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   const [showBookmarks, setShowBookmarks] = useState(false);
-  const [bookmarks, setBookmarks] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]'); } catch { return []; }
-  });
+  const [bookmarks, setBookmarks] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]'); } catch { return []; } });
   
-  const [history, setHistory] = useState<any[][]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
   const [addingHotel, setAddingHotel] = useState(false);
-  
   const [newHotelName, setNewHotelName] = useState('');
   const [newHotelCity, setNewHotelCity] = useState('');
   const [newHotelCompanyTags, setNewHotelCompanyTags] = useState<string[]>([]);
@@ -92,10 +87,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     : `${lang === 'de' ? 'Dashboard' : 'Dashboard'} ${selectedYear}`;
 
   useEffect(() => {
-    const hO = () => setIsOnline(true);
-    const hOff = () => setIsOnline(false);
-    window.addEventListener('online', hO);
-    window.addEventListener('offline', hOff);
+    const hO = () => setIsOnline(true); const hOff = () => setIsOnline(false);
+    window.addEventListener('online', hO); window.addEventListener('offline', hOff);
     return () => { window.removeEventListener('online', hO); window.removeEventListener('offline', hOff); };
   }, []);
 
@@ -114,54 +107,22 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     async function fetchAllData() {
       try {
         const companies = await getSystemCompanies();
-        const { data, error } = await supabase
-          .from('hotels')
-          .select('*, durations(*, room_cards(*, employees(*)), employees(*))')
-          .eq('year', selectedYear)
-          .order('created_at', { ascending: false });
-
+        const { data, error } = await supabase.from('hotels').select('*, durations(*, room_cards(*, employees(*)), employees(*))').eq('year', selectedYear).order('created_at', { ascending: false });
         if (error) throw error; 
 
         const normalized = (data || []).map((h: any) => ({
-          ...h, 
-          companyTag: h.company_tag ?? [],
-          isPaid: h.is_paid ?? false,
-          rechnungNr: h.rechnung_nr ?? '',
-          bookingId: h.booking_id ?? '',
-          depositEnabled: h.deposit_enabled ?? false,
-          depositAmount: h.deposit_amount ?? 0,
-          useBruttoNetto: h.use_brutto_netto ?? true,
-          hasDiscount: h.has_discount ?? false,
-          discountType: h.discount_type ?? 'percentage',
-          discountValue: h.discount_value ?? 0,
-
+          ...h, companyTag: h.company_tag ?? [], isPaid: h.is_paid ?? false, rechnungNr: h.rechnung_nr ?? '', bookingId: h.booking_id ?? '', depositEnabled: h.deposit_enabled ?? false, depositAmount: h.deposit_amount ?? 0, useBruttoNetto: h.use_brutto_netto ?? true, hasDiscount: h.has_discount ?? false, discountType: h.discount_type ?? 'percentage', discountValue: h.discount_value ?? 0,
           durations: (h.durations || []).map((d: any) => ({
-            ...d, hotelId: d.hotel_id, startDate: d.start_date, endDate: d.end_date, roomType: d.room_type, numberOfRooms: d.number_of_rooms,
-            pricePerNightPerRoom: d.price_per_night_per_room, useManualPrices: d.use_manual_prices, nightlyPrices: d.nightly_prices, useBruttoNetto: d.use_brutto_netto,
-            hasDiscount: d.has_discount, discountType: d.discount_type, discountValue: d.discount_value, isPaid: d.is_paid, rechnungNr: d.rechnung_nr,
-            bookingId: d.booking_id, depositEnabled: d.deposit_enabled, depositAmount: d.deposit_amount,
+            ...d, hotelId: d.hotel_id, startDate: d.start_date, endDate: d.end_date, roomType: d.room_type, numberOfRooms: d.number_of_rooms, pricePerNightPerRoom: d.price_per_night_per_room, useManualPrices: d.use_manual_prices, nightlyPrices: d.nightly_prices, useBruttoNetto: d.use_brutto_netto, hasDiscount: d.has_discount, discountType: d.discount_type, discountValue: d.discount_value, isPaid: d.is_paid, rechnungNr: d.rechnung_nr, bookingId: d.booking_id, depositEnabled: d.deposit_enabled, depositAmount: d.deposit_amount,
             roomCards: (d.room_cards || []).map((rc: any) => ({
-              ...rc, durationId: rc.duration_id, roomNo: rc.room_no, roomType: rc.room_type, bedCount: rc.bed_count, pricingTab: rc.pricing_tab ?? 'per_room',
-              roomNetto: rc.room_netto, roomMwst: rc.room_mwst, roomBrutto: rc.room_brutto, bedNetto: rc.bed_netto, bedMwst: rc.bed_mwst, bedBrutto: rc.bed_brutto, totalNetto: rc.total_netto, totalMwst: rc.total_mwst, totalBrutto: rc.total_brutto,
-              roomEnergyNetto: rc.room_energy_netto, roomEnergyMwst: rc.room_energy_mwst, roomEnergyBrutto: rc.room_energy_brutto, bedEnergyNetto: rc.bed_energy_netto, bedEnergyMwst: rc.bed_energy_mwst, bedEnergyBrutto: rc.bed_energy_brutto, totalEnergyNetto: rc.total_energy_netto, totalEnergyMwst: rc.total_energy_mwst, totalEnergyBrutto: rc.total_energy_brutto,
-              hasDiscount: rc.has_discount, discountType: rc.discount_type, discountValue: rc.discount_value,
-              basePrice: rc.base_price, baseRoomPrice: rc.base_room_price, baseEnergyPrice: rc.base_energy_price, baseNights: rc.base_nights, lastSyncedEndDate: rc.last_synced_end_date,
+              ...rc, durationId: rc.duration_id, roomNo: rc.room_no, roomType: rc.room_type, bedCount: rc.bed_count, pricingTab: rc.pricing_tab ?? 'per_room', roomNetto: rc.room_netto, roomMwst: rc.room_mwst, roomBrutto: rc.room_brutto, bedNetto: rc.bed_netto, bedMwst: rc.bed_mwst, bedBrutto: rc.bed_brutto, totalNetto: rc.total_netto, totalMwst: rc.total_mwst, totalBrutto: rc.total_brutto, roomEnergyNetto: rc.room_energy_netto, roomEnergyMwst: rc.room_energy_mwst, roomEnergyBrutto: rc.room_energy_brutto, bedEnergyNetto: rc.bed_energy_netto, bedEnergyMwst: rc.bed_energy_mwst, bedEnergyBrutto: rc.bed_energy_brutto, totalEnergyNetto: rc.total_energy_netto, totalEnergyMwst: rc.total_energy_mwst, totalEnergyBrutto: rc.total_energy_brutto, hasDiscount: rc.has_discount, discountType: rc.discount_type, discountValue: rc.discount_value, basePrice: rc.base_price, baseRoomPrice: rc.base_room_price, baseEnergyPrice: rc.base_energy_price, baseNights: rc.base_nights, lastSyncedEndDate: rc.last_synced_end_date,
               employees: (rc.employees || []).map((e: any) => ({ ...e, slotIndex: e.slot_index ?? 0, checkIn: e.checkin, checkOut: e.checkout }))
             }))
           }))
         }));
 
-        if (isMounted) { 
-          setSystemCompanies(companies);
-          setHotels(normalized); 
-          setHistory([normalized]); 
-          setHistoryIndex(0); 
-        }
-      } catch (err: any) { 
-        if (isMounted) setError(err.message || "Failed to load dashboard data."); 
-      } finally {
-        if (isMounted) setLoading(false);
-      }
+        if (isMounted) { setSystemCompanies(companies); setHotels(normalized); }
+      } catch (err: any) { if (isMounted) setError(err.message || "Failed to load dashboard data."); } finally { if (isMounted) setLoading(false); }
     }
     fetchAllData(); 
     return () => { isMounted = false; };
@@ -179,17 +140,13 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const handleAddGlobalCompany = async (name: string) => { try { await addSystemCompany(name); setSystemCompanies(prev => Array.from(new Set([...prev, name]))); } catch (err) {} };
   const handleDeleteGlobalCompany = async (name: string) => { try { await deleteSystemCompany(name); setSystemCompanies(prev => prev.filter(c => c !== name)); } catch (err) {} };
 
-  function pushToHistory(next: any[]) { const nH = history.slice(0, historyIndex + 1); nH.push(next); setHistory(nH); setHistoryIndex(nH.length - 1); }
-  const handleUndo = () => { if (historyIndex > 0) { setHistoryIndex(historyIndex - 1); setHotels(history[historyIndex - 1]); } };
-  const handleRedo = () => { if (historyIndex < history.length - 1) { setHistoryIndex(historyIndex + 1); setHotels(history[historyIndex + 1]); } };
-
   async function handleSaveNewHotel() {
     if (!newHotelName.trim()) return; 
     setNewHotelSaving(true);
     try {
       const h = await createHotel({ name: newHotelName.trim(), city: newHotelCity.trim() || null, companyTag: newHotelCompanyTags, company_tag: newHotelCompanyTags, country: newHotelCountry, year: selectedYear });
       const next = [{ ...h, companyTag: newHotelCompanyTags, durations: [], isPaid: false, rechnungNr: '', bookingId: '', depositEnabled: false, depositAmount: 0, useBruttoNetto: true, hasDiscount: false, discountType: 'percentage', discountValue: 0 }, ...hotels]; 
-      setHotels(next); pushToHistory(next); setAddingHotel(false); setNewHotelName(''); setNewHotelCity(''); setNewHotelCompanyTags([]); setNewHotelCountry('Germany');
+      setHotels(next); setAddingHotel(false); setNewHotelName(''); setNewHotelCity(''); setNewHotelCompanyTags([]); setNewHotelCountry('Germany');
     } catch (e: any) { alert(e.message); } finally { setNewHotelSaving(false); }
   }
 
@@ -269,7 +226,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           };
           va = getMinPrice(a); vb = getMinPrice(b);
       } 
-      else if (sortBy === 'cost') { va = calcHotelTotalCost(a); vb = calcHotelTotalCost(b); }
+      else if (sortBy === 'cost') { va = calcHotelTotalCost(a, selectedMonth !== 'all' ? selectedMonth : null, selectedYear); vb = calcHotelTotalCost(b, selectedMonth !== 'all' ? selectedMonth : null, selectedYear); }
       else if (sortBy === 'free_beds') { va = calcHotelFreeBedsToday(a); vb = calcHotelFreeBedsToday(b); }
       else if (sortBy === 'created_at') { va = new Date(a.created_at).getTime(); vb = new Date(b.created_at).getTime(); }
       else if (sortBy === 'updated_at') { va = new Date(a.last_updated_at || a.lastUpdatedAt || 0).getTime(); vb = new Date(b.last_updated_at || b.lastUpdatedAt || 0).getTime(); }
@@ -342,21 +299,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   // DASHBOARD MATH FOR TOP BAR
   let totalSpend = 0; let totalPaidGlobal = 0; let totalUnpaidGlobal = 0;
   finalFiltered.forEach(h => {
-    totalSpend += (h.durations || []).reduce((dSum: number, dur: any) => {
-      const durMoney = (dur.roomCards || []).reduce((rcSum: number, rc: any) => rcSum + (parseFloat(calcRoomCardTotal(rc, dur.startDate, dur.endDate).toString()) || 0), 0);
-      if (selectedMonth !== 'all') {
-         const dStart = new Date(dur.startDate); const dEnd = new Date(dur.endDate);
-         const lastNight = new Date(dEnd.getTime() - 86400000);
-         const mStart = new Date(selectedYear, selectedMonth, 1);
-         const mEnd = new Date(selectedYear, selectedMonth + 1, 0);
-         if (dStart > mEnd || lastNight < mStart) return dSum;
-         const overlapStart = dStart > mStart ? dStart : mStart;
-         const overlapEnd = lastNight < mEnd ? lastNight : mEnd;
-         const overlapNights = Math.max(0, Math.floor((overlapEnd.getTime() - overlapStart.getTime()) / 86400000) + 1);
-         return dSum + (durMoney * (overlapNights / calculateNights(dur.startDate, dur.endDate)));
-      }
-      return dSum + durMoney;
-    }, 0);
+    totalSpend += calcHotelTotalCost(h, selectedMonth !== 'all' ? selectedMonth : null, selectedYear);
 
     (h.invoices || []).forEach((inv: any) => {
        if (selectedMonth !== 'all') {
@@ -377,7 +320,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
   const btnActive = dk ? 'bg-teal-600 text-white border-transparent' : 'bg-white border-teal-600 text-teal-700 shadow-sm';
   const btnInactive = dk ? 'bg-white/5 text-slate-300 border-transparent hover:bg-white/10' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50';
-  const popupCls = cn('absolute z-[1000] mt-3 p-5 rounded-2xl border shadow-2xl w-[420px] text-sm animate-in fade-in slide-in-from-top-2 duration-200 right-0 lg:-right-10', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900');
+  const popupCls = cn('absolute z-[1000] mt-3 p-5 rounded-2xl border shadow-2xl w-[420px] text-sm animate-in fade-in slide-in-from-top-2 duration-200 right-0', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900');
   const popupHeader = "flex items-center justify-between mb-5";
   const popupTitle = "text-lg font-bold";
   const sectionTitle = "text-sm text-slate-400 mb-2";
@@ -385,14 +328,25 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   return (
     <div className={cn('flex h-screen overflow-hidden', dk ? 'bg-[#0F172A]' : 'bg-slate-50')}>
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        <Header 
-          theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} 
-          searchQuery={searchQuery} setSearchQuery={setSearchQuery} 
-          searchScope={searchScope} setSearchScope={setSearchScope} 
-          onSignOut={onSignOut} onExportCsv={() => {}} onPrint={() => setShowStudio(true)} 
-          viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} 
-          offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} 
-        />
+        
+        {/* LOGO & HEADER INTEGRATION */}
+        <div className={cn("flex items-center w-full border-b shrink-0 z-50", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-200")}>
+           <div className={cn("px-6 flex items-center justify-center border-r h-[72px]", dk ? "border-white/5" : "border-slate-200")}>
+              <div className="text-2xl font-black italic select-none tracking-tighter opacity-80">
+                Euro<span className="text-yellow-500">Track.</span>
+              </div>
+           </div>
+           <div className="flex-1 h-full">
+              <Header 
+                theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} 
+                searchQuery={searchQuery} setSearchQuery={setSearchQuery} 
+                searchScope={searchScope} setSearchScope={setSearchScope} 
+                onSignOut={onSignOut} onExportCsv={() => {}} onPrint={() => {}} 
+                viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} 
+                offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} 
+              />
+           </div>
+        </div>
 
         {(!isOnline || offlineMode) && (
           <div className="bg-amber-500 border-b border-amber-600 text-white px-6 py-2.5 text-sm font-bold flex items-center justify-center gap-2 z-[60] relative">
@@ -414,13 +368,10 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           </div>
         )}
 
+        {/* GLOBAL STATS ROW */}
         <div className={cn('px-8 py-5 border-b shrink-0 z-40 relative', dk ? 'bg-[#0F172A] border-white/5' : 'bg-white border-slate-200')}>
           <div className="flex items-center justify-between flex-wrap gap-4 w-full">
             <div className="flex items-center gap-12 flex-wrap">
-              <div className="flex items-center mr-8">
-                 <div className="text-2xl font-black italic select-none tracking-tighter">Euro<span className="text-yellow-500">Track.</span></div>
-              </div>
-              
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">{lang === 'de' ? 'Freie Betten' : 'Free Beds'}</p>
                 <p className={cn('text-3xl font-black', freeBedsTotal > 0 ? 'text-red-500' : 'text-slate-400')}>{freeBedsTotal}</p>
@@ -438,57 +389,50 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                   <p className="text-3xl font-black text-teal-600 dark:text-teal-400">{formatCurrency(totalSpend)}</p>
                 </div>
                 {showGlobalFinancials && (
-                   <div className="flex flex-col justify-center gap-1.5 animate-in fade-in slide-in-from-left-2 pl-4 border-l border-slate-200 dark:border-white/10">
-                       <span className="text-emerald-500 text-sm font-bold leading-none">{formatCurrency(totalPaidGlobal)}</span>
-                       <span className="text-red-500 text-sm font-bold leading-none">{formatCurrency(totalUnpaidGlobal)}</span>
+                   <div className="flex flex-col justify-center h-full pt-4 animate-in fade-in slide-in-from-left-2 pl-4 border-l border-slate-200 dark:border-white/10">
+                       <span className="text-emerald-500 text-sm font-bold leading-tight">{formatCurrency(totalPaidGlobal)}</span>
+                       <span className="text-red-500 text-sm font-bold leading-tight">{formatCurrency(totalUnpaidGlobal)}</span>
                    </div>
                 )}
               </div>
             </div>
+            
+            {/* ACTION BUTTONS (RESTORED FROM SIDEBAR) */}
+            <div className="flex items-center gap-3">
+               <button onClick={() => setShowStudio(true)} className={cn("px-4 py-2.5 rounded-xl border font-bold flex items-center gap-2 transition-all", dk ? "bg-[#1E293B] border-white/10 text-white hover:bg-white/10" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50")}>
+                  <Download size={16} /> Export
+               </button>
+               {!isStrictViewer && (
+                 <button onClick={() => setAddingHotel(true)} className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl flex items-center gap-2 transition-all shadow-md active:scale-95">
+                   <Plus size={18} strokeWidth={2.5} /> {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
+                 </button>
+               )}
+            </div>
           </div>
         </div>
 
-        <main className="flex-1 overflow-y-auto relative no-scrollbar pb-64">
+        <main className="flex-1 overflow-y-auto relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full pb-64">
           <div className="px-8 py-6">
             <div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative z-[100]">
               <h2 className="text-2xl font-bold tracking-tight">{displayTitle}</h2>
               
               <div className="flex items-center gap-2">
-                <div className={cn("flex items-center mr-2 rounded-xl border shadow-sm", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
-                   <div className="relative">
-                      <select value={selectedYear} onChange={e => setSelectedYear(parseInt(e.target.value))} className={cn("pl-4 pr-8 py-2.5 bg-transparent text-sm font-black outline-none focus:ring-0 appearance-none border-none cursor-pointer", dk ? "text-teal-400" : "text-teal-600")}>
-                         {Array.from({length: 10}, (_, i) => new Date().getFullYear() - 4 + i).map(y => <option key={y} value={y}>{y}</option>)}
-                      </select>
-                      <ChevronDown size={14} className={cn("absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none", dk ? "text-teal-400" : "text-teal-600")}/>
-                   </div>
-                   <div className={cn("w-px h-5", dk ? "bg-white/10" : "bg-slate-200")} />
-                   <div className="relative">
-                      <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value === 'all' ? 'all' : parseInt(e.target.value))} className={cn("pl-4 pr-8 py-2.5 bg-transparent text-sm font-bold outline-none focus:ring-0 appearance-none border-none cursor-pointer", dk ? "text-white" : "text-slate-700")}>
-                         <option value="all">{lang === 'de' ? 'Alle Monate' : 'All Months'}</option>
-                         {(lang === 'de' ? monthNamesDe : monthNamesEn).map((m, idx) => <option key={idx} value={idx}>{m}</option>)}
-                      </select>
-                      <ChevronDown size={14} className={cn("absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none", dk ? "text-slate-400" : "text-slate-400")}/>
-                   </div>
-                </div>
-
                 <div className="relative">
-                  <button onClick={() => { closeMenu(); setShowTimelineMenu(!showTimelineMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", tlType !== 'all' ? btnActive : btnInactive)}><Calendar size={16} /> {lang === 'de' ? 'Zeitraum' : 'Timeline'}</button>
-                  {showTimelineMenu && (
-                    <div className={cn(popupCls, 'right-0 w-[400px]')}>
-                      <div className={popupHeader}>
-                        <h3 className={popupTitle}>{lang === 'de' ? 'Zeitraum' : 'Timeline Card'}</h3>
-                        <button onClick={closeMenu} className="text-slate-400 hover:text-white"><X size={20}/></button>
+                   <button onClick={() => { closeMenu(); setShowTimelineMenu(!showTimelineMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", btnInactive)}>
+                      <Calendar size={16} /> {selectedMonth === 'all' ? (lang === 'de' ? 'Alle Monate' : 'All Months') : (lang === 'de' ? monthNamesDe[selectedMonth] : monthNamesEn[selectedMonth])} {selectedYear}
+                   </button>
+                   {showTimelineMenu && (
+                      <div className={cn(popupCls, "w-[400px]")}>
+                         <div className={popupHeader}><h3 className={popupTitle}>{lang === 'de' ? 'Zeitraum' : 'Time Period'}</h3><button onClick={closeMenu} className="text-slate-400"><X size={20}/></button></div>
+                         <div className="grid grid-cols-5 gap-2 mb-4">
+                            {[2024, 2025, 2026, 2027, 2028].map(y => <button key={y} onClick={() => setSelectedYear(y)} className={cn("py-2 rounded-lg text-sm font-bold transition-all", y === selectedYear ? btnActive : btnInactive)}>{y}</button>)}
+                         </div>
+                         <div className="grid grid-cols-4 gap-2">
+                            <button onClick={() => setSelectedMonth('all')} className={cn("col-span-4 py-2 rounded-lg text-sm font-bold transition-all", selectedMonth === 'all' ? btnActive : btnInactive)}>{lang === 'de' ? 'Alle Monate' : 'All Months'}</button>
+                            {(lang === 'de' ? monthNamesDe : monthNamesEn).map((m, i) => <button key={i} onClick={() => setSelectedMonth(i)} className={cn("py-2 rounded-lg text-sm font-bold transition-all", selectedMonth === i ? btnActive : btnInactive)}>{m.substring(0,3)}</button>)}
+                         </div>
                       </div>
-                      <div className="grid grid-cols-4 gap-2 mb-4">
-                        {[{ id: 'today', lEn: 'Today', lDe: 'Heute', off: 0 }, { id: 'tomorrow', lEn: 'Tomorrow', lDe: 'Morgen', off: 1 }, { id: '3days', lEn: '3 Days', lDe: '3 Tage', off: 3 }, { id: '7days', lEn: '7 Days', lDe: '7 Tage', off: 7 }].map(t => (
-                          <button key={t.id} onClick={() => { const s = new Date(); if (t.off > 0 && t.id !== '3days' && t.id !== '7days') s.setDate(s.getDate() + t.off); const e = new Date(); e.setDate(e.getDate() + t.off); setTlStart(s.toISOString().split('T')[0]); setTlEnd(e.toISOString().split('T')[0]); setTlType(t.id as any); }} className={cn("py-2 rounded-lg text-xs font-medium border transition-all", tlType === t.id ? btnActive : btnInactive)}>{lang === 'de' ? t.lDe : t.lEn}</button>
-                        ))}
-                      </div>
-                      <div className="flex justify-center border-t border-slate-200 dark:border-white/10 pt-4">
-                        <button onClick={() => {setTlType('all'); setTlStart(''); setTlEnd(''); closeMenu();}} className="w-full py-2.5 rounded-lg border text-sm font-medium">Clear Timeline</button>
-                      </div>
-                    </div>
-                  )}
+                   )}
                 </div>
 
                 <div className="relative">
@@ -537,12 +481,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                     </div>
                   )}
                 </div>
-
-                {!isStrictViewer && (
-                  <button onClick={() => setAddingHotel(true)} className="ml-4 px-6 py-2.5 bg-[#0D9488] hover:bg-[#0f766e] text-white font-bold rounded-xl flex items-center gap-2 text-sm transition-all shadow-md active:scale-95">
-                    <Plus size={18} strokeWidth={2.5} /> {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
-                  </button>
-                )}
               </div>
             </div>
 
@@ -597,6 +535,22 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             </div>
           </div>
         </main>
+
+        {showStudio && (
+          <ExportStudio 
+            hotels={finalFiltered} 
+            calcCost={calcHotelTotalCost} 
+            lang={lang} 
+            total={totalSpend}
+            selectedMonth={selectedMonth === 'all' ? null : selectedMonth}
+            selectedYear={selectedYear}
+            title={selectedMonth !== 'all' 
+              ? `Period: ${lang === 'de' ? monthNamesDe[selectedMonth] : monthNamesEn[selectedMonth]} ${selectedYear}` 
+              : `Period: ${selectedYear}`}
+            onClose={() => setShowStudio(false)}
+            dk={dk}
+          />
+        )}
       </div>
     </div>
   );
