@@ -763,7 +763,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           />
           </div>
 
-          <div className="w-[260px] shrink-0 pr-2 flex flex-wrap gap-1.5">
+          <div className="w-[340px] shrink-0 pr-2 flex flex-wrap gap-1.5">
               {visibleDurs.map((d: any, i: number) => {
                 const typeCount: any = {};
                 (d.roomCards || []).forEach((c:any) => { typeCount[c.roomType] = (typeCount[c.roomType] || 0) + 1 });
@@ -779,7 +779,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 };
 
                 return (
-                  <button key={d.id} title={title} onClick={(e) => { e.stopPropagation(); onToggle(); setActiveTab('bookings'); setActiveDurationTab(i); }} className={cn('px-2 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all', dk ? 'bg-[#0F172A] border-white/10 text-slate-300 hover:bg-white/10' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100')}>
+                  <button key={d.id} title={title} onClick={(e) => { e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); setActiveDurationTab(i); }} className={cn('px-2 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all', dk ? 'bg-[#0F172A] border-white/10 text-slate-300 hover:bg-white/10' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100')}>
                     {d.startDate && d.endDate ? `${formatChipDate(d.startDate)} - ${formatChipDate(d.endDate)}` : 'New'}
                   </button>
                 )
@@ -795,16 +795,15 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 
                 const shortName = emp.name ? emp.name.trim().split(' ').pop() : '_ _ _';
                 const n = calculateNights(emp.checkIn||'', emp.checkOut||'');
-                
                 return (
-                <div key={emp.id} className="relative group">
-                    <button onClick={(e) => { e.stopPropagation(); onToggle(); setActiveTab('bookings'); setTimeout(() => { const el = document.getElementById(`emp-slot-${emp.id}`); if(el){ el.scrollIntoView({behavior: 'smooth', block: 'center'}); el.classList.add('ring-2', 'ring-teal-500'); setTimeout(()=>el.classList.remove('ring-2','ring-teal-500'), 2000);} }, 100); }} 
+                <div key={emp.id} className="relative group/emp">
+                    <button onClick={(e) => { e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); setTimeout(() => { const el = document.getElementById(`emp-slot-${emp.id}`); if(el){ el.scrollIntoView({behavior: 'smooth', block: 'center'}); el.classList.add('ring-2', 'ring-teal-500'); setTimeout(()=>el.classList.remove('ring-2','ring-teal-500'), 2000);} }, 250); }} 
                       className={cn("px-2 py-0.5 rounded-full border text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-700")}>
                       <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
                       <HighlightText text={shortName} query={searchScope === 'all' || searchScope === 'employee' ? searchQuery : ''} />
                     </button>
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-2 bg-slate-800 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[99999] shadow-xl text-center">
-                        <p className="text-xs font-bold">{emp.name}</p>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-2 bg-slate-800 text-white rounded-lg opacity-0 group-hover/emp:opacity-100 transition-opacity pointer-events-none z-[99999] shadow-xl text-center">
+                
                         <p className="text-[10px] text-slate-300">{formatShortDate(emp.checkIn, lang)} ➔ {formatShortDate(emp.checkOut, lang)} ({n}N)</p>
                     </div>
                 </div>
@@ -822,32 +821,21 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
 
           <div className="w-12 shrink-0 text-center">
-            <p className={cn('text-sm font-black', masterMath.freeBeds > 0 ? 'text-red-500' : dk ? 'text-teal-500' : 'text-teal-600')}>{masterMath.freeBeds}</p>
+            <p className={cn('text-xl font-black', masterMath.freeBeds > 0 ? 'text-red-500' : dk ? 'text-teal-500' : 'text-teal-600')}>{masterMath.freeBeds}</p>
           </div>
           
           <div className="w-12 shrink-0 text-center">
-            <p className={cn('text-sm font-black', dk ? 'text-slate-300' : 'text-slate-700')}>{masterMath.totalBeds}</p>
+            <p className={cn('text-xl font-black', dk ? 'text-slate-300' : 'text-slate-700')}>{masterMath.totalBeds}</p>
           </div>
-        <div className="w-[140px] shrink-0 flex flex-col items-end justify-center pr-2 relative">
-             {/* ACTION ICONS (Top Right Horizontal Badge) */}
-             <div className={cn("absolute -top-1 -right-2 flex items-center gap-0.5 transition-opacity bg-white/80 dark:bg-[#1E293B]/80 backdrop-blur rounded px-1 z-[70]", isBookmarked ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>
-               <button onClick={handleBookmarkToggle} className={cn("p-1 rounded transition-colors", isBookmarked ? "text-yellow-500" : "text-slate-400 hover:text-slate-800 dark:hover:text-white")}><Star size={12} className={isBookmarked ? "fill-yellow-500" : ""} /></button>
-               <div className="relative group/time">
-                  <button onClick={(e) => e.stopPropagation()} className="p-1 rounded text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"><Clock size={12} /></button>
-                  <div className={cn("absolute right-0 bottom-full mb-1 w-max px-2 py-1 text-[9px] font-bold rounded opacity-0 group-hover/time:opacity-100 z-[99999] whitespace-nowrap pointer-events-none shadow-xl border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-700 border-slate-200")}>{formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}</div>
-               </div>
-               {!viewOnly && (
-                 <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-1 rounded text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
-               )}
-             </div>
-
+        
+          <div className="w-[120px] shrink-0 flex flex-col items-end justify-center pr-4 relative border-r dark:border-white/10 border-slate-200">
             {hiddenMatchText && (
                <div className="absolute right-full mr-4 flex items-center gap-1 px-2 py-1 rounded bg-teal-500/10 text-teal-500 text-[9px] font-black uppercase tracking-tighter whitespace-nowrap">
                   <Search size={10} strokeWidth={3} /> {hiddenMatchText}
                </div>
             )}
             
-            <div className={cn('font-black leading-none text-right mt-2', selectedMonth !== null ? 'text-md' : 'text-lg', dk ? 'text-white' : 'text-slate-900')}>
+            <div className={cn('font-black leading-none text-right', selectedMonth !== null ? 'text-lg' : 'text-xl', dk ? 'text-white' : 'text-slate-900')}>
               {formatCurrency(masterMath.displayBrutto)}
             </div>
             
@@ -871,8 +859,18 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                </div>
             )}
           </div>
-        </div>
 
+          <div className="w-8 shrink-0 flex flex-col items-center justify-center gap-2 pl-2">
+               <button onClick={handleBookmarkToggle} className={cn("p-1 rounded transition-colors", isBookmarked ? "text-yellow-500" : "text-slate-400 hover:text-slate-800 dark:hover:text-white")}><Star size={14} className={isBookmarked ? "fill-yellow-500" : ""} /></button>
+               <div className="relative group/time">
+                  <button onClick={(e) => e.stopPropagation()} className="p-1 rounded text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"><Clock size={14} /></button>
+                  <div className={cn("absolute right-full mr-2 top-1/2 -translate-y-1/2 w-max px-2 py-1 text-[9px] font-bold rounded opacity-0 group-hover/time:opacity-100 z-[99999] whitespace-nowrap pointer-events-none shadow-xl border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-700 border-slate-200")}>{formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}</div>
+               </div>
+               {!viewOnly && (
+                 <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-1 rounded text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+               )}
+          </div>
+        </div>
         {isOpen && (
           <div className={cn('rounded-b-2xl border-t shadow-inner flex flex-col', dk ? 'bg-[#0B1224] border-white/5' : 'bg-slate-50 border-slate-200')} onClick={e => e.stopPropagation()}>
             
