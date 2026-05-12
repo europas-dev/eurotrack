@@ -2,6 +2,9 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { calcRoomCardTotal } from './roomCardUtils'
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -13,13 +16,9 @@ export function calculateNights(start?: string | null, end?: string | null): num
   const e = new Date(end);
   if (isNaN(s.getTime()) || isNaN(e.getTime())) return 0;
   const diffTime = e.getTime() - s.getTime();
-  // Using Math.round prevents daylight saving time errors (23 or 25 hour days)
   return Math.max(0, Math.round(diffTime / (1000 * 60 * 60 * 24)));
 }
 
-/**
- * Calculates exactly how many nights of a booking fall within a specific boundary.
- */
 export function getOverlappingNights(bookingStart: string, bookingEnd: string, filterStart: string, filterEnd: string): number {
   const bStart = new Date(bookingStart).getTime();
   const bEnd = new Date(bookingEnd).getTime();
@@ -112,27 +111,10 @@ export function calcDurationFreeBeds(duration: any, targetDateIso: string): numb
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// UPGRADED MASTER MATH ENGINE (Unified with HotelRow logic)
+// MASTER MATH ENGINE - INVOICES ONLY
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function calcHotelTotalCost(hotel: any, selectedMonth?: number | null, selectedYear?: number | null): number {
-  let filterStart: string | null = null;
-  let filterEnd: string | null = null;
-
-  // Build strict UTC timezone-safe date strings for boundaries
-  if (selectedYear !== null && selectedYear !== undefined) {
-    if (selectedMonth !== null && selectedMonth !== undefined) {
-      const y = selectedYear;
-      const m = selectedMonth + 1; // JS months are 0-indexed
-      const lastDay = new Date(y, m, 0).getDate();
-      filterStart = `${y}-${String(m).padStart(2, '0')}-01`;
-      filterEnd = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-    } else {
-      filterStart = `${selectedYear}-01-01`;
-      filterEnd = `${selectedYear}-12-31`;
-    }
-  }
-
   // ===== ONLY CALCULATE FROM INVOICES =====
   let totalBrutto = 0;
 
@@ -190,15 +172,6 @@ export function calcHotelTotalCost(hotel: any, selectedMonth?: number | null, se
   return totalBrutto;
 }
 
-  // 6. Proportional scaling by overlapping dates (if filtering by Month/Timeline)
-  if (filterStart && filterEnd) {
-      if (totalNightsAll <= 0) return 0;
-      return (finalBrutto / totalNightsAll) * overlapNightsAll;
-  }
-
-  return finalBrutto;
-}
-
 export function calcHotelFreeBedsToday(hotel: any): number {
   const today = new Date().toISOString().split('T')[0];
   return (hotel.durations || []).reduce((total: number, d: any) => {
@@ -212,26 +185,21 @@ export function hotelMatchesSearch(hotel: any, query: string, scope: string = 'a
   if (!query) return true;
   const q = query.toLowerCase();
   
-  // Normalize scope to avoid exact-match errors
   const s = scope.toLowerCase();
 
-  // 1. MATCH: HOTEL NAME
   if (s.includes('hotel') || s.includes('name')) {
     return (hotel.name?.toLowerCase() || '').includes(q);
   }
 
-  // 2. MATCH: CITY
   if (s.includes('city') || s.includes('stadt')) {
     return (hotel.city?.toLowerCase() || '').includes(q);
   }
 
-  // 3. MATCH: COMPANY
   if (s.includes('company') || s.includes('firma')) {
     const tags = Array.isArray(hotel.companyTag) ? hotel.companyTag.join(' ').toLowerCase() : (hotel.companyTag?.toLowerCase() || '');
     return tags.includes(q);
   }
 
-  // 4. MATCH: INVOICE NO
   if (s.includes('invoice') || s.includes('rechnung')) {
     for (const d of (hotel.durations || [])) {
       if (d.rechnungNr?.toLowerCase().includes(q)) return true;
@@ -239,7 +207,6 @@ export function hotelMatchesSearch(hotel: any, query: string, scope: string = 'a
     return false;
   }
 
-  // 5. MATCH: EMPLOYEES
   if (s.includes('employee') || s.includes('mitarbeiter')) {
     for (const d of (hotel.durations || [])) {
       for (const rc of (d.roomCards || [])) {
@@ -251,7 +218,6 @@ export function hotelMatchesSearch(hotel: any, query: string, scope: string = 'a
     return false;
   }
 
-  // DEFAULT: 'ALL' SCOPE (If no specific scope matched, check everything)
   const hName = hotel.name?.toLowerCase() || '';
   const hCity = hotel.city?.toLowerCase() || '';
   const tags = Array.isArray(hotel.companyTag) ? hotel.companyTag.join(' ').toLowerCase() : (hotel.companyTag?.toLowerCase() || '');
@@ -309,10 +275,6 @@ export function getDurationTabLabel(d: any, lang: 'de' | 'en'): string {
 // ─────────────────────────────────────────────────────────────────────────────
 // EXPORT FUNCTIONS (Professional)
 // ─────────────────────────────────────────────────────────────────────────────
-// src/lib/utils.ts - Technical Master Export
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
 
 function fmtDateFull(iso: string) {
   if (!iso) return '';
@@ -323,7 +285,6 @@ function fmtDateFull(iso: string) {
 export function buildReportData(hotels: any[], calcCost: (h: any) => number, lang: 'de' | 'en') {
   return hotels.map(h => {
     const isDe = lang === 'de';
-    // FIX: Combined Country Code check
     const cCode = h.countryCode || h.country_code || '';
     const fullPhone = cCode && h.phone ? `${cCode}${h.phone}` : (h.phone || '—');
     
@@ -389,17 +350,14 @@ export function generatePDF(data: any[], activeCols: string[], title: string, la
     startY: 80,
     margin: { left: 40, right: 40 },
     theme: 'grid',
-    // Reduced cellPadding to 3 to give Address and Hotel more breathing room
     styles: { fontSize: 8, font: "helvetica", cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.5 },
     headStyles: { fillColor: [245, 245, 245], textColor: [0, 0, 0], fontStyle: 'bold' },
     columnStyles: { 
-      // ONLY locking the problem columns. The library will auto-balance the rest beautifully.
-      phone: { cellWidth: 65 },       // Prevents the country code from wrapping
-      dates: { cellWidth: 95 },       // Keeps date ranges clean
-      employees: { cellWidth: 110 },  // Prevents names from taking over the whole page
+      phone: { cellWidth: 65 },
+      dates: { cellWidth: 95 },
+      employees: { cellWidth: 110 },
       cost: { fontStyle: 'bold', halign: 'right', cellWidth: 60 }
     },
-    
     didDrawPage: (d) => {
       const now = new Date();
       const ts = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}, ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
@@ -420,7 +378,6 @@ export function generateExcel(data: any[], activeCols: string[], lang: 'de' | 'e
   const cleanPeriod = period.replace('Period:', '').replace('Zeitraum:', '').trim();
   const ts = `${now.getDate().toString().padStart(2, '0')}.${(now.getMonth() + 1).toString().padStart(2, '0')}.${now.getFullYear()}, ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
 
-  // HEADER ROWS
   const rows: any[] = [
     ["Europas GmbH"],
     [`${isDe ? 'Zeitraum' : 'Period'}: ${cleanPeriod}`],
@@ -428,7 +385,6 @@ export function generateExcel(data: any[], activeCols: string[], lang: 'de' | 'e
     []
   ];
 
-  // DYNAMIC COLUMN HEADERS based on activeCols
   const headers = [isDe ? 'Hotelname' : 'Hotel Name'];
   if (activeCols.includes('company')) headers.push(isDe ? 'Firma' : 'Company');
   if (activeCols.includes('city')) headers.push(isDe ? 'Stadt' : 'City');
@@ -443,14 +399,12 @@ export function generateExcel(data: any[], activeCols: string[], lang: 'de' | 'e
   if (activeCols.includes('deposit')) headers.push(isDe ? 'Kaution' : 'Deposit');
   rows.push(headers);
 
-  // DATA ROWS
   data.forEach(h => {
     const row: any[] = [h.hotel];
     if (activeCols.includes('company')) row.push(h.company);
     if (activeCols.includes('city')) row.push(h.city);
     if (activeCols.includes('address')) row.push(h.address);
     if (activeCols.includes('contact')) row.push(h.contact);
-    // FORCE PHONE FORMULA: This is the ONLY way to keep '+' in Excel
     if (activeCols.includes('phone')) row.push(h.phone.startsWith('+') ? { f: `"${h.phone}"` } : h.phone);
     if (activeCols.includes('invoice')) row.push(h.invoice);
     if (activeCols.includes('durations')) row.push(h.dates);
@@ -461,7 +415,6 @@ export function generateExcel(data: any[], activeCols: string[], lang: 'de' | 'e
     rows.push(row);
   });
 
-  // TOTAL ROW
   rows.push([]);
   const totalRow = Array(headers.length).fill('');
   const costIdx = headers.indexOf(isDe ? 'Kosten' : 'Cost');
@@ -471,7 +424,6 @@ export function generateExcel(data: any[], activeCols: string[], lang: 'de' | 'e
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
 
-  // Set Widths
   ws['!cols'] = headers.map((h, i) => {
     if (h === (isDe ? 'Mitarbeiter' : 'Employees')) return { wch: 45 };
     if (h === (isDe ? 'Telefon' : 'Phone')) return { wch: 20 };
