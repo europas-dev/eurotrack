@@ -6,7 +6,7 @@ import {
   cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatLastUpdated, calculateNights
 } from '../lib/utils';
 import { createDuration, updateHotel, deleteHotel } from '../lib/supabase';
-import { calcRoomCardNettoSum, calcRoomCardTotal } from '../lib/roomCardUtils';
+import { calcRoomCardTotal, calcRoomCardNettoSum } from '../lib/roomCardUtils';
 import { enqueue } from '../lib/offlineSync';
 import DurationCard from './DurationCard';
 
@@ -107,7 +107,8 @@ export function calcInvoiceItem(item: any, defaultNights: number = 1) {
 export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onDelete, viewOnly, dk, lang, defaultNights = 1, defaultStart, defaultEnd }: any) {
   const { finalNetto, mwst, brutto } = calcInvoiceItem(item, defaultNights);
   const [showDiscount, setShowDiscount] = useState(parseFloat(item.discountValue || 0) > 0);
-  const inputClass = cn('px-2 py-1.5 rounded text-[11px] font-bold outline-none border transition-all h-[30px]', dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-teal-500' : 'bg-white border-slate-200 text-slate-900 focus:border-teal-500');
+  const [calOpen, setCalOpen] = useState(false);
+  const inputClass = cn('px-2 py-1 rounded text-[12px] font-bold outline-none border transition-all h-[30px]', dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-teal-500' : 'bg-white border-slate-200 text-slate-900 focus:border-teal-500');
 
   const hasNettoInput = item.netto != null && item.netto !== '';
   const hasBruttoInput = item.brutto != null && item.brutto !== '';
@@ -141,7 +142,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
                </select>
            </div>
 
-           {/* COL 2: NETTO (BED) + Modifiers (Fills center space) */}
+           {/* COL 2: NETTO (BED) + Modifiers */}
            <div className="flex-1 flex flex-col gap-1.5 shrink-0 min-w-[200px]">
                {item.method === 'per_bed' && isPerBedAllowed ? (
                  <div className="flex flex-col gap-1.5 w-full">
@@ -155,7 +156,6 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
                            <NativeDatePicker dk={dk} value={item.startDate || defaultStart || ''} onChange={(s: string) => onChange({ startDate: s, nights: calculateNights(s, item.endDate || defaultEnd || s) })} className="w-full h-[30px]" placeholder={`${activeNights} 🌙`} />
                        </div>
                     </div>
-                    {/* INLINE DISCOUNT */}
                     {showDiscount && !hasBruttoInput && (
                        <div className="flex items-center w-[120px] animate-in fade-in slide-in-from-top-1">
                           <input type="number" value={item.discountValue ?? ''} onChange={e => onChange({ discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-[60px] px-1.5")} placeholder="Rabatt" />
@@ -181,7 +181,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
                )}
            </div>
 
-           {/* COL 3: TOTAL NETTO (100px) */}
+           {/* COL 3: TOTAL NETTO */}
            <div className="w-[100px] flex items-start shrink-0 pt-1">
                {item.method === 'total' || !isPerBedAllowed ? (
                    <span className="text-[10px] italic text-slate-400 opacity-50 px-2 w-full text-center">--</span>
@@ -190,14 +190,14 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
                )}
            </div>
 
-           {/* COL 4: MWST (70px) */}
+           {/* COL 4: MWST */}
            <div className="w-[70px] shrink-0">
                <select value={item.mwst ?? 7} onChange={e => onChange({ mwst: e.target.value })} className={cn(inputClass, "w-full px-1 text-center")}>
                    <option value="7">7%</option><option value="19">19%</option><option value="0">0%</option>
                </select>
            </div>
 
-           {/* COL 5: TOTAL BRUTTO (110px) */}
+           {/* COL 5: TOTAL BRUTTO */}
            <div className="w-[110px] shrink-0">
                <input type="number" disabled={hasNettoInput} placeholder={hasNettoInput ? formatCurrency(brutto) : "Brutto"} value={item.brutto ?? ''} onChange={e => onChange({ brutto: e.target.value, netto: null })} className={cn(inputClass, "w-full", hasNettoInput ? "disabled:opacity-100 disabled:bg-transparent disabled:border-transparent text-[13px] font-black px-1 placeholder-slate-900 dark:placeholder-white" : "")} />
            </div>
@@ -209,7 +209,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
            </div>
         </div>
         
-        {/* ROW 2: NOTE (Drops to next line) */}
+        {/* ROW 2: NOTE (Auto Expands) */}
         <div className="w-full mt-2 animate-in fade-in">
            <textarea rows={1} value={item.note || ''} onChange={handleNoteChange} className={cn(inputClass, "w-full text-[11px] font-medium resize-none overflow-hidden placeholder-opacity-50 min-h-[30px]")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />
         </div>
@@ -220,7 +220,6 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
   // VIEW MODE
   return (
     <div className={cn("flex items-start gap-3 px-3 py-3 border-b last:border-b-0 transition-colors group", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
-       {/* COL 1: BESCHREIBUNG */}
        <div className="w-[180px] flex flex-col gap-0.5 shrink-0 overflow-hidden pr-2">
           <div className="flex items-center gap-1.5">
              <span className={cn("text-[12px] font-black truncate", dk ? "text-slate-200" : "text-slate-800")}>{getTranslation(COST_TYPES, item.type || 'room', lang)}</span>
@@ -236,7 +235,6 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
           )}
        </div>
 
-       {/* COL 2: NETTO(BED) */}
        <div className="flex-1 shrink-0 flex items-start pl-1">
           {item.method === 'per_bed' ? (
              <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(parseFloat(item.netto)||0)}</span>
@@ -245,7 +243,6 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
           )}
        </div>
 
-       {/* COL 3: TOTAL NETTO */}
        <div className="w-[100px] shrink-0 flex flex-col pl-1">
           <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>
              {hasBruttoInput ? (lang === 'de' ? 'Auto' : 'Auto') : formatCurrency(finalNetto)}
@@ -253,19 +250,16 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
           {item.discountValue > 0 && !hasBruttoInput && <span className="text-[9px] font-black text-teal-500 leading-none mt-1 border border-teal-500/20 bg-teal-500/10 px-1.5 py-0.5 w-max rounded">-{item.discountType === 'percentage' ? `${item.discountValue}%` : `${item.discountValue}€`}</span>}
        </div>
 
-       {/* COL 4: MWST */}
        <div className="w-[70px] shrink-0 pt-0.5 text-center">
           <span className={cn("text-[13px] font-bold", dk ? "text-slate-400" : "text-slate-500")}>{item.mwst ?? 7}%</span>
        </div>
 
-       {/* COL 5: TOTAL BRUTTO */}
        <div className="w-[110px] shrink-0 pt-0.5 pl-1">
           <span className={cn("text-[13px] font-black", dk ? "text-white" : "text-slate-900")}>
              {hasNettoInput ? formatCurrency(brutto) : formatCurrency(parseFloat(item.brutto)||0)}
           </span>
        </div>
 
-       {/* COL 6: ACTIONS */}
        <div className="w-[70px] flex items-start justify-end opacity-0 group-hover:opacity-100 transition-opacity pr-1 pt-0.5">
           {!viewOnly && <button onClick={onEdit} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 transition-colors"><Edit3 size={14}/></button>}
        </div>
@@ -273,7 +267,6 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
   )
 }
 
-// --- SEAMLESS AUTOCOMPLETE INPUT ---
 function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, className, textClass, searchQuery, disabled }: any) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value || '');
@@ -305,7 +298,6 @@ function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, clas
   );
 }
 
-// --- MINI DROPDOWN COMPONENT FOR MWST ---
 export function MwstInput({ value, onChange, isDarkMode, disabled }: { value: string | null, onChange: (v: string | null) => void, isDarkMode: boolean, disabled?: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -415,7 +407,6 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
   );
 }
 
-
 export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onAddOption, viewOnly, isSelected = false, onSelect = () => {}, isBulkActive = false}: any) {
   const [open, setOpen] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
@@ -433,6 +424,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [expandedInvoices, setExpandedInvoices] = useState<string[]>([]);
   const [showTotalDiscount, setShowTotalDiscount] = useState(false);
   
+  const [invoiceFilter, setInvoiceFilter] = useState<'all' | 'paid' | 'unpaid'>('all'); 
   const [localMonthFilter, setLocalMonthFilter] = useState<number | 'all'>('all');
   const [itemSearchQuery, setItemSearchQuery] = useState(''); 
   
@@ -520,7 +512,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
              invBrutto += itemBrutto;
              if (itemNetto > 0 && itemMwst !== null) buckets[itemMwst] = (buckets[itemMwst] || 0) + (itemNetto * (itemMwst/100));
              
-             // THE AUTO-FLOOR SCANNER (Strict Room Checking)
              if (item.type === 'room' && item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 0) {
                  const bedPrice = parseFloat(item.netto);
                  if (minPricePerBed === null || bedPrice < minPricePerBed) minPricePerBed = bedPrice;
@@ -571,7 +562,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
        }
     }
 
-    // THE AUTO-FLOOR ENGINE LOGIC
     let finalPriceBed = minPricePerBed || 0;
     let isOverriddenBed = false;
     if (localHotel.override_price_per_bed != null) {
@@ -681,14 +671,17 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       ? ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']
       : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+  const filteredInvoices = (localHotel.invoices || []).filter((inv: any) => {
+     if (inv.id === selectedInvoiceId || inv.id === editingInvoiceId) return true; 
+     if (invoiceFilter === 'paid') return inv.isPaid;
+     if (invoiceFilter === 'unpaid') return !inv.isPaid;
+     return true;
+  });
+
   const filteredMasterInvoices = useMemo(() => {
     let filtered = localHotel.invoices || [];
-
-    // Apply Status Filter
     if (invoiceFilter === 'paid') filtered = filtered.filter((inv:any) => inv.isPaid);
     if (invoiceFilter === 'unpaid') filtered = filtered.filter((inv:any) => !inv.isPaid);
-
-    // Apply Month Filter
     if (activeMonthFilter !== 'all') {
         filtered = filtered.filter((inv:any) => {
             const dateStr = inv.isPaid ? inv.paymentDate : inv.dueDate;
@@ -697,8 +690,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             return d.getMonth() === activeMonthFilter && d.getFullYear() === (selectedYear || new Date().getFullYear());
         });
     }
-
-    // Apply Search Filter
     if (itemSearchQuery.trim()) {
         const lowerQ = itemSearchQuery.toLowerCase();
         filtered = filtered.map((inv: any) => {
@@ -715,7 +706,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             return null;
         }).filter(Boolean);
     }
-    
     return filtered;
   }, [localHotel.invoices, itemSearchQuery, invoiceFilter, activeMonthFilter, selectedYear, lang]);
 
@@ -953,7 +943,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                              </div>
 
                              <div className="flex items-center gap-2 mt-1 pt-1 border-t border-slate-200 dark:border-white/10">
-                                <button onClick={() => setInvoiceDraft({...invoiceDraft, isPaid: !invoiceDraft.isPaid})} className={cn("px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider transition-colors", invoiceDraft.isPaid ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-black/10 dark:bg-white/10 text-slate-500")}>
+                                <button onClick={() => setInvoiceDraft({...invoiceDraft, isPaid: !invoiceDraft.isPaid})} className={cn("px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider transition-colors shrink-0", invoiceDraft.isPaid ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-black/10 dark:bg-white/10 text-slate-500")}>
                                    {invoiceDraft.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid')}
                                 </button>
                              </div>
@@ -963,8 +953,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                              <div className="flex items-center justify-between mt-1 pt-2 border-t border-slate-200 dark:border-white/10">
                                 <button onClick={(e) => { 
                                    e.stopPropagation(); 
-                                   setEditingInvoiceId(null); setInvoiceDraft(null); setSelectedInvoiceId(null);
-                                }} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-md transition-all shrink-0"><Trash2 size={14} /></button>
+                                   if (window.confirm(lang === 'de' ? 'Entwurf verwerfen?' : 'Discard draft?')) {
+                                      setEditingInvoiceId(null); setInvoiceDraft(null); setSelectedInvoiceId(null);
+                                   }
+                                }} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-md transition-all shrink-0"><Trash2 size={12} /></button>
                                 
                                 <button disabled={invoiceDraft.isPaid && !invoiceDraft.paymentDate} onClick={(e) => { 
                                    e.stopPropagation(); 
@@ -1017,7 +1009,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                     </div>
 
                                     <div className="flex items-center gap-2 mt-1 pt-1 border-t border-slate-200 dark:border-white/10">
-                                       <button onClick={() => setInvoiceDraft({...draft, isPaid: !draft.isPaid})} className={cn("px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider transition-colors shrink-0", draft.isPaid ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-black/10 dark:bg-white/10 text-slate-500")}>
+                                       <button onClick={() => setInvoiceDraft({...draft, isPaid: !draft.isPaid})} className={cn("px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider transition-colors shrink-0", draft.isPaid ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-black/10 dark:bg-white/10 text-slate-500")}>
                                           {draft.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid')}
                                        </button>
                                     </div>
@@ -1087,7 +1079,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 </div>
               
                 {/* 2. THE SMART SPREADSHEET (Middle Column) */}
-                <div className="flex-1 p-0 flex flex-col min-w-[650px] bg-slate-50/50 dark:bg-[#0B1224]/30 z-10 border-r border-slate-200 dark:border-white/10">
+                <div className="flex-1 p-0 flex flex-col min-w-[700px] bg-slate-50/50 dark:bg-[#0B1224]/30 z-10 border-r border-slate-200 dark:border-white/10">
                    <div className={cn("px-5 h-[50px] border-b flex items-center justify-between shrink-0", dk ? "border-white/10" : "border-slate-200", activeInvoice ? (dk ? "bg-[#1E293B]" : "bg-white") : "bg-transparent")}>
                       <div className="flex items-center gap-4 flex-1">
                           {activeInvoice ? (
@@ -1198,7 +1190,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                   <div className="w-[110px] text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Total Netto</div>
                                   <div className="w-[70px] text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">MwSt</div>
                                   <div className="w-[110px] text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Total Brutto</div>
-                                  <div className="w-[60px]"></div>
+                                  <div className="flex-1"></div>
                                </div>
                                
                                {(activeInvoice.items || []).length === 0 && <p className="text-[12px] font-bold text-slate-400 italic mt-6 mx-5 text-center py-6 bg-slate-100 dark:bg-white/5 rounded-xl border border-dashed border-slate-300 dark:border-white/10">{lang === 'de' ? 'Noch keine Posten vorhanden. Klicke unten, um zu starten.' : 'No line items. Click below to start.'}</p>}
@@ -1223,7 +1215,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                {!viewOnly && (
                                   <button onClick={() => {
                                       const newId = Math.random().toString();
-                                      patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: [...(i.items||[]), { id: newId, type: 'room', method: 'total', netto: null, mwst: 7, brutto: null }]} : i) });
+                                      patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: [...(i.items||[]), { id: newId, type: 'room', method: 'per_bed', netto: null, mwst: 7, brutto: null }]} : i) });
                                       setEditingItemId(newId);
                                   }} className="mt-4 mx-5 py-3 rounded-lg border border-dashed text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-teal-500 hover:border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-500/10 transition-all">+ {lang === 'de' ? 'Zeile hinzufügen' : 'Add Row'}</button>
                                )}
@@ -1232,12 +1224,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       ) : (
                          <div className="flex flex-col animate-in fade-in pb-5">
                             <div className={cn("sticky top-0 z-10 flex items-center gap-2 px-3 py-2 border-b mb-3 backdrop-blur-md", dk ? "bg-[#0B1224]/95 border-white/10" : "bg-slate-50/95 border-slate-200")}>
-                               <div className="flex-1 min-w-[180px] text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">{lang === 'de' ? 'Beschreibung' : 'Description'}</div>
+                               <div className="w-[180px] text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">{lang === 'de' ? 'Beschreibung' : 'Description'}</div>
                                <div className="w-[190px] text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Netto (Bed)</div>
                                <div className="w-[110px] text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Total Netto</div>
                                <div className="w-[70px] text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">MwSt</div>
                                <div className="w-[110px] text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Total Brutto</div>
-                               <div className="w-[60px]"></div>
+                               <div className="flex-1"></div>
                             </div>
                             
                             {filteredMasterInvoices.length > 0 ? filteredMasterInvoices.map((inv: any) => {
@@ -1262,12 +1254,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                     <div className="pl-6 pt-1 animate-in fade-in slide-in-from-top-1">
                                       {inv.billingMode === 'total' ? (
                                          <div className="flex items-center gap-2 px-2 py-2 border-b border-slate-100 dark:border-white/5">
-                                            <div className="flex-1 min-w-[180px] text-[12px] font-bold text-slate-600 dark:text-slate-300">{lang === 'de' ? 'Gesamtbetrag' : 'Total'}</div>
+                                            <div className="w-[180px] text-[12px] font-bold text-slate-600 dark:text-slate-300">{lang === 'de' ? 'Gesamtbetrag' : 'Total'}</div>
                                             <div className="w-[190px] text-[11px] italic text-slate-400 opacity-50 pl-2">--</div>
                                             <div className="w-[110px] text-[12px] font-bold text-slate-700 dark:text-slate-300 pl-1"><HighlightText text={formatCurrency(parseFloat(inv.totalNetto)||0)} query={itemSearchQuery} /></div>
                                             <div className="w-[70px] text-[12px] font-bold text-slate-500 text-center">{inv.totalMwst}%</div>
                                             <div className="w-[110px] text-[12px] font-black text-slate-900 dark:text-white pl-1"><HighlightText text={formatCurrency(invBrutto)} query={itemSearchQuery} /></div>
-                                            <div className="w-[60px]"></div>
+                                            <div className="flex-1"></div>
                                          </div>
                                       ) : (
                                          <div className="flex flex-col">
@@ -1276,7 +1268,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                const { finalNetto, mwst, brutto } = calcInvoiceItem(item, defaultN);
                                                return (
                                                   <div key={item.id} className="flex items-start gap-2 px-2 py-2.5 border-b border-slate-100 dark:border-white/5 last:border-0">
-                                                     <div className="flex-1 min-w-[180px] flex flex-col pr-2">
+                                                     <div className="w-[180px] flex flex-col pr-2">
                                                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
                                                           <HighlightText text={getTranslation(COST_TYPES, item.type || 'room', lang)} query={itemSearchQuery} />
                                                           {item.method === 'per_bed' && <span className="text-[9px] text-slate-400 font-bold uppercase ml-1">({item.nights||defaultN} {lang==='de'?'Nächte':'Nights'}, {item.beds||1} {lang==='de'?'Betten':'Beds'})</span>}
@@ -1289,7 +1281,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                      <div className="w-[110px] text-[12px] font-bold text-slate-700 dark:text-slate-300 pt-0.5 pl-1"><HighlightText text={formatCurrency(finalNetto)} query={itemSearchQuery} /></div>
                                                      <div className="w-[70px] text-[12px] font-bold text-slate-500 pt-0.5 text-center">{mwst}%</div>
                                                      <div className="w-[110px] text-[12px] font-black text-slate-900 dark:text-white pt-0.5 pl-1"><HighlightText text={formatCurrency(brutto)} query={itemSearchQuery} /></div>
-                                                     <div className="w-[60px]"></div>
+                                                     <div className="flex-1"></div>
                                                   </div>
                                                )
                                             })}
