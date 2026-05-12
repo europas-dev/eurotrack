@@ -18,7 +18,6 @@ const getCountryCode = (country: string) => {
   return codes[country] || '+49';
 };
 
-// Standardizes JS Date string to dd.mm.yyyy for Display
 function formatShortDate(isoString?: string | null, lang: string = 'de'): string {
   if (!isoString) return '';
   const parts = isoString.split('-');
@@ -46,7 +45,6 @@ const HighlightText = ({ text, query }: { text: string; query?: string }) => {
   );
 };
 
-// --- NATIVE CALENDAR WRAPPER (Forces dd.mm.yyyy text but keeps native popup) ---
 export function NativeDatePicker({ value, onChange, min, disabled, className, dk, placeholder = "dd.mm.yyyy" }: any) {
    return (
       <div className={cn("relative flex items-center overflow-hidden transition-all", className)}>
@@ -102,7 +100,6 @@ export function calcInvoiceItem(item: any, defaultNights: number = 1) {
   return { finalNetto, mwst, brutto };
 }
 
-// --- ULTRA-COMPACT SPREADSHEET LINE ITEM (Perfectly Aligned) ---
 export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onDelete, viewOnly, dk, lang, defaultNights = 1, defaultStart, defaultEnd }: any) {
   const { finalNetto, mwst, brutto } = calcInvoiceItem(item, defaultNights);
   const [showDiscount, setShowDiscount] = useState(parseFloat(item.discountValue || 0) > 0);
@@ -121,13 +118,11 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
     onChange({ note: e.target.value });
   };
 
-  // EDIT MODE
   if (isEditing && !viewOnly) {
     return (
       <div className={cn("flex flex-col p-2 border-b transition-all w-full", dk ? "bg-white/5 border-white/10" : "bg-slate-50 border-slate-200")}>
         <div className="flex items-start w-full">
            
-           {/* COL 1: TYPE & METHOD */}
            <div className="flex-1 min-w-[200px] flex items-center gap-1.5 shrink-0 pr-2">
                <select value={item.type || 'room'} onChange={e => {
                    const newType = e.target.value;
@@ -141,11 +136,9 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
                </select>
            </div>
 
-           {/* COL 2: NETTO (BED) + FLIGHT CALENDAR */}
            <div className="w-[240px] flex flex-col items-end shrink-0 pr-2 relative">
                {item.method === 'per_bed' && isPerBedAllowed ? (
                  <div className="flex items-center justify-end gap-1.5 w-full">
-                    {/* BEDS x NIGHTS [CAL] */}
                     <input type="number" title={lang === 'de' ? 'Betten' : 'Beds'} value={item.beds ?? 1} onChange={e => onChange({ beds: e.target.value })} className={cn(inputClass, "w-[34px] px-1 text-center")} placeholder="1" />
                     <span className="text-[12px] text-slate-400 font-black">×</span>
                     <div className={cn("flex items-center rounded border h-[30px] cursor-pointer hover:border-teal-500 transition-colors", dk ? "bg-black/20 border-white/10 text-white" : "bg-white border-slate-200 text-slate-700")} onClick={() => setCalOpen(!calOpen)}>
@@ -153,15 +146,13 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
                         <div className={cn("px-1 border-l h-full flex items-center", dk ? "border-white/10 text-slate-400" : "border-slate-200 text-slate-400")}><Calendar size={12}/></div>
                     </div>
 
-                    {/* NETTO [TICKET] */}
                     <div className="relative w-[75px] ml-1 shrink-0">
                        <input type="number" disabled={hasBruttoInput} placeholder="0.00" value={item.netto ?? ''} onChange={e => onChange({ netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 pr-6 text-right")} />
                        {(!showDiscount && !hasBruttoInput) && <button onClick={() => setShowDiscount(true)} className="absolute right-1 top-[5px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
                     </div>
                     
-                    {/* RETURN FLIGHT CALENDAR POPOVER */}
                     {calOpen && (
-                        <div className={cn("absolute top-full right-0 mt-2 p-3 rounded-xl border shadow-2xl z-[999] flex flex-col gap-3 w-[260px]", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+                        <div className={cn("absolute top-full right-0 mt-2 p-3 rounded-xl border shadow-2xl z-[9999] flex flex-col gap-3 w-[260px]", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
                            <div className="flex items-center gap-2 w-full">
                                <div className="flex-1 flex flex-col gap-1">
                                   <label className="text-[9px] font-bold text-slate-500 uppercase">Start</label>
@@ -180,7 +171,6 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
                  <span className="text-[10px] italic text-slate-400 opacity-50 px-2 w-full text-right h-[30px] flex items-center justify-end">--</span>
                )}
                
-               {/* INLINE DISCOUNT DROPDOWN */}
                {showDiscount && !hasBruttoInput && (
                   <div className="flex items-center justify-end w-[130px] animate-in fade-in slide-in-from-top-1 mt-1 mr-[-2px]">
                      <input type="number" value={item.discountValue ?? ''} onChange={e => onChange({ discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-[60px] px-1.5 text-right")} placeholder="0" />
@@ -190,7 +180,6 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
                )}
            </div>
 
-           {/* COL 3: TOTAL NETTO */}
            <div className="w-[100px] flex items-center justify-end shrink-0 pr-2 relative">
                {item.method === 'total' || !isPerBedAllowed ? (
                    <div className="relative w-full">
@@ -202,24 +191,20 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
                )}
            </div>
 
-           {/* COL 4: MWST (70px) */}
            <div className="w-[70px] shrink-0 pl-1">
                <MwstInput value={item.mwst} onChange={(v:any) => onChange({ mwst: v })} isDarkMode={dk} disabled={false} />
            </div>
 
-           {/* COL 5: TOTAL BRUTTO */}
            <div className="w-[110px] shrink-0 pl-2">
                <input type="number" disabled={hasNettoInput} placeholder={hasNettoInput ? formatCurrency(brutto) : "Brutto"} value={item.brutto ?? ''} onChange={e => onChange({ brutto: e.target.value, netto: null })} className={cn(inputClass, "w-full text-right", hasNettoInput ? "disabled:opacity-100 disabled:bg-transparent disabled:border-transparent text-[13px] font-black px-1 placeholder-slate-900 dark:placeholder-white" : "")} />
            </div>
 
-           {/* ACTIONS */}
            <div className="w-[60px] flex items-center justify-end gap-1.5 shrink-0 pl-1">
               <button onClick={onSave} className="p-1.5 h-[30px] w-[26px] flex items-center justify-center text-white bg-teal-500 hover:bg-teal-600 rounded transition-all shadow-sm"><Check size={14} strokeWidth={3}/></button>
               <button onClick={onDelete} className="p-1.5 h-[30px] w-[26px] flex items-center justify-center text-white bg-red-500 hover:bg-red-600 rounded transition-all shadow-sm"><Trash2 size={13}/></button>
            </div>
         </div>
         
-        {/* ROW 2: NOTE (Auto Expands) */}
         {needsNote && (
            <div className="w-full mt-2 animate-in fade-in">
               <textarea rows={1} value={item.note || ''} onChange={handleNoteChange} className={cn(inputClass, "w-full text-[11px] font-medium resize-none overflow-hidden placeholder-opacity-50 min-h-[30px]")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />
@@ -229,7 +214,6 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
     )
   }
 
-  // VIEW MODE
   return (
     <div className={cn("flex items-start px-3 py-3 border-b last:border-b-0 transition-colors group", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
        <div className="flex-1 min-w-[200px] flex flex-col gap-0.5 shrink-0 overflow-hidden pr-2">
@@ -279,7 +263,6 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
   )
 }
 
-// --- SEAMLESS AUTOCOMPLETE INPUT ---
 function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, className, textClass, searchQuery, disabled }: any) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value || '');
@@ -311,7 +294,6 @@ function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, clas
   );
 }
 
-// --- MINI DROPDOWN COMPONENT FOR MWST ---
 export function MwstInput({ value, onChange, isDarkMode, disabled }: { value: string | null, onChange: (v: string | null) => void, isDarkMode: boolean, disabled?: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -321,7 +303,7 @@ export function MwstInput({ value, onChange, isDarkMode, disabled }: { value: st
       <input type="number" disabled={disabled} value={value ?? ''} onChange={e => onChange(e.target.value === '' ? null : e.target.value)} className={cn('w-12 px-1 rounded-l-lg text-[12px] font-bold outline-none border transition-all h-full text-center', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900', disabled && "opacity-50 cursor-not-allowed")} placeholder="--" />
       <button disabled={disabled} onClick={() => setOpen(!open)} className={cn('px-1 h-full rounded-r-lg border border-l-0 transition-all flex items-center justify-center', isDarkMode ? 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100', disabled && "hidden")}><ChevronDown size={12} /></button>
       {open && !disabled && (
-        <div className={cn("absolute top-full right-0 mt-1 w-20 z-[999] rounded-lg shadow-xl overflow-hidden border", isDarkMode ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+        <div className={cn("absolute top-full right-0 mt-1 w-20 z-[9999] rounded-lg shadow-xl overflow-hidden border", isDarkMode ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
           {[7, 19, 0].map(v => <button key={v} onClick={() => { onChange(v.toString()); setOpen(false); }} className={cn("w-full text-center py-2 text-sm font-bold transition-all", isDarkMode ? "text-white hover:bg-white/10" : "text-slate-900 hover:bg-slate-100")}>{v}%</button>)}
         </div>
       )}
@@ -449,10 +431,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [creatingDuration, setCreatingDuration] = useState(false);
   const saveTimer = useRef<any>(null);
 
-  // Accordion cleanup: Reset month filter when closed
   useEffect(() => {
      if (!isOpen) setLocalMonthFilter('all');
   }, [isOpen]);
+
   const [isBookmarked, setIsBookmarked] = useState(() => {
     try { return JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]').includes(entry.id); } catch { return false; }
   });
@@ -504,7 +486,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
   const filteredMasterInvoices = useMemo(() => {
     let filtered = localHotel.invoices || [];
-
     if (invoiceFilter === 'paid') filtered = filtered.filter((inv:any) => inv.isPaid);
     if (invoiceFilter === 'unpaid') filtered = filtered.filter((inv:any) => !inv.isPaid);
 
@@ -533,7 +514,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             return null;
         }).filter(Boolean);
     }
-    
     return filtered;
   }, [localHotel.invoices, itemSearchQuery, invoiceFilter, activeMonthFilter, selectedYear, lang]);
 
@@ -660,7 +640,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     };
   }, [localHotel, activeInvoice, filteredMasterInvoices, activeMonthFilter]);
 
-  // SMART SORTER: EMPLOYEES (Active first, Max 8)
   const sortedEmployees = useMemo(() => {
      const emps = [...masterMath.employees];
      emps.sort((a, b) => {
@@ -672,7 +651,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const visibleEmps = sortedEmployees.slice(0, 8);
   const hiddenEmps = sortedEmployees.slice(8);
 
-  // SMART SORTER: DURATIONS (Newest first, Max 4)
   const sortedDurations = useMemo(() => {
      const durs = [...(localHotel.durations || [])];
      durs.sort((a, b) => new Date(b.startDate || 0).getTime() - new Date(a.startDate || 0).getTime());
@@ -680,6 +658,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   }, [localHotel.durations]);
   const visibleDurs = sortedDurations.slice(0, 4);
   const hiddenDurs = sortedDurations.slice(4);
+
   function patchHotel(changes: any) {
     if (viewOnly) return; 
     let next = { ...localHotel, ...changes };
@@ -720,7 +699,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         if ('override_total_brutto' in next) dbPayload.override_total_brutto = next.override_total_brutto;
         if ('override_price_per_bed' in next) dbPayload.override_price_per_bed = next.override_price_per_bed;
         if ('invoices' in next) dbPayload.invoices = next.invoices;
-
         await updateHotel(localHotel.id, dbPayload);
         onUpdate(localHotel.id, next);
       } catch (e: any) { console.error(`Error saving: ${e.message}`); }
@@ -748,11 +726,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const handleEnterBlur = (e: React.KeyboardEvent) => { if (e.key === 'Enter') (e.target as HTMLElement).blur(); };
   const labelCls = cn('flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500', dk && 'text-slate-400');
   const inputCls = cn('w-full px-2 py-1.5 rounded-lg text-sm font-bold outline-none border transition-all h-[34px]', dk ? 'bg-[#1E293B] border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400', viewOnly && "opacity-60 cursor-default");
+
   const totalInvs = (localHotel.invoices || []).length;
   const paidInvs = (localHotel.invoices || []).filter((i: any) => i.isPaid).length;
   const unpaidInvs = totalInvs - paidInvs;
-  
-return (
+
+  return (
     <div className="space-y-1 relative" style={{ zIndex: 40 - (index % 30) }}>
       
       <div className={cn("absolute -left-7 top-0 bottom-0 w-10 flex items-center justify-center transition-all duration-300 z-[100]", isSelected || isBulkActive ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 hover:opacity-100")}>
@@ -761,10 +740,8 @@ return (
 
       <div className={cn('rounded-xl border transition-all duration-200 shadow-sm relative overflow-visible', isSelected ? (dk ? 'bg-teal-500/10 border-teal-500/50' : 'bg-teal-50 border-teal-500/40') : (dk ? 'bg-[#1E293B] border-white/5 hover:border-white/10' : 'bg-white border-slate-200 hover:border-slate-300'))}>
         
-        {/* VERTICAL STATUS LINE */}
         <div className={cn("absolute right-0 top-0 bottom-0 w-[4px] rounded-r-xl transition-colors z-[60]", masterMath.totalUnpaid > 0 ? "bg-red-500" : (masterMath.totalPaid > 0 ? "bg-emerald-500" : "bg-transparent border-l border-slate-200 dark:border-white/10"))} />
 
-        {/* ALIGNED GRID MAIN ROW */}
         <div className={cn('flex items-center cursor-pointer p-2 pr-6', dk ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/70', isOpen && 'border-b', isOpen && (dk ? 'border-white/5 bg-black/20' : 'border-slate-100 bg-slate-50/50'))} onClick={onToggle}>
           
           <div className="flex items-center justify-center w-10 shrink-0">
@@ -782,15 +759,14 @@ return (
 
           <div className="w-[150px] shrink-0 pr-2 flex flex-wrap gap-1.5">
               {visibleDurs.map((d: any, i: number) => {
-                // 1. Hover Title Logic (Rooms & Nights)
                 const typeCount: any = {};
                 (d.roomCards || []).forEach((c:any) => { typeCount[c.roomType] = (typeCount[c.roomType] || 0) + 1 });
                 const roomStr = Object.entries(typeCount).map(([rt, count]) => `${count} ${rt}`).join(', ');
                 const n = calculateNights(d.startDate, d.endDate);
                 const title = `${n} N, ${(d.roomCards || []).length} Rooms ${roomStr ? `(${roomStr})` : ''}`;
                 
-                // 2. Format as '02 Dec'
                 const formatChipDate = (iso: string) => {
+                    if (!iso) return '';
                     const date = new Date(iso);
                     const locale = lang === 'de' ? 'de-DE' : 'en-GB';
                     return date.toLocaleDateString(locale, { day: '2-digit', month: 'short' }).replace('.', '');
@@ -810,7 +786,6 @@ return (
                 const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
                 const borderCls = status === 'active' ? "border-emerald-500/50" : status === 'upcoming' ? "border-blue-500/50" : status === 'ending-soon' ? "border-red-500/50" : "border-slate-500/40";
                 const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
-                
                 const shortName = emp.name ? emp.name.trim().split(' ').pop() : '_ _ _';
                 const n = calculateNights(emp.checkIn||'', emp.checkOut||'');
                 
@@ -821,8 +796,7 @@ return (
                       <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
                       <HighlightText text={shortName} query={searchScope === 'all' || searchScope === 'employee' ? searchQuery : ''} />
                     </button>
-                    {/* Hover Popover */}
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-2 bg-slate-800 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[200] shadow-xl text-center">
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-2 bg-slate-800 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[9999] shadow-xl text-center">
                         <p className="text-xs font-bold">{emp.name}</p>
                         <p className="text-[10px] text-slate-300">{formatShortDate(emp.checkIn, lang)} ➔ {formatShortDate(emp.checkOut, lang)} ({n}N)</p>
                     </div>
@@ -830,7 +804,6 @@ return (
                 );
               })}
               
-              {/* + X More Popover */}
               {hiddenEmps.length > 0 && (
                  <div className="relative group">
                     <button onClick={(e) => { e.stopPropagation(); onToggle(); setActiveTab('bookings'); }} className="px-2 py-0.5 rounded-full border border-dashed border-slate-400 text-[10px] font-bold flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">+{hiddenEmps.length}</button>
@@ -867,8 +840,7 @@ return (
                </div>
             )}
 
-            {/* RESTORED ICONS */}
-            <div className="flex items-center justify-end gap-1 mt-2 opacity-30 hover:opacity-100 transition-opacity">
+            <div className="flex items-center justify-end gap-1.5 mt-2 opacity-40 hover:opacity-100 transition-opacity">
                <button onClick={handleBookmarkToggle} className={cn("p-1 rounded transition-colors", isBookmarked ? "text-yellow-500" : "text-slate-500 hover:text-slate-800 dark:hover:text-white")}><Star size={12} className={isBookmarked ? "fill-yellow-500" : ""} /></button>
                <div className="relative group">
                   <button onClick={(e) => e.stopPropagation()} className="p-1 rounded text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors"><Clock size={12} /></button>
@@ -879,31 +851,17 @@ return (
                )}
             </div>
           </div>
-            
-            <div className={cn('font-black leading-none text-right', selectedMonth !== null ? 'text-md' : 'text-lg', dk ? 'text-white' : 'text-slate-900')}>
-              {formatCurrency(masterMath.displayBrutto)}
-            </div>
-            
-            {showGlobalFinancials && (
-               <div className="flex flex-col items-end mt-1 space-y-0.5 animate-in fade-in">
-                  <span className="text-emerald-500 text-[10px] font-bold leading-none">{formatCurrency(masterMath.totalPaid)}</span>
-                  <span className="text-red-500 text-[10px] font-bold leading-none">{formatCurrency(masterMath.totalUnpaid)}</span>
-               </div>
-            )}
-          </div>
         </div>
 
         {isOpen && (
           <div className={cn('rounded-b-2xl border-t shadow-inner flex flex-col', dk ? 'bg-[#0B1224] border-white/5' : 'bg-slate-50 border-slate-200')} onClick={e => e.stopPropagation()}>
             
-            {/* 3 TABS NAVIGATOR */}
             <div className="flex items-center px-4 pt-2 gap-2 border-b border-slate-200 dark:border-white/10">
                <button onClick={() => setActiveTab('bookings')} className={cn("px-5 py-2.5 text-sm font-bold transition-all border-b-2", activeTab === 'bookings' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300")}>{lang === 'de' ? 'Buchungszeiträume' : 'Booking Periods'}</button>
                <button onClick={() => setActiveTab('billing')} className={cn("px-5 py-2.5 text-sm font-bold transition-all border-b-2", activeTab === 'billing' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300")}>{lang === 'de' ? 'Abrechnung & Rechnungen' : 'Billing & Invoice'}</button>
                <button onClick={() => setActiveTab('info')} className={cn("px-5 py-2.5 text-sm font-bold transition-all border-b-2", activeTab === 'info' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300")}>{lang === 'de' ? 'Hotel Info' : 'Hotel Info'}</button>
             </div>
 
-            {/* TAB 1: BOOKING PERIODS */}
             {activeTab === 'bookings' && (
               <div className="p-4 bg-white dark:bg-[#1E293B] rounded-b-2xl animate-in fade-in">
                 <div className={cn("flex items-end gap-1 flex-wrap mb-[3px]")}>
@@ -927,15 +885,484 @@ return (
                   )}
                 </div>
                 {localHotel.durations[activeDurationTab] && (
-              <div className={cn("relative z-0", activeDurationTab === 0 ? "[&>div]:rounded-tl-none" : "")}>
-                <DurationCard 
-                  duration={localHotel.durations[activeDurationTab]} 
-                  isDarkMode={dk} lang={lang} 
-                  isMasterPricingActive={masterMath.isMasterActive} 
-                  viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} employeeOptions={employeeOptions}
-                  onUpdate={(id, upd) => patchHotel({ durations: localHotel.durations.map((d: any) => d.id === id ? upd : d) })} 
-                  onDelete={(id) => { const n = localHotel.durations.filter((d: any) => d.id !== id); patchHotel({ durations: n }); enqueue({ type: 'deleteDuration', payload: { id } }); if (activeDurationTab >= n.length) setActiveDurationTab(Math.max(0, n.length - 1)); }} 
-                />
+                  <div className={cn("relative z-0", activeDurationTab === 0 ? "[&>div]:rounded-tl-none" : "")}>
+                    <DurationCard 
+                      duration={localHotel.durations[activeDurationTab]} 
+                      isDarkMode={dk} lang={lang} 
+                      isMasterPricingActive={masterMath.isMasterActive} 
+                      viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} employeeOptions={employeeOptions}
+                      onUpdate={(id, upd) => patchHotel({ durations: localHotel.durations.map((d: any) => d.id === id ? upd : d) })} 
+                      onDelete={(id) => { const n = localHotel.durations.filter((d: any) => d.id !== id); patchHotel({ durations: n }); enqueue({ type: 'deleteDuration', payload: { id } }); if (activeDurationTab >= n.length) setActiveDurationTab(Math.max(0, n.length - 1)); }} 
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'billing' && (
+              <div className="flex flex-col xl:flex-row bg-white dark:bg-transparent rounded-b-2xl animate-in fade-in">
+                <div className={cn("w-full xl:w-[280px] shrink-0 p-4 flex flex-col gap-3 border-b xl:border-b-0 xl:border-r transition-colors", dk ? "border-white/10 bg-[#0F172A]/80" : "border-slate-200 bg-slate-50")}>
+                    <div className="flex items-center justify-between mb-2">
+                       <label className={labelCls}><Receipt size={14}/> {lang === 'de' ? 'Rechnungen' : 'Invoices'}</label>
+                       <div className="flex items-center gap-2">
+                           {totalInvs > 0 && (
+                             <div className={cn("flex items-center rounded-lg border shadow-sm overflow-hidden", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
+                               <button onClick={() => setInvoiceFilter('all')} className={cn("flex items-center gap-1.5 text-[11px] font-black transition-colors px-2 py-1", invoiceFilter === 'all' ? (dk ? "bg-white/10 text-white" : "bg-slate-100 text-slate-800") : "text-slate-400 hover:text-slate-600 hover:bg-slate-50")} title="All"><FileText size={11} className={invoiceFilter === 'all' ? "opacity-100" : "opacity-60"} /> {totalInvs}</button>
+                               <div className={cn("w-px h-3.5", dk ? "bg-white/10" : "bg-slate-200")} />
+                               <button onClick={() => setInvoiceFilter('paid')} className={cn("flex items-center gap-1 text-[11px] font-black transition-colors px-2 py-1", invoiceFilter === 'paid' ? (dk ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600") : "text-slate-400 hover:text-emerald-500 hover:bg-emerald-50/50")}><span className="w-1.5 h-1.5 rounded-full shrink-0 bg-emerald-500" /> {paidInvs}</button>
+                               <div className={cn("w-px h-3.5", dk ? "bg-white/10" : "bg-slate-200")} />
+                               <button onClick={() => setInvoiceFilter('unpaid')} className={cn("flex items-center gap-1 text-[11px] font-black transition-colors px-2 py-1", invoiceFilter === 'unpaid' ? (dk ? "bg-red-500/10 text-red-400" : "bg-red-50 text-red-600") : "text-slate-400 hover:text-red-500 hover:bg-red-50/50")}><span className="w-1.5 h-1.5 rounded-full shrink-0 bg-red-500" /> {unpaidInvs}</button>
+                             </div>
+                           )}
+                           {!viewOnly && (
+                             <button onClick={() => {
+                                 const newId = Math.random().toString();
+                                 const newDraft = { id: newId, number: '', note: '', isPaid: false, billingMode: 'detailed', items: [], startDate: null, endDate: null, dueDate: null, paymentDate: null };
+                                 setInvoiceDraft(newDraft); setEditingInvoiceId(newId); setSelectedInvoiceId(newId);
+                             }} className="p-1.5 rounded-md text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-500/20 transition-all shrink-0"><Plus size={14} strokeWidth={3} /></button>
+                           )}
+                       </div>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[350px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
+                       {editingInvoiceId && invoiceDraft && !localHotel.invoices.find((i:any) => i.id === editingInvoiceId) && (
+                          <div className={cn("group relative flex flex-col gap-2 p-3 rounded-xl transition-all border shadow-md", dk ? "bg-teal-900/30 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
+                             <input autoFocus value={invoiceDraft.number} onChange={e => setInvoiceDraft({...invoiceDraft, number: e.target.value})} className="w-full text-[13px] font-black border-none bg-transparent outline-none p-0 focus:ring-0 placeholder:text-slate-400" placeholder="RE-..." />
+                             
+                             <div className="flex items-center gap-2 mt-1">
+                                <div className="flex-1 flex flex-col gap-0.5">
+                                   <label className="text-[9px] uppercase font-bold text-slate-500 flex items-center gap-1"><Calendar size={10}/> {lang === 'de' ? 'Start' : 'Start'}</label>
+                                   <NativeDatePicker dk={dk} value={invoiceDraft.startDate || ''} onChange={(s: string) => setInvoiceDraft({...invoiceDraft, startDate: s})} className="w-full h-[28px]" />
+                                </div>
+                                <div className="flex-1 flex flex-col gap-0.5">
+                                   <label className="text-[9px] uppercase font-bold text-slate-500 flex items-center gap-1"><Calendar size={10}/> {lang === 'de' ? 'Ende' : 'End'}</label>
+                                   <NativeDatePicker dk={dk} disabled={!invoiceDraft.startDate} min={invoiceDraft.startDate} value={invoiceDraft.endDate || ''} onChange={(end: string) => setInvoiceDraft({...invoiceDraft, endDate: end})} className="w-full h-[28px]" />
+                                </div>
+                             </div>
+
+                             <div className="flex items-center gap-2 mt-1">
+                                <div className="flex-1 flex flex-col gap-0.5">
+                                    <label className="text-[9px] uppercase font-bold text-slate-500 flex items-center gap-1"><Calendar size={10}/> {lang === 'de' ? 'Fällig am:' : 'Payment Due:'}</label>
+                                    <NativeDatePicker dk={dk} value={invoiceDraft.dueDate || ''} onChange={(due: string) => setInvoiceDraft({...invoiceDraft, dueDate: due})} className="w-full h-[28px]" />
+                                </div>
+                                {invoiceDraft.isPaid && (
+                                   <div className="flex-1 flex flex-col gap-0.5 animate-in fade-in slide-in-from-right-2">
+                                      <label className="text-[9px] uppercase font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><Calendar size={10}/> {lang === 'de' ? 'Bezahlt am:' : 'Paid On:'}</label>
+                                      <NativeDatePicker dk={dk} value={invoiceDraft.paymentDate || ''} onChange={(pd: string) => setInvoiceDraft({...invoiceDraft, paymentDate: pd})} className="w-full h-[28px] [&>div]:border-emerald-500 [&>div]:text-emerald-600 dark:[&>div]:text-emerald-400" />
+                                   </div>
+                                )}
+                             </div>
+
+                             <div className="flex items-center gap-2 mt-1 pt-1 border-t border-slate-200 dark:border-white/10">
+                                <button onClick={() => setInvoiceDraft({...invoiceDraft, isPaid: !invoiceDraft.isPaid})} className={cn("px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider transition-colors shrink-0", invoiceDraft.isPaid ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-black/10 dark:bg-white/10 text-slate-500")}>
+                                   {invoiceDraft.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid')}
+                                </button>
+                             </div>
+                             
+                             <textarea value={invoiceDraft.note || ''} onChange={e => setInvoiceDraft({...invoiceDraft, note: e.target.value})} className="w-full text-[11px] font-medium border-none bg-transparent outline-none p-0 mt-2 text-slate-500 focus:ring-0 placeholder:italic placeholder:opacity-50 resize-none h-10" placeholder={lang === 'de' ? "Notiz hinzufügen..." : "Add note..."} />
+                             
+                             <div className="flex items-center justify-between mt-1 pt-2 border-t border-slate-200 dark:border-white/10">
+                                <button onClick={(e) => { e.stopPropagation(); if (window.confirm('Discard draft?')) { setEditingInvoiceId(null); setInvoiceDraft(null); setSelectedInvoiceId(null); } }} className="p-1.5 text-slate-400 hover:text-red-500 rounded-md"><Trash2 size={14} /></button>
+                                <button disabled={!invoiceDraft.number || !invoiceDraft.startDate || !invoiceDraft.endDate || (invoiceDraft.isPaid && !invoiceDraft.paymentDate)} onClick={(e) => { e.stopPropagation(); patchHotel({ invoices: [invoiceDraft, ...localHotel.invoices] }); setSelectedInvoiceId(invoiceDraft.id); setEditingInvoiceId(null); setInvoiceDraft(null); }} className="p-1.5 px-3 text-white bg-teal-500 hover:bg-teal-600 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:text-slate-500 rounded-md transition-all"><Check size={16} strokeWidth={3} /></button>
+                             </div>
+                          </div>
+                       )}
+
+                       {filteredInvoices.length === 0 && !editingInvoiceId ? (
+                         <p className="text-[11px] font-medium italic text-slate-400 mt-2">{totalInvs === 0 ? (lang === 'de' ? 'Keine Rechnungen' : 'No invoices') : (lang === 'de' ? 'Keine Treffer' : 'No matches')}</p>
+                       ) : (
+                         filteredInvoices.map((inv: any) => {
+                           const isActiveSelection = selectedInvoiceId === inv.id;
+                           const isEditingMeta = editingInvoiceId === inv.id;
+                           if (isEditingMeta) {
+                              const draft = invoiceDraft || inv;
+                              return (
+                                 <div key={inv.id} className={cn("group relative flex flex-col gap-2 p-3 rounded-xl transition-all border shadow-md", dk ? "bg-teal-900/30 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
+                                    <input autoFocus value={draft.number} onChange={e => setInvoiceDraft({...draft, number: e.target.value})} className="w-full text-[13px] font-black border-none bg-transparent outline-none p-0 focus:ring-0 placeholder:text-slate-400" placeholder="RE-..." />
+                                    <div className="flex items-center gap-2 mt-1">
+                                       <div className="flex-1 flex flex-col gap-0.5">
+                                          <label className="text-[9px] uppercase font-bold text-slate-500 flex items-center gap-1"><Calendar size={10}/> {lang === 'de' ? 'Start' : 'Start'}</label>
+                                          <NativeDatePicker dk={dk} value={draft.startDate || ''} onChange={(s: string) => setInvoiceDraft({...draft, startDate: s})} className="w-full h-[28px]" />
+                                       </div>
+                                       <div className="flex-1 flex flex-col gap-0.5">
+                                          <label className="text-[9px] uppercase font-bold text-slate-500 flex items-center gap-1"><Calendar size={10}/> {lang === 'de' ? 'Ende' : 'End'}</label>
+                                          <NativeDatePicker dk={dk} disabled={!draft.startDate} min={draft.startDate} value={draft.endDate || ''} onChange={(end: string) => setInvoiceDraft({...draft, endDate: end})} className="w-full h-[28px]" />
+                                       </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-1">
+                                       <div className="flex-1 flex flex-col gap-0.5">
+                                           <label className="text-[9px] uppercase font-bold text-slate-500 flex items-center gap-1"><Calendar size={10}/> {lang === 'de' ? 'Fällig am:' : 'Payment Due:'}</label>
+                                           <NativeDatePicker dk={dk} value={draft.dueDate || ''} onChange={(due: string) => setInvoiceDraft({...draft, dueDate: due})} className="w-full h-[28px]" />
+                                       </div>
+                                       {draft.isPaid && (
+                                          <div className="flex-1 flex flex-col gap-0.5 animate-in fade-in slide-in-from-right-2">
+                                             <label className="text-[9px] uppercase font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><Calendar size={10}/> {lang === 'de' ? 'Bezahlt am:' : 'Paid On:'}</label>
+                                             <NativeDatePicker dk={dk} value={draft.paymentDate || ''} onChange={(pd: string) => setInvoiceDraft({...draft, paymentDate: pd})} className="w-full h-[28px] [&>div]:border-emerald-500 [&>div]:text-emerald-600 dark:[&>div]:text-emerald-400" />
+                                          </div>
+                                       )}
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-1 pt-1 border-t border-slate-200 dark:border-white/10">
+                                       <button onClick={() => setInvoiceDraft({...draft, isPaid: !draft.isPaid})} className={cn("px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider transition-colors shrink-0", draft.isPaid ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-black/10 dark:bg-white/10 text-slate-500")}>
+                                          {draft.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid')}
+                                       </button>
+                                    </div>
+                                    <textarea value={draft.note || ''} onChange={e => setInvoiceDraft({...draft, note: e.target.value})} className="w-full text-[11px] font-medium border-none bg-transparent outline-none p-0 mt-2 text-slate-500 focus:ring-0 placeholder:italic placeholder:opacity-50 resize-none h-10" placeholder={lang === 'de' ? "Notiz hinzufügen..." : "Add note..."} />
+                                    <div className="flex items-center justify-between mt-1 pt-2 border-t border-slate-200 dark:border-white/10">
+                                       <button onClick={(e) => { e.stopPropagation(); setInvoiceToDelete(inv.id); }} className="p-1.5 text-slate-400 hover:text-red-500 rounded-md"><Trash2 size={14} /></button>
+                                       <div className="flex items-center gap-2">
+                                          <button onClick={() => { setEditingInvoiceId(null); setInvoiceDraft(null); }} className="p-1.5 text-slate-500 hover:text-slate-800 dark:hover:text-white rounded-md"><X size={16} /></button>
+                                          <button disabled={!draft.number || !draft.startDate || !draft.endDate || (draft.isPaid && !draft.paymentDate)} onClick={(e) => { e.stopPropagation(); patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === inv.id ? draft : i) }); setEditingInvoiceId(null); setInvoiceDraft(null); }} className="p-1.5 px-3 text-white bg-teal-500 hover:bg-teal-600 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:text-slate-500 rounded-md transition-all"><Check size={16} strokeWidth={3} /></button>
+                                       </div>
+                                    </div>
+                                 </div>
+                              );
+                           }
+
+                           const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
+                           let invBrutto = inv.billingMode === 'total' ? (parseFloat(inv.totalNetto)||0) * (1 + (parseFloat(inv.totalMwst)||0)/100) : (inv.items||[]).reduce((sum:number, it:any) => sum + calcInvoiceItem(it, defaultN).brutto, 0);
+
+                           return (
+                              <div key={inv.id} onClick={() => { setSelectedInvoiceId(isActiveSelection ? null : inv.id); setEditingItemId(null); setEditingTotal(false); }} className={cn("group relative flex items-center justify-between p-2 rounded-xl transition-all cursor-pointer border shadow-sm hover:shadow-md", isActiveSelection ? (dk ? "bg-teal-900/30 border-teal-500/50 shadow-md" : "bg-teal-50 border-teal-300 shadow-md") : (dk ? "bg-[#1E293B] border-white/5 hover:border-white/20" : "bg-white border-slate-100 hover:border-slate-300"))}>
+                                 <div className="flex items-center gap-2.5">
+                                    <div className={cn("relative flex items-center justify-center group/info cursor-help shrink-0")}>
+                                       <div className={cn("w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-colors", dk ? "border-slate-600 text-slate-400" : "border-slate-300 text-slate-400 group-hover/info:border-teal-500 group-hover/info:text-teal-500")}>i</div>
+                                       <div className={cn("absolute left-7 top-0 w-max min-w-[200px] max-w-[250px] p-3 rounded-xl shadow-2xl border opacity-0 group-hover/info:opacity-100 pointer-events-none transition-all z-[9999] -translate-x-2 group-hover/info:translate-x-0 flex flex-col gap-1", dk ? "bg-slate-800 border-white/10" : "bg-white border-slate-200")}>
+                                         <p className={cn("text-[13px] font-black leading-tight border-b pb-1 mb-1", dk ? "text-white border-white/10" : "text-slate-900 border-slate-100")}>{inv.number || 'Unnamed'}</p>
+                                         <p className={cn("text-[11px] font-bold", dk ? "text-slate-300" : "text-slate-600")}><span className="opacity-60">Period:</span> {inv.startDate ? `${formatShortDate(inv.startDate, lang)} - ${formatShortDate(inv.endDate, lang)}` : '--'}</p>
+                                         <p className={cn("text-[11px] font-bold", dk ? "text-slate-300" : "text-slate-600")}><span className="opacity-60">{inv.dueDate ? (lang==='de'?'Fällig:':'Due:') : (lang==='de'?'Erstellt:':'Created:')}</span> {inv.dueDate ? formatShortDate(inv.dueDate, lang) : formatShortDate(inv.created_at || new Date().toISOString(), lang)}</p>
+                                         {inv.isPaid && <p className={cn("text-[11px] font-bold text-emerald-500")}><span className="opacity-60">Paid on:</span> {inv.paymentDate ? formatShortDate(inv.paymentDate, lang) : '--'}</p>}
+                                         {inv.note && <p className={cn("text-[11px] font-medium leading-relaxed break-words whitespace-pre-wrap mt-1 pt-1 border-t", dk ? "text-slate-400 border-white/10" : "text-slate-500 border-slate-100")}>{inv.note}</p>}
+                                       </div>
+                                    </div>
+                                    <div className="flex flex-col">
+                                       <div className="flex items-center gap-1.5">
+                                          <span className={cn("w-2 h-2 rounded-full shrink-0", inv.isPaid ? "bg-emerald-500" : "bg-red-500")} />
+                                          <span className={cn("text-[13px] font-black truncate max-w-[120px]", dk ? "text-slate-200" : "text-slate-800", isActiveSelection && "text-teal-600 dark:text-teal-400")}>
+                                             <HighlightText text={inv.number || 'Unnamed'} query={searchScope === 'all' || searchScope === 'invoice' ? searchQuery : ''} />
+                                          </span>
+                                       </div>
+                                    </div>
+                                 </div>
+                                 <div className="flex items-center gap-3 shrink-0">
+                                    <span className={cn("text-[13px] font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(invBrutto)}</span>
+                                    {(!viewOnly && isActiveSelection) && (
+                                       <button onClick={(e) => { e.stopPropagation(); setEditingInvoiceId(inv.id); setInvoiceDraft(inv); }} className="p-1.5 bg-black/5 dark:bg-white/5 rounded text-slate-500 hover:text-teal-600 transition-all shrink-0"><Edit3 size={14} /></button>
+                                    )}
+                                 </div>
+                              </div>
+                           );
+                         })
+                       )}
+                    </div>
+                </div>
+
+                <div className="flex-1 p-0 flex flex-col min-w-[700px] z-10 border-r border-slate-200 dark:border-white/10">
+                   <div className={cn("px-5 h-[50px] border-b flex items-center justify-between shrink-0", dk ? "border-white/10" : "border-slate-200", activeInvoice ? (dk ? "bg-[#1E293B]" : "bg-slate-50") : "bg-transparent")}>
+                      <div className="flex items-center gap-4 flex-1">
+                          {activeInvoice ? (
+                             <div className="flex items-center gap-3">
+                                <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">{lang === 'de' ? 'Leistungszeitraum:' : 'Billing Period:'}</span>
+                                {(activeInvoice.startDate || activeInvoice.endDate) ? (
+                                   <div className="flex items-center gap-2 text-[11px] font-bold bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-md text-slate-600 dark:text-slate-300">
+                                      <Calendar size={12} className="opacity-50"/> 
+                                      <span>{activeInvoice.startDate ? formatShortDate(activeInvoice.startDate, lang) : '--'} - {activeInvoice.endDate ? formatShortDate(activeInvoice.endDate, lang) : '--'}</span>
+                                      <span className="opacity-30">|</span>
+                                      <span>{calculateNights(activeInvoice.startDate, activeInvoice.endDate)} {lang==='de'?'Nächte':'Nights'}</span>
+                                      <span className="opacity-30">|</span>
+                                      {activeInvoice.isPaid ? (
+                                         <span className="text-emerald-600 dark:text-emerald-400">{lang==='de'?'Bezahlt am: ':'Paid on: '} {formatShortDate(activeInvoice.paymentDate, lang)}</span>
+                                      ) : (
+                                         <span className={cn(activeInvoice.dueDate ? "text-red-500" : "text-slate-500 font-normal")}>{activeInvoice.dueDate ? (lang==='de'?'Fällig am: ':'Payment Due: ') : (lang==='de'?'Erstellt am: ':'Created on: ')} {activeInvoice.dueDate ? formatShortDate(activeInvoice.dueDate, lang) : formatShortDate(activeInvoice.created_at || new Date().toISOString(), lang)}</span>
+                                      )}
+                                   </div>
+                                ) : (
+                                   <span className="text-[11px] font-medium italic text-slate-400">Kein Zeitraum gewählt</span>
+                                )}
+                             </div>
+                          ) : (
+                             <>
+                                <div className={cn("flex items-center px-2 py-1.5 rounded-lg border w-[250px] transition-colors focus-within:border-teal-500 shadow-sm", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
+                                    <Search size={14} className={dk ? "text-slate-500" : "text-slate-400"} />
+                                    <input value={itemSearchQuery} onChange={(e) => setItemSearchQuery(e.target.value)} className={cn("w-full bg-transparent border-none outline-none text-[12px] font-bold px-2 placeholder-slate-400 focus:ring-0", dk ? "text-white" : "text-slate-900")} placeholder={lang === 'de' ? "Suchen..." : "Search..."} />
+                                    {itemSearchQuery && <button onClick={() => setItemSearchQuery('')} className="text-slate-400 hover:text-slate-600"><X size={14}/></button>}
+                                </div>
+                                <div className={cn("flex items-center px-2 py-1.5 rounded-lg border w-max transition-colors shadow-sm", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
+                                   <span className={cn("text-[12px] font-black border-r pr-2 mr-2", dk ? "text-teal-400 border-white/10" : "text-teal-600 border-slate-200")}>{selectedYear || new Date().getFullYear()}</span>
+                                   <Filter size={14} className={dk ? "text-slate-500 mr-1" : "text-slate-400 mr-1"}/>
+                                   <select disabled={selectedMonth !== null} value={selectedMonth !== null ? selectedMonth.toString() : (localMonthFilter === 'all' ? 'all' : localMonthFilter.toString())} onChange={(e) => setLocalMonthFilter(e.target.value === 'all' ? 'all' : parseInt(e.target.value))} className={cn("bg-transparent text-[11px] font-black uppercase outline-none focus:ring-0 appearance-none border-none p-0 cursor-pointer pr-1", dk ? "text-white disabled:opacity-50 [&>option]:bg-slate-800" : "text-slate-700 disabled:opacity-50")}>
+                                       <option value="all">{lang === 'de' ? 'Alle Monate' : 'All Months'}</option>
+                                       {monthOptions.map((m, idx) => <option key={idx} value={idx.toString()}>{m}</option>)}
+                                   </select>
+                                   <ChevronDown size={12} className={dk ? "text-slate-500" : "text-slate-400"}/>
+                                </div>
+                             </>
+                          )}
+                      </div>
+
+                      {activeInvoice && !viewOnly && (
+                         <div className={cn("flex items-center p-0.5 rounded-lg border", dk ? "bg-black/40 border-white/10" : "bg-slate-100 border-slate-200")}>
+                            <button disabled={activeInvoice.items?.length > 0} onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, billingMode: 'total'} : i) }); setEditingTotal(false); setEditingItemId(null); }} className={cn("px-3 py-1 text-[10px] font-bold rounded-md transition-all", activeInvoice.billingMode === 'total' ? (dk ? "bg-teal-500 text-white" : "bg-white shadow-sm text-teal-700") : "text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed")}>💰 {lang === 'de' ? 'Gesamtbetrag' : 'Total'}</button>
+                            <button disabled={activeInvoice.totalNetto || activeInvoice.totalBrutto} onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, billingMode: 'detailed'} : i) }); setEditingTotal(false); }} className={cn("px-3 py-1 text-[10px] font-bold rounded-md transition-all", activeInvoice.billingMode !== 'total' ? (dk ? "bg-teal-500 text-white" : "bg-white shadow-sm text-teal-700") : "text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed")}>📝 {lang === 'de' ? 'Detailliert' : 'Detailed'}</button>
+                         </div>
+                      )}
+                   </div>
+
+                   <div className="flex-1 overflow-y-auto max-h-[400px] relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
+                      {activeInvoice ? (
+                         activeInvoice.billingMode === 'total' ? (
+                            <div className="p-4">
+                               <div className={cn("flex flex-col p-4 rounded-2xl border shadow-sm animate-in fade-in slide-in-from-top-2", dk ? "bg-[#1E293B] border-teal-500/30" : "bg-white border-teal-300")}>
+                                  <div className="flex items-center gap-3 w-full">
+                                     <div className="flex-1 flex items-center gap-2 min-w-[250px]">
+                                        <label className={labelCls}>Netto</label>
+                                        <input disabled={viewOnly || !editingTotal || activeInvoice.totalBrutto} type="number" value={activeInvoice.totalNetto || ''} onChange={e => patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, totalNetto: e.target.value, totalBrutto: null} : i) })} className={cn(inputCls, "w-[100px] disabled:opacity-30 text-right")} placeholder="0.00" />
+                                        {(!showTotalDiscount && !activeInvoice.totalBrutto) && <button onClick={() => setShowTotalDiscount(true)} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 shrink-0"><Ticket size={14}/></button>}
+                                        {showTotalDiscount && !activeInvoice.totalBrutto && (
+                                            <div className="flex items-center w-[120px] shrink-0 animate-in fade-in slide-in-from-left-2 ml-1">
+                                               <input type="number" value={activeInvoice.discountValue ?? ''} onChange={e => patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, discountValue: e.target.value} : i) })} className={cn(inputCls, "rounded-r-none border-r-0 w-[50px] px-1.5 text-right")} placeholder="Rabatt" />
+                                               <button onClick={() => patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, discountType: i.discountType === 'percentage' ? 'fixed' : 'percentage'} : i) })} className={cn("w-[35px] h-[34px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{activeInvoice.discountType === 'percentage' ? '%' : '€'}</button>
+                                               <button onClick={() => { setShowTotalDiscount(false); patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, discountValue: null} : i) }); }} className={cn("w-[25px] h-[34px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
+                                            </div>
+                                        )}
+                                     </div>
+                                     <div className="w-[100px] shrink-0 flex items-center gap-2">
+                                        <label className={labelCls}>MwSt</label>
+                                        {editingTotal && !viewOnly ? (
+                                           <MwstInput value={activeInvoice.totalMwst} onChange={(v:any) => patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, totalMwst: v} : i) })} isDarkMode={dk} />
+                                        ) : (
+                                           <div className={cn(inputCls, "text-center border-transparent bg-transparent px-0 text-sm")}>{activeInvoice.totalMwst || 7}%</div>
+                                        )}
+                                     </div>
+                                     <div className="w-[160px] shrink-0 flex items-center gap-2">
+                                        <label className={labelCls}>Brutto</label>
+                                        <div className="relative flex-1">
+                                            <input disabled={viewOnly || !editingTotal || activeInvoice.totalNetto} type="number" value={activeInvoice.totalBrutto || ''} onChange={e => patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, totalBrutto: e.target.value, totalNetto: null} : i) })} className={cn(inputCls, "w-full disabled:opacity-100 disabled:bg-transparent disabled:border-transparent font-black text-sm text-right pr-2 placeholder-slate-900 dark:placeholder-white")} placeholder={activeInvoice.totalNetto ? formatCurrency(parseFloat(activeInvoice.totalNetto) * (1 + (parseFloat(activeInvoice.totalMwst)||0)/100)) : "0.00"} />
+                                        </div>
+                                     </div>
+                                     {!viewOnly && (
+                                        <div className="w-[45px] flex items-center justify-end">
+                                           <button onClick={() => setEditingTotal(!editingTotal)} className={cn("h-[34px] w-[34px] rounded-xl flex items-center justify-center font-bold transition-all shadow-sm", editingTotal ? "bg-teal-500 hover:bg-teal-600 text-white" : dk ? "bg-white/10 hover:bg-white/20 text-slate-300" : "bg-slate-100 hover:bg-slate-200 text-slate-700")}>
+                                              {editingTotal ? <Check size={16} /> : <Edit3 size={14} />}
+                                           </button>
+                                        </div>
+                                     )}
+                                  </div>
+                                  <div className="w-full mt-3 border-t pt-3 dark:border-white/10 border-slate-100 animate-in fade-in">
+                                     <textarea rows={1} value={activeInvoice.note || ''} onChange={e => { e.target.style.height='34px'; e.target.style.height=`${e.target.scrollHeight}px`; patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, note: e.target.value} : i) }) }} className={cn(inputCls, "w-full text-[12px] font-medium resize-none overflow-hidden placeholder-opacity-50 min-h-[34px]")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />
+                                  </div>
+                               </div>
+                            </div>
+                         ) : (
+                            <div className="flex flex-col animate-in fade-in pb-5">
+                               <div className={cn("sticky top-0 z-10 flex items-center px-3 py-2 border-b backdrop-blur-md", dk ? "bg-[#0B1224]/95 border-white/10" : "bg-slate-50/95 border-slate-200")}>
+                                  <div className="flex-1 min-w-[200px] text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">{lang === 'de' ? 'Beschreibung' : 'Description'}</div>
+                                  <div className="w-[240px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-6">Netto (Bed)</div>
+                                  <div className="w-[100px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-2">Total Netto</div>
+                                  <div className="w-[70px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">MwSt</div>
+                                  <div className="w-[110px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-2">Total Brutto</div>
+                                  <div className="w-[60px] shrink-0"></div>
+                               </div>
+                               
+                               {(activeInvoice.items || []).length === 0 && <p className="text-[12px] font-bold text-slate-400 italic mt-6 mx-5 text-center py-6 bg-slate-100 dark:bg-white/5 rounded-xl border border-dashed border-slate-300 dark:border-white/10">{lang === 'de' ? 'Noch keine Posten vorhanden. Klicke unten, um zu starten.' : 'No line items. Click below to start.'}</p>}
+                               
+                               {(activeInvoice.items || []).map((item: any) => (
+                                  <InvoiceLineItem 
+                                     key={item.id} item={item} dk={dk} lang={lang} viewOnly={viewOnly}
+                                     defaultNights={activeInvoice.startDate && activeInvoice.endDate ? calculateNights(activeInvoice.startDate, activeInvoice.endDate) : 1}
+                                     defaultStart={activeInvoice.startDate} defaultEnd={activeInvoice.endDate}
+                                     isEditing={editingItemId === item.id} onEdit={() => setEditingItemId(item.id)} onSave={() => setEditingItemId(null)}
+                                     onChange={(updates: any) => patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: i.items.map((it:any) => it.id === item.id ? {...it, ...updates} : it)} : i) })}
+                                     onDelete={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: i.items.filter((it:any) => it.id !== item.id)} : i) }); setEditingItemId(null); }}
+                                  />
+                               ))}
+                               {!viewOnly && (
+                                  <button onClick={() => {
+                                      const newId = Math.random().toString();
+                                      patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: [...(i.items||[]), { id: newId, type: 'room', method: 'per_bed', netto: null, mwst: 7, brutto: null }]} : i) });
+                                      setEditingItemId(newId);
+                                  }} className="mt-4 mx-5 py-3 rounded-lg border border-dashed text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-teal-500 hover:border-teal-500 hover:bg-teal-50 dark:hover:bg-teal-500/10 transition-all">+ {lang === 'de' ? 'Zeile hinzufügen' : 'Add Row'}</button>
+                               )}
+                            </div>
+                         )
+                      ) : (
+                         <div className="flex flex-col animate-in fade-in pb-5">
+                            <div className={cn("sticky top-0 z-10 flex items-center px-3 py-2 border-b mb-3 backdrop-blur-md", dk ? "bg-[#0B1224]/95 border-white/10" : "bg-slate-50/95 border-slate-200")}>
+                               <div className="flex-1 min-w-[200px] text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">{lang === 'de' ? 'Beschreibung' : 'Description'}</div>
+                               <div className="w-[240px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-6">Netto (Bed)</div>
+                               <div className="w-[100px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-2">Total Netto</div>
+                               <div className="w-[70px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">MwSt</div>
+                               <div className="w-[110px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-2">Total Brutto</div>
+                               <div className="w-[60px] shrink-0"></div>
+                            </div>
+                            
+                            {filteredMasterInvoices.length > 0 ? filteredMasterInvoices.map((inv: any) => {
+                               const isExpanded = expandedInvoices.includes(inv.id);
+                               const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
+                               let invBrutto = inv.billingMode === 'total' ? (parseFloat(inv.totalNetto)||0) * (1 + (parseFloat(inv.totalMwst)||0)/100) : (inv.items||[]).reduce((sum:number, it:any) => sum + calcInvoiceItem(it, defaultN).brutto, 0);
+                               return (
+                               <div key={inv.id} className="flex flex-col mb-3 px-3">
+                                  <button onClick={() => setExpandedInvoices(prev => isExpanded ? prev.filter(id => id !== inv.id) : [...prev, inv.id])} className={cn("flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg transition-colors group border shadow-sm", inv.isPaid ? (dk ? "bg-emerald-950/20 border-emerald-500/20" : "bg-emerald-50 border-emerald-200") : (dk ? "bg-red-950/20 border-red-500/20" : "bg-red-50 border-red-200"))}>
+                                     <div className="flex items-center gap-2">
+                                        {isExpanded ? <ChevronDown size={16} className={inv.isPaid ? "text-emerald-500" : "text-red-500"}/> : <ChevronRight size={16} className={inv.isPaid ? "text-emerald-500" : "text-red-500"}/>}
+                                        <span className={cn("text-[14px] font-black", inv.isPaid ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
+                                           <HighlightText text={inv.number || 'Draft'} query={itemSearchQuery} />
+                                        </span>
+                                     </div>
+                                     <div className="flex items-center gap-3">
+                                        <span className={cn("text-[14px] font-black", inv.isPaid ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400")}>{formatCurrency(invBrutto)}</span>
+                                     </div>
+                                  </button>
+                                  {isExpanded && (
+                                    <div className="pl-6 pt-1 animate-in fade-in slide-in-from-top-1">
+                                      {inv.billingMode === 'total' ? (
+                                         <div className="flex items-center px-2 py-2 border-b border-slate-100 dark:border-white/5">
+                                            <div className="flex-1 min-w-[200px] text-[12px] font-bold text-slate-600 dark:text-slate-300">{lang === 'de' ? 'Gesamtbetrag' : 'Total'}</div>
+                                            <div className="w-[240px] shrink-0 text-[11px] italic text-slate-400 opacity-50 text-right pr-6">--</div>
+                                            <div className="w-[100px] shrink-0 text-[12px] font-bold text-slate-700 dark:text-slate-300 text-right pr-2"><HighlightText text={formatCurrency(parseFloat(inv.totalNetto)||0)} query={itemSearchQuery} /></div>
+                                            <div className="w-[70px] shrink-0 text-[12px] font-bold text-slate-500 text-center">{inv.totalMwst}%</div>
+                                            <div className="w-[110px] shrink-0 text-[12px] font-black text-slate-900 dark:text-white text-right pr-2"><HighlightText text={formatCurrency(invBrutto)} query={itemSearchQuery} /></div>
+                                            <div className="w-[60px] shrink-0"></div>
+                                         </div>
+                                      ) : (
+                                         <div className="flex flex-col">
+                                            {(inv.items || []).map((item: any) => {
+                                               const { finalNetto, mwst, brutto } = calcInvoiceItem(item, defaultN);
+                                               return (
+                                                  <div key={item.id} className="flex items-start px-2 py-2.5 border-b border-slate-100 dark:border-white/5 last:border-0">
+                                                     <div className="flex-1 min-w-[200px] flex flex-col pr-2">
+                                                       <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                                                          <HighlightText text={getTranslation(COST_TYPES, item.type || 'room', lang)} query={itemSearchQuery} />
+                                                          {item.method === 'per_bed' && <span className="text-[9px] text-slate-400 font-bold uppercase ml-1">({item.nights||defaultN} {lang==='de'?'Nächte':'Nights'}, {item.beds||1} {lang==='de'?'Betten':'Beds'})</span>}
+                                                       </span>
+                                                       {item.note && <span className="text-[10px] italic text-slate-400 mt-1 whitespace-pre-wrap"><HighlightText text={item.note} query={itemSearchQuery} /></span>}
+                                                     </div>
+                                                     <div className="w-[240px] shrink-0 text-[12px] font-bold text-slate-700 dark:text-slate-300 pt-0.5 text-right pr-6">
+                                                        {item.method === 'per_bed' ? <HighlightText text={formatCurrency(parseFloat(item.netto)||0)} query={itemSearchQuery} /> : <span className="opacity-50 text-[11px] italic">--</span>}
+                                                     </div>
+                                                     <div className="w-[100px] shrink-0 text-[12px] font-bold text-slate-700 dark:text-slate-300 pt-0.5 text-right pr-2"><HighlightText text={formatCurrency(finalNetto)} query={itemSearchQuery} /></div>
+                                                     <div className="w-[70px] shrink-0 text-[12px] font-bold text-slate-500 pt-0.5 text-center">{mwst}%</div>
+                                                     <div className="w-[110px] shrink-0 text-[12px] font-black text-slate-900 dark:text-white pt-0.5 text-right pr-2"><HighlightText text={formatCurrency(brutto)} query={itemSearchQuery} /></div>
+                                                     <div className="w-[60px] shrink-0"></div>
+                                                  </div>
+                                               )
+                                            })}
+                                            {(inv.items || []).length === 0 && <div className="px-2 py-1.5 text-[11px] italic text-slate-400">Leer</div>}
+                                         </div>
+                                      )}
+                                    </div>
+                                  )}
+                               </div>
+                               );
+                            }) : (
+                               <p className="text-[12px] font-bold text-slate-400 italic mt-4 mx-5 text-center py-6 bg-slate-100 dark:bg-white/5 rounded-xl border border-dashed border-slate-300 dark:border-white/10">
+                                   {itemSearchQuery ? (lang === 'de' ? 'Keine Ergebnisse für diese Suche.' : 'No results found.') : (lang === 'de' ? 'Keine Daten. Wähle eine Rechnung auf der linken Seite aus.' : 'No data. Select an invoice on the left.')}
+                               </p>
+                            )}
+                         </div>
+                      )}
+                   </div>
+                </div>
+
+                <div className={cn("w-full xl:w-[280px] p-5 flex flex-col shrink-0 rounded-b-2xl xl:rounded-bl-none transition-colors", dk ? "bg-[#0B1224]" : "bg-white", activeInvoice && (dk ? "bg-teal-950/20" : "bg-teal-50/30"))}>
+                   <div className="flex items-center justify-between gap-2 mb-5">
+                      {activeInvoice ? (
+                         <span className="text-[14px] font-black text-teal-600 dark:text-teal-400 bg-teal-500/10 px-3 py-1 rounded-md">{activeInvoice.number || 'Draft'}</span>
+                      ) : (
+                         <span className="text-[12px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 dark:bg-white/5 px-3 py-1 rounded-md">
+                            {activeMonthFilter !== 'all' ? (lang === 'de' ? `Übersicht: ${monthOptions[activeMonthFilter as number]} ${selectedYear || new Date().getFullYear()}` : `Summary: ${monthOptions[activeMonthFilter as number]} ${selectedYear || new Date().getFullYear()}`) : (lang === 'de' ? 'Hotel Übersicht' : 'Hotel Summary')}
+                         </span>
+                      )}
+                      <div className={cn("px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border shadow-sm cursor-default", (activeInvoice ? activeInvoice.isPaid : localHotel.isPaid) ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/40" : "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30")}>
+                         {(activeInvoice ? activeInvoice.isPaid : localHotel.isPaid) ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid')}
+                      </div>
+                   </div>
+                   
+                   <div className="space-y-2 mb-5 font-medium text-[14px] border-b pb-4 border-slate-100 dark:border-white/10">
+                      <div className="flex justify-between items-center">
+                         <span className={dk ? "text-slate-400" : "text-slate-500"}>{lang === 'de' ? 'Total Netto' : 'Total Netto'}</span>
+                         <span className={cn("font-bold", dk ? "text-white" : "text-slate-900")}>{formatCurrency(activeInvoice ? masterMath.activeNetto : masterMath.displayNetto)}</span>
+                      </div>
+                      {Object.entries(activeInvoice ? masterMath.activeBuckets : masterMath.buckets).map(([percent, amount]: any) => (
+                         <div key={percent} className="flex justify-between items-center text-[13px]">
+                             <span className={dk ? "text-slate-500" : "text-slate-400"}>MwSt ({percent}%)</span>
+                             <span className={dk ? "text-slate-400" : "text-slate-500"}>{formatCurrency(amount)}</span>
+                         </div>
+                      ))}
+                   </div>
+                   
+                   <div className="flex flex-col gap-3">
+                      {!activeInvoice && localHotel.has_global_discount && (
+                        <div className="flex flex-col gap-2 p-3 rounded-lg bg-indigo-50/50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 mb-2">
+                            <span className="text-[11px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">{lang === 'de' ? 'Gesamtrabatt' : 'Global Discount'}</span>
+                            <div className="flex items-center gap-2">
+                               <input disabled={viewOnly} type="number" value={localHotel.global_discount_value || ''} onChange={e => patchHotel({global_discount_value: e.target.value === '' ? null : e.target.value})} className={cn(inputCls, 'w-16 h-[28px] px-1.5 text-xs')} placeholder="0" />
+                               <button disabled={viewOnly} onClick={() => patchHotel({global_discount_type: localHotel.global_discount_type === 'percentage' ? 'fixed' : 'percentage'})} className={cn("w-8 h-[28px] rounded flex items-center justify-center text-sm font-bold", dk ? "bg-white/10 text-white" : "bg-white border border-slate-200 text-slate-700")}>{localHotel.global_discount_type === 'percentage' ? '%' : '€'}</button>
+                            </div>
+                        </div>
+                      )}
+
+                      <div className="flex justify-between items-center group w-full">
+                         <span className={cn("text-[12px] font-black uppercase tracking-widest shrink-0", activeInvoice ? "text-teal-600 dark:text-teal-400" : "text-slate-500")}>{lang === 'de' ? 'Gesamt Brutto' : 'Total Brutto'}</span>
+                         {!viewOnly && !activeInvoice && editingOBrutto ? (
+                            <input autoFocus type="number" value={editBruttoValue} onChange={e => setEditBruttoValue(e.target.value)} onBlur={() => {patchHotel({override_total_brutto: editBruttoValue === '' ? null : editBruttoValue}); setEditingOBrutto(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-28 text-right px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-600 font-black text-xl outline-none ml-auto")} />
+                         ) : (
+                            <span onClick={() => {!viewOnly && !activeInvoice && setEditingOBrutto(true);}} className={cn("text-[22px] font-black", masterMath.isOverriddenBrutto && !activeInvoice ? "text-yellow-500" : (dk ? "text-white" : "text-slate-900"), !viewOnly && !activeInvoice && "cursor-pointer rounded px-1 -mr-1 transition-colors hover:bg-black/5")}>{formatCurrency(activeInvoice ? masterMath.activeBrutto : masterMath.displayBrutto)}</span>
+                         )}
+                      </div>
+
+                      {!activeInvoice && (
+                         <div className="flex flex-col gap-1.5 mt-2 mb-3">
+                             <div className="flex justify-between items-center text-[12px] font-bold">
+                                 <span className="text-slate-400">{lang === 'de' ? 'Total Bezahlt' : 'Total Paid'}</span><span className="text-emerald-500">{formatCurrency(masterMath.totalPaid)}</span>
+                             </div>
+                             <div className="flex justify-between items-center text-[12px] font-bold">
+                                 <span className="text-slate-400">{lang === 'de' ? 'Total Offen' : 'Total Unpaid'}</span><span className="text-red-500">{formatCurrency(masterMath.totalUnpaid)}</span>
+                             </div>
+                         </div>
+                      )}
+                      
+                      <div className="flex justify-between items-center group w-full mt-3">
+                        <span className={cn("text-[12px] font-bold shrink-0", dk ? "text-slate-500" : "text-slate-400")}>{lang === 'de' ? 'Preis / Bett' : 'Price / Bed'}</span>
+                        {!viewOnly && editingPriceBed ? (
+                            <input autoFocus type="number" value={editPriceBedValue} onChange={e => setEditPriceBedValue(e.target.value)} onBlur={() => {patchHotel({override_price_per_bed: editPriceBedValue === '' ? null : editPriceBedValue}); setEditingPriceBed(false);}} onKeyDown={e => e.key==='Enter' && (e.target as HTMLElement).blur()} className={cn("w-20 text-right px-1 rounded bg-yellow-500/20 text-yellow-600 font-bold text-[15px] outline-none ml-auto")} />
+                        ) : (
+                            <span onClick={() => {!viewOnly && setEditingPriceBed(true);}} className={cn("text-[15px] font-bold", masterMath.isOverriddenBed && "text-yellow-600", !viewOnly && "cursor-pointer rounded px-1 -mr-1 transition-colors group-hover:bg-black/5 text-right ml-auto")}>
+                               {!masterMath.isOverriddenBed && masterMath.pricePerBed > 0 ? 'ab ' : ''}{masterMath.pricePerBed === 0 && !masterMath.isOverriddenBed ? '0,00 €' : formatCurrency(masterMath.pricePerBed)} / N {!viewOnly && <Edit3 size={11} className="opacity-0 group-hover:opacity-100 ml-1 inline-block"/>}
+                            </span>
+                        )}
+                      </div>
+
+                      {!activeInvoice && (
+                         <div className="flex items-center justify-between gap-1.5 mt-auto pt-5 border-t border-slate-100 dark:border-white/10">
+                            <button disabled={viewOnly} onClick={() => patchHotel({depositEnabled: !localHotel.depositEnabled})} className={cn("px-3 py-2 text-[10px] font-black uppercase rounded-lg border transition-all", localHotel.depositEnabled ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30" : dk ? "border-white/10 text-slate-500 hover:text-white" : "border-slate-200 text-slate-400")}>{lang === 'de' ? 'Kaution' : 'Deposit'}</button>
+                            {localHotel.depositEnabled && (
+                               <input disabled={viewOnly} type="number" value={localHotel.depositAmount || ''} onChange={e => patchHotel({depositAmount: e.target.value === '' ? null : e.target.value})} className={cn(inputCls, 'w-[100px] h-[32px] px-2 text-[12px] text-amber-500 border-amber-500/30 font-black')} placeholder="0.00" />
+                            )}
+                         </div>
+                      )}
+                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: HOTEL INFO */}
+            {activeTab === 'info' && (
+              <div className="flex flex-wrap gap-4 p-5 bg-white dark:bg-[#0B1224] rounded-b-2xl animate-in fade-in">
+                 <div className="flex-[2] min-w-[200px] flex items-end gap-2">
+                    <div className="shrink-0"><label className={cn(labelCls, 'mb-1.5')}><StickyNote size={12}/> {lang === 'de' ? 'Notiz' : 'Note'}</label><button onClick={() => setShowNotes(!showNotes)} className={cn("w-[34px] h-[34px] rounded-lg border flex items-center justify-center transition-all", localHotel.notes ? "bg-teal-500/10 border-teal-500/30 text-teal-500" : dk ? "bg-[#1E293B] text-slate-400 hover:text-white hover:bg-white/5" : "bg-white border-slate-200 text-slate-400 hover:text-slate-800 hover:bg-slate-50")}><StickyNote size={16} /></button></div>
+                    <div className="flex-1"><label className={cn(labelCls, 'mb-1.5')}><MapPin size={12}/> {lang === 'de' ? 'Adresse' : 'Address'}</label><input disabled={viewOnly} autoComplete="off" value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} placeholder="..." /></div>
+                 </div>
+                 <div className="flex-[1.5] min-w-[120px]"><label className={cn(labelCls, 'mb-1.5')}><User size={12}/> {lang === 'de' ? 'Ansprechpartner' : 'Contact'}</label><input disabled={viewOnly} autoComplete="off" value={localHotel.contactPerson || ''} onChange={e => patchHotel({ contactPerson: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} placeholder="..." /></div>
+                 <div className="flex-[1.5] min-w-[120px]"><label className={cn(labelCls, 'mb-1.5')}><Phone size={12}/> {lang === 'de' ? 'Telefon' : 'Phone'}</label><div className={cn('flex items-center rounded-lg border overflow-hidden h-[34px]', dk ? 'bg-[#1E293B] border-white/10' : 'bg-white border-slate-200')}><span className={cn("px-2.5 text-xs font-bold border-r h-full flex items-center shrink-0", dk ? "bg-black/40 border-white/10 text-slate-400" : "bg-slate-50 border-slate-200 text-slate-500")}>{getCountryCode(localHotel.country || 'Germany')}</span><input disabled={viewOnly} autoComplete="off" value={localHotel.phone || ''} onChange={e => patchHotel({ phone: e.target.value })} onKeyDown={handleEnterBlur} className={cn('w-full px-2 py-1.5 text-sm font-bold outline-none bg-transparent h-full', dk ? 'text-white' : 'text-slate-900')} placeholder="..." /></div></div>
+                 <div className="flex-[1.5] min-w-[140px]"><label className={cn(labelCls, 'mb-1.5')}><Mail size={12}/> Email</label><div className="relative flex items-center h-[34px]"><input disabled={viewOnly} autoComplete="off" value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })} onKeyDown={handleEnterBlur} className={cn(inputCls, 'pr-8')} placeholder="..." />{localHotel.email && <a href={`mailto:${localHotel.email}`} className="absolute right-1 p-1 bg-teal-600 text-white rounded hover:bg-teal-500"><Mail size={12} /></a>}</div></div>
+                 <div className="flex-[1.5] min-w-[140px]"><label className={cn(labelCls, 'mb-1.5')}><Globe size={12}/> {lang === 'de' ? 'Webseite' : 'Website'}</label><div className="relative flex items-center h-[34px]"><input disabled={viewOnly} autoComplete="off" value={localHotel.website || ''} onChange={e => patchHotel({ website: e.target.value })} onKeyDown={handleEnterBlur} className={cn(inputCls, 'pr-8')} placeholder="..." />{localHotel.website && <a href={localHotel.website.startsWith('http') ? localHotel.website : `https://${localHotel.website}`} target="_blank" rel="noreferrer" className="absolute right-1 p-1 bg-teal-600 text-white rounded hover:bg-teal-500"><ExternalLink size={12} /></a>}</div></div>
+                 <div className="flex-[1] min-w-[100px]"><label className={cn(labelCls, 'mb-1.5')}><Building size={12}/> {lang === 'de' ? 'Land' : 'Country'}</label><ModernDropdown disabled={viewOnly} value={localHotel.country || 'Germany'} options={getCountryOptions()} onChange={(v:string) => patchHotel({ country: v })} isDarkMode={dk} lang={lang} /></div>
+                 
+                 {showNotes && (
+                   <div className="w-full mt-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                     <textarea disabled={viewOnly} autoComplete="off" autoFocus value={localHotel.notes || ''} onChange={e => patchHotel({ notes: e.target.value })} className={cn(inputCls, 'min-h-[60px] h-auto resize-y p-3')} placeholder={lang === 'de' ? "Private Notizen hier eintragen..." : "Write private notes here..."} />
+                   </div>
+                 )}
               </div>
             )}
           </div>
