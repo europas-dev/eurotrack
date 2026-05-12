@@ -115,8 +115,8 @@ export function calcDurationFreeBeds(duration: any, targetDateIso: string): numb
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function calcHotelTotalCost(hotel: any, selectedMonth?: number | null, selectedYear?: number | null): number {
-  // ===== ONLY CALCULATE FROM INVOICES =====
-  let totalBrutto = 0;
+  let finalNetto = 0;
+  let finalBrutto = 0;
 
   (hotel.invoices || []).forEach((inv: any) => {
     // Check month filter
@@ -126,50 +126,63 @@ export function calcHotelTotalCost(hotel: any, selectedMonth?: number | null, se
        const d = new Date(dateStr);
        if (d.getMonth() !== selectedMonth || d.getFullYear() !== selectedYear) return;
     }
-    
-    // Calculate invoice total based on billing mode
-    let invBrutto = 0;
+
     if (inv.billingMode === 'total') {
-       const netto = parseFloat(inv.totalNetto) || 0;
-       const mwst = parseFloat(inv.totalMwst) || 0;
-       invBrutto = netto * (1 + mwst / 100);
+       const n = parseFloat(inv.totalNetto) || 0;
+       const m = parseFloat(inv.totalMwst) || 0;
+       finalNetto += n;
+       finalBrutto += n * (1 + m / 100);
     } else {
-       // Detailed mode - calculate from items
-       invBrutto = (inv.items || []).reduce((sum: number, item: any) => {
+       // Accurately calculate the default nights based on invoice dates
+       const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
+       
+       (inv.items || []).forEach((item: any) => {
           const mwst = item.mwst != null ? parseFloat(item.mwst) : 0;
-          let finalNetto = 0;
-          
+          let itemNetto = 0;
+
           if (item.brutto != null && item.brutto !== '') {
-              finalNetto = parseFloat(item.brutto) / (1 + mwst / 100);
+              itemNetto = parseFloat(item.brutto) / (1 + mwst / 100);
           } else {
               let baseNetto = parseFloat(item.netto) || 0;
               if (item.method === 'per_bed') {
                 const beds = parseFloat(item.beds) || 1;
-                const nights = parseFloat(item.nights) || 1;
+                const nights = parseFloat(item.nights) || defaultN; // Use actual nights
                 baseNetto = baseNetto * beds * nights;
               }
-              finalNetto = baseNetto;
+              itemNetto = baseNetto;
               if (item.discountValue && parseFloat(item.discountValue) > 0) {
                 const dVal = parseFloat(item.discountValue);
-                finalNetto = item.discountType === 'percentage' ? baseNetto * (1 - dVal/100) : Math.max(0, baseNetto - dVal);
+                itemNetto = item.discountType === 'percentage' ? baseNetto * (1 - dVal/100) : Math.max(0, baseNetto - dVal);
               }
           }
-          
-          const brutto = finalNetto * (1 + mwst / 100);
-          return sum + brutto;
-       }, 0);
+          finalNetto += itemNetto;
+          finalBrutto += itemNetto * (1 + mwst / 100);
+       });
     }
-    
-    totalBrutto += invBrutto;
   });
 
-  // Hard Brutto Override (if exists)
+  // Apply Global Discounts
+  if (hotel.has_global_discount && hotel.global_discount_value) {
+     const gVal = parseFloat(hotel.global_discount_value);
+     const isFixed = hotel.global_discount_type === 'fixed';
+     const target = hotel.global_discount_target || 'netto';
+
+     if (target === 'netto') {
+        let ratio = isFixed ? (gVal / finalNetto) : (gVal / 100);
+        if (!isFinite(ratio)) ratio = 0;
+        finalBrutto = Math.max(0, finalBrutto - (finalBrutto * ratio));
+     } else {
+        finalBrutto = Math.max(0, finalBrutto - (isFixed ? gVal : finalBrutto * (gVal/100)));
+     }
+  }
+
+  // Hard Brutto Override (ONLY apply if we are looking at all months)
   const override = hotel.override_total_brutto ?? hotel.overrideTotalBrutto;
-  if (override != null) {
+  if (override != null && selectedMonth === null) {
       return parseFloat(override);
   }
 
-  return totalBrutto;
+  return finalBrutto;
 }
 
 export function calcHotelFreeBedsToday(hotel: any): number {
