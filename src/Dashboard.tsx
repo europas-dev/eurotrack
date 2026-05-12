@@ -59,6 +59,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
   // --- SELECTION SYSTEM STATE ---
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [expandedHotelId, setExpandedHotelId] = useState<string | null>(null);  // ADD THIS LINE
 
   // MENU VISIBILITY
   const [showFilterMenu, setShowFilterMenu] = useState(false);
