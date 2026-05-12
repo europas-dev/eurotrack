@@ -750,7 +750,17 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
 
           <div className="w-[120px] shrink-0 pr-2" onClick={e => e.stopPropagation()}>
-            <CompanyMultiSelect disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={handleDeleteGlobalCompany} onAddOption={handleAddGlobalCompany} searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} />
+            <CompanyMultiSelect 
+            disabled={viewOnly} 
+            selected={localHotel.companyTag} 
+            options={companyOptions} 
+            isDarkMode={dk} 
+            lang={lang} 
+            onChange={(tags:any) => patchHotel({ companyTag: tags })} 
+            onDeleteCompanyOption={onDeleteCompanyOption}    // Change this
+            onAddOption={onAddOption}                         // And this
+            searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} 
+          />
           </div>
 
           <div className="w-[150px] shrink-0 pr-2 flex flex-wrap gap-1.5">
