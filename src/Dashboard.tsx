@@ -1051,7 +1051,7 @@ finalFiltered.forEach(h => {
               </div>
             )}
 
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-3">
                 {/* ADD HOTEL FORM */}
                 {addingHotel && !isStrictViewer && (
                   <div className={cn('rounded-2xl border p-5 shadow-xl mb-4 animate-in slide-in-from-top duration-300', dk ? 'bg-[#1E293B] border-teal-500/30' : 'bg-white border-teal-500/30')}>
@@ -1100,15 +1100,16 @@ finalFiltered.forEach(h => {
 
                 {/* DESKTOP HEADER ROW */}
                 {!loading && finalFiltered.length > 0 && (
-                  <div className={cn("hidden lg:flex items-center px-2 pr-6 py-2 border-b text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2", dk ? "border-white/10" : "border-slate-200")}>
+                  <div className={cn("hidden lg:flex items-center px-2 pr-2 py-2 border-b text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2", dk ? "border-white/10" : "border-slate-200")}>
                     <div className="w-10 shrink-0"></div>
                     <div className="w-[200px] shrink-0 pr-4">{lang === 'de' ? 'Hotel' : 'Hotel'}</div>
                     <div className="w-[120px] shrink-0 pr-2">{lang === 'de' ? 'Firma' : 'Company'}</div>
-                    <div className="w-[260px] shrink-0 pr-2">{lang === 'de' ? 'Buchungen' : 'Bookings'}</div>
+                    <div className="w-[340px] shrink-0 pr-2">{lang === 'de' ? 'Buchungen' : 'Bookings'}</div>
                     <div className="flex-1 min-w-[200px] pr-4">{lang === 'de' ? 'Mitarbeiter' : 'Employees'}</div>
                     <div className="w-12 shrink-0 text-center">{lang === 'de' ? 'Frei' : 'Free'}</div>
                     <div className="w-12 shrink-0 text-center">{lang === 'de' ? 'Betten' : 'Beds'}</div>
-                    <div className="w-[140px] shrink-0 pr-2 text-right">{lang === 'de' ? 'Kosten' : 'Cost'}</div>
+                    <div className="w-[120px] shrink-0 pr-4 text-right">{lang === 'de' ? 'Kosten' : 'Cost'}</div>
+                    <div className="w-8 shrink-0"></div>
                   </div>
                 )}
 
