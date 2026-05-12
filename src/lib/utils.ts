@@ -133,106 +133,62 @@ export function calcHotelTotalCost(hotel: any, selectedMonth?: number | null, se
     }
   }
 
-  let totalNightsAll = 0;
-  let overlapNightsAll = 0;
-  let sumDurationBrutto = 0;
-  let sumDurationNetto = 0;
+  // ===== ONLY CALCULATE FROM INVOICES =====
+  let totalBrutto = 0;
 
-  (hotel.durations || []).forEach((d: any) => {
-    if (!d.startDate || !d.endDate) return;
-
-    const dNights = calculateNights(d.startDate, d.endDate);
-    if (dNights <= 0) return;
-
-    totalNightsAll += dNights;
-
-    if (filterStart && filterEnd) {
-      overlapNightsAll += getOverlappingNights(d.startDate, d.endDate, filterStart, filterEnd);
-    } else {
-      overlapNightsAll += dNights;
+  (hotel.invoices || []).forEach((inv: any) => {
+    // Check month filter
+    if (selectedMonth !== null && selectedYear !== null) {
+       const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
+       if (!dateStr) return;
+       const d = new Date(dateStr);
+       if (d.getMonth() !== selectedMonth || d.getFullYear() !== selectedYear) return;
     }
-
-    const rCards = d.roomCards || [];
-    sumDurationBrutto += rCards.reduce((s: number, c: any) => s + calcRoomCardTotal(c, d.startDate, d.endDate), 0);
     
-    // Rough netto aggregation for percentage ratio scaling
-    sumDurationNetto += rCards.reduce((s: number, c: any) => s + ((parseFloat(c.bedNetto) || 0) * dNights), 0); 
-  });
-
-  // 1. Base Costs (Master Invoice)
-  const baseCosts = hotel.baseCosts || hotel.base_costs || [];
-  let isMasterActive = baseCosts.some((bc: any) => bc.netto != null || bc.brutto != null);
-  let bBruttoTotal = 0;
-  let bNettoTotal = 0;
-
-  baseCosts.forEach((bc: any) => {
-    let bBrutto = 0;
-    let bNetto = 0;
-    let bMwSt = bc.mwst != null ? parseFloat(bc.mwst) : null;
-    let isMwstValid = bMwSt !== null && !isNaN(bMwSt);
-
-    if (bc.netto != null) {
-        bNetto = parseFloat(bc.netto);
-        let discountedNetto = bNetto;
-        if (bc.discountValue) {
-            const dVal = parseFloat(bc.discountValue);
-            discountedNetto = bc.discountType === 'fixed' ? Math.max(0, bNetto - dVal) : Math.max(0, bNetto * (1 - dVal/100));
-        }
-        bBrutto = isMwstValid ? discountedNetto * (1 + bMwSt/100) : discountedNetto;
-    } else if (bc.brutto != null) {
-        bBrutto = parseFloat(bc.brutto);
-        if (isMwstValid) bNetto = bBrutto / (1 + bMwSt/100);
+    // Calculate invoice total based on billing mode
+    let invBrutto = 0;
+    if (inv.billingMode === 'total') {
+       const netto = parseFloat(inv.totalNetto) || 0;
+       const mwst = parseFloat(inv.totalMwst) || 0;
+       invBrutto = netto * (1 + mwst / 100);
+    } else {
+       // Detailed mode - calculate from items
+       invBrutto = (inv.items || []).reduce((sum: number, item: any) => {
+          const mwst = item.mwst != null ? parseFloat(item.mwst) : 0;
+          let finalNetto = 0;
+          
+          if (item.brutto != null && item.brutto !== '') {
+              finalNetto = parseFloat(item.brutto) / (1 + mwst / 100);
+          } else {
+              let baseNetto = parseFloat(item.netto) || 0;
+              if (item.method === 'per_bed') {
+                const beds = parseFloat(item.beds) || 1;
+                const nights = parseFloat(item.nights) || 1;
+                baseNetto = baseNetto * beds * nights;
+              }
+              finalNetto = baseNetto;
+              if (item.discountValue && parseFloat(item.discountValue) > 0) {
+                const dVal = parseFloat(item.discountValue);
+                finalNetto = item.discountType === 'percentage' ? baseNetto * (1 - dVal/100) : Math.max(0, baseNetto - dVal);
+              }
+          }
+          
+          const brutto = finalNetto * (1 + mwst / 100);
+          return sum + brutto;
+       }, 0);
     }
-    bBruttoTotal += bBrutto;
-    bNettoTotal += bNetto;
+    
+    totalBrutto += invBrutto;
   });
 
-  // 2. Extra Costs
-  let eBruttoTotal = 0;
-  let eNettoTotal = 0;
-  const extraCosts = hotel.extraCosts || hotel.extra_costs || [];
-  extraCosts.forEach((ec: any) => {
-     if (ec.brutto != null) {
-       eBruttoTotal += parseFloat(ec.brutto);
-       let eMwst = ec.mwst != null ? parseFloat(ec.mwst) : 0;
-       eNettoTotal += parseFloat(ec.brutto) / (1 + eMwst/100);
-     } else if (ec.netto != null) {
-       let eNetto = parseFloat(ec.netto);
-       let eMwst = ec.mwst != null ? parseFloat(ec.mwst) : 0;
-       eBruttoTotal += eNetto * (1 + eMwst/100);
-       eNettoTotal += eNetto;
-     }
-  });
-
-  // 3. Pre-Global Totals
-  let preGlobalBrutto = (isMasterActive ? bBruttoTotal : sumDurationBrutto) + eBruttoTotal;
-  let preGlobalNetto = (isMasterActive ? bNettoTotal : sumDurationNetto) + eNettoTotal;
-  
-  let finalBrutto = preGlobalBrutto;
-
-  // 4. Global Discount
-  const hasGD = hotel.has_global_discount ?? hotel.hasGlobalDiscount;
-  if (hasGD) {
-     const gVal = parseFloat(hotel.global_discount_value ?? hotel.globalDiscountValue);
-     const isFixed = (hotel.global_discount_type ?? hotel.globalDiscountType) === 'fixed';
-     const target = (hotel.global_discount_target ?? hotel.globalDiscountTarget) || 'netto';
-     
-     if (gVal) {
-         if (target === 'netto') {
-            let ratio = isFixed ? (gVal / (preGlobalNetto || 1)) : (gVal / 100);
-            if (!isFinite(ratio)) ratio = 0;
-            finalBrutto = Math.max(0, preGlobalBrutto * (1 - ratio));
-         } else {
-            finalBrutto = Math.max(0, preGlobalBrutto - (isFixed ? gVal : preGlobalBrutto * (gVal/100)));
-         }
-     }
-  }
-
-  // 5. Hard Brutto Override
+  // Hard Brutto Override (if exists)
   const override = hotel.override_total_brutto ?? hotel.overrideTotalBrutto;
   if (override != null) {
-      finalBrutto = parseFloat(override);
+      return parseFloat(override);
   }
+
+  return totalBrutto;
+}
 
   // 6. Proportional scaling by overlapping dates (if filtering by Month/Timeline)
   if (filterStart && filterEnd) {
