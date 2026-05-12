@@ -750,7 +750,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
 
           <div className="w-[120px] shrink-0 pr-2" onClick={e => e.stopPropagation()}>
-            <CompanyMultiSelect disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onAddOption={onAddOption} searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} />
+            <CompanyMultiSelect disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={handleDeleteGlobalCompany} onAddOption={handleAddGlobalCompany} searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} />
           </div>
 
           <div className="w-[150px] shrink-0 pr-2 flex flex-wrap gap-1.5">
@@ -837,9 +837,15 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                </div>
             )}
 
-            {!showGlobalFinancials && activeSort === 'payment_due' && (
+            {!showGlobalFinancials && activeSort === 'payment_due' && masterMath.totalUnpaid > 0 && (
                <div className="text-[10px] font-bold text-red-500 mt-1">
-                  {masterMath.totalUnpaid > 0 ? (lang === 'de' ? 'Fällig' : 'Due') : ''}
+                  {lang === 'de' ? 'Fällig' : 'Due'}
+               </div>
+            )}
+            
+            {!showGlobalFinancials && activeSort === 'total_paid' && masterMath.totalPaid > 0 && (
+               <div className="text-[10px] font-bold text-emerald-500 mt-1">
+                  {formatCurrency(masterMath.totalPaid)}
                </div>
             )}
 
@@ -1092,7 +1098,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                 <div className={cn("flex items-center px-2 py-1.5 rounded-lg border w-max transition-colors shadow-sm", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
                                    <span className={cn("text-[12px] font-black border-r pr-2 mr-2", dk ? "text-teal-400 border-white/10" : "text-teal-600 border-slate-200")}>{selectedYear || new Date().getFullYear()}</span>
                                    <Filter size={14} className={dk ? "text-slate-500 mr-1" : "text-slate-400 mr-1"}/>
-                                   <select disabled={selectedMonth !== null} value={selectedMonth !== null ? selectedMonth.toString() : (localMonthFilter === 'all' ? 'all' : localMonthFilter.toString())} onChange={(e) => setLocalMonthFilter(e.target.value === 'all' ? 'all' : parseInt(e.target.value))} className={cn("bg-transparent text-[11px] font-black uppercase outline-none focus:ring-0 appearance-none border-none p-0 cursor-pointer pr-1", dk ? "text-white disabled:opacity-50 [&>option]:bg-slate-800" : "text-slate-700 disabled:opacity-50")}>
+                                   <select disabled={selectedMonth !== null} value={selectedMonth !== null ? selectedMonth.toString() : (localMonthFilter === 'all' ? 'all' : localMonthFilter.toString())} className={cn("bg-transparent text-[11px] font-black uppercase outline-none focus:ring-0 appearance-none border-none p-0 cursor-pointer pr-1", dk ? "text-white disabled:opacity-50 [&>option]:bg-slate-800" : "text-slate-700 disabled:opacity-50")} onChange={(e) => setLocalMonthFilter(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}>
                                        <option value="all">{lang === 'de' ? 'Alle Monate' : 'All Months'}</option>
                                        {monthOptions.map((m, idx) => <option key={idx} value={idx.toString()}>{m}</option>)}
                                    </select>
@@ -1114,7 +1120,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       {activeInvoice ? (
                          activeInvoice.billingMode === 'total' ? (
                             <div className="p-4">
-                               {/* SLEEK TOTAL MODE (Single Line + Note) */}
                                <div className={cn("flex flex-col p-4 rounded-2xl border shadow-sm animate-in fade-in slide-in-from-top-2", dk ? "bg-[#1E293B] border-teal-500/30" : "bg-white border-teal-300")}>
                                   <div className="flex items-center gap-3 w-full">
                                      <div className="flex-1 flex items-center gap-2 min-w-[250px]">
@@ -1351,7 +1356,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
             {/* TAB 3: HOTEL INFO */}
             {activeTab === 'info' && (
-              <div className="flex flex-wrap gap-4 p-5 bg-white dark:bg-[#0B1224] rounded-b-2xl animate-in fade-in">
+              <div className="flex flex-wrap gap-4 p-5 bg-white dark:bg-[#0B1224] rounded-b-2xl border-t border-slate-200 dark:border-white/5 animate-in fade-in">
                  <div className="flex-[2] min-w-[200px] flex items-end gap-2">
                     <div className="shrink-0"><label className={cn(labelCls, 'mb-1.5')}><StickyNote size={12}/> {lang === 'de' ? 'Notiz' : 'Note'}</label><button onClick={() => setShowNotes(!showNotes)} className={cn("w-[34px] h-[34px] rounded-lg border flex items-center justify-center transition-all", localHotel.notes ? "bg-teal-500/10 border-teal-500/30 text-teal-500" : dk ? "bg-[#1E293B] text-slate-400 hover:text-white hover:bg-white/5" : "bg-white border-slate-200 text-slate-400 hover:text-slate-800 hover:bg-slate-50")}><StickyNote size={16} /></button></div>
                     <div className="flex-1"><label className={cn(labelCls, 'mb-1.5')}><MapPin size={12}/> {lang === 'de' ? 'Adresse' : 'Address'}</label><input disabled={viewOnly} autoComplete="off" value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} onKeyDown={handleEnterBlur} className={inputCls} placeholder="..." /></div>
