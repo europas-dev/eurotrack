@@ -514,66 +514,97 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     } catch (err: any) { alert("Duplicate failed: " + err.message); } finally { setLoading(false); }
   };
 
-// --- DASHBOARD MATH FOR TOP BAR (INVOICES ONLY) ---
+  // --- DASHBOARD MATH FOR TOP BAR (INVOICES ONLY) ---
 let totalSpend = 0;
 let totalPaidGlobal = 0;
 let totalUnpaidGlobal = 0;
 
 finalFiltered.forEach(h => {
-  // Use the unified calcHotelTotalCost function
-  const hotelTotal = calcHotelTotalCost(h, selectedMonth, selectedYear);
-  totalSpend += hotelTotal;
+  let finalNetto = 0;
+  let finalBrutto = 0;
+  let rawPaid = 0;
+  let rawUnpaid = 0;
 
-  // Calculate paid vs unpaid from invoices
   (h.invoices || []).forEach((inv: any) => {
-    // Check month filter
     if (selectedMonth !== null && selectedYear !== null) {
       const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
       if (!dateStr) return;
       const d = new Date(dateStr);
       if (d.getMonth() !== selectedMonth || d.getFullYear() !== selectedYear) return;
     }
-    
-    // Calculate invoice brutto
+
     let invBrutto = 0;
     if (inv.billingMode === 'total') {
-      const netto = parseFloat(inv.totalNetto) || 0;
-      const mwst = parseFloat(inv.totalMwst) || 0;
-      invBrutto = netto * (1 + mwst / 100);
+      const n = parseFloat(inv.totalNetto) || 0;
+      const m = parseFloat(inv.totalMwst) || 0;
+      const b = n * (1 + m / 100);
+      finalNetto += n;
+      finalBrutto += b;
+      invBrutto += b;
     } else {
-      invBrutto = (inv.items || []).reduce((sum: number, item: any) => {
+      const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
+      (inv.items || []).forEach((item: any) => {
         const mwst = item.mwst != null ? parseFloat(item.mwst) : 0;
-        let finalNetto = 0;
-        
+        let itemNetto = 0;
+
         if (item.brutto != null && item.brutto !== '') {
-          finalNetto = parseFloat(item.brutto) / (1 + mwst / 100);
+          itemNetto = parseFloat(item.brutto) / (1 + mwst / 100);
         } else {
           let baseNetto = parseFloat(item.netto) || 0;
           if (item.method === 'per_bed') {
             const beds = parseFloat(item.beds) || 1;
-            const nights = parseFloat(item.nights) || 1;
+            const nights = parseFloat(item.nights) || defaultN;
             baseNetto = baseNetto * beds * nights;
           }
-          finalNetto = baseNetto;
+          itemNetto = baseNetto;
           if (item.discountValue && parseFloat(item.discountValue) > 0) {
             const dVal = parseFloat(item.discountValue);
-            finalNetto = item.discountType === 'percentage' ? baseNetto * (1 - dVal/100) : Math.max(0, baseNetto - dVal);
+            itemNetto = item.discountType === 'percentage' ? baseNetto * (1 - dVal/100) : Math.max(0, baseNetto - dVal);
           }
         }
-        
-        const brutto = finalNetto * (1 + mwst / 100);
-        return sum + brutto;
-      }, 0);
+        const itemB = itemNetto * (1 + mwst / 100);
+        finalNetto += itemNetto;
+        finalBrutto += itemB;
+        invBrutto += itemB;
+      });
     }
-    
-    // Track paid vs unpaid
-    if (inv.isPaid) {
-      totalPaidGlobal += invBrutto;
-    } else {
-      totalUnpaidGlobal += invBrutto;
-    }
+
+    if (inv.isPaid) rawPaid += invBrutto;
+    else rawUnpaid += invBrutto;
   });
+
+  let discountedBrutto = finalBrutto;
+  if (h.has_global_discount && h.global_discount_value) {
+     const gVal = parseFloat(h.global_discount_value);
+     const isFixed = h.global_discount_type === 'fixed';
+     const target = h.global_discount_target || 'netto';
+     if (target === 'netto') {
+        let ratio = isFixed ? (gVal / finalNetto) : (gVal / 100);
+        if (!isFinite(ratio)) ratio = 0;
+        discountedBrutto = Math.max(0, finalBrutto - (finalBrutto * ratio));
+     } else {
+        discountedBrutto = Math.max(0, finalBrutto - (isFixed ? gVal : finalBrutto * (gVal/100)));
+     }
+  }
+
+  let total = discountedBrutto;
+  const override = h.override_total_brutto ?? h.overrideTotalBrutto;
+  if (override != null && selectedMonth === null) {
+      total = parseFloat(override);
+  }
+
+  totalSpend += total;
+
+  const rawTotal = rawPaid + rawUnpaid;
+  if (rawTotal > 0) {
+     totalPaidGlobal += total * (rawPaid / rawTotal);
+     totalUnpaidGlobal += total * (rawUnpaid / rawTotal);
+  } else if (total > 0 && selectedMonth === null) {
+     if (h.isPaid) totalPaidGlobal += total;
+     else totalUnpaidGlobal += total;
+  }
 });
+
 
   const freeBedsTotal = finalFiltered.reduce((s, h) => s + calcHotelFreeBedsToday(h), 0);
   
