@@ -644,8 +644,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
      });
      return emps;
   }, [masterMath.employees]);
-  const visibleEmps = sortedEmployees.slice(0, 8);
-  const hiddenEmps = sortedEmployees.slice(8);
+  const visibleEmps = sortedEmployees.slice(0, 5);
+  const hiddenEmps = sortedEmployees.slice(5);
 
   const sortedDurations = useMemo(() => {
      const durs = [...(localHotel.durations || [])];
@@ -738,7 +738,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         
         <div className={cn("absolute right-0 top-0 bottom-0 w-[4px] rounded-r-xl transition-colors z-[60]", masterMath.totalUnpaid > 0 ? "bg-red-500" : (masterMath.totalPaid > 0 ? "bg-emerald-500" : "bg-transparent border-l border-slate-200 dark:border-white/10"))} />
 
-        <div className={cn('flex items-center cursor-pointer p-2 pr-6', dk ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/70', isOpen && 'border-b', isOpen && (dk ? 'border-white/5 bg-black/20' : 'border-slate-100 bg-slate-50/50'))} onClick={onToggle}>
+        <div className={cn('flex items-center cursor-pointer p-2 pr-6 group', dk ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/70', isOpen && 'border-b', isOpen && (dk ? 'border-white/5 bg-black/20' : 'border-slate-100 bg-slate-50/50'))} onClick={onToggle}>
           
           <div className="flex items-center justify-center w-10 shrink-0">
             {isOpen ? <ChevronDown size={18} className="text-teal-500" /> : <ChevronRight size={18} className="text-slate-500" />}
@@ -763,7 +763,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           />
           </div>
 
-          <div className="w-[150px] shrink-0 pr-2 flex flex-wrap gap-1.5">
+          <div className="w-[260px] shrink-0 pr-2 flex flex-wrap gap-1.5">
               {visibleDurs.map((d: any, i: number) => {
                 const typeCount: any = {};
                 (d.roomCards || []).forEach((c:any) => { typeCount[c.roomType] = (typeCount[c.roomType] || 0) + 1 });
@@ -828,22 +828,34 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           <div className="w-12 shrink-0 text-center">
             <p className={cn('text-sm font-black', dk ? 'text-slate-300' : 'text-slate-700')}>{masterMath.totalBeds}</p>
           </div>
-        
-          <div className="w-[140px] shrink-0 flex flex-col items-end justify-center pr-2 relative">
+        <div className="w-[140px] shrink-0 flex flex-col items-end justify-center pr-2 relative">
+             {/* ACTION ICONS (Top Right Horizontal Badge) */}
+             <div className={cn("absolute -top-1 -right-2 flex items-center gap-0.5 transition-opacity bg-white/80 dark:bg-[#1E293B]/80 backdrop-blur rounded px-1 z-[70]", isBookmarked ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>
+               <button onClick={handleBookmarkToggle} className={cn("p-1 rounded transition-colors", isBookmarked ? "text-yellow-500" : "text-slate-400 hover:text-slate-800 dark:hover:text-white")}><Star size={12} className={isBookmarked ? "fill-yellow-500" : ""} /></button>
+               <div className="relative group/time">
+                  <button onClick={(e) => e.stopPropagation()} className="p-1 rounded text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"><Clock size={12} /></button>
+                  <div className={cn("absolute right-0 bottom-full mb-1 w-max px-2 py-1 text-[9px] font-bold rounded opacity-0 group-hover/time:opacity-100 z-[99999] whitespace-nowrap pointer-events-none shadow-xl border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-700 border-slate-200")}>{formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}</div>
+               </div>
+               {!viewOnly && (
+                 <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-1 rounded text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
+               )}
+             </div>
+
             {hiddenMatchText && (
                <div className="absolute right-full mr-4 flex items-center gap-1 px-2 py-1 rounded bg-teal-500/10 text-teal-500 text-[9px] font-black uppercase tracking-tighter whitespace-nowrap">
                   <Search size={10} strokeWidth={3} /> {hiddenMatchText}
                </div>
             )}
             
-            <div className={cn('font-black leading-none text-right', selectedMonth !== null ? 'text-md' : 'text-lg', dk ? 'text-white' : 'text-slate-900')}>
+            <div className={cn('font-black leading-none text-right mt-2', selectedMonth !== null ? 'text-md' : 'text-lg', dk ? 'text-white' : 'text-slate-900')}>
               {formatCurrency(masterMath.displayBrutto)}
             </div>
             
             {showGlobalFinancials && (
-               <div className="flex flex-col items-end mt-1 space-y-0.5">
-                  <span className="text-emerald-500 text-[10px] font-bold leading-none">{formatCurrency(masterMath.totalPaid)}</span>
-                  <span className="text-red-500 text-[10px] font-bold leading-none">{formatCurrency(masterMath.totalUnpaid)}</span>
+               <div className="flex items-center justify-end gap-1.5 mt-1.5 text-[10px] font-bold">
+                  <span className="text-emerald-500">{formatCurrency(masterMath.totalPaid)}</span>
+                  <span className="text-slate-300 dark:text-slate-600">|</span>
+                  <span className="text-red-500">{formatCurrency(masterMath.totalUnpaid)}</span>
                </div>
             )}
 
@@ -858,17 +870,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                   {formatCurrency(masterMath.totalPaid)}
                </div>
             )}
-
-            <div className="flex items-center justify-end gap-1.5 mt-2 opacity-40 hover:opacity-100 transition-opacity">
-               <button onClick={handleBookmarkToggle} className={cn("p-1 rounded transition-colors", isBookmarked ? "text-yellow-500" : "text-slate-500 hover:text-slate-800 dark:hover:text-white")}><Star size={12} className={isBookmarked ? "fill-yellow-500" : ""} /></button>
-               <div className="relative group">
-                  <button onClick={(e) => e.stopPropagation()} className="p-1 rounded text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors"><Clock size={12} /></button>
-                  <div className={cn("absolute right-0 bottom-full mb-2 w-max px-2 py-1 text-[9px] font-bold rounded opacity-0 group-hover:opacity-100 z-[99999] whitespace-nowrap pointer-events-none shadow-xl border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-700 border-slate-200")}>{formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}</div>
-               </div>
-               {!viewOnly && (
-                 <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-1 rounded text-slate-500 hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
-               )}
-            </div>
           </div>
         </div>
 
