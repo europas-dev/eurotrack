@@ -345,22 +345,28 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
               if (!matchAll && !deepInvoiceMatch && !deepEmployeeMatch) return false;
           }
       }
-      
+
       if (selectedMonth !== null) {
-        const overlap = (h.durations || []).some((d: any) => {
+        // Check if bookings overlap the month
+        const durationOverlap = (h.durations || []).some((d: any) => {
           if (!d.startDate || !d.endDate) return false;
           const dStart = new Date(d.startDate); const dEnd = new Date(d.endDate);
           const mStart = new Date(selectedYear, selectedMonth, 1);
           const mEnd = new Date(selectedYear, selectedMonth + 1, 0);
           return dStart <= mEnd && dEnd >= mStart;
         });
-        if (!overlap) return false;
-      }
 
-      if (tlType !== 'all' && tlStart && tlEnd) {
-         const hasOverlap = (h.durations || []).some((d: any) => d.startDate <= tlEnd && d.endDate >= tlStart);
-         if (!hasOverlap) return false;
+        // Check if any invoice belongs to this month
+        const invoiceOverlap = (h.invoices || []).some((inv: any) => {
+          const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
+          if (!dateStr) return false;
+          const d = new Date(dateStr);
+          return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
+        });
+
+        if (!durationOverlap && !invoiceOverlap) return false;
       }
+      
 
       // PAYMENT STATUS
       if (filterPaid === 'paid' && !h.isPaid) return false;
