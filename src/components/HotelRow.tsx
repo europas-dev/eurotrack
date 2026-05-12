@@ -523,6 +523,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     let minPricePerBed: number | null = null;
     let totalPaid = 0;
     let totalUnpaid = 0;
+    let nearestDueDate: string | null = null;
 
     (localHotel.durations || []).forEach((d: any) => {
       const nights = calculateNights(d.startDate, d.endDate);
@@ -561,10 +562,16 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
              }
           });
        }
-       if (inv.isPaid) totalPaid += invBrutto;
-       else totalUnpaid += invBrutto;
+      if (inv.isPaid) totalPaid += invBrutto;
+       else {
+          totalUnpaid += invBrutto;
+          if (inv.dueDate) {
+             if (!nearestDueDate || new Date(inv.dueDate) < new Date(nearestDueDate)) {
+                 nearestDueDate = inv.dueDate;
+             }
+          }
+       }
     });
-
     let activeNetto = 0; let activeBrutto = 0; let activeBuckets: Record<string, number> = {};
     if (activeInvoice) {
        if (activeInvoice.billingMode === 'total') {
@@ -631,6 +638,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       pricePerBed: finalPriceBed,
       totalPaid,
       totalUnpaid,
+      nearestDueDate,
       isOverriddenBrutto: localHotel.override_total_brutto != null, 
       isOverriddenBed
     };
@@ -728,7 +736,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const unpaidInvs = totalInvs - paidInvs;
 
   return (
-    <div className="space-y-1 relative" style={{ zIndex: 40 - (index % 30) }}>
+    <div className="space-y-1 relative hover:z-[999]" style={{ zIndex: 40 - (index % 30) }}>
       
       <div className={cn("absolute -left-7 top-0 bottom-0 w-10 flex items-center justify-center transition-all duration-300 z-[100]", isSelected || isBulkActive ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 hover:opacity-100")}>
         <input type="checkbox" checked={isSelected} onChange={(e) => { e.stopPropagation(); onSelect(); }} className="w-4 h-4 rounded border-slate-300 accent-teal-600 cursor-pointer shadow-sm transition-transform active:scale-90" />
@@ -738,15 +746,20 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         
         <div className={cn("absolute right-0 top-0 bottom-0 w-[4px] rounded-r-xl transition-colors z-[60]", masterMath.totalUnpaid > 0 ? "bg-red-500" : (masterMath.totalPaid > 0 ? "bg-emerald-500" : "bg-transparent border-l border-slate-200 dark:border-white/10"))} />
 
-        <div className={cn('flex items-center cursor-pointer p-2 pr-6 group', dk ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/70', isOpen && 'border-b', isOpen && (dk ? 'border-white/5 bg-black/20' : 'border-slate-100 bg-slate-50/50'))} onClick={onToggle}>
+        <div className={cn('flex items-center cursor-pointer py-1 px-2 pr-2 group', dk ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/70', isOpen && 'border-b', isOpen && (dk ? 'border-white/5 bg-black/20' : 'border-slate-100 bg-slate-50/50'))} onClick={onToggle}>
           
           <div className="flex items-center justify-center w-10 shrink-0">
             {isOpen ? <ChevronDown size={18} className="text-teal-500" /> : <ChevronRight size={18} className="text-slate-500" />}
           </div>
           
-          <div className="w-[200px] py-2 shrink-0 pr-4">
+          <div className="w-[200px] shrink-0 pr-4 flex flex-col justify-center">
             <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-[14px] font-black leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} />
             <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} className="mt-0.5" textClass={cn("text-[10px] font-bold uppercase tracking-widest gap-1.5", dk ? "text-slate-500" : "text-slate-400")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
+            {hiddenMatchText && (
+               <div className="mt-1 flex items-center gap-1 w-max px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-500 text-[9px] font-black uppercase tracking-tighter">
+                  <Search size={8} strokeWidth={3} /> {hiddenMatchText}
+               </div>
+            )}
           </div>
 
           <div className="w-[120px] shrink-0 pr-2" onClick={e => e.stopPropagation()}>
@@ -779,7 +792,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 };
 
                 return (
-                  <button key={d.id} title={title} onClick={(e) => { e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); setActiveDurationTab(i); }} className={cn('px-2 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all', dk ? 'bg-[#0F172A] border-white/10 text-slate-300 hover:bg-white/10' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100')}>
+                  <button key={d.id} title={title} onClick={(e) => { 
+                      e.stopPropagation(); 
+                      if (!isOpen) onToggle(); 
+                      setActiveTab('bookings'); 
+                      const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
+                      setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); 
+                  }} className={cn('px-2 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all', dk ? 'bg-[#0F172A] border-white/10 text-slate-300 hover:bg-white/10' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100')}>
                     {d.startDate && d.endDate ? `${formatChipDate(d.startDate)} - ${formatChipDate(d.endDate)}` : 'New'}
                   </button>
                 )
@@ -795,15 +814,38 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 
                 const shortName = emp.name ? emp.name.trim().split(' ').pop() : '_ _ _';
                 const n = calculateNights(emp.checkIn||'', emp.checkOut||'');
+                
                 return (
                 <div key={emp.id} className="relative group/emp">
-                    <button onClick={(e) => { e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); setTimeout(() => { const el = document.getElementById(`emp-slot-${emp.id}`); if(el){ el.scrollIntoView({behavior: 'smooth', block: 'center'}); el.classList.add('ring-2', 'ring-teal-500'); setTimeout(()=>el.classList.remove('ring-2','ring-teal-500'), 2000);} }, 250); }} 
+                    <button onClick={(e) => { 
+                        e.stopPropagation(); 
+                        if (!isOpen) onToggle(); 
+                        setActiveTab('bookings'); 
+                        const findEmpTab = () => {
+                           for (let i = 0; i < localHotel.durations.length; i++) {
+                              const d = localHotel.durations[i];
+                              for (const rc of (d.roomCards || [])) {
+                                 if ((rc.employees || []).some((ex:any) => ex.id === emp.id)) return i;
+                              }
+                           }
+                           return 0;
+                        };
+                        setActiveDurationTab(findEmpTab());
+                        setTimeout(() => { 
+                           const el = document.getElementById(`emp-slot-${emp.id}`); 
+                           if(el){ 
+                               el.scrollIntoView({behavior: 'smooth', block: 'center'}); 
+                               el.classList.add('ring-2', 'ring-teal-500'); 
+                               setTimeout(()=>el.classList.remove('ring-2','ring-teal-500'), 2000);
+                           } 
+                        }, 250); 
+                    }} 
                       className={cn("px-2 py-0.5 rounded-full border text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-700")}>
                       <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
                       <HighlightText text={shortName} query={searchScope === 'all' || searchScope === 'employee' ? searchQuery : ''} />
                     </button>
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-2 bg-slate-800 text-white rounded-lg opacity-0 group-hover/emp:opacity-100 transition-opacity pointer-events-none z-[99999] shadow-xl text-center">
-                
+                        <p className="text-xs font-bold">{emp.name}</p>
                         <p className="text-[10px] text-slate-300">{formatShortDate(emp.checkIn, lang)} ➔ {formatShortDate(emp.checkOut, lang)} ({n}N)</p>
                     </div>
                 </div>
@@ -829,13 +871,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
         
           <div className="w-[120px] shrink-0 flex flex-col items-end justify-center pr-4 relative border-r dark:border-white/10 border-slate-200">
-            {hiddenMatchText && (
-               <div className="absolute right-full mr-4 flex items-center gap-1 px-2 py-1 rounded bg-teal-500/10 text-teal-500 text-[9px] font-black uppercase tracking-tighter whitespace-nowrap">
-                  <Search size={10} strokeWidth={3} /> {hiddenMatchText}
-               </div>
-            )}
-            
-            <div className={cn('font-black leading-none text-right', selectedMonth !== null ? 'text-lg' : 'text-xl', dk ? 'text-white' : 'text-slate-900')}>
+            <div className={cn('font-black leading-none text-right', selectedMonth !== null ? 'text-md' : 'text-lg', dk ? 'text-white' : 'text-slate-900')}>
               {formatCurrency(masterMath.displayBrutto)}
             </div>
             
@@ -847,9 +883,15 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                </div>
             )}
 
-            {!showGlobalFinancials && activeSort === 'payment_due' && masterMath.totalUnpaid > 0 && (
-               <div className="text-[10px] font-bold text-red-500 mt-1">
-                  {lang === 'de' ? 'Fällig' : 'Due'}
+            {!showGlobalFinancials && activeSort === 'payment_due' && masterMath.nearestDueDate && (
+               <div className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider">
+                  {lang === 'de' ? 'Fällig: ' : 'Due: '} {formatShortDate(masterMath.nearestDueDate)}
+               </div>
+            )}
+            
+            {!showGlobalFinancials && activeSort === 'bed_price' && masterMath.pricePerBed > 0 && (
+               <div className="text-[10px] font-bold text-slate-500 mt-1">
+                  {formatCurrency(masterMath.pricePerBed)} / {lang === 'de' ? 'Bett' : 'Bed'}
                </div>
             )}
             
@@ -860,17 +902,18 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             )}
           </div>
 
-          <div className="w-8 shrink-0 flex flex-col items-center justify-center gap-2 pl-2">
-               <button onClick={handleBookmarkToggle} className={cn("p-1 rounded transition-colors", isBookmarked ? "text-yellow-500" : "text-slate-400 hover:text-slate-800 dark:hover:text-white")}><Star size={14} className={isBookmarked ? "fill-yellow-500" : ""} /></button>
+          <div className="w-8 shrink-0 flex flex-col items-center justify-center gap-0.5 pl-2">
+               <button onClick={handleBookmarkToggle} className={cn("p-0.5 rounded transition-colors", isBookmarked ? "text-yellow-500" : "text-slate-400 hover:text-slate-800 dark:hover:text-white")}><Star size={12} className={isBookmarked ? "fill-yellow-500" : ""} /></button>
                <div className="relative group/time">
-                  <button onClick={(e) => e.stopPropagation()} className="p-1 rounded text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"><Clock size={14} /></button>
+                  <button onClick={(e) => e.stopPropagation()} className="p-0.5 rounded text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"><Clock size={12} /></button>
                   <div className={cn("absolute right-full mr-2 top-1/2 -translate-y-1/2 w-max px-2 py-1 text-[9px] font-bold rounded opacity-0 group-hover/time:opacity-100 z-[99999] whitespace-nowrap pointer-events-none shadow-xl border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-700 border-slate-200")}>{formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}</div>
                </div>
                {!viewOnly && (
-                 <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-1 rounded text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                 <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-0.5 rounded text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
                )}
           </div>
         </div>
+                  
         {isOpen && (
           <div className={cn('rounded-b-2xl border-t shadow-inner flex flex-col', dk ? 'bg-[#0B1224] border-white/5' : 'bg-slate-50 border-slate-200')} onClick={e => e.stopPropagation()}>
             
