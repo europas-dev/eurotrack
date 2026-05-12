@@ -729,7 +729,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const handleEnterBlur = (e: React.KeyboardEvent) => { if (e.key === 'Enter') (e.target as HTMLElement).blur(); };
   const labelCls = cn('flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500', dk && 'text-slate-400');
   const inputCls = cn('w-full px-2 py-1.5 rounded-lg text-sm font-bold outline-none border transition-all h-[34px]', dk ? 'bg-[#1E293B] border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400', viewOnly && "opacity-60 cursor-default");
-
+  const totalInvs = (localHotel.invoices || []).length;
+  const paidInvs = (localHotel.invoices || []).filter((i: any) => i.isPaid).length;
+  const unpaidInvs = totalInvs - paidInvs;
+  
   return (
     <div className="space-y-1 relative" style={{ zIndex: 40 - (index % 30) }}>
       
