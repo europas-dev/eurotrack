@@ -445,11 +445,28 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           va = getNextDue(a); vb = getNextDue(b);
       }
       else if (sortBy === 'total_paid') {
-          const getPaid = (hotel: any) => (hotel.invoices || []).filter((i:any) => i.isPaid).reduce((sum:number, i:any) => sum + (parseFloat(i.totalBrutto) || 0), 0);
+          const getPaid = (hotel: any) => {
+              let p = 0;
+              (hotel.invoices || []).filter((i:any) => i.isPaid).forEach((inv: any) => {
+                  if (inv.billingMode === 'total') {
+                     p += (parseFloat(inv.totalNetto)||0) * (1 + (parseFloat(inv.totalMwst)||0)/100);
+                  } else {
+                     const defN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
+                     p += (inv.items || []).reduce((s:number, it:any) => s + (calcInvoiceItem(it, defN)?.brutto || 0), 0);
+                  }
+              });
+              return p;
+          };
           va = getPaid(a); vb = getPaid(b);
       }
       else { va = a.name?.toLowerCase(); vb = b.name?.toLowerCase(); }
       
+      if (sortBy === 'payment_due') {
+          // Push hotels with no due dates to the very bottom automatically
+          if (va === Infinity && vb === Infinity) return 0;
+          if (va === Infinity) return 1;
+          if (vb === Infinity) return -1;
+      }
       return (va < vb ? -1 : va > vb ? 1 : 0) * (sortDir === 'asc' ? 1 : -1);
     });
   }, [hotels, searchQuery, searchScope, showBookmarks, bookmarks, sortBy, sortDir, tlType, tlStart, tlEnd, fbType, filterPaid, filterDue, filterDeposit, selectedMonth, selectedYear]);
@@ -1100,7 +1117,7 @@ finalFiltered.forEach(h => {
 
                 {/* DESKTOP HEADER ROW */}
                 {!loading && finalFiltered.length > 0 && (
-                  <div className={cn("hidden lg:flex items-center px-2 pr-2 py-2 border-b text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2", dk ? "border-white/10" : "border-slate-200")}>
+                  <div className={cn("hidden lg:flex items-center px-8 py-2 border-b text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 sticky top-[-32px] z-[55] backdrop-blur-md shadow-sm", dk ? "bg-[#0F172A]/90 border-white/10" : "bg-slate-50/90 border-slate-200")} style={{ margin: '0 -32px' }}>
                     <div className="w-10 shrink-0"></div>
                     <div className="w-[200px] shrink-0 pr-4">{lang === 'de' ? 'Hotel' : 'Hotel'}</div>
                     <div className="w-[120px] shrink-0 pr-2">{lang === 'de' ? 'Firma' : 'Company'}</div>
