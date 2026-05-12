@@ -4,11 +4,12 @@ import { supabase, deleteHotel, createHotel } from './lib/supabase';
 import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday, calculateNights } from './lib/utils';
 import { calcRoomCardNettoSum, calcRoomCardTotal } from './lib/roomCardUtils';
 import type { AccessLevel } from './lib/supabase';
-import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Undo2, Redo2, Star, Calendar, MapPin, Building, Building2, CloudOff, Globe, Trash2, Copy, Eye, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Star, Calendar, MapPin, Building, Building2, CloudOff, Globe, Trash2, Copy, Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react';
 import Header from './components/Header';
 import { HotelRow, ModernDropdown, CompanyMultiSelect, getCountryOptions } from './components/HotelRow';
 import ExportStudio from './components/ExportStudio';
 
+// --- SYSTEM COMPANIES API ---
 async function getSystemCompanies(): Promise<string[]> {
   const { data, error } = await supabase.from('global_companies').select('name').order('name');
   if (error) { console.error("Global Companies Fetch Error:", error); return []; }
@@ -41,34 +42,38 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [error, setError] = useState('');
   
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState<number | 'all'>('all');
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   
   const [searchQuery, setSearchQuery] = useState('');
   const [searchScope, setSearchScope] = useState('all');
   const [showStudio, setShowStudio] = useState(false);
 
-  const [expandedHotelId, setExpandedHotelId] = useState<string | null>(null);
+  // --- UI TOGGLES ---
   const [showGlobalFinancials, setShowGlobalFinancials] = useState(false);
+  const [showYearMenu, setShowYearMenu] = useState(false);
+  const [showMonthMenu, setShowMonthMenu] = useState(false);
+  const [yearOffset, setYearOffset] = useState(0);
+  
+  const yearMenuRef = useRef<HTMLDivElement>(null);
+  const monthMenuRef = useRef<HTMLDivElement>(null);
+
+  // --- SELECTION SYSTEM STATE ---
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // MENUS
+  // MENU VISIBILITY
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showTimelineMenu, setShowTimelineMenu] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
   
-  // CUSTOM YEAR/MONTH MENUS
-  const [showYearMenu, setShowYearMenu] = useState(false);
-  const [showMonthMenu, setShowMonthMenu] = useState(false);
-  const [yearBase, setYearBase] = useState(Math.floor(new Date().getFullYear() / 10) * 10);
-  
+  // OPERATIONAL STATE
   const [tlType, setTlType] = useState<'all'|'today'|'tomorrow'|'3days'|'7days'|'range'>('all');
   const [tlStart, setTlStart] = useState('');
   const [tlEnd, setTlEnd] = useState('');
   
   const [fbType, setFbType] = useState<'all'|'today'|'tomorrow'|'3days'|'7days'|'range'>('all');
   const [filterPaid, setFilterPaid] = useState<'all' | 'paid' | 'unpaid'>('all');
-  const [filterDeposit, setFilterDeposit] = useState<'all' | 'yes' | 'no'>('all');
   const [filterDue, setFilterDue] = useState<'all' | 'today' | '3days' | '5days'>('all');
+  const [filterDeposit, setFilterDeposit] = useState<'all' | 'yes' | 'no'>('all');
   const [groupBy, setGroupBy] = useState<'none' | 'hotel' | 'company' | 'city' | 'country'>('none');
   const [activeGroupTab, setActiveGroupTab] = useState<string | null>(null);
   
@@ -76,7 +81,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   const [showBookmarks, setShowBookmarks] = useState(false);
-  const [bookmarks, setBookmarks] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]'); } catch { return []; } });
+  const [bookmarks, setBookmarks] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]'); } catch { return []; }
+  });
   
   const [history, setHistory] = useState<any[][]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -91,23 +98,42 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
 
+  // Dynamic Title Logic
   const monthNamesEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const monthNamesDe = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
-  const displayTitle = selectedMonth !== 'all' 
+  const displayTitle = selectedMonth !== null 
     ? `${lang === 'de' ? monthNamesDe[selectedMonth] : monthNamesEn[selectedMonth]} ${selectedYear}`
     : `${lang === 'de' ? 'Dashboard' : 'Dashboard'} ${selectedYear}`;
 
   useEffect(() => {
-    const hO = () => setIsOnline(true); const hOff = () => setIsOnline(false);
-    window.addEventListener('online', hO); window.addEventListener('offline', hOff);
+    const hO = () => setIsOnline(true);
+    const hOff = () => setIsOnline(false);
+    window.addEventListener('online', hO);
+    window.addEventListener('offline', hOff);
     return () => { window.removeEventListener('online', hO); window.removeEventListener('offline', hOff); };
   }, []);
 
   useEffect(() => {
-    const handleStorage = () => { try { setBookmarks(JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]')); } catch {} };
+    const handleStorage = () => {
+      try { setBookmarks(JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]')); } catch {}
+    };
     window.addEventListener('storage', handleStorage);
     const interval = setInterval(handleStorage, 1000); 
     return () => { window.removeEventListener('storage', handleStorage); clearInterval(interval); };
+  }, []);
+
+  // Dropdown dismiss logic
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (yearMenuRef.current && !yearMenuRef.current.contains(event.target as Node)) {
+        setShowYearMenu(false); setYearOffset(0);
+      }
+      if (monthMenuRef.current && !monthMenuRef.current.contains(event.target as Node)) {
+        setShowMonthMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -139,36 +165,83 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     return () => { isMounted = false; channel.unsubscribe(); supabase.removeChannel(channel); };
   }, [accessLevel]);
 
+  // --- DATA FETCHING LOGIC ---
   useEffect(() => { 
     let isMounted = true;
     setLoading(true);
     setError(''); 
     
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 5000);
+
     async function fetchAllData() {
       try {
         const companies = await getSystemCompanies();
-        const { data, error } = await supabase.from('hotels').select('*, durations(*, room_cards(*, employees(*)), employees(*))').eq('year', selectedYear).order('created_at', { ascending: false });
+        const { data, error } = await supabase
+          .from('hotels')
+          .select('*, durations(*, room_cards(*, employees(*)), employees(*))')
+          .eq('year', selectedYear)
+          .order('created_at', { ascending: false });
+
         if (error) throw error; 
 
         const normalized = (data || []).map((h: any) => ({
-          ...h, companyTag: h.company_tag ?? [], isPaid: h.is_paid ?? false, rechnungNr: h.rechnung_nr ?? '', bookingId: h.booking_id ?? '', depositEnabled: h.deposit_enabled ?? false, depositAmount: h.deposit_amount ?? 0, useBruttoNetto: h.use_brutto_netto ?? true, hasDiscount: h.has_discount ?? false, discountType: h.discount_type ?? 'percentage', discountValue: h.discount_value ?? 0,
+          ...h, 
+          companyTag: h.company_tag ?? [],
+          isPaid: h.is_paid ?? false,
+          rechnungNr: h.rechnung_nr ?? '',
+          bookingId: h.booking_id ?? '',
+          depositEnabled: h.deposit_enabled ?? false,
+          depositAmount: h.deposit_amount ?? 0,
+          useBruttoNetto: h.use_brutto_netto ?? true,
+          hasDiscount: h.has_discount ?? false,
+          discountType: h.discount_type ?? 'percentage',
+          discountValue: h.discount_value ?? 0,
+
           durations: (h.durations || []).map((d: any) => ({
-            ...d, hotelId: d.hotel_id, startDate: d.start_date, endDate: d.end_date, roomType: d.room_type, numberOfRooms: d.number_of_rooms, pricePerNightPerRoom: d.price_per_night_per_room, useManualPrices: d.use_manual_prices, nightlyPrices: d.nightly_prices, useBruttoNetto: d.use_brutto_netto, hasDiscount: d.has_discount, discountType: d.discount_type, discountValue: d.discount_value, isPaid: d.is_paid, rechnungNr: d.rechnung_nr, bookingId: d.booking_id, depositEnabled: d.deposit_enabled, depositAmount: d.deposit_amount,
+            ...d, hotelId: d.hotel_id, startDate: d.start_date, endDate: d.end_date, roomType: d.room_type, numberOfRooms: d.number_of_rooms,
+            pricePerNightPerRoom: d.price_per_night_per_room, useManualPrices: d.use_manual_prices, nightlyPrices: d.nightly_prices, useBruttoNetto: d.use_brutto_netto,
+            hasDiscount: d.has_discount, discountType: d.discount_type, discountValue: d.discount_value, isPaid: d.is_paid, rechnungNr: d.rechnung_nr,
+            bookingId: d.booking_id, depositEnabled: d.deposit_enabled, depositAmount: d.deposit_amount,
             roomCards: (d.room_cards || []).map((rc: any) => ({
-              ...rc, durationId: rc.duration_id, roomNo: rc.room_no, roomType: rc.room_type, bedCount: rc.bed_count, pricingTab: rc.pricing_tab ?? 'per_room', roomNetto: rc.room_netto, roomMwst: rc.room_mwst, roomBrutto: rc.room_brutto, bedNetto: rc.bed_netto, bedMwst: rc.bed_mwst, bedBrutto: rc.bed_brutto, totalNetto: rc.total_netto, totalMwst: rc.total_mwst, totalBrutto: rc.total_brutto, roomEnergyNetto: rc.room_energy_netto, roomEnergyMwst: rc.room_energy_mwst, roomEnergyBrutto: rc.room_energy_brutto, bedEnergyNetto: rc.bed_energy_netto, bedEnergyMwst: rc.bed_energy_mwst, bedEnergyBrutto: rc.bed_energy_brutto, totalEnergyNetto: rc.total_energy_netto, totalEnergyMwst: rc.total_energy_mwst, totalEnergyBrutto: rc.total_energy_brutto, hasDiscount: rc.has_discount, discountType: rc.discount_type, discountValue: rc.discount_value, basePrice: rc.base_price, baseRoomPrice: rc.base_room_price, baseEnergyPrice: rc.base_energy_price, baseNights: rc.base_nights, lastSyncedEndDate: rc.last_synced_end_date,
+              ...rc, durationId: rc.duration_id, roomNo: rc.room_no, roomType: rc.room_type, bedCount: rc.bed_count, pricingTab: rc.pricing_tab ?? 'per_room',
+              roomNetto: rc.room_netto, roomMwst: rc.room_mwst, roomBrutto: rc.room_brutto, bedNetto: rc.bed_netto, bedMwst: rc.bed_mwst, bedBrutto: rc.bed_brutto, totalNetto: rc.total_netto, totalMwst: rc.total_mwst, totalBrutto: rc.total_brutto,
+              roomEnergyNetto: rc.room_energy_netto, roomEnergyMwst: rc.room_energy_mwst, roomEnergyBrutto: rc.room_energy_brutto, bedEnergyNetto: rc.bed_energy_netto, bedEnergyMwst: rc.bed_energy_mwst, bedEnergyBrutto: rc.bed_energy_brutto, totalEnergyNetto: rc.total_energy_netto, totalEnergyMwst: rc.total_energy_mwst, totalEnergyBrutto: rc.total_energy_brutto,
+              hasDiscount: rc.has_discount, discountType: rc.discount_type, discountValue: rc.discount_value,
+              basePrice: rc.base_price, baseRoomPrice: rc.base_room_price, baseEnergyPrice: rc.base_energy_price, baseNights: rc.base_nights, lastSyncedEndDate: rc.last_synced_end_date,
               employees: (rc.employees || []).map((e: any) => ({ ...e, slotIndex: e.slot_index ?? 0, checkIn: e.checkin, checkOut: e.checkout }))
             }))
           }))
         }));
 
-        if (isMounted) { setSystemCompanies(companies); setHotels(normalized); setHistory([normalized]); setHistoryIndex(0); }
-      } catch (err: any) { if (isMounted) setError(err.message || "Failed to load dashboard data."); } finally { if (isMounted) setLoading(false); }
+        if (isMounted) { 
+          setSystemCompanies(companies);
+          setHotels(normalized); 
+          setHistory([normalized]); 
+          setHistoryIndex(0); 
+        }
+      } catch (err: any) { 
+        console.error("Dashboard Load Error:", err);
+        if (isMounted) setError(err.message || "Failed to load dashboard data."); 
+      } finally {
+        clearTimeout(safetyTimer);
+        if (isMounted) setLoading(false);
+      }
     }
+    
     fetchAllData(); 
-    return () => { isMounted = false; };
+    return () => { 
+        isMounted = false; 
+        clearTimeout(safetyTimer);
+    };
   }, [selectedYear]);
 
-  const allCompanyOptions = useMemo(() => Array.from(new Set([...systemCompanies, ...hotels.flatMap(h => h.companyTag || []).filter(Boolean)])), [hotels, systemCompanies]);
+  const allCompanyOptions = useMemo(() => {
+    const localTags = hotels.flatMap(h => h.companyTag || []).filter(Boolean);
+    return Array.from(new Set([...systemCompanies, ...localTags]));
+  }, [hotels, systemCompanies]);
+
   const uniqueCities = useMemo(() => Array.from(new Set(hotels.map(h => h.city).filter(Boolean))), [hotels]);
   const uniqueHotelNames = useMemo(() => Array.from(new Set(hotels.map(h => h.name).filter(Boolean))), [hotels]);
   const uniqueEmployeeNames = useMemo(() => {
@@ -177,32 +250,81 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     return Array.from(names);
   }, [hotels]);
 
-  const handleAddGlobalCompany = async (name: string) => { try { await addSystemCompany(name); setSystemCompanies(prev => Array.from(new Set([...prev, name]))); } catch (err) {} };
-  const handleDeleteGlobalCompany = async (name: string) => { try { await deleteSystemCompany(name); setSystemCompanies(prev => prev.filter(c => c !== name)); } catch (err) {} };
+  const handleAddGlobalCompany = async (name: string) => {
+    try { await addSystemCompany(name); setSystemCompanies(prev => Array.from(new Set([...prev, name]))); } 
+    catch (err) { console.error("Failed to add company globally", err); }
+  };
 
-  function pushToHistory(next: any[]) { const nH = history.slice(0, historyIndex + 1); nH.push(next); setHistory(nH); setHistoryIndex(nH.length - 1); }
-  const handleUndo = () => { if (historyIndex > 0) { setHistoryIndex(historyIndex - 1); setHotels(history[historyIndex - 1]); } };
-  const handleRedo = () => { if (historyIndex < history.length - 1) { setHistoryIndex(historyIndex + 1); setHotels(history[historyIndex + 1]); } };
+  const handleDeleteGlobalCompany = async (name: string) => {
+    try { await deleteSystemCompany(name); setSystemCompanies(prev => prev.filter(c => c !== name)); } 
+    catch (err) { console.error("Failed to delete company from system", err); }
+  };
+
+  function pushToHistory(next: any[]) { 
+    const nH = history.slice(0, historyIndex + 1); 
+    nH.push(next); setHistory(nH); setHistoryIndex(nH.length - 1); 
+  }
 
   async function handleSaveNewHotel() {
     if (!newHotelName.trim()) return; 
     setNewHotelSaving(true);
     try {
-      const h = await createHotel({ name: newHotelName.trim(), city: newHotelCity.trim() || null, companyTag: newHotelCompanyTags, company_tag: newHotelCompanyTags, country: newHotelCountry, year: selectedYear });
-      const next = [{ ...h, companyTag: newHotelCompanyTags, durations: [], isPaid: false, rechnungNr: '', bookingId: '', depositEnabled: false, depositAmount: 0, useBruttoNetto: true, hasDiscount: false, discountType: 'percentage', discountValue: 0 }, ...hotels]; 
-      setHotels(next); pushToHistory(next); setAddingHotel(false); setNewHotelName(''); setNewHotelCity(''); setNewHotelCompanyTags([]); setNewHotelCountry('Germany');
+      const h = await createHotel({ 
+        name: newHotelName.trim(), 
+        city: newHotelCity.trim() || null, 
+        companyTag: newHotelCompanyTags,  
+        company_tag: newHotelCompanyTags, 
+        country: newHotelCountry, 
+        year: selectedYear 
+      });
+      
+      const next = [{ 
+        ...h, 
+        companyTag: newHotelCompanyTags, 
+        durations: [], isPaid: false, rechnungNr: '', bookingId: '', depositEnabled: false, depositAmount: 0, useBruttoNetto: true, hasDiscount: false, discountType: 'percentage', discountValue: 0
+      }, ...hotels]; 
+      
+      setHotels(next); 
+      pushToHistory(next); 
+      setAddingHotel(false); 
+      setNewHotelName(''); setNewHotelCity(''); setNewHotelCompanyTags([]); setNewHotelCountry('Germany');
     } catch (e: any) { alert(e.message); } finally { setNewHotelSaving(false); }
   }
+
+  const getBedsCount = (daysOffset: number) => {
+     const d = new Date(); d.setDate(d.getDate() + daysOffset);
+     const dStr = d.toISOString().split('T')[0];
+     let total = 0;
+     hotels.forEach(h => {
+        (h.durations || []).forEach((dur: any) => {
+           if (dur.startDate <= dStr && dur.endDate >= dStr) {
+              (dur.roomCards || []).forEach((rc: any) => {
+                 const emps = (rc.employees || []).filter((e: any) => e.checkIn <= dStr && e.checkOut > dStr);
+                 total += Math.max(0, (rc.bedCount || 0) - emps.length);
+              });
+           }
+        });
+     });
+     return total;
+  };
+
+  const fbCountToday = useMemo(() => getBedsCount(0), [hotels]);
+  const fbCountTomorrow = useMemo(() => getBedsCount(1), [hotels]);
+  const fbCount3 = useMemo(() => getBedsCount(3), [hotels]);
+  const fbCount7 = useMemo(() => getBedsCount(7), [hotels]);
 
   const finalFiltered = useMemo(() => {
     return hotels.filter(h => {
       if (showBookmarks && !bookmarks.includes(h.id)) return false;
       if (searchQuery) {
           const q = searchQuery.toLowerCase();
-          if (searchScope === 'hotel') { if (!h.name?.toLowerCase().includes(q)) return false; } 
-          else if (searchScope === 'city') { if (!h.city?.toLowerCase().includes(q)) return false; } 
-          else if (searchScope === 'company') { if (!h.companyTag?.some((t:any) => t.toLowerCase().includes(q))) return false; } 
-          else if (searchScope === 'invoice') { 
+          if (searchScope === 'hotel') { 
+              if (!h.name?.toLowerCase().includes(q)) return false; 
+          } else if (searchScope === 'city') { 
+              if (!h.city?.toLowerCase().includes(q)) return false; 
+          } else if (searchScope === 'company') { 
+              if (!h.companyTag?.some((t:any) => t.toLowerCase().includes(q))) return false; 
+          } else if (searchScope === 'invoice') { 
               const hotelInvMatch = h.rechnungNr?.toLowerCase().includes(q) || (h.invoices || []).some((inv: any) => inv.number?.toLowerCase().includes(q));
               const durationInvMatch = (h.durations || []).some((d:any) => d.rechnungNr?.toLowerCase().includes(q));
               if (!hotelInvMatch && !durationInvMatch) return false;
@@ -217,26 +339,15 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           }
       }
       
-      if (selectedMonth !== 'all') {
-        const mStart = new Date(selectedYear, selectedMonth, 1);
-        const mEnd = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59);
-
-        const hasDuration = (h.durations || []).some((d: any) => {
+      if (selectedMonth !== null) {
+        const overlap = (h.durations || []).some((d: any) => {
           if (!d.startDate || !d.endDate) return false;
-          const dStart = new Date(d.startDate);
-          const dEnd = new Date(d.endDate);
-          const lastNight = new Date(dEnd.getTime() - 86400000);
-          return dStart <= mEnd && lastNight >= mStart;
+          const dStart = new Date(d.startDate); const dEnd = new Date(d.endDate);
+          const mStart = new Date(selectedYear, selectedMonth, 1);
+          const mEnd = new Date(selectedYear, selectedMonth + 1, 0);
+          return dStart <= mEnd && dEnd >= mStart;
         });
-
-        const hasInvoice = (h.invoices || []).some((inv: any) => {
-          const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
-          if (!dateStr) return false;
-          const d = new Date(dateStr);
-          return d.getMonth() === selectedMonth && d.getFullYear() === selectedYear;
-        });
-
-        if (!hasDuration && !hasInvoice) return false;
+        if (!overlap) return false;
       }
 
       if (tlType !== 'all' && tlStart && tlEnd) {
@@ -244,21 +355,31 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
          if (!hasOverlap) return false;
       }
 
+      // PAYMENT STATUS
       if (filterPaid === 'paid' && !h.isPaid) return false;
       if (filterPaid === 'unpaid' && h.isPaid) return false;
+
+      // NEW: PAYMENT DUE LOGIC
+      if (filterDue !== 'all') {
+          const today = new Date();
+          today.setHours(0,0,0,0);
+          let maxDate = new Date(today);
+          if (filterDue === 'today') maxDate.setDate(today.getDate() + 0);
+          else if (filterDue === '3days') maxDate.setDate(today.getDate() + 3);
+          else if (filterDue === '5days') maxDate.setDate(today.getDate() + 5);
+          maxDate.setHours(23,59,59,999);
+
+          const hasDueInvoice = (h.invoices || []).some((inv: any) => {
+              if (inv.isPaid || !inv.dueDate) return false;
+              const d = new Date(inv.dueDate);
+              return d >= today && d <= maxDate;
+          });
+          if (!hasDueInvoice) return false;
+      }
+      
       if (filterDeposit === 'yes' && !h.depositEnabled) return false;
       if (filterDeposit === 'no' && h.depositEnabled) return false;
       
-      if (filterDue !== 'all') {
-         const targetDate = new Date();
-         if (filterDue === '3days') targetDate.setDate(targetDate.getDate() + 3);
-         if (filterDue === '5days') targetDate.setDate(targetDate.getDate() + 5);
-         const targetStr = targetDate.toISOString().split('T')[0];
-         
-         const hasDue = (h.invoices || []).some((inv: any) => !inv.isPaid && inv.dueDate && inv.dueDate <= targetStr);
-         if (!hasDue) return false;
-      }
-
       if (fbType !== 'all') {
          let targetDate = new Date().toISOString().split('T')[0];
          if (fbType === 'tomorrow') { const d = new Date(); d.setDate(d.getDate()+1); targetDate = d.toISOString().split('T')[0]; }
@@ -276,6 +397,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
          });
          if (!hasFree) return false;
       }
+
       return true;
     }).sort((a, b) => {
       let va: any; let vb: any;
@@ -288,14 +410,17 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                   d.roomCards?.forEach((c:any) => {
                       const beds = c.roomType === 'EZ' ? 1 : c.roomType === 'DZ' ? 2 : c.roomType === 'TZ' ? 3 : (c.bedCount || 2);
                       const netto = calcRoomCardNettoSum(c, d.startDate, d.endDate);
-                      if (beds > 0 && nights > 0 && netto > 0) { const p = netto / (beds * nights); if (p < min) min = p; }
+                      if (beds > 0 && nights > 0 && netto > 0) {
+                          const p = netto / (beds * nights);
+                          if (p < min) min = p;
+                      }
                   });
               });
               return min === Infinity ? 0 : min;
           };
           va = getMinPrice(a); vb = getMinPrice(b);
       } 
-      else if (sortBy === 'cost') { va = calcHotelTotalCost(a, selectedMonth !== 'all' ? selectedMonth : null, selectedYear); vb = calcHotelTotalCost(b, selectedMonth !== 'all' ? selectedMonth : null, selectedYear); }
+      else if (sortBy === 'cost') { va = calcHotelTotalCost(a, selectedMonth !== null ? selectedMonth : null, selectedYear); vb = calcHotelTotalCost(b, selectedMonth !== null ? selectedMonth : null, selectedYear); }
       else if (sortBy === 'free_beds') { va = calcHotelFreeBedsToday(a); vb = calcHotelFreeBedsToday(b); }
       else if (sortBy === 'created_at') { va = new Date(a.created_at).getTime(); vb = new Date(b.created_at).getTime(); }
       else if (sortBy === 'updated_at') { va = new Date(a.last_updated_at || a.lastUpdatedAt || 0).getTime(); vb = new Date(b.last_updated_at || b.lastUpdatedAt || 0).getTime(); }
@@ -314,14 +439,17 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       
       return (va < vb ? -1 : va > vb ? 1 : 0) * (sortDir === 'asc' ? 1 : -1);
     });
-  }, [hotels, searchQuery, searchScope, showBookmarks, bookmarks, sortBy, sortDir, tlType, tlStart, tlEnd, fbType, filterPaid, filterDeposit, filterDue, selectedMonth, selectedYear]);
+  }, [hotels, searchQuery, searchScope, showBookmarks, bookmarks, sortBy, sortDir, tlType, tlStart, tlEnd, fbType, filterPaid, filterDue, filterDeposit, selectedMonth, selectedYear]);
 
   const groupData = useMemo(() => {
     if (groupBy === 'none') return null;
     const groups: Record<string, any[]> = {};
     finalFiltered.forEach(h => {
-      const key = groupBy === 'company' ? (h.companyTag?.[0] || (lang === 'de' ? 'Nicht zugeordnet' : 'Unassigned')) : groupBy === 'city' ? (h.city || 'Other') : groupBy === 'country' ? (h.country || 'Other') : h.name;
-      if (!groups[key]) groups[key] = []; groups[key].push(h);
+      const key = groupBy === 'company' 
+        ? (h.companyTag?.[0] || (lang === 'de' ? 'Nicht zugeordnet' : 'Unassigned')) 
+        : groupBy === 'city' ? (h.city || 'Other') : groupBy === 'country' ? (h.country || 'Other') : h.name;
+      if (!groups[key]) groups[key] = []; 
+      groups[key].push(h);
     });
     return groups;
   }, [finalFiltered, groupBy, lang]);
@@ -345,12 +473,18 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   };
 
   const handleBulkDelete = async () => {
-    if (!window.confirm(lang === 'de' ? `Sind Sie sicher, dass Sie ${selectedIds.size} Hotels löschen möchten?` : `Are you sure you want to delete ${selectedIds.size} hotels?`)) return;
+    const count = selectedIds.size;
+    const confirmMsg = lang === 'de' ? `Sind Sie sicher, dass Sie ${count} Hotels löschen möchten?` : `Are you sure you want to delete ${count} hotels?`;
+    if (!window.confirm(confirmMsg)) return;
+
     try {
       setLoading(true);
+      const idsArray = Array.from(selectedIds);
       const { bulkDeleteHotels } = await import('./lib/supabase');
-      await bulkDeleteHotels(Array.from(selectedIds));
-      setHotels(hotels.filter(h => !selectedIds.has(h.id))); setSelectedIds(new Set());
+      await bulkDeleteHotels(idsArray);
+      
+      const nextHotels = hotels.filter(h => !selectedIds.has(h.id));
+      setHotels(nextHotels); pushToHistory(nextHotels); setSelectedIds(new Set());
     } catch (err: any) { alert("Delete failed: " + err.message); } finally { setLoading(false); }
   };
 
@@ -360,18 +494,38 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       const toClone = hotels.filter(h => selectedIds.has(h.id));
       const { duplicateHotelsMetadata } = await import('./lib/supabase');
       const newEntries = await duplicateHotelsMetadata(toClone);
-      setHotels([...newEntries.map((h: any) => ({ ...h, companyTag: h.company_tag ?? [], durations: [] })), ...hotels]);
-      setSelectedIds(new Set());
+      
+      const normalizedNew = newEntries.map((h: any) => ({ ...h, companyTag: h.company_tag ?? [], durations: [] }));
+      const nextHotels = [...normalizedNew, ...hotels];
+      setHotels(nextHotels); pushToHistory(nextHotels); setSelectedIds(new Set());
     } catch (err: any) { alert("Duplicate failed: " + err.message); } finally { setLoading(false); }
   };
 
-  // DASHBOARD MATH FOR TOP BAR
+  // --- DASHBOARD MATH FOR TOP BAR ---
   let totalSpend = 0; let totalPaidGlobal = 0; let totalUnpaidGlobal = 0;
   finalFiltered.forEach(h => {
-    totalSpend += calcHotelTotalCost(h, selectedMonth !== 'all' ? selectedMonth : null, selectedYear);
+    const hotelSum = (h.durations || []).reduce((dSum: number, dur: any) => {
+      const durMoney = (dur.roomCards || []).reduce((rcSum: number, rc: any) => 
+        rcSum + (parseFloat(calcRoomCardTotal(rc, dur.startDate, dur.endDate).toString()) || 0), 0
+      );
+      if (selectedMonth !== null) {
+         const dStart = new Date(dur.startDate); const dEnd = new Date(dur.endDate);
+         const lastNight = new Date(dEnd.getTime() - (1000 * 60 * 60 * 24));
+         const mStart = new Date(selectedYear, selectedMonth, 1);
+         const mEnd = new Date(selectedYear, selectedMonth + 1, 0);
+         if (dStart > mEnd || lastNight < mStart) return dSum;
+         const overlapStart = dStart > mStart ? dStart : mStart;
+         const overlapEnd = lastNight < mEnd ? lastNight : mEnd;
+         const overlapNights = Math.max(0, Math.floor((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+         const totalNights = calculateNights(dur.startDate, dur.endDate);
+         return dSum + (durMoney * (overlapNights / totalNights));
+      }
+      return dSum + durMoney;
+    }, 0);
+    totalSpend += hotelSum;
 
     (h.invoices || []).forEach((inv: any) => {
-       if (selectedMonth !== 'all') {
+       if (selectedMonth !== null) {
           const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
           if (!dateStr) return;
           const d = new Date(dateStr);
@@ -387,21 +541,53 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const freeBedsTotal = finalFiltered.reduce((s, h) => s + calcHotelFreeBedsToday(h), 0);
   
   const closeMenu = () => { 
-      setShowFilterMenu(false); setShowTimelineMenu(false); setShowSortMenu(false); setShowYearMenu(false); setShowMonthMenu(false); 
+      setShowFilterMenu(false); setShowTimelineMenu(false); setShowSortMenu(false); 
+      setShowYearMenu(false); setShowMonthMenu(false);
   };
+
+  const activeFilters = useMemo(() => {
+    const badges = [];
+    const fmt = (iso:string) => { if(!iso) return ''; const [y,m,d] = iso.split('-'); return `${d}.${m}.${y}`; };
+    
+    if (tlType !== 'all') badges.push({ id: 'tl', label: lang === 'de' ? 'Zeitraum' : 'Timeline', val: tlType === 'range' ? `${fmt(tlStart)} ➔ ${fmt(tlEnd)}` : tlType, clear: () => { setTlType('all'); setTlStart(''); setTlEnd(''); } });
+    if (fbType !== 'all') badges.push({ id: 'fb', label: lang === 'de' ? 'Freie Betten' : 'Free Beds', val: fbType, clear: () => setFbType('all') });
+    if (filterPaid !== 'all') badges.push({ id: 'paid', label: lang === 'de' ? 'Zahlung' : 'Payment', val: lang === 'de' ? (filterPaid === 'paid' ? 'Bezahlt' : 'Offen') : filterPaid, clear: () => setFilterPaid('all') });
+    if (filterDue !== 'all') badges.push({ id: 'due', label: lang === 'de' ? 'Fälligkeit' : 'Payment Due', val: filterDue === 'today' ? (lang === 'de' ? 'Heute' : 'Today') : (filterDue === '3days' ? 'In 3 Days' : 'In 5 Days'), clear: () => setFilterDue('all') });
+    if (filterDeposit !== 'all') badges.push({ id: 'dep', label: lang === 'de' ? 'Kaution' : 'Deposit', val: filterDeposit, clear: () => setFilterDeposit('all') });
+    if (groupBy !== 'none') badges.push({ id: 'grp', label: lang === 'de' ? 'Gruppe' : 'Group', val: lang === 'de' && groupBy === 'company' ? 'Firma' : groupBy, clear: () => setGroupBy('none') });
+    
+    if (sortBy !== 'created_at' || sortDir !== 'desc') {
+        let label = sortBy.replace('_', ' ').toUpperCase();
+        if (lang === 'de') {
+          if (sortBy === 'bed_price') label = 'BETTPREIS';
+          else if (sortBy === 'cost') label = 'GESAMTKOSTEN';
+          else if (sortBy === 'name') label = 'HOTELNAME';
+          else if (sortBy === 'free_beds') label = 'FREIE BETTEN';
+          else if (sortBy === 'payment_due') label = 'FÄLLIGKEIT';
+          else if (sortBy === 'total_paid') label = 'TOTAL BEZAHLT';
+        }
+        badges.push({ id: 'srt', label: lang === 'de' ? 'Sortierung' : 'Sort', val: `${label} (${sortDir === 'asc' ? (lang === 'de' ? 'AUF' : 'ASC') : (lang === 'de' ? 'AB' : 'DESC')})`, clear: () => { setSortBy('created_at'); setSortDir('desc'); } });
+    }
+    return badges;
+  }, [tlType, tlStart, tlEnd, fbType, filterPaid, filterDue, filterDeposit, groupBy, sortBy, sortDir, lang]);
 
   const btnActive = dk ? 'bg-teal-600 text-white border-transparent' : 'bg-white border-teal-600 text-teal-700 shadow-sm';
   const btnInactive = dk ? 'bg-white/5 text-slate-300 border-transparent hover:bg-white/10' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50';
-  const popupCls = cn('absolute z-[1000] mt-3 p-5 rounded-2xl border shadow-2xl text-sm animate-in fade-in slide-in-from-top-2 duration-200 right-0', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900');
+  const popupCls = cn('absolute z-[1000] mt-3 p-5 rounded-2xl border shadow-2xl w-[420px] text-sm animate-in fade-in slide-in-from-top-2 duration-200 right-0 lg:-right-10', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900');
   const popupHeader = "flex items-center justify-between mb-5";
   const popupTitle = "text-lg font-bold";
   const sectionTitle = "text-sm text-slate-400 mb-2";
+  const segmentContainer = cn("flex p-1 rounded-xl", dk ? "bg-black/20" : "bg-slate-100");
+  const segmentBtn = (active: boolean) => cn("flex-1 py-1.5 text-sm font-medium rounded-lg transition-all", active ? (dk ? "bg-teal-600 text-white shadow-sm" : "bg-white text-teal-700 shadow-sm") : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300");
+  const actionPrimary = cn("px-5 py-2 rounded-lg font-bold transition-all", dk ? "bg-teal-600 text-white hover:bg-teal-500" : "bg-teal-700 text-white hover:bg-teal-800");
+  const actionSecondary = "text-teal-600 dark:text-teal-400 text-sm font-medium hover:underline";
 
   return (
     <div className={cn('flex h-screen overflow-hidden', dk ? 'bg-[#0F172A]' : 'bg-slate-50')}>
+      
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         
-        {/* LOGO & HEADER INTEGRATION */}
+        {/* TIER 1: APP HEADER (Logo properly docked) */}
         <div className={cn("flex items-center w-full border-b shrink-0 z-50", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-200")}>
            <div className={cn("px-6 flex items-center justify-center border-r h-[72px]", dk ? "border-white/5" : "border-slate-200")}>
               <div className="text-2xl font-black italic select-none tracking-tighter opacity-80">
@@ -420,18 +606,14 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
            </div>
         </div>
 
-        {(!isOnline || offlineMode) && (
-          <div className="bg-amber-500 border-b border-amber-600 text-white px-6 py-2.5 text-sm font-bold flex items-center justify-center gap-2 z-[60] relative">
-            <CloudOff size={16} strokeWidth={2.5} /> {lang === 'de' ? 'Offline Modus Aktiv' : 'Offline Mode Active'}
-          </div>
-        )}
-
-        {/* BULK ACTIONS */}
+        {/* BULK ACTIONS & OFFLINE ALERTS */}
         {selectedIds.size > 0 && (
           <div className={cn("sticky top-0 z-[60] w-full border-b flex items-center justify-between px-8 py-3 animate-in slide-in-from-top duration-300", dk ? "bg-[#1E293B]/95 border-teal-500/30 text-white backdrop-blur-md" : "bg-teal-600 border-teal-700 text-white shadow-lg")}>
-            <div className="flex items-center gap-3">
-              <input type="checkbox" checked={isAllSelected} onChange={toggleSelectAll} className="w-5 h-5 rounded border-white/20 accent-white cursor-pointer" />
-              <span className="font-black text-sm uppercase tracking-widest">{selectedIds.size} {lang === 'de' ? 'Ausgewählt' : 'Selected'}</span>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-3">
+                <input type="checkbox" checked={isAllSelected} onChange={toggleSelectAll} className="w-5 h-5 rounded border-white/20 accent-white cursor-pointer" />
+                <span className="font-black text-sm uppercase tracking-widest">{selectedIds.size} {lang === 'de' ? 'Ausgewählt' : 'Selected'}</span>
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <button onClick={handleBulkDuplicate} className="p-2.5 rounded-xl hover:bg-white/10 transition-all flex items-center gap-2 font-bold text-sm"><Copy size={18} /> {lang === 'de' ? 'Duplizieren' : 'Duplicate'}</button>
@@ -440,8 +622,13 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
             </div>
           </div>
         )}
+        {(!isOnline || offlineMode) && (
+          <div className="bg-amber-500 border-b border-amber-600 text-white px-6 py-2.5 text-sm font-bold flex items-center justify-center gap-2 z-[60] relative">
+            <CloudOff size={16} strokeWidth={2.5} /> {lang === 'de' ? 'Offline Modus Aktiv' : 'Offline Mode Active'}
+          </div>
+        )}
 
-        {/* GLOBAL STATS ROW */}
+        {/* TIER 2: STATS BAR */}
         <div className={cn('px-8 py-5 border-b shrink-0 z-40 relative', dk ? 'bg-[#0F172A] border-white/5' : 'bg-white border-slate-200')}>
           <div className="flex items-center justify-between flex-wrap gap-4 w-full">
             <div className="flex items-center gap-12 flex-wrap">
@@ -469,6 +656,20 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                 )}
               </div>
             </div>
+            
+            {activeUsers.length > 0 && (
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">{lang === 'de' ? 'Live dabei:' : 'Live now:'}</span>
+                <div className="flex -space-x-3">
+                  {activeUsers.map((u: any, i: number) => (
+                    <div key={i} className="relative group cursor-pointer">
+                      <div className={cn("w-10 h-10 rounded-full border-2 flex items-center justify-center text-white text-sm font-bold shadow-md z-10 relative", dk ? "bg-teal-600 border-[#0F172A]" : "bg-teal-600 border-white")}>{u.name.substring(0, 2).toUpperCase()}</div>
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max px-3 py-2 bg-slate-800 text-white text-xs rounded-xl opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none shadow-xl">{u.name} <br/> <span className="text-slate-400 text-[10px]">{u.email}</span></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -484,303 +685,411 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
              <Loader2 size={48} className="animate-spin text-teal-500 opacity-50" />
           </div>
         ) : (
-          <main className="flex-1 overflow-y-auto relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full pb-64">
-            <div className="px-8 py-6">
+          <main className="flex-1 overflow-y-auto p-8 relative no-scrollbar pb-64">
+            
+            {/* TIER 3: DATA CONTROLS */}
+            <div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative z-[100]">
+              <h2 className="text-2xl font-bold tracking-tight">{displayTitle}</h2>
               
-              {/* PAGE CONTROLS */}
-              <div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative z-[100]">
-                <h2 className="text-2xl font-bold tracking-tight">{displayTitle}</h2>
+              <div className="flex items-center gap-2">
                 
-                <div className="flex items-center gap-2">
-                  
-                  {/* UNDO / REDO (Kept for Zero Deletion Rule) */}
-                  <div className={cn("flex items-center mr-2 rounded-xl p-1 border", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200 shadow-sm")}>
-                    <button onClick={handleUndo} disabled={historyIndex <= 0} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 disabled:opacity-30 transition-all"><Undo2 size={18}/></button>
-                    <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 disabled:opacity-30 transition-all"><Redo2 size={18}/></button>
-                  </div>
-
-                  {/* CUSTOM YEAR SELECTOR */}
-                  <div className="relative">
-                     <button onClick={() => { closeMenu(); setShowYearMenu(!showYearMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-black flex items-center gap-2 transition-all", showYearMenu ? btnActive : btnInactive)}>
-                        {selectedYear} <ChevronDown size={14} />
-                     </button>
-                     {showYearMenu && (
-                        <div className={cn(popupCls, "w-[300px]")}>
-                           <div className="flex justify-between items-center mb-4">
-                              <button onClick={() => setYearBase(yearBase - 10)} className="p-2 rounded hover:bg-slate-100 dark:hover:bg-white/10"><ChevronLeft size={16}/></button>
-                              <span className="font-bold text-slate-500">{yearBase} - {yearBase + 9}</span>
-                              <button onClick={() => setYearBase(yearBase + 10)} className="p-2 rounded hover:bg-slate-100 dark:hover:bg-white/10"><ChevronRight size={16}/></button>
-                           </div>
-                           <div className="grid grid-cols-3 gap-2">
-                              {Array.from({length: 10}, (_, i) => yearBase + i).map(y => (
-                                 <button key={y} onClick={() => { setSelectedYear(y); setShowYearMenu(false); }} className={cn("py-2 rounded-lg text-sm font-bold transition-all", selectedYear === y ? btnActive : btnInactive)}>{y}</button>
-                              ))}
-                           </div>
+                {/* MODERN YEAR SELECTOR */}
+                <div className="relative" ref={yearMenuRef}>
+                    <button onClick={() => { setShowYearMenu(!showYearMenu); setShowMonthMenu(false); closeMenu(); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-bold flex items-center gap-2 transition-all shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800")}>
+                        {selectedYear} <ChevronDown size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} />
+                    </button>
+                    {showYearMenu && (
+                        <div className={cn(popupCls, "w-[200px] p-3")}>
+                            <button onClick={() => setYearOffset(prev => prev - 10)} className="w-full py-1.5 mb-2 rounded border border-dashed text-xs font-bold text-slate-500 hover:text-teal-500 flex items-center justify-center gap-1"><ChevronUp size={12}/> 10 {lang === 'de' ? 'Jahre' : 'Years'}</button>
+                            <div className="grid grid-cols-2 gap-1">
+                                {Array.from({ length: 10 }, (_, i) => selectedYear + yearOffset - 4 + i).map(y => (
+                                    <button key={y} onClick={() => { setSelectedYear(y); setShowYearMenu(false); setYearOffset(0); }} className={cn("py-2 rounded-lg text-sm font-bold transition-all", selectedYear === y ? btnActive : btnInactive)}>{y}</button>
+                                ))}
+                            </div>
+                            <button onClick={() => setYearOffset(prev => prev + 10)} className="w-full py-1.5 mt-2 rounded border border-dashed text-xs font-bold text-slate-500 hover:text-teal-500 flex items-center justify-center gap-1">10 {lang === 'de' ? 'Jahre' : 'Years'} <ChevronDown size={12}/></button>
                         </div>
-                     )}
-                  </div>
+                    )}
+                </div>
 
-                  {/* CUSTOM MONTH SELECTOR */}
-                  <div className="relative">
-                     <button onClick={() => { closeMenu(); setShowMonthMenu(!showMonthMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-bold flex items-center gap-2 transition-all mr-2", showMonthMenu ? btnActive : btnInactive)}>
-                        {selectedMonth === 'all' ? (lang === 'de' ? 'Alle Monate' : 'All Months') : (lang === 'de' ? monthNamesDe[selectedMonth] : monthNamesEn[selectedMonth])} <ChevronDown size={14} />
-                     </button>
-                     {showMonthMenu && (
-                        <div className={cn(popupCls, "w-[400px]")}>
-                           <button onClick={() => { setSelectedMonth('all'); setShowMonthMenu(false); }} className={cn("w-full py-2.5 mb-3 rounded-lg text-sm font-bold transition-all", selectedMonth === 'all' ? btnActive : btnInactive)}>{lang === 'de' ? 'Alle Monate' : 'All Months'}</button>
-                           <div className="grid grid-cols-4 gap-2">
-                              {(lang === 'de' ? monthNamesDe : monthNamesEn).map((m, i) => (
-                                 <button key={i} onClick={() => { setSelectedMonth(i); setShowMonthMenu(false); }} className={cn("py-2.5 rounded-lg text-sm font-bold transition-all", selectedMonth === i ? btnActive : btnInactive)}>{m.substring(0,3)}</button>
-                              ))}
-                           </div>
-                        </div>
-                     )}
-                  </div>
-
-                  <div className="relative">
-                    <button onClick={() => { closeMenu(); setShowTimelineMenu(!showTimelineMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", tlType !== 'all' ? btnActive : btnInactive)}><Calendar size={16} /> {lang === 'de' ? 'Zeitraum' : 'Timeline'}</button>
-                    {showTimelineMenu && (
-                      <div className={cn(popupCls, 'right-0 w-[400px]')}>
-                        <div className={popupHeader}>
-                          <h3 className={popupTitle}>{lang === 'de' ? 'Zeitraum' : 'Timeline Card'}</h3>
-                          <button onClick={closeMenu} className="text-slate-400 hover:text-white"><X size={20}/></button>
-                        </div>
-                        <div className="grid grid-cols-4 gap-2 mb-4">
-                          {[ { id: 'today', lEn: 'Today', lDe: 'Heute', off: 0 }, { id: 'tomorrow', lEn: 'Tomorrow', lDe: 'Morgen', off: 1 }, { id: '3days', lEn: '3 Days', lDe: '3 Tage', off: 3 }, { id: '7days', lEn: '7 Days', lDe: '7 Tage', off: 7 } ].map(t => (
-                            <button key={t.id} onClick={() => {
-                              const s = new Date(); if (t.off > 0 && t.id !== '3days' && t.id !== '7days') s.setDate(s.getDate() + t.off);
-                              const e = new Date(); e.setDate(e.getDate() + t.off);
-                              setTlStart(s.toISOString().split('T')[0]); setTlEnd(e.toISOString().split('T')[0]); setTlType(t.id as any);
-                            }} className={cn("py-2 rounded-lg text-xs font-medium border transition-all", tlType === t.id ? btnActive : btnInactive)}>
-                              {lang === 'de' ? t.lDe : t.lEn}
+                {/* MODERN MONTH SELECTOR */}
+                <div className="relative" ref={monthMenuRef}>
+                    <button onClick={() => { setShowMonthMenu(!showMonthMenu); setShowYearMenu(false); closeMenu(); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-bold flex items-center gap-2 transition-all shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800")}>
+                        {selectedMonth === null ? (lang === 'de' ? 'Alle Monate' : 'All Months') : (lang === 'de' ? monthNamesDe[selectedMonth] : monthNamesEn[selectedMonth])} <ChevronDown size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} />
+                    </button>
+                    {showMonthMenu && (
+                        <div className={cn(popupCls, "w-[200px] p-2 flex flex-col gap-1")}>
+                            <button onClick={() => { setSelectedMonth(null); setShowMonthMenu(false); }} className={cn("py-2 px-3 rounded-lg text-sm font-bold transition-all text-left", selectedMonth === null ? btnActive : btnInactive)}>
+                                {lang === 'de' ? 'Alle Monate' : 'All Months'}
                             </button>
-                          ))}
+                            <div className="w-full h-px bg-slate-200 dark:bg-white/10 my-1"></div>
+                            {(lang === 'de' ? monthNamesDe : monthNamesEn).map((m, i) => (
+                                <button key={i} onClick={() => { setSelectedMonth(i); setShowMonthMenu(false); }} className={cn("py-1.5 px-3 rounded-lg text-sm font-bold transition-all text-left", selectedMonth === i ? btnActive : btnInactive)}>
+                                    {m}
+                                </button>
+                            ))}
                         </div>
-                        <div className="flex justify-center border-t border-slate-200 dark:border-white/10 pt-4">
-                          <button onClick={() => {setTlType('all'); setTlStart(''); setTlEnd(''); closeMenu();}} className="w-full py-2.5 rounded-lg border flex items-center justify-center gap-2 text-sm font-medium">
-                            <Trash2 size={16}/> {lang === 'de' ? 'Zeitraum zurücksetzen' : 'Clear Timeline'}
-                          </button>
-                        </div>
-                      </div>
                     )}
-                  </div>
-
-                  <div className="relative">
-                    <button onClick={() => { setShowTimelineMenu(false); setShowSortMenu(false); setShowFilterMenu(!showFilterMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", (fbType !== 'all' || filterPaid !== 'all' || filterDeposit !== 'all' || filterDue !== 'all' || groupBy !== 'none') ? btnActive : btnInactive)}><Filter size={16} /> Filter</button>
-                    {showFilterMenu && (
-                      <div className={popupCls}>
-                        <div className={popupHeader}>
-                          <h3 className={popupTitle}>Filter</h3>
-                          <button onClick={closeMenu} className="text-slate-400"><X size={20}/></button>
-                        </div>
-                        <div className="space-y-5">
-                           <div>
-                             <p className={sectionTitle}>{lang === 'de' ? 'Fälligkeit' : 'Payment Due'}</p>
-                             <div className={cn("flex p-1 rounded-xl", dk ? "bg-black/20" : "bg-slate-100")}>
-                               {[{id:'all', lEn:'All', lDe:'Alle'}, {id:'today', lEn:'Today', lDe:'Heute'}, {id:'3days', lEn:'in 3 days', lDe:'in 3 Tagen'}, {id:'5days', lEn:'in 5 days', lDe:'in 5 Tagen'}].map(p => (
-                                 <button key={p.id} onClick={() => setFilterDue(p.id as any)} className={cn("flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all", filterDue === p.id ? (dk ? "bg-teal-600 text-white shadow-sm" : "bg-white text-teal-700 shadow-sm") : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300")}>{lang === 'de' ? p.lDe : p.lEn}</button>
-                               ))}
-                             </div>
-                           </div>
-                           <div>
-                             <p className={sectionTitle}>{lang === 'de' ? 'Verfügbare freie Betten' : 'Free Beds Availability'}</p>
-                             <div className="grid grid-cols-2 gap-2 mb-2">
-                               {[ { id: 'today', lEn: `Today (${fbCountToday})`, lDe: `Heute (${fbCountToday})` }, { id: 'tomorrow', lEn: `Tomorrow (${fbCountTomorrow})`, lDe: `Morgen (${fbCountTomorrow})` }, { id: '3days', lEn: `in 3 days (${fbCount3})`, lDe: `in 3 Tagen (${fbCount3})` }, { id: '7days', lEn: `in 7 days (${fbCount7})`, lDe: `in 7 Tagen (${fbCount7})` }
-                               ].map(f => <button key={f.id} onClick={() => setFbType(f.id as any)} className={cn("py-2 rounded-lg text-sm font-medium transition-all border", fbType === f.id ? btnActive : btnInactive)}>{lang === 'de' ? f.lDe : f.lEn}</button>)}
-                             </div>
-                           </div>
-                           <div>
-                             <p className={sectionTitle}>{lang === 'de' ? 'Zahlung' : 'Payment'}</p>
-                             <div className={cn("flex p-1 rounded-xl", dk ? "bg-black/20" : "bg-slate-100")}>
-                               {[{id:'all', lEn:'All', lDe:'Alle'}, {id:'paid', lEn:'Paid', lDe:'Bezahlt'}, {id:'unpaid', lEn:'Unpaid', lDe:'Unbezahlt'}].map(p => (
-                                 <button key={p.id} onClick={() => setFilterPaid(p.id as any)} className={cn("flex-1 py-1.5 text-sm font-medium rounded-lg transition-all", filterPaid === p.id ? (dk ? "bg-teal-600 text-white shadow-sm" : "bg-white text-teal-700 shadow-sm") : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300")}>{lang === 'de' ? p.lDe : p.lEn}</button>
-                               ))}
-                             </div>
-                           </div>
-                        </div>
-                        <div className="flex items-center justify-between border-t border-slate-200 dark:border-white/10 mt-6 pt-4">
-                          <button onClick={() => { setFilterPaid('all'); setFilterDeposit('all'); setFilterDue('all'); setGroupBy('none'); setFbType('all'); }} className="text-teal-600 text-sm font-medium hover:underline">{lang === 'de' ? 'Alle löschen' : 'Clear All'}</button>
-                          <button onClick={closeMenu} className="px-5 py-2 bg-teal-600 text-white rounded-lg font-bold">Apply</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="relative">
-                    <button onClick={() => { setShowTimelineMenu(false); setShowFilterMenu(false); setShowSortMenu(!showSortMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", (sortBy !== 'created_at' || sortDir !== 'desc') ? btnActive : btnInactive)}><ArrowUpDown size={16} /> {lang === 'de' ? 'Sortieren' : 'Sort'}</button>
-                    {showSortMenu && (
-                      <div className={cn(popupCls, 'w-[420px]')}>
-                        <div className={popupHeader}><h3 className={popupTitle}>{lang === 'de' ? 'Sortieren' : 'Sort'}</h3><button onClick={closeMenu} className="text-slate-400"><X size={20}/></button></div>
-                        <p className={sectionTitle}>{lang === 'de' ? 'Sortieren nach' : 'Sort By'}</p>
-                        <div className="grid grid-cols-2 gap-3 mb-6">
-                          {[ { id: 'name', lEn: 'Hotel Name', lDe: 'Hotelname' }, { id: 'cost', lEn: 'Total Cost', lDe: 'Gesamtkosten' }, { id: 'payment_due', lEn: 'Payment Due', lDe: 'Fälligkeit' }, { id: 'total_paid', lEn: 'Total Paid', lDe: 'Total Bezahlt' }, { id: 'created_at', lEn: 'Last Added', lDe: 'Zuletzt Hinzugefügt' }, { id: 'updated_at', lEn: 'Last Updated', lDe: 'Zuletzt Aktualisiert' }
-                          ].map(s => (
-                            <button key={s.id} onClick={() => setSortBy(s.id as any)} className={cn("py-3 rounded-lg text-sm font-medium border transition-all", sortBy === s.id ? btnActive : btnInactive)}>{lang === 'de' ? s.lDe : s.lEn}</button>
-                          ))}
-                        </div>
-                        <div className="flex items-center justify-between border-t border-slate-200 dark:border-white/10 pt-4">
-                          <button onClick={() => { setSortBy('created_at'); setSortDir('desc'); }} className="text-teal-600 dark:text-teal-400 text-sm font-medium hover:underline">{lang === 'de' ? 'Sortierung zurücksetzen' : 'Reset Sorting'}</button>
-                          <button onClick={closeMenu} className="px-5 py-2 bg-teal-600 text-white rounded-lg font-bold">{lang === 'de' ? 'Sortierung anwenden' : 'Apply Sorting'}</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <button onClick={() => setShowBookmarks(!showBookmarks)} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", showBookmarks ? btnActive : btnInactive)}>
-                    <Star size={16} className={showBookmarks ? 'fill-white' : ''} /> {lang === 'de' ? 'Lesezeichen' : 'Bookmarks'}
-                  </button>
-                  
-                  {!isStrictViewer && (
-                    <button onClick={() => setAddingHotel(true)} className="ml-4 px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl flex items-center gap-2 text-sm transition-all shadow-md active:scale-95">
-                      <Plus size={18} strokeWidth={2.5} /> {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
-                    </button>
-                  )}
                 </div>
-              </div>
 
-              {/* HORIZONTAL GROUP TABS */}
-              {groupBy !== 'none' && groupData && (
-                <div className="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar border-b border-slate-200 dark:border-white/10">
-                  {Object.keys(groupData).map(g => (
-                    <button 
-                      key={g} 
-                      onClick={() => setActiveGroupTab(g === activeGroupTab ? null : g)} 
-                      className={cn("px-5 py-2.5 rounded-t-xl text-sm font-bold border transition-all whitespace-nowrap", activeGroupTab === g ? "bg-teal-600 text-white border-teal-600" : "bg-white dark:bg-white/5 text-slate-500 border-transparent hover:bg-slate-100")}
-                    >
-                      {g} ({groupData[g].length})
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* STICKY COLUMN HEADERS */}
-              <div className={cn("sticky top-0 z-50 flex items-center px-4 py-3 border-b text-[10px] font-bold uppercase tracking-widest mb-2 backdrop-blur-md rounded-t-xl", dk ? "bg-[#0B1224]/90 border-white/10 text-slate-400" : "bg-slate-100/90 border-slate-200 text-slate-500")}>
-                 <div className="w-10 shrink-0"></div> 
-                 <div className="w-[200px] shrink-0">Hotel</div>
-                 <div className="w-[120px] shrink-0 pr-2">{lang === 'de' ? 'Firma' : 'Company'}</div>
-                 <div className="w-[150px] shrink-0 pr-2">{lang === 'de' ? 'Buchungen' : 'Bookings'}</div>
-                 <div className="flex-1 min-w-[200px]">{lang === 'de' ? 'Mitarbeiter' : 'Employees'}</div>
-                 <div className="w-12 shrink-0 text-center">{lang === 'de' ? 'Frei' : 'Free'}</div>
-                 <div className="w-12 shrink-0 text-center">{lang === 'de' ? 'Betten' : 'Beds'}</div>
-                 <div className="w-[140px] shrink-0 text-right pr-6">{lang === 'de' ? 'Kosten' : 'Cost'}</div>
-              </div>
-
-              <div className="flex flex-col gap-6">
-                  {/* ADD HOTEL FORM */}
-                  {addingHotel && !isStrictViewer && (
-                    <div className={cn('rounded-2xl border p-5 shadow-xl mb-4 animate-in slide-in-from-top duration-300', dk ? 'bg-[#1E293B] border-teal-500/30' : 'bg-white border-teal-500/30')}>
-                      <div className="flex flex-wrap lg:flex-nowrap items-end gap-4 w-full">
-                        <div className="flex-1 min-w-[200px]">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">{lang === 'de' ? 'Hotelname' : 'Hotel Name'}</label>
-                          <input autoFocus list="hotel-suggestions" className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold transition-all focus:border-teal-500', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder="Riveria..." />
-                        </div>
-                        <div className="flex-[0.8] min-w-[140px]">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block"><MapPin size={10} className="inline mr-1"/> {lang === 'de' ? 'Stadt' : 'City'}</label>
-                          <input className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold transition-all focus:border-teal-500', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder="Essen..." />
-                        </div>
-                        <div className="flex gap-2 shrink-0">
-                          <button onClick={handleSaveNewHotel} disabled={newHotelSaving || !newHotelName.trim()} className="px-5 h-[38px] bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-sm disabled:opacity-50 font-bold">
-                            {newHotelSaving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
-                          </button>
-                          <button onClick={() => setAddingHotel(false)} className={cn("px-4 h-[38px] rounded-lg flex items-center justify-center transition-all border", dk ? "border-white/10 hover:bg-white/10 text-slate-300" : "border-slate-200 hover:bg-slate-100 text-slate-600")}>
-                            <X size={18} />
-                          </button>
-                        </div>
+                {/* TIMELINE */}
+                <div className="relative">
+                  <button onClick={() => { closeMenu(); setShowTimelineMenu(!showTimelineMenu); setShowYearMenu(false); setShowMonthMenu(false); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", tlType !== 'all' ? btnActive : btnInactive)}><Calendar size={16} /> {lang === 'de' ? 'Zeitraum' : 'Timeline'}</button>
+                  {showTimelineMenu && (
+                    <div className={cn(popupCls, 'right-0 w-[400px]')}>
+                      <div className={popupHeader}>
+                        <h3 className={popupTitle}>{lang === 'de' ? 'Zeitraum' : 'Timeline Card (Stay Overlap)'}</h3>
+                        <button onClick={closeMenu} className="text-slate-400 hover:text-white"><X size={20}/></button>
                       </div>
-                    </div>
-                  )}
-
-                  {groupBy !== 'none' && groupData ? (
-                    activeGroupTab ? (
-                      <div className="flex flex-col gap-4 animate-in fade-in duration-300">
-                        {groupData[activeGroupTab].map((h, i) => (
-                          <HotelRow 
-                            key={h.id} 
-                            selectedMonth={selectedMonth}
-                            selectedYear={selectedYear}
-                            isOpen={expandedHotelId === h.id}
-                            onToggle={() => setExpandedHotelId(prev => prev === h.id ? null : h.id)}
-                            showGlobalFinancials={showGlobalFinancials}
-                            activeSort={sortBy}
-                            isSelected={selectedIds.has(h.id)}
-                            onSelect={() => toggleSelect(h.id)}
-                            isBulkActive={selectedIds.size > 0}
-                            entry={h} 
-                            index={i} 
-                            isDarkMode={dk} 
-                            lang={lang} 
-                            searchQuery={searchQuery} 
-                            searchScope={searchScope} 
-                            companyOptions={allCompanyOptions} 
-                            cityOptions={uniqueCities} 
-                            onDelete={hId => setHotels(hotels.filter(ho=>ho.id!==hId))} 
-                            onUpdate={(hId, up) => setHotels(hotels.map(ho=>ho.id===hId?{...ho,...up}:ho))} 
-                            onDeleteCompanyOption={handleDeleteGlobalCompany} 
-                            onAddOption={handleAddGlobalCompany} 
-                            hotelOptions={uniqueHotelNames}
-                            employeeOptions={uniqueEmployeeNames}
-                          />
+                      <div className="grid grid-cols-4 gap-2 mb-4">
+                        {[
+                          { id: 'today', lEn: 'Today', lDe: 'Heute', off: 0 }, 
+                          { id: 'tomorrow', lEn: 'Tomorrow', lDe: 'Morgen', off: 1 },
+                          { id: '3days', lEn: '3 Days', lDe: '3 Tage', off: 3 }, 
+                          { id: '7days', lEn: '7 Days', lDe: '7 Tage', off: 7 }
+                        ].map(t => (
+                          <button key={t.id} onClick={() => {
+                            const s = new Date(); if (t.off > 0 && t.id !== '3days' && t.id !== '7days') s.setDate(s.getDate() + t.off);
+                            const e = new Date(); e.setDate(e.getDate() + t.off);
+                            setTlStart(s.toISOString().split('T')[0]); setTlEnd(e.toISOString().split('T')[0]); setTlType(t.id as any);
+                          }} className={cn("py-2 rounded-lg text-xs font-medium border transition-all", tlType === t.id ? btnActive : btnInactive)}>
+                            {lang === 'de' ? t.lDe : t.lEn}
+                          </button>
                         ))}
                       </div>
-                    ) : (
-                      <div className="text-center py-20 text-slate-400 font-medium">
-                        {lang === 'de' ? 'Wählen Sie einen Tab oben aus' : 'Select a tab above to view entries'}
+                      <div className={cn("p-4 rounded-xl border mb-4", dk ? "bg-black/20 border-white/5" : "bg-slate-50 border-slate-200")}>
+                        <div className="flex items-center gap-3">
+                           <div className={cn("relative flex-1 h-[38px] rounded-lg border transition-all focus-within:border-teal-500 focus-within:ring-1 focus-within:ring-teal-500 overflow-hidden", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+                              <div className={cn("absolute inset-0 flex items-center px-3 text-sm font-medium pointer-events-none", dk ? "text-white" : "text-slate-900")}>
+                                 {tlStart ? tlStart.split('-').reverse().join('.') : <span className="opacity-40">{lang === 'de' ? 'TT.MM.JJJJ' : 'DD.MM.YYYY'}</span>}
+                              </div>
+                              <input type="date" value={tlStart} onClick={(e: any) => e.target.showPicker && e.target.showPicker()} onChange={e => {setTlStart(e.target.value); setTlType('range');}} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                           </div>
+                           <span className="text-slate-400">➔</span>
+                           <div className={cn("relative flex-1 h-[38px] rounded-lg border transition-all focus-within:border-teal-500 focus-within:ring-1 focus-within:ring-teal-500 overflow-hidden", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+                              <div className={cn("absolute inset-0 flex items-center px-3 text-sm font-medium pointer-events-none", dk ? "text-white" : "text-slate-900")}>
+                                 {tlEnd ? tlEnd.split('-').reverse().join('.') : <span className="opacity-40">{lang === 'de' ? 'TT.MM.JJJJ' : 'DD.MM.YYYY'}</span>}
+                              </div>
+                              <input type="date" min={tlStart} value={tlEnd} onClick={(e: any) => e.target.showPicker && e.target.showPicker()} onChange={e => {if(tlStart && e.target.value < tlStart) return; setTlEnd(e.target.value); setTlType('range');}} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                           </div>
+                        </div>
                       </div>
-                    )
-                  ) : (
-                    finalFiltered.map((hotel, index) => (
-                      <HotelRow 
-                        key={hotel.id} 
-                        selectedMonth={selectedMonth}
-                        selectedYear={selectedYear}
-                        isOpen={expandedHotelId === hotel.id}
-                        onToggle={() => setExpandedHotelId(prev => prev === hotel.id ? null : hotel.id)}
-                        showGlobalFinancials={showGlobalFinancials}
-                        activeSort={sortBy}
-                        isSelected={selectedIds.has(hotel.id)}
-                        onSelect={() => toggleSelect(hotel.id)}
-                        isBulkActive={selectedIds.size > 0}
-                        entry={hotel} 
-                        viewOnly={accessLevel?.role === 'viewer'} 
-                        index={index} 
-                        isDarkMode={dk} 
-                        lang={lang} 
-                        searchQuery={searchQuery} 
-                        searchScope={searchScope} 
-                        companyOptions={allCompanyOptions} 
-                        cityOptions={uniqueCities} 
-                        onDelete={hId => setHotels(hotels.filter(h=>h.id!==hId))} 
-                        onUpdate={(hId, up) => setHotels(hotels.map(h=>h.id===hId?{...h,...up}:h))} 
-                        onDeleteCompanyOption={handleDeleteGlobalCompany} 
-                        onAddOption={handleAddGlobalCompany} 
-                        hotelOptions={uniqueHotelNames}
-                        employeeOptions={uniqueEmployeeNames}
-                      />
-                    ))
-                  )}
-                  
-                  {!loading && finalFiltered.length === 0 && (
-                    <div className="text-center py-20 opacity-50 flex flex-col items-center">
-                      <Building size={48} className="mb-4 text-slate-400" />
-                      <p className="text-lg font-bold">{lang === 'de' ? 'Keine Hotels gefunden' : 'No hotels found'}</p>
-                      <p className="text-sm">{lang === 'de' ? 'Versuchen Sie, Ihre Filter anzupassen oder ein neues hinzuzufügen.' : 'Try adjusting your filters or adding a new one.'}</p>
+                      <p className="text-xs text-slate-500 mb-6">{lang === 'de' ? 'Blendet alle Hotels ohne Buchungen im gewählten Zeitraum aus.' : 'Hides any hotel that has zero bookings/durations overlapping your chosen range.'}</p>
+                      <div className="flex justify-center border-t border-slate-200 dark:border-white/10 pt-4">
+                        <button onClick={() => {setTlType('all'); setTlStart(''); setTlEnd(''); closeMenu();}} className={cn("w-full py-2.5 rounded-lg border flex items-center justify-center gap-2 text-sm font-medium", dk ? "border-teal-600 text-teal-500 hover:bg-teal-600/10" : "border-teal-600 text-teal-700 hover:bg-teal-50")}>
+                          <Trash2 size={16}/> {lang === 'de' ? 'Zeitraum zurücksetzen' : 'Clear Timeline'}
+                        </button>
+                      </div>
                     </div>
                   )}
+                </div>
+
+                {/* FILTER */}
+                <div className="relative">
+                  <button onClick={() => { setShowTimelineMenu(false); setShowFilterMenu(!showFilterMenu); setShowSortMenu(false); setShowYearMenu(false); setShowMonthMenu(false); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", (fbType !== 'all' || filterPaid !== 'all' || filterDue !== 'all' || filterDeposit !== 'all' || groupBy !== 'none') ? btnActive : btnInactive)}><Filter size={16} /> Filter</button>
+                  {showFilterMenu && (
+                    <div className={popupCls}>
+                      <div className={popupHeader}>
+                        <h3 className={popupTitle}>Filter</h3>
+                        <button onClick={closeMenu} className="text-slate-400"><X size={20}/></button>
+                      </div>
+                      <div className="space-y-5">
+                         <div>
+                           <p className={sectionTitle}>{lang === 'de' ? 'Verfügbare freie Betten' : 'Free Beds Availability'}</p>
+                           <div className="grid grid-cols-2 gap-2 mb-2">
+                             {[ { id: 'today', lEn: `Today (${fbCountToday})`, lDe: `Heute (${fbCountToday})` }, { id: 'tomorrow', lEn: `Tomorrow (${fbCountTomorrow})`, lDe: `Morgen (${fbCountTomorrow})` }, { id: '3days', lEn: `in 3 days (${fbCount3})`, lDe: `in 3 Tagen (${fbCount3})` }, { id: '7days', lEn: `in 7 days (${fbCount7})`, lDe: `in 7 Tagen (${fbCount7})` }
+                             ].map(f => <button key={f.id} onClick={() => setFbType(f.id as any)} className={cn("py-2 rounded-lg text-sm font-medium transition-all border", fbType === f.id ? btnActive : btnInactive)}>{lang === 'de' ? f.lDe : f.lEn}</button>)}
+                           </div>
+                         </div>
+                         <div>
+                           <p className={sectionTitle}>{lang === 'de' ? 'Zahlung' : 'Payment'}</p>
+                           <div className={segmentContainer}>
+                             {[{id:'all', lEn:'All', lDe:'Alle'}, {id:'paid', lEn:'Paid', lDe:'Bezahlt'}, {id:'unpaid', lEn:'Unpaid', lDe:'Unbezahlt'}].map(p => (
+                               <button key={p.id} onClick={() => setFilterPaid(p.id as any)} className={segmentBtn(filterPaid === p.id)}>{lang === 'de' ? p.lDe : p.lEn}</button>
+                             ))}
+                           </div>
+                         </div>
+                         {/* NEW: PAYMENT DUE */}
+                         <div>
+                           <p className={sectionTitle}>{lang === 'de' ? 'Fälligkeit' : 'Payment Due'}</p>
+                           <div className={segmentContainer}>
+                             {[{id:'all', lEn:'All', lDe:'Alle'}, {id:'today', lEn:'Today', lDe:'Heute'}, {id:'3days', lEn:'In 3 Days', lDe:'In 3 Tagen'}, {id:'5days', lEn:'In 5 Days', lDe:'In 5 Tagen'}].map(p => (
+                               <button key={p.id} onClick={() => setFilterDue(p.id as any)} className={segmentBtn(filterDue === p.id)}>{lang === 'de' ? p.lDe : p.lEn}</button>
+                             ))}
+                           </div>
+                         </div>
+                         <div>
+                           <p className={sectionTitle}>{lang === 'de' ? 'Kaution' : 'Deposit'}</p>
+                           <div className={segmentContainer}>
+                             {[{id:'all', lEn:'All', lDe:'Alle'}, {id:'yes', lEn:'Yes', lDe:'Ja'}, {id:'no', lEn:'No', lDe:'Nein'}].map(d => (
+                               <button key={d.id} onClick={() => setFilterDeposit(d.id as any)} className={segmentBtn(filterDeposit === d.id)}>{lang === 'de' ? d.lDe : d.lEn}</button>
+                             ))}
+                           </div>
+                         </div>
+                         <div>
+                           <p className={sectionTitle}>{lang === 'de' ? 'Gruppieren nach' : 'Group by'}</p>
+                           <div className={segmentContainer}>
+                             {[{id:'none', lEn:'None', lDe:'Keine'}, {id:'hotel', lEn:'Hotel', lDe:'Hotel'}, {id:'company', lEn:'Company', lDe:'Firma'}, {id:'city', lEn:'City', lDe:'Stadt'}].map(g => (
+                               <button key={g.id} onClick={() => setGroupBy(g.id as any)} className={segmentBtn(groupBy === g.id)}>{lang === 'de' ? g.lDe : g.lEn}</button>
+                             ))}
+                           </div>
+                         </div>
+                      </div>
+                      <div className="flex items-center justify-between border-t border-slate-200 dark:border-white/10 mt-6 pt-4">
+                        <button onClick={() => { setFilterPaid('all'); setFilterDue('all'); setFilterDeposit('all'); setGroupBy('none'); setFbType('all'); }} className={actionSecondary}>{lang === 'de' ? 'Alle Filter löschen' : 'Clear All filters'}</button>
+                        <button onClick={closeMenu} className={actionPrimary}>{lang === 'de' ? 'Filter anwenden' : 'Apply Filters'}</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* SORT */}
+                <div className="relative">
+                  <button onClick={() => { setShowTimelineMenu(false); setShowFilterMenu(false); setShowSortMenu(!showSortMenu); setShowYearMenu(false); setShowMonthMenu(false); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", (sortBy !== 'created_at' || sortDir !== 'desc') ? btnActive : btnInactive)}><ArrowUpDown size={16} /> {lang === 'de' ? 'Sortieren' : 'Sort'}</button>
+                  {showSortMenu && (
+                    <div className={cn(popupCls, 'w-[420px]')}>
+                      <div className={popupHeader}>
+                        <h3 className={popupTitle}>{lang === 'de' ? 'Sortieren' : 'Sort'}</h3>
+                        <button onClick={closeMenu} className="text-slate-400"><X size={20}/></button>
+                      </div>
+                      <p className={sectionTitle}>{lang === 'de' ? 'Sortieren nach' : 'Sort By'}</p>
+                      <div className="grid grid-cols-2 gap-3 mb-6">
+                        {[ { id: 'name', lEn: 'Hotel Name', lDe: 'Hotelname' }, { id: 'cost', lEn: 'Total Cost', lDe: 'Gesamtkosten' }, { id: 'bed_price', lEn: 'Price/Bed', lDe: 'Preis/Bett' }, { id: 'free_beds', lEn: 'Free Beds', lDe: 'Freie Betten' }, { id: 'payment_due', lEn: 'Payment Due', lDe: 'Fälligkeit' }, { id: 'total_paid', lEn: 'Total Paid', lDe: 'Total Bezahlt' }, { id: 'created_at', lEn: 'Last Added', lDe: 'Zuletzt Hinzugefügt' }, { id: 'updated_at', lEn: 'Last Updated', lDe: 'Zuletzt Aktualisiert' }
+                        ].map(s => (
+                          <button key={s.id} onClick={() => setSortBy(s.id as any)} className={cn("py-3 rounded-lg text-sm font-medium border transition-all", sortBy === s.id ? btnActive : btnInactive)}>
+                            {lang === 'de' ? s.lDe : s.lEn}
+                          </button>
+                        ))}
+                      </div>
+                      <p className={sectionTitle}>{lang === 'de' ? 'Sortierreihenfolge' : 'Sort Direction'}</p>
+                      
+                      <div className="grid grid-cols-2 gap-3 mb-6">
+                        <button onClick={() => setSortDir('asc')} className={cn("py-3 px-4 rounded-lg border text-left transition-all", sortDir === 'asc' ? btnActive : btnInactive)}>
+                          <span className="block text-sm font-bold">{lang === 'de' ? 'Aufsteigend' : 'Ascending'}</span>
+                          <span className={cn("block text-[10px] mt-1 font-normal", sortDir === 'asc' ? 'opacity-90' : 'opacity-50')}>
+                            {lang === 'de' ? 'Low to High, A-Z, Günstigste' : 'Low to High, A-Z, Oldest'}
+                          </span>
+                        </button>
+                        <button onClick={() => setSortDir('desc')} className={cn("py-3 px-4 rounded-lg border text-left transition-all", sortDir === 'desc' ? btnActive : btnInactive)}>
+                          <span className="block text-sm font-bold">{lang === 'de' ? 'Absteigend' : 'Descending'}</span>
+                          <span className={cn("block text-[10px] mt-1 font-normal", sortDir === 'desc' ? 'opacity-90' : 'opacity-50')}>
+                            {lang === 'de' ? 'High to Low, Z-A, Neueste' : 'High to Low, Z-A, Newest'}
+                          </span>
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-slate-200 dark:border-white/10 pt-4">
+                        <button onClick={() => { setSortBy('created_at'); setSortDir('desc'); }} className={actionSecondary}>{lang === 'de' ? 'Sortierung zurücksetzen' : 'Reset Sorting'}</button>
+                        <button onClick={closeMenu} className={actionPrimary}>{lang === 'de' ? 'Sortierung anwenden' : 'Apply Sorting'}</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <button onClick={() => setShowBookmarks(!showBookmarks)} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", showBookmarks ? btnActive : btnInactive)}>
+                  <Star size={16} className={showBookmarks ? 'fill-white' : ''} /> {lang === 'de' ? 'Lesezeichen' : 'Bookmarks'}
+                </button>
+                
+                {/* ACTION BUTTONS */}
+                <div className="flex items-center gap-3 ml-4 border-l pl-4 dark:border-white/10 border-slate-200">
+                    <button onClick={() => setShowStudio(true)} className={cn("px-4 py-2.5 rounded-xl border font-bold flex items-center gap-2 transition-all shadow-sm", dk ? "bg-slate-800 border-white/10 text-white hover:bg-white/10" : "bg-white border-slate-200 text-slate-800 hover:bg-slate-50")}>
+                        Export
+                    </button>
+                    {!isStrictViewer && (
+                    <button onClick={() => setAddingHotel(true)} className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl flex items-center gap-2 text-sm transition-all shadow-md active:scale-95">
+                        <Plus size={18} strokeWidth={2.5} /> {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
+                    </button>
+                    )}
+                </div>
+
               </div>
+            </div>
+
+            {/* ACTIVE FILTERS ROW */}
+            {activeFilters.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 mb-6 animate-in fade-in duration-200">
+                <span className="text-xs font-bold text-slate-500 mr-2">{lang === 'de' ? 'Aktive Filter:' : 'Active Filters:'}</span>
+                {activeFilters.map(af => (
+                  <span key={af.id} className={cn("px-3 py-1.5 rounded-lg flex items-center gap-2 text-[11px] font-bold border", dk ? "bg-teal-500/20 text-teal-400 border-teal-500/30" : "bg-teal-50 border-teal-200 text-teal-700")}>
+                    {af.label}: <span className="opacity-70 uppercase">{af.val}</span>
+                    <button onClick={af.clear} className="hover:text-red-500 ml-1 transition-colors"><X size={12} strokeWidth={3} /></button>
+                  </span>
+                ))}
+                <button onClick={() => { setTlType('all'); setFbType('all'); setFilterPaid('all'); setFilterDue('all'); setFilterDeposit('all'); setGroupBy('none'); setSortBy('created_at'); setSortDir('desc'); setShowBookmarks(false); }} className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-white ml-2 transition-all hover:underline">
+                  {lang === 'de' ? 'Alle löschen' : 'Clear All'}
+                </button>
+              </div>
+            )}
+
+            {/* HORIZONTAL GROUP TABS */}
+            {groupBy !== 'none' && groupData && (
+              <div className="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar border-b border-slate-200 dark:border-white/10">
+                {Object.keys(groupData).map(g => (
+                  <button 
+                    key={g} 
+                    onClick={() => setActiveGroupTab(g === activeGroupTab ? null : g)} 
+                    className={cn(
+                      "px-5 py-2.5 rounded-t-xl text-sm font-bold border transition-all whitespace-nowrap", 
+                      activeGroupTab === g ? "bg-teal-600 text-white border-teal-600" : "bg-white dark:bg-white/5 text-slate-500 border-transparent hover:bg-slate-100"
+                    )}
+                  >
+                    {g} ({groupData[g].length})
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-6">
+                {/* ADD HOTEL FORM */}
+                {addingHotel && !isStrictViewer && (
+                  <div className={cn('rounded-2xl border p-5 shadow-xl mb-4 animate-in slide-in-from-top duration-300', dk ? 'bg-[#1E293B] border-teal-500/30' : 'bg-white border-teal-500/30')}>
+                    <div className="flex flex-wrap lg:flex-nowrap items-end gap-4 w-full">
+                      
+                      <div className="flex-1 min-w-[200px]">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">{lang === 'de' ? 'Hotelname' : 'Hotel Name'}</label>
+                        <input autoFocus list="hotel-suggestions" className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold transition-all focus:border-teal-500', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder="Riveria..." />
+                        <datalist id="hotel-suggestions">
+                           {newHotelName.trim().length > 0 && uniqueHotelNames.map(n => <option key={n} value={n} />)}
+                        </datalist>
+                      </div>
+                      
+                      <div className="flex-[0.8] min-w-[140px]">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block"><MapPin size={10} className="inline mr-1"/> {lang === 'de' ? 'Stadt' : 'City'}</label>
+                        <input list="city-suggestions" className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold transition-all focus:border-teal-500', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelCity} onChange={e => setNewHotelCity(e.target.value)} placeholder="Essen..." />
+                        <datalist id="city-suggestions">
+                           {newHotelCity.trim().length > 0 && uniqueCities.map(c => <option key={c} value={c} />)}
+                        </datalist>
+                      </div>
+                      
+                      <div className="flex-1 min-w-[160px]">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block"><Building2 size={10} className="inline mr-1"/> {lang === 'de' ? 'Firma' : 'Company'}</label>
+                        <div className={cn('w-full min-h-[38px] rounded-lg border px-2 flex items-center transition-all', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')}>
+                          <CompanyMultiSelect selected={newHotelCompanyTags} options={allCompanyOptions} onChange={(v: string[]) => setNewHotelCompanyTags(v)} isDarkMode={dk} lang={lang} onDeleteOption={handleDeleteGlobalCompany} onAddOption={handleAddGlobalCompany} />
+                        </div>
+                      </div>
+
+                      <div className="flex-[0.8] min-w-[120px]">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block"><Globe size={10} className="inline mr-1"/> {lang === 'de' ? 'Land' : 'Country'}</label>
+                        <ModernDropdown value={newHotelCountry} options={getCountryOptions()} onChange={(v: string) => setNewHotelCountry(v)} isDarkMode={dk} lang={lang} />
+                      </div>
+                      
+                      <div className="flex gap-2 shrink-0">
+                        <button onClick={handleSaveNewHotel} disabled={newHotelSaving || !newHotelName.trim()} className="px-5 h-[38px] bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-sm disabled:opacity-50 font-bold">
+                          {newHotelSaving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+                        </button>
+                        <button onClick={() => setAddingHotel(false)} className={cn("px-4 h-[38px] rounded-lg flex items-center justify-center transition-all border", dk ? "border-white/10 hover:bg-white/10 text-slate-300" : "border-slate-200 hover:bg-slate-100 text-slate-600")}>
+                          <X size={18} />
+                        </button>
+                      </div>
+
+                    </div>
+                  </div>
+                )}
+
+                {groupBy !== 'none' && groupData ? (
+                  activeGroupTab ? (
+                    <div className="flex flex-col gap-4 animate-in fade-in duration-300">
+                      
+                      {/* GROUP TOTALS BLOCK */}
+                      <div className={cn("px-6 py-4 rounded-xl border flex items-center justify-between mb-2", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200 shadow-sm")}>
+                        <div className="flex items-center gap-4">
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{lang === 'de' ? 'Gruppe' : 'Group'}: {lang === 'de' && groupBy === 'company' ? 'Firma' : groupBy.toUpperCase()}</span>
+                          <h3 className="text-xl font-bold">{activeGroupTab}</h3>
+                          <span className="px-3 py-1 rounded-full bg-teal-500/10 text-teal-600 text-xs font-bold">{groupData[activeGroupTab].length} Hotels</span>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase">{lang === 'de' ? 'Gesamtwert' : 'Total Value'}</p>
+                          <p className="text-lg font-bold text-teal-600 dark:text-teal-400">{formatCurrency(groupData[activeGroupTab].reduce((s,h)=>s+calcHotelTotalCost(h, selectedMonth !== null ? selectedMonth : null, selectedYear),0))}</p>
+                        </div>
+                      </div>
+
+                      {groupData[activeGroupTab].map((h, i) => (
+                        <HotelRow 
+                          key={h.id} 
+                          selectedMonth={selectedMonth}
+                          selectedYear={selectedYear}
+                          isOpen={expandedHotelId === h.id}
+                          onToggle={() => setExpandedHotelId(prev => prev === h.id ? null : h.id)}
+                          showGlobalFinancials={showGlobalFinancials}
+                          activeSort={sortBy}
+                          isSelected={selectedIds.has(h.id)}
+                          onSelect={() => toggleSelect(h.id)}
+                          isBulkActive={selectedIds.size > 0}
+                          entry={h} 
+                          index={i} 
+                          isDarkMode={dk} 
+                          lang={lang} 
+                          searchQuery={searchQuery} 
+                          searchScope={searchScope} 
+                          companyOptions={allCompanyOptions} 
+                          cityOptions={uniqueCities} 
+                          onDelete={hId => setHotels(hotels.filter(ho=>ho.id!==hId))} 
+                          onUpdate={(hId, up) => setHotels(hotels.map(ho=>ho.id===hId?{...ho,...up}:ho))} 
+                          onDeleteCompanyOption={handleDeleteGlobalCompany} 
+                          onAddOption={handleAddGlobalCompany} 
+                          hotelOptions={uniqueHotelNames}
+                          employeeOptions={uniqueEmployeeNames}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-20 text-slate-400 font-medium">
+                      {lang === 'de' ? 'Wählen Sie einen Tab oben aus' : 'Select a tab above to view entries'}
+                    </div>
+                  )
+                ) : (
+                  finalFiltered.map((hotel, index) => (
+                    <HotelRow 
+                      key={hotel.id} 
+                      selectedMonth={selectedMonth}
+                      selectedYear={selectedYear}
+                      isOpen={expandedHotelId === hotel.id}
+                      onToggle={() => setExpandedHotelId(prev => prev === hotel.id ? null : hotel.id)}
+                      showGlobalFinancials={showGlobalFinancials}
+                      activeSort={sortBy}
+                      isSelected={selectedIds.has(hotel.id)}
+                      onSelect={() => toggleSelect(hotel.id)}
+                      isBulkActive={selectedIds.size > 0}
+                      entry={hotel} 
+                      viewOnly={accessLevel?.role === 'viewer'} 
+                      index={index} 
+                      isDarkMode={dk} 
+                      lang={lang} 
+                      searchQuery={searchQuery} 
+                      searchScope={searchScope} 
+                      companyOptions={allCompanyOptions} 
+                      cityOptions={uniqueCities} 
+                      onDelete={hId => setHotels(hotels.filter(h=>h.id!==hId))} 
+                      onUpdate={(hId, up) => setHotels(hotels.map(h=>h.id===hId?{...h,...up}:h))} 
+                      onDeleteCompanyOption={handleDeleteGlobalCompany} 
+                      onAddOption={handleAddGlobalCompany} 
+                      hotelOptions={uniqueHotelNames}
+                      employeeOptions={uniqueEmployeeNames}
+                    />
+                  ))
+                )}
+                
+                {!loading && finalFiltered.length === 0 && (
+                  <div className="text-center py-20 opacity-50 flex flex-col items-center">
+                    <Building size={48} className="mb-4 text-slate-400" />
+                    <p className="text-lg font-bold">{lang === 'de' ? 'Keine Hotels gefunden' : 'No hotels found'}</p>
+                    <p className="text-sm">{lang === 'de' ? 'Versuchen Sie, Ihre Filter anzupassen oder ein neues hinzuzufügen.' : 'Try adjusting your filters or adding a new one.'}</p>
+                  </div>
+                )}
             </div>
           </main>
         )}
 
+        {/* --- THE EXPORT STUDIO --- */}
         {showStudio && (
           <ExportStudio 
             hotels={finalFiltered} 
             calcCost={calcHotelTotalCost} 
             lang={lang} 
             total={totalSpend}
-            selectedMonth={selectedMonth === 'all' ? null : selectedMonth}
+            selectedMonth={selectedMonth}
             selectedYear={selectedYear}
-            title={selectedMonth !== 'all' 
-              ? `Period: ${lang === 'de' ? monthNamesDe[selectedMonth as number] : monthNamesEn[selectedMonth as number]} ${selectedYear}` 
+            title={selectedMonth !== null 
+              ? `Period: ${lang === 'de' ? monthNamesDe[selectedMonth] : monthNamesEn[selectedMonth]} ${selectedYear}` 
               : `Period: ${selectedYear}`}
             onClose={() => setShowStudio(false)}
             dk={dk}
