@@ -151,10 +151,16 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       if (!isMounted) return;
       const state = channel.presenceState();
       const users = Object.values(state).flat().map((p: any) => p.user);
-      const uniqueUsers = Array.from(new Map(users.map(u => [u.id, u])).values());
       
-      // SURGICAL FIX: Forcefully hide anyone broadcasting 'invisible: true'
-      const filteredUsers = uniqueUsers.filter((u: any) => !u.invisible && !u.is_ghost);
+      // 1. Collect all IDs that have AT LEAST ONE 'invisible' signal. 
+      // This guarantees old/stale connections cannot override your hidden status.
+      const ghostIds = new Set(users.filter((u: any) => u.invisible === true || u.is_ghost === true).map((u: any) => u.id));
+      
+      // 2. Map unique users
+      const uniqueUsers = Array.from(new Map(users.map((u: any) => [u.id, u])).values());
+      
+      // 3. Forcefully exclude anyone caught in the ghostIds Set
+      const filteredUsers = uniqueUsers.filter((u: any) => !ghostIds.has(u.id));
       setActiveUsers(filteredUsers);
     });
 
@@ -164,16 +170,15 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         if (user && isMounted) {
           const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
           
-          // Securely check Invisible status straight from the DB on load before tracking!
-          const { data: profile } = await supabase.from('profiles').select('invisible, is_ghost').eq('id', user.id).single();
-          const isGhost = profile?.invisible || profile?.is_ghost || false;
+          // Use maybeSingle() to prevent database errors, and fetch * to guarantee we catch the column
+          const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+          const isGhost = profile?.invisible === true || profile?.is_ghost === true;
           
           await channel.track({ user: { id: user.id, name, email: user.email, invisible: isGhost } });
         }
       }
     });
 
-    // Instantly catch the Settings switch and re-broadcast your presence without a refresh
     const handleGhostChange = async (e: any) => {
        const isGhost = e.detail;
        const { data: { user } } = await supabase.auth.getUser();
@@ -185,7 +190,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     window.addEventListener('ghost-mode-changed', handleGhostChange);
 
     return () => { isMounted = false; window.removeEventListener('ghost-mode-changed', handleGhostChange); channel.unsubscribe(); supabase.removeChannel(channel); };
-  }, [accessLevel]);
+  }, []);
 
   // --- DATA FETCHING LOGIC ---
   useEffect(() => { 
