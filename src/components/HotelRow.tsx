@@ -753,16 +753,17 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           <div className="flex items-center justify-center w-10 shrink-0">
             {isOpen ? <ChevronDown size={18} className="text-teal-500" /> : <ChevronRight size={18} className="text-slate-500" />}
           </div>
-          
-          <div className="w-[200px] shrink-0 pr-4 flex flex-col justify-center">
+
+          <div className="w-[200px] shrink-0 pr-4 flex flex-col justify-center relative">
             <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-[14px] font-black leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} />
             <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} className="mt-0.5" textClass={cn("text-[10px] font-bold uppercase tracking-widest gap-1.5", dk ? "text-slate-500" : "text-slate-400")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
             {hiddenMatchText && (
-               <button onClick={(e) => { e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('billing'); }} className="absolute right-full mr-4 flex items-center gap-1 px-2 py-1 rounded bg-teal-500/10 text-teal-500 text-[9px] font-black uppercase tracking-tighter whitespace-nowrap hover:bg-teal-500/20 transition-colors cursor-pointer shadow-sm">
-                  <Search size={10} strokeWidth={3} /> {hiddenMatchText}
+               <button onClick={(e) => { e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('billing'); }} className="mt-1.5 w-max flex items-center gap-1 px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-500 text-[9px] font-black uppercase tracking-tighter hover:bg-teal-500/20 transition-colors cursor-pointer shadow-sm">
+                  <Search size={8} strokeWidth={3} /> {hiddenMatchText}
                </button>
             )}
           </div>
+          
 
           <div className="w-[120px] shrink-0 pr-2" onClick={e => e.stopPropagation()}>
             <CompanyMultiSelect 
@@ -778,7 +779,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           />
           </div>
 
-          <div className="w-[340px] shrink-0 pr-2 flex flex-wrap gap-1.5">
+          <div className="w-[340px] shrink-0 pr-2 grid grid-cols-3 gap-1.5 content-center items-center">
               {visibleDurs.map((d: any, i: number) => {
                 const title = `${calculateNights(d.startDate, d.endDate)} N, ${(d.roomCards || []).length} Rooms`;
                 return (
@@ -810,16 +811,21 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               )}
           </div>
 
-          <div className="flex-1 min-w-[200px] flex flex-wrap gap-1.5 pr-4">
-              {visibleEmps.map((emp: any, empIdx: number) => {
+          <div className="flex-1 min-w-[200px] flex flex-wrap gap-1.5 pr-4 content-center">
+              {visibleEmps.map((emp: any) => {
                 const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
                 const borderCls = status === 'active' ? "border-emerald-500/50" : status === 'upcoming' ? "border-blue-500/50" : status === 'ending-soon' ? "border-red-500/50" : "border-slate-500/40";
                 const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
                 const shortName = emp.name ? emp.name.trim().split(' ').pop() : '_ _ _';
                 
-                const isSubstitute = emp.slotIndex !== undefined && sortedEmployees.findIndex(e => e.slotIndex === emp.slotIndex) < empIdx;
-                let isPartial = false;
+                // True RoomCard logic for Substitutes & Partials
                 const parentDur = localHotel.durations.find((d:any) => (d.roomCards||[]).some((rc:any) => (rc.employees||[]).some((e:any) => e.id === emp.id)));
+                const parentRc = parentDur?.roomCards?.find((rc:any) => (rc.employees||[]).some((e:any) => e.id === emp.id));
+                const empsInSlot = (parentRc?.employees || []).filter((e:any) => e.slotIndex === emp.slotIndex);
+                empsInSlot.sort((a:any, b:any) => new Date(a.checkIn||0).getTime() - new Date(b.checkIn||0).getTime());
+                const isSubstitute = empsInSlot.length > 1 && empsInSlot[0].id !== emp.id;
+                
+                let isPartial = false;
                 if (parentDur && (emp.checkIn > parentDur.startDate || emp.checkOut < parentDur.endDate)) isPartial = true;
                 
                 return (
@@ -853,12 +859,19 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                  <div className="relative group/hiddenEmp">
                     <span className="px-2 py-0.5 rounded-full border border-dashed border-slate-400 text-[10px] font-bold flex items-center justify-center text-slate-500 cursor-pointer">+{hiddenEmps.length}</span>
                     <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max max-w-[280px] p-2 bg-slate-800 text-white rounded-lg opacity-0 group-hover/hiddenEmp:opacity-100 transition-opacity z-[99999] shadow-xl flex flex-wrap gap-1.5 pointer-events-auto">
-                        {hiddenEmps.map((emp: any, empIdx: number) => {
+                        {hiddenEmps.map((emp: any) => {
                             const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
                             const borderCls = status === 'active' ? "border-emerald-500/50" : status === 'upcoming' ? "border-blue-500/50" : status === 'ending-soon' ? "border-red-500/50" : "border-slate-500/40";
                             const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
-                            let isPartial = false;
+                            
+                            // True RoomCard logic for the hidden popups too!
                             const parentDur = localHotel.durations.find((d:any) => (d.roomCards||[]).some((rc:any) => (rc.employees||[]).some((e:any) => e.id === emp.id)));
+                            const parentRc = parentDur?.roomCards?.find((rc:any) => (rc.employees||[]).some((e:any) => e.id === emp.id));
+                            const empsInSlot = (parentRc?.employees || []).filter((e:any) => e.slotIndex === emp.slotIndex);
+                            empsInSlot.sort((a:any, b:any) => new Date(a.checkIn||0).getTime() - new Date(b.checkIn||0).getTime());
+                            const isSubstitute = empsInSlot.length > 1 && empsInSlot[0].id !== emp.id;
+                            
+                            let isPartial = false;
                             if (parentDur && (emp.checkIn > parentDur.startDate || emp.checkOut < parentDur.endDate)) isPartial = true;
                             
                             return (
@@ -875,8 +888,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                        if(el){ el.scrollIntoView({behavior: 'smooth', block: 'center'}); el.classList.add('ring-2', 'ring-teal-500'); setTimeout(()=>el.classList.remove('ring-2','ring-teal-500'), 2000);} 
                                     }, 250); 
                                 }} 
-                                className={cn("px-2 py-0.5 rounded-full border text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, isPartial ? "border-dashed" : "border-solid", "bg-slate-700 text-white")}>
-                                <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
+                                className={cn("px-2 py-0.5 rounded-full border text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, isPartial ? "border-dashed" : "border-solid", "bg-slate-700 text-white hover:bg-slate-600")}>
+                                {isSubstitute ? <CornerDownRight size={10} className={cn("shrink-0", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} /> : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />}
                                 {emp.name?.trim().split(' ').pop()}
                                 </button>
                             );
