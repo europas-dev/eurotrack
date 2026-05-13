@@ -152,10 +152,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       const state = channel.presenceState();
       const users = Object.values(state).flat().map((p: any) => p.user);
       const uniqueUsers = Array.from(new Map(users.map(u => [u.id, u])).values());
-      const filteredUsers = uniqueUsers.filter((u: any) => {
-          if (u.id === accessLevel?.id && accessLevel?.role === 'superadmin' && accessLevel?.invisible) return false;
-          return true;
-      });
+      
+      // SURGICAL FIX: Forcefully hide anyone broadcasting 'is_ghost: true'
+      const filteredUsers = uniqueUsers.filter((u: any) => !u.is_ghost);
       setActiveUsers(filteredUsers);
     });
 
@@ -164,13 +163,29 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         const { data: { user } } = await supabase.auth.getUser();
         if (user && isMounted) {
           const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
-          await channel.track({ user: { id: user.id, name, email: user.email } });
+          
+          // Securely check Ghost status straight from the DB on load
+          const { data: profile } = await supabase.from('profiles').select('is_ghost').eq('id', user.id).single();
+          const isGhost = profile?.is_ghost || false;
+          
+          await channel.track({ user: { id: user.id, name, email: user.email, is_ghost: isGhost } });
         }
       }
     });
 
-    return () => { isMounted = false; channel.unsubscribe(); supabase.removeChannel(channel); };
-  }, [accessLevel]);
+    // Instantly catch the Settings switch and re-broadcast your presence
+    const handleGhostChange = async (e: any) => {
+       const isGhost = e.detail;
+       const { data: { user } } = await supabase.auth.getUser();
+       if (user) {
+          const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+          await channel.track({ user: { id: user.id, name, email: user.email, is_ghost: isGhost } });
+       }
+    };
+    window.addEventListener('ghost-mode-changed', handleGhostChange);
+
+    return () => { isMounted = false; window.removeEventListener('ghost-mode-changed', handleGhostChange); channel.unsubscribe(); supabase.removeChannel(channel); };
+  }, []);
 
   // --- DATA FETCHING LOGIC ---
   useEffect(() => { 
