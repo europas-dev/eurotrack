@@ -104,7 +104,9 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
   const { finalNetto, mwst, brutto } = calcInvoiceItem(item, defaultNights);
   const [showDiscount, setShowDiscount] = useState(parseFloat(item.discountValue || 0) > 0);
   const [calOpen, setCalOpen] = useState(false);
-  const inputClass = cn('px-2 py-1.5 rounded text-[12px] font-bold outline-none border transition-all h-[30px]', dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-teal-500' : 'bg-white border-slate-200 text-slate-900 focus:border-teal-500');
+  
+  const noSpinner = "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
+  const inputClass = cn('px-2 py-1.5 rounded text-[12px] font-bold outline-none border transition-all h-[30px]', noSpinner, dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-teal-500' : 'bg-white border-slate-200 text-slate-900 focus:border-teal-500');
 
   const hasNettoInput = item.netto != null && item.netto !== '';
   const hasBruttoInput = item.brutto != null && item.brutto !== '';
@@ -122,80 +124,91 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
     return (
       <div className={cn("flex flex-col p-2 border-b transition-all w-full", dk ? "bg-white/5 border-white/10" : "bg-slate-50 border-slate-200")}>
         <div className="flex items-start w-full">
-           <div className="flex-1 min-w-[200px] flex items-center gap-1.5 shrink-0 pr-2">
+           <div className="w-[160px] flex items-center gap-1.5 shrink-0 pr-2">
                <select value={item.type || 'room'} onChange={e => {
                    const newType = e.target.value;
                    const newMethod = (newType === 'base' || newType === 'extra') ? 'total' : item.method;
                    onChange({ type: newType, method: newMethod });
-               }} className={cn(inputClass, "w-1/2 px-1")}>
+               }} className={cn(inputClass, "w-1/2 px-1 text-[11px]")}>
                  {COST_TYPES.map(o => <option key={o.id} value={o.id}>{lang === 'de' ? o.de : o.en}</option>)}
                </select>
-               <select disabled={!isPerBedAllowed} value={!isPerBedAllowed ? 'total' : (item.method || 'total')} onChange={e => onChange({ method: e.target.value })} className={cn(inputClass, "w-1/2 px-1 disabled:opacity-50")}>
+               <select disabled={!isPerBedAllowed} value={!isPerBedAllowed ? 'total' : (item.method || 'total')} onChange={e => onChange({ method: e.target.value })} className={cn(inputClass, "w-1/2 px-1 text-[11px] disabled:opacity-50")}>
                     {COST_METHODS.map(m => <option key={m.id} value={m.id}>{lang === 'de' ? m.de : m.en}</option>)}
                </select>
            </div>
 
-           <div className="w-[240px] flex flex-col items-end shrink-0 pr-2 relative">
+           <div className="flex-1 flex flex-col items-end shrink-0 pr-2 relative">
                {item.method === 'per_bed' && isPerBedAllowed ? (
-                 <div className="flex items-center justify-end gap-1.5 w-full">
-                    <input type="number" title={lang === 'de' ? 'Betten' : 'Beds'} value={item.beds ?? 1} onChange={e => onChange({ beds: e.target.value })} className={cn(inputClass, "w-[34px] px-1 text-center")} placeholder="1" />
-                    <span className="text-[12px] text-slate-400 font-black">×</span>
-                    <div className={cn("flex items-center rounded border h-[30px] cursor-pointer hover:border-teal-500 transition-colors", dk ? "bg-black/20 border-white/10 text-white" : "bg-white border-slate-200 text-slate-700")} onClick={() => setCalOpen(!calOpen)}>
-                        <span className="w-[26px] text-center text-[11px] font-bold">{activeNights}</span>
-                        <div className={cn("px-1 border-l h-full flex items-center", dk ? "border-white/10 text-slate-400" : "border-slate-200 text-slate-400")}><Calendar size={12}/></div>
-                    </div>
-                    <div className="relative w-[75px] ml-1 shrink-0">
-                       <input type="number" disabled={hasBruttoInput} placeholder="0.00" value={item.netto ?? ''} onChange={e => onChange({ netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 pr-6 text-right")} />
-                       {(!showDiscount && !hasBruttoInput) && <button onClick={() => setShowDiscount(true)} className="absolute right-1 top-[5px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
-                    </div>
-                    {calOpen && (
-                        <div className={cn("absolute top-full right-0 mt-2 p-3 rounded-xl border shadow-2xl z-[9999] flex flex-col gap-3 w-[260px]", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
-                           <div className="flex items-center gap-2 w-full">
-                               <div className="flex-1 flex flex-col gap-1">
-                                  <label className="text-[9px] font-bold text-slate-500 uppercase">Start</label>
-                                  <NativeDatePicker dk={dk} value={item.startDate || defaultStart || ''} onChange={(s: string) => onChange({ startDate: s, nights: calculateNights(s, item.endDate || defaultEnd || s) })} className="w-full h-[30px]" />
-                               </div>
-                               <div className="flex-1 flex flex-col gap-1">
-                                  <label className="text-[9px] font-bold text-slate-500 uppercase">End</label>
-                                  <NativeDatePicker dk={dk} min={item.startDate || defaultStart} value={item.endDate || defaultEnd || ''} onChange={(end: string) => onChange({ endDate: end, nights: calculateNights(item.startDate || defaultStart || end, end) })} className="w-full h-[30px]" />
-                               </div>
-                           </div>
-                           <button onClick={() => setCalOpen(false)} className="w-full py-1.5 bg-teal-500 hover:bg-teal-600 transition-colors text-white text-[11px] font-bold rounded shadow-sm">OK</button>
-                        </div>
-                    )}
+                 <div className="flex flex-col items-end gap-1.5 w-full">
+                     <div className="flex items-center justify-end gap-1.5 w-full">
+                         <input type="number" title={lang === 'de' ? 'Betten' : 'Beds'} value={item.beds ?? 1} onChange={e => onChange({ beds: e.target.value })} className={cn(inputClass, "w-[40px] px-1 text-center")} placeholder="1" />
+                         <span className="text-[12px] text-slate-400 font-black">×</span>
+                         <div className={cn("flex items-center rounded border h-[30px] cursor-pointer hover:border-teal-500 transition-colors", dk ? "bg-black/20 border-white/10 text-white" : "bg-white border-slate-200 text-slate-700")} onClick={() => setCalOpen(!calOpen)}>
+                             <span className="w-[26px] text-center text-[11px] font-bold">{activeNights}</span>
+                             <div className={cn("px-1 border-l h-full flex items-center", dk ? "border-white/10 text-slate-400" : "border-slate-200 text-slate-400")}><Calendar size={12}/></div>
+                         </div>
+                         <div className="relative w-[100px] ml-1 shrink-0">
+                            <input type="number" disabled={hasBruttoInput} placeholder="0.00" value={item.netto ?? ''} onChange={e => onChange({ netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 text-left")} />
+                            {(!showDiscount && !hasBruttoInput) && <button onClick={() => setShowDiscount(true)} className="absolute right-1 top-[5px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
+                         </div>
+                     </div>
+                     {showDiscount && !hasBruttoInput && (
+                         <div className="flex items-center justify-end w-[130px] animate-in fade-in slide-in-from-top-1">
+                            <input type="number" value={item.discountValue ?? ''} onChange={e => onChange({ discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 flex-1 px-2 text-left")} placeholder="Rabatt" />
+                            <button onClick={() => onChange({ discountType: item.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[35px] h-[30px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{item.discountType === 'percentage' ? '%' : '€'}</button>
+                            <button onClick={() => { setShowDiscount(false); onChange({ discountValue: null }); }} className={cn("w-[25px] h-[30px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
+                         </div>
+                     )}
+                     {calOpen && (
+                         <div className={cn("absolute top-full right-0 mt-2 p-3 rounded-xl border shadow-2xl z-[9999] flex flex-col gap-3 w-[260px]", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+                            <div className="flex items-center gap-2 w-full">
+                                <div className="flex-1 flex flex-col gap-1">
+                                   <label className="text-[9px] font-bold text-slate-500 uppercase">Start</label>
+                                   <NativeDatePicker dk={dk} value={item.startDate || defaultStart || ''} onChange={(s: string) => onChange({ startDate: s, nights: calculateNights(s, item.endDate || defaultEnd || s) })} className="w-full h-[30px]" />
+                                </div>
+                                <div className="flex-1 flex flex-col gap-1">
+                                   <label className="text-[9px] font-bold text-slate-500 uppercase">End</label>
+                                   <NativeDatePicker dk={dk} min={item.startDate || defaultStart} value={item.endDate || defaultEnd || ''} onChange={(end: string) => onChange({ endDate: end, nights: calculateNights(item.startDate || defaultStart || end, end) })} className="w-full h-[30px]" />
+                                </div>
+                            </div>
+                            <button onClick={() => setCalOpen(false)} className="w-full py-1.5 bg-teal-500 hover:bg-teal-600 transition-colors text-white text-[11px] font-bold rounded shadow-sm">OK</button>
+                         </div>
+                     )}
                  </div>
                ) : (
                  <span className="text-[10px] italic text-slate-400 opacity-50 px-2 w-full text-right h-[30px] flex items-center justify-end">--</span>
                )}
-               {showDiscount && !hasBruttoInput && (
-                  <div className="flex items-center justify-end w-[130px] animate-in fade-in slide-in-from-top-1 mt-1 mr-[-2px]">
-                     <input type="number" value={item.discountValue ?? ''} onChange={e => onChange({ discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-[60px] px-1.5 text-right")} placeholder="0" />
-                     <button onClick={() => onChange({ discountType: item.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[35px] h-[30px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{item.discountType === 'percentage' ? '%' : '€'}</button>
-                     <button onClick={() => { setShowDiscount(false); onChange({ discountValue: null }); }} className={cn("w-[25px] h-[30px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
-                  </div>
-               )}
            </div>
 
-           <div className="w-[100px] flex items-center justify-end shrink-0 pr-2 relative">
+           <div className="w-[110px] flex items-center justify-end shrink-0 pr-2 relative">
                {item.method === 'total' || !isPerBedAllowed ? (
-                   <div className="relative w-full">
-                       <input type="number" disabled={hasBruttoInput} placeholder="Netto" value={item.netto ?? ''} onChange={e => onChange({ netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 pr-6 text-right")} />
-                       {(!showDiscount && !hasBruttoInput) && <button onClick={() => setShowDiscount(true)} className="absolute right-1 top-[5px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
+                   <div className="flex flex-col items-end gap-1.5 w-full">
+                       <div className="relative w-full">
+                           <input type="number" disabled={hasBruttoInput} placeholder="Netto" value={item.netto ?? ''} onChange={e => onChange({ netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 pr-6 text-left")} />
+                           {(!showDiscount && !hasBruttoInput) && <button onClick={() => setShowDiscount(true)} className="absolute right-1 top-[5px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
+                       </div>
+                       {showDiscount && !hasBruttoInput && (
+                           <div className="flex items-center justify-end w-full animate-in fade-in slide-in-from-top-1">
+                              <input type="number" value={item.discountValue ?? ''} onChange={e => onChange({ discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 flex-1 px-2 text-left")} placeholder="Rabatt" />
+                              <button onClick={() => onChange({ discountType: item.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[35px] h-[30px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{item.discountType === 'percentage' ? '%' : '€'}</button>
+                              <button onClick={() => { setShowDiscount(false); onChange({ discountValue: null }); }} className={cn("w-[25px] h-[30px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
+                           </div>
+                       )}
                    </div>
                ) : (
                    <div className={cn("w-full flex items-center justify-end h-[30px] text-[13px] font-bold opacity-80")}>{formatCurrency(finalNetto)}</div>
                )}
            </div>
 
-           <div className="w-[70px] shrink-0 pl-1">
+           <div className="w-[60px] shrink-0 pl-1">
                <MwstInput value={item.mwst} onChange={(v:any) => onChange({ mwst: v })} isDarkMode={dk} disabled={false} />
            </div>
 
            <div className="w-[110px] shrink-0 pl-2">
-               <input type="number" disabled={hasNettoInput} placeholder={hasNettoInput ? formatCurrency(brutto) : "Brutto"} value={item.brutto ?? ''} onChange={e => onChange({ brutto: e.target.value, netto: null })} className={cn(inputClass, "w-full text-right", hasNettoInput ? "disabled:opacity-100 disabled:bg-transparent disabled:border-transparent text-[13px] font-black px-1 placeholder-slate-900 dark:placeholder-white" : "")} />
+               <input type="number" disabled={hasNettoInput} placeholder={hasNettoInput ? formatCurrency(brutto) : "Brutto"} value={item.brutto ?? ''} onChange={e => onChange({ brutto: e.target.value, netto: null })} className={cn(inputClass, "w-full text-left", hasNettoInput ? "disabled:opacity-100 disabled:bg-transparent disabled:border-transparent text-[13px] font-black px-1 placeholder-slate-900 dark:placeholder-white" : "")} />
            </div>
 
-           <div className="w-[60px] flex items-center justify-end gap-1.5 shrink-0 pl-1">
+           <div className="w-[50px] flex items-start justify-end gap-1.5 shrink-0 pl-1">
               <button onClick={onSave} className="p-1.5 h-[30px] w-[26px] flex items-center justify-center text-white bg-teal-500 hover:bg-teal-600 rounded transition-all shadow-sm"><Check size={14} strokeWidth={3}/></button>
               <button onClick={onDelete} className="p-1.5 h-[30px] w-[26px] flex items-center justify-center text-white bg-red-500 hover:bg-red-600 rounded transition-all shadow-sm"><Trash2 size={13}/></button>
            </div>
@@ -212,7 +225,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
 
   return (
     <div className={cn("flex items-start px-3 py-3 border-b last:border-b-0 transition-colors group", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
-       <div className="flex-1 min-w-[200px] flex flex-col gap-0.5 shrink-0 overflow-hidden pr-2">
+       <div className="w-[160px] flex flex-col gap-0.5 shrink-0 overflow-hidden pr-2">
           <div className="flex items-center gap-1.5">
              <span className={cn("text-[12px] font-black truncate", dk ? "text-slate-200" : "text-slate-800")}>{getTranslation(COST_TYPES, item.type || 'room', lang)}</span>
              {item.method === 'per_bed' && <span className="text-[10px] font-bold text-slate-500 shrink-0">({activeNights} {lang==='de'?'Nächte':'Nights'}, {item.beds||1} {lang==='de'?'Betten':'Beds'})</span>}
@@ -227,7 +240,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
           )}
        </div>
 
-       <div className="w-[240px] shrink-0 flex items-start justify-end pr-3">
+       <div className="flex-1 flex items-start justify-end pr-3">
           {item.method === 'per_bed' ? (
              <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(parseFloat(item.netto)||0)}</span>
           ) : (
@@ -235,14 +248,14 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
           )}
        </div>
 
-       <div className="w-[100px] shrink-0 flex flex-col items-end pr-2">
+       <div className="w-[110px] shrink-0 flex flex-col items-end pr-2">
           <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>
              {hasBruttoInput ? (lang === 'de' ? 'Auto' : 'Auto') : formatCurrency(finalNetto)}
           </span>
           {item.discountValue > 0 && !hasBruttoInput && <span className="text-[9px] font-black text-teal-500 leading-none mt-1 border border-teal-500/20 bg-teal-500/10 px-1.5 py-0.5 rounded">-{item.discountType === 'percentage' ? `${item.discountValue}%` : `${item.discountValue}€`}</span>}
        </div>
 
-       <div className="w-[70px] shrink-0 pt-0.5 text-center">
+       <div className="w-[60px] shrink-0 pt-0.5 text-center">
           <span className={cn("text-[13px] font-bold", dk ? "text-slate-400" : "text-slate-500")}>{item.mwst ?? 7}%</span>
        </div>
 
@@ -252,7 +265,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
           </span>
        </div>
 
-       <div className="w-[60px] flex items-start justify-end opacity-0 group-hover:opacity-100 transition-opacity pt-0.5">
+       <div className="w-[50px] flex items-start justify-end opacity-0 group-hover:opacity-100 transition-opacity pt-0.5">
           {!viewOnly && <button onClick={onEdit} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 transition-colors"><Edit3 size={14}/></button>}
        </div>
     </div>
