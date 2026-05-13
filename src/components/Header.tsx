@@ -136,6 +136,7 @@ export default function Header({
   const [newUsername, setNewUsername] = useState('');
   const [usernameMsg, setUsernameMsg] = useState('');
   const [savingUsername, setSavingUsername] = useState(false);
+  const [editingUsername, setEditingUsername] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [emailMsg, setEmailMsg] = useState('');
   const [savingEmail, setSavingEmail] = useState(false);
@@ -208,7 +209,10 @@ export default function Header({
   async function handleToggleGhost() {
     const next = !isGhostMode;
     setIsGhostMode(next);
-    try { await updateMyProfile({ is_ghost: next }); } catch { }
+    try { 
+       await updateMyProfile({ is_ghost: next }); 
+       if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('ghost-mode-changed', { detail: next }));
+    } catch { setIsGhostMode(!next); }
   }
 
   async function handleSavePersonalization() {
@@ -228,7 +232,7 @@ export default function Header({
   }, [accessSearch]);
 
   async function handleSaveProfile() { setSavingProfile(true); setProfileMsg(''); try { const updated = await updateMyProfile({ full_name: editName, avatar: selectedAvatar }); setProfile(updated); setEditingName(false); setProfileMsg(isDe ? '✓ Gespeichert' : '✓ Saved'); setTimeout(() => setProfileMsg(''), 2500); } catch (e: any) { setProfileMsg(`Error: ${e.message}`); } finally { setSavingProfile(false); } }
-  async function handleSaveUsername() { setSavingUsername(true); setUsernameMsg(''); try { await updateMyUsername(newUsername); setProfile((p: any) => ({ ...p, username: newUsername })); setUsernameMsg(isDe ? '✓ Benutzername aktualisiert' : '✓ Username updated'); setTimeout(() => setUsernameMsg(''), 3000); } catch (e: any) { setUsernameMsg(`Error: ${e.message}`); } finally { setSavingUsername(false); } }
+  async function handleSaveUsername() { setSavingUsername(true); setUsernameMsg(''); try { await updateMyUsername(newUsername); setProfile((p: any) => ({ ...p, username: newUsername })); setUsernameMsg(isDe ? '✓ Benutzername aktualisiert' : '✓ Username updated'); setEditingUsername(false); setTimeout(() => setUsernameMsg(''), 3000); } catch (e: any) { setUsernameMsg(`Error: ${e.message}`); } finally { setSavingUsername(false); } }
   async function handleSaveEmail() { setSavingEmail(true); setEmailMsg(''); try { await updateMyEmail(newEmail); setEmailMsg(isDe ? '✓ Bestätigungslink gesendet' : '✓ Confirmation link sent — check your email'); } catch (e: any) { setEmailMsg(`Error: ${e.message}`); } finally { setSavingEmail(false); } }
   async function handleSavePassword() { if (newPass !== confirmPass) { setPassMsg(isDe ? 'Passwörter stimmen nicht überein' : 'Passwords do not match'); return; } setSavingPass(true); setPassMsg(''); try { await updateMyPassword(currentPass, newPass); setCurrentPass(''); setNewPass(''); setConfirmPass(''); setPassMsg(isDe ? '✓ Passwort geändert' : '✓ Password changed'); setTimeout(() => setPassMsg(''), 3000); } catch (e: any) { setPassMsg(`Error: ${e.message}`); } finally { setSavingPass(false); } }
   async function handleForgotPassword() { if (!profile?.email) return; setSendingReset(true); setResetMsg(''); try { await sendPasswordReset(profile.email); setResetMsg(isDe ? '✓ Reset-Link gesendet' : '✓ Reset link sent'); setTimeout(() => setResetMsg(''), 4000); } catch (e: any) { setResetMsg(`Error: ${e.message}`); } finally { setSendingReset(false); } }
@@ -368,7 +372,21 @@ export default function Header({
                           <AvatarDisplay size={60} />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 group">
-                              <span className={cn('text-sm font-black truncate', dk ? 'text-white' : 'text-slate-900')}>{profile?.fullName || profile?.full_name || '—'}</span>
+                              {editingName ? (
+                                 <div className="flex items-center gap-2 w-full max-w-[200px] animate-in fade-in" onClick={e => e.stopPropagation()}>
+                                    <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSaveProfile()} className="w-full bg-transparent border-b-2 border-blue-500 outline-none text-sm font-black text-blue-500 py-0.5" />
+                                    <button onClick={handleSaveProfile} disabled={savingProfile} className="p-1 text-white bg-blue-500 hover:bg-blue-600 rounded shadow-sm"><Check size={12} strokeWidth={3}/></button>
+                                    <button onClick={() => { setEditingName(false); setEditName(profile?.fullName || profile?.full_name || ''); }} className="p-1 text-slate-500 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded"><X size={12} strokeWidth={3}/></button>
+                                 </div>
+                              ) : (
+                                 <>
+                                   <span className={cn('text-sm font-black truncate', dk ? 'text-white' : 'text-slate-900')}>{profile?.fullName || profile?.full_name || '—'}</span>
+                                   <button onClick={() => setEditingName(true)} className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-blue-500 transition-opacity"><Pencil size={12} /></button>
+                                 </>
+                              )}
+                            </div>
+                            <div className="text-[11px] font-bold text-slate-400 mt-0.5 mb-1.5">
+                               @{profile?.username || newUsername || 'username'}
                             </div>
                             <div className="flex items-center gap-2 mt-1">
                               <RoleShield role={userRole} dk={dk} />
@@ -452,7 +470,30 @@ export default function Header({
               {settingsTab === 'security' && (
                 <div className="space-y-4">
                   {profile?.email && <div className={cn('rounded-xl border p-4', dk ? 'border-white/10 bg-white/2' : 'border-slate-200 bg-slate-50')}><SectionLabel dk={dk}>{isDe ? 'Aktuelle E-Mail' : 'Current Email'}</SectionLabel><div className="flex items-center gap-2"><Mail size={13} className={dk ? 'text-slate-400' : 'text-slate-500'} /><span className={cn('text-sm font-bold', dk ? 'text-white' : 'text-slate-900')}>{profile.email}</span></div></div>}
-                  <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-white/10' : 'border-slate-200')}><SectionLabel dk={dk}>{isDe ? 'Benutzername ändern' : 'Change Username'}</SectionLabel><div className="relative"><AtSign size={13} className={cn('absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none', dk ? 'text-slate-500' : 'text-slate-400')} /><input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder={isDe ? 'Neuer Benutzername...' : 'New username...'} className={cn(inputCls, 'pl-8')} /></div>{usernameMsg && <p className={cn('text-xs font-bold', usernameMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{usernameMsg}</p>}<button onClick={handleSaveUsername} disabled={savingUsername} className={btnPrimary}>{savingUsername ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} {isDe ? 'Speichern' : 'Save Username'}</button></div>
+                  <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-white/10' : 'border-slate-200')}>
+                    <SectionLabel dk={dk}>{isDe ? 'Benutzername (User ID)' : 'Username (User ID)'}</SectionLabel>
+                    {!editingUsername ? (
+                       <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                             <AtSign size={14} className={dk ? "text-slate-400" : "text-slate-500"} />
+                             <span className={cn("text-sm font-bold", dk ? "text-white" : "text-slate-900")}>{profile?.username || '—'}</span>
+                          </div>
+                          <button onClick={() => { setEditingUsername(true); setNewUsername(profile?.username || ''); }} className="text-xs font-bold text-blue-500 hover:underline">{isDe ? 'Ändern' : 'Change'}</button>
+                       </div>
+                    ) : (
+                       <div className="animate-in fade-in slide-in-from-top-2">
+                          <div className="relative mb-2">
+                             <AtSign size={13} className={cn('absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none', dk ? 'text-slate-500' : 'text-slate-400')} />
+                             <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder={isDe ? 'Neuer Benutzername...' : 'New username...'} className={cn(inputCls, 'pl-8')} />
+                          </div>
+                          <div className="flex items-center gap-2">
+                             <button onClick={handleSaveUsername} disabled={savingUsername} className={btnPrimary}>{savingUsername ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} {isDe ? 'Speichern' : 'Save'}</button>
+                             <button onClick={() => setEditingUsername(false)} className={cn("px-4 py-2 rounded-xl text-sm font-bold border transition-all", dk ? "border-white/10 text-slate-300 hover:bg-white/10" : "border-slate-200 text-slate-600 hover:bg-slate-100")}>{isDe ? 'Abbrechen' : 'Cancel'}</button>
+                          </div>
+                          {usernameMsg && <p className={cn('text-xs font-bold mt-2', usernameMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{usernameMsg}</p>}
+                       </div>
+                    )}
+                  </div>
                   <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-white/10' : 'border-slate-200')}><SectionLabel dk={dk}>{isDe ? 'E-Mail ändern' : 'Change Email'}</SectionLabel><div className="relative"><Mail size={13} className={cn('absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none', dk ? 'text-slate-500' : 'text-slate-400')} /><input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder={isDe ? 'Neue E-Mail-Adresse...' : 'New email address...'} className={cn(inputCls, 'pl-8')} /></div>{emailMsg && <p className={cn('text-xs font-bold', emailMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{emailMsg}</p>}<button onClick={handleSaveEmail} disabled={savingEmail} className={btnPrimary}>{savingEmail ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />} {isDe ? 'E-Mail aktualisieren' : 'Update Email'}</button></div>
                   <div className={cn('rounded-xl border p-4 space-y-3', dk ? 'border-white/10' : 'border-slate-200')}><SectionLabel dk={dk}>{isDe ? 'Passwort ändern' : 'Change Password'}</SectionLabel><div className="relative"><input type={showCurrentPass ? 'text' : 'password'} value={currentPass} onChange={e => setCurrentPass(e.target.value)} placeholder={isDe ? 'Aktuelles Passwort' : 'Current password'} className={inputCls} /><button onClick={() => setShowCurrentPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2">{showCurrentPass ? <EyeOff size={13} className={dk ? 'text-slate-500' : 'text-slate-400'} /> : <Eye size={13} className={dk ? 'text-slate-500' : 'text-slate-400'} />}</button></div><div className="relative"><input type={showNewPass ? 'text' : 'password'} value={newPass} onChange={e => setNewPass(e.target.value)} placeholder={isDe ? 'Neues Passwort' : 'New password'} className={inputCls} /><button onClick={() => setShowNewPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2">{showNewPass ? <EyeOff size={13} className={dk ? 'text-slate-500' : 'text-slate-400'} /> : <Eye size={13} className={dk ? 'text-slate-500' : 'text-slate-400'} />}</button></div><input type="password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)} placeholder={isDe ? 'Passwort bestätigen' : 'Confirm password'} className={inputCls} />{passMsg && <p className={cn('text-xs font-bold', passMsg.startsWith('Error') || passMsg.includes('match') ? 'text-red-400' : 'text-green-400')}>{passMsg}</p>}<div className="flex items-center justify-between flex-wrap gap-2"><button onClick={handleForgotPassword} disabled={sendingReset} className={cn('text-xs font-bold transition-all', dk ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-800')}>{sendingReset ? '...' : (isDe ? 'Passwort vergessen?' : 'Forgot password?')}</button>{resetMsg && <p className={cn('text-xs font-bold', resetMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{resetMsg}</p>}<button onClick={handleSavePassword} disabled={savingPass} className={btnPrimary}>{savingPass ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />} {isDe ? 'Passwort ändern' : 'Change Password'}</button></div></div>
                 </div>
