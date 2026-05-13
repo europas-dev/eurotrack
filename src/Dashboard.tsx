@@ -268,6 +268,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       await addSystemCompany(newName);
       setSystemCompanies(prev => [...prev.filter(c => c !== oldName), newName].sort());
       
+      setNewHotelCompanyTags(prev => prev.map(t => t === oldName ? newName : t));
+      
       setHotels(prevHotels => {
         const updated = prevHotels.map(h => {
           if (h.companyTag?.includes(oldName)) {
@@ -1126,10 +1128,10 @@ finalFiltered.forEach(h => {
                         </datalist>
                       </div>
                       
-                      <div className="flex-1 min-w-[160px]">
+                     <div className="flex-1 min-w-[160px]">
                         <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block"><Building2 size={10} className="inline mr-1"/> {lang === 'de' ? 'Firma' : 'Company'}</label>
                         <div className={cn('w-full min-h-[38px] rounded-lg border px-2 flex items-center transition-all', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')}>
-                          <CompanyMultiSelect selected={newHotelCompanyTags} options={allCompanyOptions} onChange={(v: string[]) => setNewHotelCompanyTags(v)} isDarkMode={dk} lang={lang} onDeleteOption={handleDeleteGlobalCompany} onAddOption={handleAddGlobalCompany} />
+                          <CompanyMultiSelect selected={newHotelCompanyTags} options={allCompanyOptions} onChange={(v: string[]) => setNewHotelCompanyTags(v)} isDarkMode={dk} lang={lang} onDeleteOption={handleDeleteGlobalCompany} onRenameOption={handleRenameGlobalCompany} onAddOption={handleAddGlobalCompany} />
                         </div>
                       </div>
 
@@ -1206,8 +1208,8 @@ finalFiltered.forEach(h => {
                           searchScope={searchScope} 
                           companyOptions={allCompanyOptions} 
                           cityOptions={uniqueCities} 
-                          onDelete={hId => setHotels(hotels.filter(ho=>ho.id!==hId))} 
-                          onUpdate={(hId, up) => setHotels(hotels.map(ho=>ho.id===hId?{...ho,...up}:ho))} 
+                          onDelete={hId => setHotels(prev => prev.filter(ho=>ho.id!==hId))} 
+                          onUpdate={(hId, up) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))}
                           onDeleteCompanyOption={handleDeleteGlobalCompany} 
                           onRenameCompanyOption={handleRenameGlobalCompany}
                           onAddOption={handleAddGlobalCompany} 
