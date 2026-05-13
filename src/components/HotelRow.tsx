@@ -20,9 +20,10 @@ const getCountryCode = (country: string) => {
 
 function formatShortDate(isoString?: string | null, lang: string = 'de'): string {
   if (!isoString) return '';
-  const parts = isoString.split('-');
+  const cleanDate = isoString.split('T')[0];
+  const parts = cleanDate.split('-');
   if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;
-  return isoString;
+  return cleanDate;
 }
 
 function formatCurrency(amount: number): string {
@@ -124,7 +125,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
     return (
       <div className={cn("flex flex-col p-2 border-b transition-all w-full", dk ? "bg-white/5 border-white/10" : "bg-slate-50 border-slate-200")}>
         <div className="flex items-start w-full">
-           <div className="w-[160px] flex items-center gap-1.5 shrink-0 pr-2">
+           <div className="w-[200px] flex items-center gap-1.5 shrink-0 pr-2">
                <select value={item.type || 'room'} onChange={e => {
                    const newType = e.target.value;
                    const newMethod = (newType === 'base' || newType === 'extra') ? 'total' : item.method;
@@ -141,8 +142,8 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
                {item.method === 'per_bed' && isPerBedAllowed ? (
                  <div className="flex flex-col items-end gap-1.5 w-full">
                      <div className="flex items-center justify-end gap-1.5 w-full">
-                         <input type="number" title={lang === 'de' ? 'Betten' : 'Beds'} value={item.beds ?? 1} onChange={e => onChange({ beds: e.target.value })} className={cn(inputClass, "w-[40px] px-1 text-center")} placeholder="1" />
-                         <span className="text-[12px] text-slate-400 font-black">×</span>
+                        <input type="number" title={lang === 'de' ? 'Betten' : 'Beds'} value={item.beds ?? 1} onChange={e => onChange({ beds: e.target.value })} className={cn(inputClass, "w-[50px] pl-2 pr-0 text-left [appearance:auto] [&::-webkit-outer-spin-button]:appearance-auto [&::-webkit-inner-spin-button]:appearance-auto")} placeholder="1" />
+                       <span className="text-[12px] text-slate-400 font-black">×</span>
                          <div className={cn("flex items-center rounded border h-[30px] cursor-pointer hover:border-teal-500 transition-colors", dk ? "bg-black/20 border-white/10 text-white" : "bg-white border-slate-200 text-slate-700")} onClick={() => setCalOpen(!calOpen)}>
                              <span className="w-[26px] text-center text-[11px] font-bold">{activeNights}</span>
                              <div className={cn("px-1 border-l h-full flex items-center", dk ? "border-white/10 text-slate-400" : "border-slate-200 text-slate-400")}><Calendar size={12}/></div>
@@ -153,10 +154,10 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
                          </div>
                      </div>
                      {showDiscount && !hasBruttoInput && (
-                         <div className="flex items-center justify-end w-[130px] animate-in fade-in slide-in-from-top-1">
-                            <input type="number" value={item.discountValue ?? ''} onChange={e => onChange({ discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 flex-1 px-2 text-left")} placeholder="Rabatt" />
-                            <button onClick={() => onChange({ discountType: item.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[35px] h-[30px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{item.discountType === 'percentage' ? '%' : '€'}</button>
-                            <button onClick={() => { setShowDiscount(false); onChange({ discountValue: null }); }} className={cn("w-[25px] h-[30px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
+                         <div className="flex items-center w-[120px] animate-in fade-in slide-in-from-top-1 mt-1">
+                            <input type="number" value={item.discountValue ?? ''} onChange={e => onChange({ discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-[60px] px-2 text-left")} placeholder="0" />
+                            <button onClick={() => onChange({ discountType: item.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[30px] h-[30px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{item.discountType === 'percentage' ? '%' : '€'}</button>
+                            <button onClick={() => { setShowDiscount(false); onChange({ discountValue: null }); }} className={cn("w-[30px] h-[30px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
                          </div>
                      )}
                      {calOpen && (
@@ -188,11 +189,11 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
                            {(!showDiscount && !hasBruttoInput) && <button onClick={() => setShowDiscount(true)} className="absolute right-1 top-[5px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
                        </div>
                        {showDiscount && !hasBruttoInput && (
-                           <div className="flex items-center justify-end w-full animate-in fade-in slide-in-from-top-1">
-                              <input type="number" value={item.discountValue ?? ''} onChange={e => onChange({ discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 flex-1 px-2 text-left")} placeholder="Rabatt" />
-                              <button onClick={() => onChange({ discountType: item.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[35px] h-[30px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{item.discountType === 'percentage' ? '%' : '€'}</button>
-                              <button onClick={() => { setShowDiscount(false); onChange({ discountValue: null }); }} className={cn("w-[25px] h-[30px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
-                           </div>
+                           <div className="flex items-center w-[120px] animate-in fade-in slide-in-from-top-1 mt-1">
+                            <input type="number" value={item.discountValue ?? ''} onChange={e => onChange({ discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-[60px] px-2 text-left")} placeholder="0" />
+                            <button onClick={() => onChange({ discountType: item.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[30px] h-[30px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{item.discountType === 'percentage' ? '%' : '€'}</button>
+                            <button onClick={() => { setShowDiscount(false); onChange({ discountValue: null }); }} className={cn("w-[30px] h-[30px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
+                         </div>
                        )}
                    </div>
                ) : (
@@ -200,7 +201,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
                )}
            </div>
 
-           <div className="w-[60px] shrink-0 pl-1">
+           <div className="w-[70px] shrink-0 px-2 relative z-[60]">
                <MwstInput value={item.mwst} onChange={(v:any) => onChange({ mwst: v })} isDarkMode={dk} disabled={false} />
            </div>
 
@@ -1278,8 +1279,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       <div className="flex items-center gap-4 flex-1">
                           {activeInvoice ? (
                              <div className="flex items-center gap-3">
-                                <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">{lang === 'de' ? 'Leistungszeitraum:' : 'Billing Period:'}</span>
-                                {(activeInvoice.startDate || activeInvoice.endDate) ? (
+                               <span className="text-[13px] text-slate-500">{lang === 'de' ? 'Leistungszeitraum:' : 'Billing period:'}</span>
+                               {(activeInvoice.startDate || activeInvoice.endDate) ? (
                                    <div className="flex items-center gap-2 text-[11px] font-bold bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-md text-slate-600 dark:text-slate-300">
                                       <Calendar size={12} className="opacity-50"/> 
                                       <span>{activeInvoice.startDate ? formatShortDate(activeInvoice.startDate, lang) : '--'} - {activeInvoice.endDate ? formatShortDate(activeInvoice.endDate, lang) : '--'}</span>
@@ -1404,12 +1405,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       ) : (
                          <div className="flex flex-col animate-in fade-in pb-5">
                             <div className={cn("sticky top-0 z-10 flex items-center px-3 py-2 border-b mb-3 backdrop-blur-md", dk ? "bg-[#0B1224]/95 border-white/10" : "bg-slate-50/95 border-slate-200")}>
-                               <div className="flex-1 min-w-[200px] text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">{lang === 'de' ? 'Beschreibung' : 'Description'}</div>
-                               <div className="w-[240px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-6">Netto (Bed)</div>
-                               <div className="w-[100px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-2">Total Netto</div>
+                               <div className="w-[220px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">{lang === 'de' ? 'Beschreibung' : 'Description'}</div>
+                               <div className="flex-1 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-6">Netto (Bed)</div>
+                               <div className="w-[110px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-2">Total Netto</div>
                                <div className="w-[70px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">MwSt</div>
                                <div className="w-[110px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-2">Total Brutto</div>
-                               <div className="w-[60px] shrink-0"></div>
+                               <div className="w-[50px] shrink-0"></div>
                             </div>
                             
                             {filteredMasterInvoices.length > 0 ? filteredMasterInvoices.map((inv: any) => {
@@ -1446,20 +1447,20 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                const { finalNetto, mwst, brutto } = calcInvoiceItem(item, defaultN);
                                                return (
                                                   <div key={item.id} className="flex items-start px-2 py-2.5 border-b border-slate-100 dark:border-white/5 last:border-0">
-                                                     <div className="flex-1 min-w-[200px] flex flex-col pr-2">
-                                                       <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                                                          <HighlightText text={getTranslation(COST_TYPES, item.type || 'room', lang)} query={itemSearchQuery} />
-                                                          {item.method === 'per_bed' && <span className="text-[9px] text-slate-400 font-bold uppercase ml-1">({item.nights||defaultN} {lang==='de'?'Nächte':'Nights'}, {item.beds||1} {lang==='de'?'Betten':'Beds'})</span>}
-                                                       </span>
-                                                       {item.note && <span className="text-[10px] italic text-slate-400 mt-1 whitespace-pre-wrap"><HighlightText text={item.note} query={itemSearchQuery} /></span>}
+                                                     <div className="w-[220px] shrink-0 flex flex-col pr-2">
+                                                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate">
+                                                           <HighlightText text={getTranslation(COST_TYPES, item.type || 'room', lang)} query={itemSearchQuery} />
+                                                           {item.method === 'per_bed' && <span className="text-[9px] text-slate-400 font-bold uppercase ml-1">({item.nights||defaultN} {lang==='de'?'Nächte':'Nights'}, {item.beds||1} {lang==='de'?'Betten':'Beds'})</span>}
+                                                        </span>
+                                                        {item.note && <span className="text-[10px] italic text-slate-400 mt-1 whitespace-pre-wrap"><HighlightText text={item.note} query={itemSearchQuery} /></span>}
                                                      </div>
-                                                     <div className="w-[240px] shrink-0 text-[12px] font-bold text-slate-700 dark:text-slate-300 pt-0.5 text-right pr-6">
+                                                     <div className="flex-1 text-[12px] font-bold text-slate-700 dark:text-slate-300 pt-0.5 text-right pr-6">
                                                         {item.method === 'per_bed' ? <HighlightText text={formatCurrency(parseFloat(item.netto)||0)} query={itemSearchQuery} /> : <span className="opacity-50 text-[11px] italic">--</span>}
                                                      </div>
-                                                     <div className="w-[100px] shrink-0 text-[12px] font-bold text-slate-700 dark:text-slate-300 pt-0.5 text-right pr-2"><HighlightText text={formatCurrency(finalNetto)} query={itemSearchQuery} /></div>
+                                                     <div className="w-[110px] shrink-0 text-[12px] font-bold text-slate-700 dark:text-slate-300 pt-0.5 text-right pr-2"><HighlightText text={formatCurrency(finalNetto)} query={itemSearchQuery} /></div>
                                                      <div className="w-[70px] shrink-0 text-[12px] font-bold text-slate-500 pt-0.5 text-center">{mwst}%</div>
                                                      <div className="w-[110px] shrink-0 text-[12px] font-black text-slate-900 dark:text-white pt-0.5 text-right pr-2"><HighlightText text={formatCurrency(brutto)} query={itemSearchQuery} /></div>
-                                                     <div className="w-[60px] shrink-0"></div>
+                                                     <div className="w-[50px] shrink-0"></div>
                                                   </div>
                                                )
                                             })}
