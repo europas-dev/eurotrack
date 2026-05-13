@@ -448,3 +448,28 @@ export function generateExcel(data: any[], activeCols: string[], lang: 'de' | 'e
   const fileDate = `${now.getDate().toString().padStart(2, '0')}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getFullYear()}`;
   XLSX.writeFile(wb, `Europas GmbH_${isDe ? 'Bericht' : 'Report'}_${cleanPeriod}_${fileDate}.xlsx`);
 }
+
+export function calcInvoiceItem(item: any, defaultNights: number = 1) {
+  const mwst = item.mwst != null ? parseFloat(item.mwst) : 0;
+  let finalNetto = 0;
+  let brutto = 0;
+
+  if (item.brutto != null && item.brutto !== '') {
+      brutto = parseFloat(item.brutto);
+      finalNetto = brutto / (1 + mwst / 100);
+  } else {
+      let baseNetto = parseFloat(item.netto) || 0;
+      if (item.method === 'per_bed') {
+        const beds = parseFloat(item.beds) || 1;
+        const nights = parseFloat(item.nights) || defaultNights;
+        baseNetto = baseNetto * beds * nights;
+      }
+      finalNetto = baseNetto;
+      if (item.discountValue && parseFloat(item.discountValue) > 0) {
+        const dVal = parseFloat(item.discountValue);
+        finalNetto = item.discountType === 'percentage' ? baseNetto * (1 - dVal/100) : Math.max(0, baseNetto - dVal);
+      }
+      brutto = finalNetto * (1 + mwst / 100);
+  }
+  return { finalNetto, mwst, brutto };
+}
