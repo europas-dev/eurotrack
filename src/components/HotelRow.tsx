@@ -375,8 +375,11 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
   };
 
   const handleInlineDelete = (opt: string) => {
-      if (onDeleteOption) onDeleteOption(opt);
-      if (safeSelected.includes(opt)) onChange(safeSelected.filter((t:any) => t !== opt));
+      if (onDeleteOption) {
+          onDeleteOption(opt); // Global delete handles the hotel state update
+      } else {
+          if (safeSelected.includes(opt)) onChange(safeSelected.filter((t:any) => t !== opt));
+      }
       setLocalMemory(prev => prev.filter(m => m !== opt));
       setConfirmDeleteOpt(null);
   };
@@ -724,8 +727,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
      durs.sort((a, b) => new Date(b.startDate || 0).getTime() - new Date(a.startDate || 0).getTime());
      return durs;
   }, [localHotel.durations]);
-  const visibleDurs = sortedDurations.slice(0, 5);
-  const hiddenDurs = sortedDurations.slice(5);
+  const visibleDurs = sortedDurations.slice(0, 6);
+  const hiddenDurs = sortedDurations.slice(6);
 
   function patchHotel(changes: any) {
     if (viewOnly) return; 
@@ -871,9 +874,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               })}
               {hiddenDurs.length > 0 && (
                  <div className="relative group/hiddenDur flex-1 min-w-[100px] max-w-[105px]">
-                    <span className="w-full block px-1 py-0.5 rounded text-[10px] font-bold border border-dashed border-slate-300 dark:border-white/20 text-slate-400 text-center cursor-pointer">+{hiddenDurs.length}</span>
-                    <div className="absolute top-full left-0 mt-2 w-max max-w-[280px] p-2 bg-slate-800 text-white rounded-lg opacity-0 group-hover/hiddenDur:opacity-100 transition-opacity z-[99999] shadow-xl flex flex-wrap gap-1.5 pointer-events-auto">
-                        {hiddenDurs.map((d: any) => {
+                    <span className="w-full block px-1 py-0.5 rounded text-[10px] font-bold border border-dashed border-slate-300 dark:border-white/20 text-slate-400 text-center cursor-pointer hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">+{hiddenDurs.length}</span>
+                    <div className="absolute top-full left-0 pt-2 w-max max-w-[280px] z-[999999] opacity-0 group-hover/hiddenDur:opacity-100 transition-opacity pointer-events-none group-hover/hiddenDur:pointer-events-auto">
+                        <div className="p-2 bg-slate-800 text-white rounded-lg shadow-xl flex flex-wrap gap-1.5">
+                            {hiddenDurs.map((d: any) => {
                             const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
                             const formatChipStr = (iso: string) => {
                                 if (!iso) return '';
@@ -894,7 +898,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               )}
           </div>
           <div className="flex-1 min-w-[200px] flex flex-wrap gap-1.5 pr-4 content-center">
-              {visibleEmps.map((emp: any) => {
+              {visibleEmps.map((emp: any, empIdx: number) => {
                 const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
                 const borderCls = status === 'active' ? "border-emerald-500/50" : status === 'upcoming' ? "border-blue-500/50" : status === 'ending-soon' ? "border-red-500/50" : "border-slate-500/40";
                 const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
@@ -911,71 +915,77 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 if (parentDur && (emp.checkIn > parentDur.startDate || emp.checkOut < parentDur.endDate)) isPartial = true;
                 
                 return (
-                <div key={emp.id} className="relative group/emp">
-                    <button onClick={(e) => { 
-                        e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); 
-                        const findEmpTab = () => {
-                           for (let i = 0; i < localHotel.durations.length; i++) {
-                              if ((localHotel.durations[i].roomCards || []).some((rc:any) => (rc.employees || []).some((ex:any) => ex.id === emp.id))) return i;
-                           } return 0;
-                        };
-                        setActiveDurationTab(findEmpTab());
-                        setTimeout(() => { 
-                           const el = document.getElementById(`emp-slot-${emp.id}`); 
-                           if(el){ el.scrollIntoView({behavior: 'smooth', block: 'center'}); el.classList.add('ring-2', 'ring-teal-500'); setTimeout(()=>el.classList.remove('ring-2','ring-teal-500'), 2000);} 
-                        }, 250); 
-                    }} 
-                      className={cn("px-2 py-0.5 rounded-full border text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, isPartial ? "border-dashed" : "border-solid", dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-700")}>
-                      {isSubstitute ? <CornerDownRight size={10} className={cn("shrink-0", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} /> : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />}
-                      <HighlightText text={shortName} query={searchScope === 'all' || searchScope === 'employee' ? searchQuery : ''} />
-                    </button>
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-2 bg-slate-800 text-white rounded-lg opacity-0 group-hover/emp:opacity-100 transition-opacity pointer-events-none z-[99999] shadow-xl text-center">
-                        <p className="text-xs font-bold">{emp.name}</p>
-                        <p className="text-[10px] text-slate-300">{formatShortDate(emp.checkIn, lang)} ➔ {formatShortDate(emp.checkOut, lang)} ({calculateNights(emp.checkIn||'', emp.checkOut||'')}N)</p>
-                    </div>
-                </div>
+                <React.Fragment key={emp.id}>
+                  <div className="relative group/emp">
+                      <button onClick={(e) => { 
+                          e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); 
+                          const findEmpTab = () => {
+                             for (let i = 0; i < localHotel.durations.length; i++) {
+                                if ((localHotel.durations[i].roomCards || []).some((rc:any) => (rc.employees || []).some((ex:any) => ex.id === emp.id))) return i;
+                             } return 0;
+                          };
+                          setActiveDurationTab(findEmpTab());
+                          setTimeout(() => { 
+                             const el = document.getElementById(`emp-slot-${emp.id}`); 
+                             if(el){ el.scrollIntoView({behavior: 'smooth', block: 'center'}); el.classList.add('ring-2', 'ring-teal-500'); setTimeout(()=>el.classList.remove('ring-2','ring-teal-500'), 2000);} 
+                          }, 250); 
+                      }} 
+                        className={cn("px-2 py-0.5 rounded-full border text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, isPartial ? "border-dashed" : "border-solid", dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-700")}>
+                        {isSubstitute ? <CornerDownRight size={10} className={cn("shrink-0", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} /> : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />}
+                        <HighlightText text={shortName} query={searchScope === 'all' || searchScope === 'employee' ? searchQuery : ''} />
+                      </button>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 pb-2 w-max z-[999999] opacity-0 group-hover/emp:opacity-100 transition-opacity pointer-events-none">
+                          <div className="px-3 py-2 bg-slate-800 text-white rounded-lg shadow-xl text-center">
+                              <p className="text-xs font-bold">{emp.name}</p>
+                              <p className="text-[10px] text-slate-300">{formatShortDate(emp.checkIn, lang)} ➔ {formatShortDate(emp.checkOut, lang)} ({calculateNights(emp.checkIn||'', emp.checkOut||'')}N)</p>
+                          </div>
+                      </div>
+                  </div>
+                  {empIdx === 6 && <div className="basis-full h-0" />}
+                </React.Fragment>
                 );
               })}
               
               {hiddenEmps.length > 0 && (
                  <div className="relative group/hiddenEmp">
-                    <span className="px-2 py-0.5 rounded-full border border-dashed border-slate-400 text-[10px] font-bold flex items-center justify-center text-slate-500 cursor-pointer">+{hiddenEmps.length}</span>
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max max-w-[280px] p-2 bg-slate-800 text-white rounded-lg opacity-0 group-hover/hiddenEmp:opacity-100 transition-opacity z-[99999] shadow-xl flex flex-wrap gap-1.5 pointer-events-auto">
-                        {hiddenEmps.map((emp: any) => {
-                            const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
-                            const borderCls = status === 'active' ? "border-emerald-500/50" : status === 'upcoming' ? "border-blue-500/50" : status === 'ending-soon' ? "border-red-500/50" : "border-slate-500/40";
-                            const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
-                            
-                            // True RoomCard logic for the hidden popups too!
-                            const parentDur = localHotel.durations.find((d:any) => (d.roomCards||[]).some((rc:any) => (rc.employees||[]).some((e:any) => e.id === emp.id)));
-                            const parentRc = parentDur?.roomCards?.find((rc:any) => (rc.employees||[]).some((e:any) => e.id === emp.id));
-                            const empsInSlot = (parentRc?.employees || []).filter((e:any) => e.slotIndex === emp.slotIndex);
-                            empsInSlot.sort((a:any, b:any) => new Date(a.checkIn||0).getTime() - new Date(b.checkIn||0).getTime());
-                            const isSubstitute = empsInSlot.length > 1 && empsInSlot[0].id !== emp.id;
-                            
-                            let isPartial = false;
-                            if (parentDur && (emp.checkIn > parentDur.startDate || emp.checkOut < parentDur.endDate)) isPartial = true;
-                            
-                            return (
-                                <button key={emp.id} onClick={(e) => { 
-                                    e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); 
-                                    const findEmpTab = () => {
-                                       for (let i = 0; i < localHotel.durations.length; i++) {
-                                          if ((localHotel.durations[i].roomCards || []).some((rc:any) => (rc.employees || []).some((ex:any) => ex.id === emp.id))) return i;
-                                       } return 0;
-                                    };
-                                    setActiveDurationTab(findEmpTab());
-                                    setTimeout(() => { 
-                                       const el = document.getElementById(`emp-slot-${emp.id}`); 
-                                       if(el){ el.scrollIntoView({behavior: 'smooth', block: 'center'}); el.classList.add('ring-2', 'ring-teal-500'); setTimeout(()=>el.classList.remove('ring-2','ring-teal-500'), 2000);} 
-                                    }, 250); 
-                                }} 
-                                className={cn("px-2 py-0.5 rounded-full border text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, isPartial ? "border-dashed" : "border-solid", "bg-slate-700 text-white hover:bg-slate-600")}>
-                                {isSubstitute ? <CornerDownRight size={10} className={cn("shrink-0", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} /> : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />}
-                                {emp.name?.trim().split(' ').pop()}
-                                </button>
-                            );
-                        })}
+                    <span className="px-2 py-0.5 rounded-full border border-dashed border-slate-400 text-[10px] font-bold flex items-center justify-center text-slate-500 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">+{hiddenEmps.length}</span>
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 w-max max-w-[280px] z-[999999] opacity-0 group-hover/hiddenEmp:opacity-100 transition-opacity pointer-events-none group-hover/hiddenEmp:pointer-events-auto">
+                        <div className="p-2 bg-slate-800 text-white rounded-lg shadow-xl flex flex-wrap gap-1.5">
+                            {hiddenEmps.map((emp: any) => {
+                                const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
+                                const borderCls = status === 'active' ? "border-emerald-500/50" : status === 'upcoming' ? "border-blue-500/50" : status === 'ending-soon' ? "border-red-500/50" : "border-slate-500/40";
+                                const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
+                                
+                                const parentDur = localHotel.durations.find((d:any) => (d.roomCards||[]).some((rc:any) => (rc.employees||[]).some((e:any) => e.id === emp.id)));
+                                const parentRc = parentDur?.roomCards?.find((rc:any) => (rc.employees||[]).some((e:any) => e.id === emp.id));
+                                const empsInSlot = (parentRc?.employees || []).filter((e:any) => e.slotIndex === emp.slotIndex);
+                                empsInSlot.sort((a:any, b:any) => new Date(a.checkIn||0).getTime() - new Date(b.checkIn||0).getTime());
+                                const isSubstitute = empsInSlot.length > 1 && empsInSlot[0].id !== emp.id;
+                                
+                                let isPartial = false;
+                                if (parentDur && (emp.checkIn > parentDur.startDate || emp.checkOut < parentDur.endDate)) isPartial = true;
+                                
+                                return (
+                                    <button key={emp.id} onClick={(e) => { 
+                                        e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); 
+                                        const findEmpTab = () => {
+                                           for (let i = 0; i < localHotel.durations.length; i++) {
+                                              if ((localHotel.durations[i].roomCards || []).some((rc:any) => (rc.employees || []).some((ex:any) => ex.id === emp.id))) return i;
+                                           } return 0;
+                                        };
+                                        setActiveDurationTab(findEmpTab());
+                                        setTimeout(() => { 
+                                           const el = document.getElementById(`emp-slot-${emp.id}`); 
+                                           if(el){ el.scrollIntoView({behavior: 'smooth', block: 'center'}); el.classList.add('ring-2', 'ring-teal-500'); setTimeout(()=>el.classList.remove('ring-2','ring-teal-500'), 2000);} 
+                                        }, 250); 
+                                    }} 
+                                    className={cn("px-2 py-0.5 rounded-full border text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, isPartial ? "border-dashed" : "border-solid", "bg-slate-700 text-white hover:bg-slate-600")}>
+                                    {isSubstitute ? <CornerDownRight size={10} className={cn("shrink-0", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} /> : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />}
+                                    {emp.name?.trim().split(' ').pop()}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
                  </div>
               )}
@@ -1556,7 +1566,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       </div>
 
       {confirmDelete && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 pointer-events-auto">
           <div className={cn('w-full max-w-md rounded-3xl border p-8 shadow-2xl animate-in zoom-in-95', dk ? 'bg-[#1E293B] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200')}>
             <h3 className="text-2xl font-black mb-2">{lang === 'de' ? 'Hotel löschen?' : 'Delete hotel?'}</h3>
             <p className="text-sm font-bold text-slate-500 mb-6">{lang === 'de' ? 'Diese Aktion kann nicht rückgängig gemacht werden.' : 'This action cannot be undone.'}</p>
