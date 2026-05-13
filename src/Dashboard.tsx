@@ -153,8 +153,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       const users = Object.values(state).flat().map((p: any) => p.user);
       const uniqueUsers = Array.from(new Map(users.map(u => [u.id, u])).values());
       
-      // SURGICAL FIX: Forcefully hide anyone broadcasting 'is_ghost: true'
-      const filteredUsers = uniqueUsers.filter((u: any) => !u.is_ghost);
+      // SURGICAL FIX: Forcefully hide anyone broadcasting 'invisible: true'
+      const filteredUsers = uniqueUsers.filter((u: any) => !u.invisible && !u.is_ghost);
       setActiveUsers(filteredUsers);
     });
 
@@ -165,21 +165,21 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
           
           // Securely check Ghost status straight from the DB on load
-          const { data: profile } = await supabase.from('profiles').select('is_ghost').eq('id', user.id).single();
-          const isGhost = profile?.is_ghost || false;
+          const { data: profile } = await supabase.from('profiles').select('invisible, is_ghost').eq('id', user.id).single();
+          const isGhost = profile?.invisible || profile?.is_ghost || false;
           
-          await channel.track({ user: { id: user.id, name, email: user.email, is_ghost: isGhost } });
+          await channel.track({ user: { id: user.id, name, email: user.email, invisible: isGhost } });
         }
       }
     });
 
-    // Instantly catch the Settings switch and re-broadcast your presence
+    // Instantly catch the Settings switch and re-broadcast your presence without a refresh!
     const handleGhostChange = async (e: any) => {
        const isGhost = e.detail;
        const { data: { user } } = await supabase.auth.getUser();
        if (user) {
           const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
-          await channel.track({ user: { id: user.id, name, email: user.email, is_ghost: isGhost } });
+          await channel.track({ user: { id: user.id, name, email: user.email, invisible: isGhost } });
        }
     };
     window.addEventListener('ghost-mode-changed', handleGhostChange);
