@@ -2,8 +2,7 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, ChevronRight, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, FileText, Ticket, Calendar, AlertTriangle, Edit3, Filter } from 'lucide-react';
-import {
-  cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatLastUpdated, calculateNights
+import {cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatLastUpdated, calculateNights, calcInvoiceItem, formatDateChip
 } from '../lib/utils';
 import { createDuration, updateHotel, deleteHotel } from '../lib/supabase';
 import { calcRoomCardTotal, calcRoomCardNettoSum } from '../lib/roomCardUtils';
@@ -75,7 +74,7 @@ export function getTranslation(dict: any[], id: string, lang: string) {
   return item ? (lang === 'de' ? item.de : item.en) : id;
 }
 
-export function calcInvoiceItem(item: any, defaultNights: number = 1) {
+/*export function calcInvoiceItem(item: any, defaultNights: number = 1) {
   const mwst = item.mwst != null ? parseFloat(item.mwst) : 0;
   let finalNetto = 0;
   let brutto = 0;
@@ -98,7 +97,7 @@ export function calcInvoiceItem(item: any, defaultNights: number = 1) {
       brutto = finalNetto * (1 + mwst / 100);
   }
   return { finalNetto, mwst, brutto };
-}
+}*/
 
 export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onDelete, viewOnly, dk, lang, defaultNights = 1, defaultStart, defaultEnd }: any) {
   const { finalNetto, mwst, brutto } = calcInvoiceItem(item, defaultNights);
@@ -387,7 +386,10 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
                     <div className={cn("w-3.5 h-3.5 rounded flex items-center justify-center shrink-0 border", isSelected ? "bg-teal-500 border-teal-500" : isDarkMode ? "border-slate-500" : "border-slate-400")}>{isSelected && <Check size={10} className="text-white" strokeWidth={4} />}</div>
                     <span className={cn(isSelected ? (isDarkMode ? 'text-teal-400' : 'text-teal-700') : (isDarkMode ? 'text-slate-300' : 'text-slate-700'))}>{opt}</span>
                   </button>
-                  {onDeleteOption && (<button onClick={(e) => { e.stopPropagation(); onDeleteOption(opt); setLocalMemory(prev => prev.filter(m => m !== opt)); }} className="px-3 py-2 text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete from system"><Trash2 size={13} /></button>)}
+                  <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity pr-2">
+                     <button onClick={(e) => { e.stopPropagation(); setQuery(opt); onDeleteOption(opt); setLocalMemory(prev => prev.filter(m => m !== opt)); }} className="p-1.5 text-slate-500 hover:text-blue-500" title="Rename"><Edit3 size={13}/></button>
+                     {onDeleteOption && (<button onClick={(e) => { e.stopPropagation(); onDeleteOption(opt); setLocalMemory(prev => prev.filter(m => m !== opt)); }} className="p-1.5 text-slate-500 hover:text-red-500" title="Delete from system"><Trash2 size={13} /></button>)}
+                  </div>
                 </div>
               )
             })}
@@ -399,7 +401,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
   );
 }
 
-export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onAddOption, viewOnly, isSelected = false, onSelect = () => {}, isBulkActive = false, isOpen = false, onToggle = () => {}, showGlobalFinancials = false, activeSort = 'created_at' }: any) {
+export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onAddOption, viewOnly, isSelected = false, onSelect = () => {}, isBulkActive = false, isOpen = false, onToggle = () => {}, showGlobalFinancials = false, activeSort = 'created_at', activeFilterDue, activeFilterDeposit }: any) {
   const [activeTab, setActiveTab] = useState<'bookings'|'billing'|'info'>('bookings');
   
   const [showNotes, setShowNotes] = useState(false);
@@ -652,16 +654,16 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
      });
      return emps;
   }, [masterMath.employees]);
-  const visibleEmps = sortedEmployees.slice(0, 5);
-  const hiddenEmps = sortedEmployees.slice(5);
+  const visibleEmps = sortedEmployees.slice(0, 12);
+  const hiddenEmps = sortedEmployees.slice(12);
 
   const sortedDurations = useMemo(() => {
      const durs = [...(localHotel.durations || [])];
      durs.sort((a, b) => new Date(b.startDate || 0).getTime() - new Date(a.startDate || 0).getTime());
      return durs;
   }, [localHotel.durations]);
-  const visibleDurs = sortedDurations.slice(0, 4);
-  const hiddenDurs = sortedDurations.slice(4);
+  const visibleDurs = sortedDurations.slice(0, 6);
+  const hiddenDurs = sortedDurations.slice(6);
 
   function patchHotel(changes: any) {
     if (viewOnly) return; 
@@ -736,7 +738,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const unpaidInvs = totalInvs - paidInvs;
 
   return (
-    <div className="space-y-1 relative hover:z-[999]" style={{ zIndex: 40 - (index % 30) }}>
+    <div className="space-y-1 relative hover:z-[9999]" style={{ zIndex: 40 - (index % 30) }}>
       
       <div className={cn("absolute -left-7 top-0 bottom-0 w-10 flex items-center justify-center transition-all duration-300 z-[100]", isSelected || isBulkActive ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 hover:opacity-100")}>
         <input type="checkbox" checked={isSelected} onChange={(e) => { e.stopPropagation(); onSelect(); }} className="w-4 h-4 rounded border-slate-300 accent-teal-600 cursor-pointer shadow-sm transition-transform active:scale-90" />
@@ -756,9 +758,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-[14px] font-black leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} />
             <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} className="mt-0.5" textClass={cn("text-[10px] font-bold uppercase tracking-widest gap-1.5", dk ? "text-slate-500" : "text-slate-400")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
             {hiddenMatchText && (
-               <div className="mt-1 flex items-center gap-1 w-max px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-500 text-[9px] font-black uppercase tracking-tighter">
-                  <Search size={8} strokeWidth={3} /> {hiddenMatchText}
-               </div>
+               <button onClick={(e) => { e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('billing'); }} className="absolute right-full mr-4 flex items-center gap-1 px-2 py-1 rounded bg-teal-500/10 text-teal-500 text-[9px] font-black uppercase tracking-tighter whitespace-nowrap hover:bg-teal-500/20 transition-colors cursor-pointer shadow-sm">
+                  <Search size={10} strokeWidth={3} /> {hiddenMatchText}
+               </button>
             )}
           </div>
 
@@ -778,85 +780,107 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
           <div className="w-[340px] shrink-0 pr-2 flex flex-wrap gap-1.5">
               {visibleDurs.map((d: any, i: number) => {
-                const typeCount: any = {};
-                (d.roomCards || []).forEach((c:any) => { typeCount[c.roomType] = (typeCount[c.roomType] || 0) + 1 });
-                const roomStr = Object.entries(typeCount).map(([rt, count]) => `${count} ${rt}`).join(', ');
-                const n = calculateNights(d.startDate, d.endDate);
-                const title = `${n} N, ${(d.roomCards || []).length} Rooms ${roomStr ? `(${roomStr})` : ''}`;
-                
-                const formatChipDate = (iso: string) => {
-                    if (!iso) return '';
-                    const date = new Date(iso);
-                    const locale = lang === 'de' ? 'de-DE' : 'en-GB';
-                    return date.toLocaleDateString(locale, { day: '2-digit', month: 'short' }).replace('.', '');
-                };
-
+                const title = `${calculateNights(d.startDate, d.endDate)} N, ${(d.roomCards || []).length} Rooms`;
                 return (
                   <button key={d.id} title={title} onClick={(e) => { 
-                      e.stopPropagation(); 
-                      if (!isOpen) onToggle(); 
-                      setActiveTab('bookings'); 
+                      e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); 
                       const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
                       setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); 
                   }} className={cn('px-2 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all', dk ? 'bg-[#0F172A] border-white/10 text-slate-300 hover:bg-white/10' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100')}>
-                    {d.startDate && d.endDate ? `${formatChipDate(d.startDate)} - ${formatChipDate(d.endDate)}` : 'New'}
+                    {d.startDate && d.endDate ? `${formatDateChip(d.startDate)} - ${formatDateChip(d.endDate)}` : 'New'}
                   </button>
                 )
               })}
-              {hiddenDurs.length > 0 && <span className="px-2 py-0.5 rounded text-[10px] font-bold border border-dashed border-slate-300 dark:border-white/20 text-slate-400">+{hiddenDurs.length}</span>}
+              {hiddenDurs.length > 0 && (
+                 <div className="relative group/hiddenDur">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold border border-dashed border-slate-300 dark:border-white/20 text-slate-400 cursor-pointer">+{hiddenDurs.length}</span>
+                    <div className="absolute top-full left-0 mt-2 w-max max-w-[280px] p-2 bg-slate-800 text-white rounded-lg opacity-0 group-hover/hiddenDur:opacity-100 transition-opacity z-[99999] shadow-xl flex flex-wrap gap-1.5 pointer-events-auto">
+                        {hiddenDurs.map((d: any) => {
+                            const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
+                            return (
+                                <button key={d.id} onClick={(e) => { 
+                                    e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); 
+                                }} className="px-2 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all bg-slate-700 border-white/10 text-white hover:bg-slate-600">
+                                {d.startDate && d.endDate ? `${formatDateChip(d.startDate)} - ${formatDateChip(d.endDate)}` : 'New'}
+                                </button>
+                            );
+                        })}
+                    </div>
+                 </div>
+              )}
           </div>
 
           <div className="flex-1 min-w-[200px] flex flex-wrap gap-1.5 pr-4">
-              {visibleEmps.map((emp: any) => {
+              {visibleEmps.map((emp: any, empIdx: number) => {
                 const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
                 const borderCls = status === 'active' ? "border-emerald-500/50" : status === 'upcoming' ? "border-blue-500/50" : status === 'ending-soon' ? "border-red-500/50" : "border-slate-500/40";
                 const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
-                
                 const shortName = emp.name ? emp.name.trim().split(' ').pop() : '_ _ _';
-                const n = calculateNights(emp.checkIn||'', emp.checkOut||'');
+                
+                const isSubstitute = emp.slotIndex !== undefined && sortedEmployees.findIndex(e => e.slotIndex === emp.slotIndex) < empIdx;
+                let isPartial = false;
+                const parentDur = localHotel.durations.find((d:any) => (d.roomCards||[]).some((rc:any) => (rc.employees||[]).some((e:any) => e.id === emp.id)));
+                if (parentDur && (emp.checkIn > parentDur.startDate || emp.checkOut < parentDur.endDate)) isPartial = true;
                 
                 return (
                 <div key={emp.id} className="relative group/emp">
                     <button onClick={(e) => { 
-                        e.stopPropagation(); 
-                        if (!isOpen) onToggle(); 
-                        setActiveTab('bookings'); 
+                        e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); 
                         const findEmpTab = () => {
                            for (let i = 0; i < localHotel.durations.length; i++) {
-                              const d = localHotel.durations[i];
-                              for (const rc of (d.roomCards || [])) {
-                                 if ((rc.employees || []).some((ex:any) => ex.id === emp.id)) return i;
-                              }
-                           }
-                           return 0;
+                              if ((localHotel.durations[i].roomCards || []).some((rc:any) => (rc.employees || []).some((ex:any) => ex.id === emp.id))) return i;
+                           } return 0;
                         };
                         setActiveDurationTab(findEmpTab());
                         setTimeout(() => { 
                            const el = document.getElementById(`emp-slot-${emp.id}`); 
-                           if(el){ 
-                               el.scrollIntoView({behavior: 'smooth', block: 'center'}); 
-                               el.classList.add('ring-2', 'ring-teal-500'); 
-                               setTimeout(()=>el.classList.remove('ring-2','ring-teal-500'), 2000);
-                           } 
+                           if(el){ el.scrollIntoView({behavior: 'smooth', block: 'center'}); el.classList.add('ring-2', 'ring-teal-500'); setTimeout(()=>el.classList.remove('ring-2','ring-teal-500'), 2000);} 
                         }, 250); 
                     }} 
-                      className={cn("px-2 py-0.5 rounded-full border text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-700")}>
-                      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
+                      className={cn("px-2 py-0.5 rounded-full border text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, isPartial ? "border-dashed" : "border-solid", dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-700")}>
+                      {isSubstitute ? <CornerDownRight size={10} className={cn("shrink-0", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} /> : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />}
                       <HighlightText text={shortName} query={searchScope === 'all' || searchScope === 'employee' ? searchQuery : ''} />
                     </button>
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-2 bg-slate-800 text-white rounded-lg opacity-0 group-hover/emp:opacity-100 transition-opacity pointer-events-none z-[99999] shadow-xl text-center">
                         <p className="text-xs font-bold">{emp.name}</p>
-                        <p className="text-[10px] text-slate-300">{formatShortDate(emp.checkIn, lang)} ➔ {formatShortDate(emp.checkOut, lang)} ({n}N)</p>
+                        <p className="text-[10px] text-slate-300">{formatShortDate(emp.checkIn, lang)} ➔ {formatShortDate(emp.checkOut, lang)} ({calculateNights(emp.checkIn||'', emp.checkOut||'')}N)</p>
                     </div>
                 </div>
                 );
               })}
               
               {hiddenEmps.length > 0 && (
-                 <div className="relative group">
-                    <button onClick={(e) => { e.stopPropagation(); onToggle(); setActiveTab('bookings'); }} className="px-2 py-0.5 rounded-full border border-dashed border-slate-400 text-[10px] font-bold flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">+{hiddenEmps.length}</button>
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max max-w-[200px] px-3 py-2 bg-slate-800 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[99999] shadow-xl flex flex-wrap gap-1">
-                        {hiddenEmps.map(e => <span key={e.id} className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded">{e.name?.trim().split(' ').pop()}</span>)}
+                 <div className="relative group/hiddenEmp">
+                    <span className="px-2 py-0.5 rounded-full border border-dashed border-slate-400 text-[10px] font-bold flex items-center justify-center text-slate-500 cursor-pointer">+{hiddenEmps.length}</span>
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max max-w-[280px] p-2 bg-slate-800 text-white rounded-lg opacity-0 group-hover/hiddenEmp:opacity-100 transition-opacity z-[99999] shadow-xl flex flex-wrap gap-1.5 pointer-events-auto">
+                        {hiddenEmps.map((emp: any, empIdx: number) => {
+                            const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
+                            const borderCls = status === 'active' ? "border-emerald-500/50" : status === 'upcoming' ? "border-blue-500/50" : status === 'ending-soon' ? "border-red-500/50" : "border-slate-500/40";
+                            const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
+                            let isPartial = false;
+                            const parentDur = localHotel.durations.find((d:any) => (d.roomCards||[]).some((rc:any) => (rc.employees||[]).some((e:any) => e.id === emp.id)));
+                            if (parentDur && (emp.checkIn > parentDur.startDate || emp.checkOut < parentDur.endDate)) isPartial = true;
+                            
+                            return (
+                                <button key={emp.id} onClick={(e) => { 
+                                    e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); 
+                                    const findEmpTab = () => {
+                                       for (let i = 0; i < localHotel.durations.length; i++) {
+                                          if ((localHotel.durations[i].roomCards || []).some((rc:any) => (rc.employees || []).some((ex:any) => ex.id === emp.id))) return i;
+                                       } return 0;
+                                    };
+                                    setActiveDurationTab(findEmpTab());
+                                    setTimeout(() => { 
+                                       const el = document.getElementById(`emp-slot-${emp.id}`); 
+                                       if(el){ el.scrollIntoView({behavior: 'smooth', block: 'center'}); el.classList.add('ring-2', 'ring-teal-500'); setTimeout(()=>el.classList.remove('ring-2','ring-teal-500'), 2000);} 
+                                    }, 250); 
+                                }} 
+                                className={cn("px-2 py-0.5 rounded-full border text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, isPartial ? "border-dashed" : "border-solid", "bg-slate-700 text-white")}>
+                                <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
+                                {emp.name?.trim().split(' ').pop()}
+                                </button>
+                            );
+                        })}
                     </div>
                  </div>
               )}
@@ -883,9 +907,15 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                </div>
             )}
 
-            {!showGlobalFinancials && activeSort === 'payment_due' && masterMath.nearestDueDate && (
+            {!showGlobalFinancials && (activeSort === 'payment_due' || activeFilterDue !== 'all') && masterMath.nearestDueDate && (
                <div className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider">
                   {lang === 'de' ? 'Fällig: ' : 'Due: '} {formatShortDate(masterMath.nearestDueDate)}
+               </div>
+            )}
+
+            {!showGlobalFinancials && activeFilterDeposit === 'yes' && localHotel.depositEnabled && (
+               <div className="text-[9px] font-bold text-amber-500 mt-1 uppercase tracking-wider">
+                  {lang === 'de' ? 'Kaution: ' : 'Deposit: '} {formatCurrency(localHotel.depositAmount || 0)}
                </div>
             )}
             
@@ -985,7 +1015,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                        </div>
                     </div>
                     
-                    <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[350px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[350px] no-scrollbar">
                        {editingInvoiceId && invoiceDraft && !localHotel.invoices.find((i:any) => i.id === editingInvoiceId) && (
                           <div className={cn("group relative flex flex-col gap-2 p-3 rounded-xl transition-all border shadow-md", dk ? "bg-teal-900/30 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
                              <input autoFocus value={invoiceDraft.number} onChange={e => setInvoiceDraft({...invoiceDraft, number: e.target.value})} className="w-full text-[13px] font-black border-none bg-transparent outline-none p-0 focus:ring-0 placeholder:text-slate-400" placeholder="RE-..." />
