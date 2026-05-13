@@ -345,12 +345,35 @@ export function ModernDropdown({ value, options, onChange, isDarkMode, lang, pla
   );
 }
 
-export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange, onDeleteOption, onAddOption, disabled, searchQuery }: any) {
+export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange, onDeleteOption, onRenameOption, onAddOption, disabled, searchQuery }: any) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [localMemory, setLocalMemory] = useState<string[]>([]);
+  
+  // New Inline States
+  const [editingOpt, setEditingOpt] = useState<string | null>(null);
+  const [editVal, setEditVal] = useState('');
+  const [confirmDeleteOpt, setConfirmDeleteOpt] = useState<string | null>(null);
+  
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => { function handle(e: any) { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setQuery(''); } } document.addEventListener('mousedown', handle); return () => document.removeEventListener('mousedown', handle); }, []);
+  useEffect(() => { function handle(e: any) { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setQuery(''); setEditingOpt(null); setConfirmDeleteOpt(null); } } document.addEventListener('mousedown', handle); return () => document.removeEventListener('mousedown', handle); }, []);
+
+  const handleInlineRename = (oldName: string) => {
+      const val = editVal.trim();
+      if (val && val !== oldName) {
+         if (onRenameOption) onRenameOption(oldName, val);
+         if (safeSelected.includes(oldName)) onChange([...safeSelected.filter((t:any) => t !== oldName), val]);
+         setLocalMemory(prev => [...prev.filter(m => m !== oldName), val]);
+      }
+      setEditingOpt(null);
+  };
+
+  const handleInlineDelete = (opt: string) => {
+      if (onDeleteOption) onDeleteOption(opt);
+      if (safeSelected.includes(opt)) onChange(safeSelected.filter((t:any) => t !== opt));
+      setLocalMemory(prev => prev.filter(m => m !== opt));
+      setConfirmDeleteOpt(null);
+  };
   const safeOptions = Array.isArray(options) ? options : [];
   const safeSelected = Array.isArray(selected) ? selected : (typeof selected === 'string' && selected ? [selected] : []);
   const combinedOptions = Array.from(new Set([...safeOptions, ...localMemory]));
@@ -382,14 +405,33 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
               const isSelected = safeSelected.includes(opt);
               return (
                 <div key={opt} className={cn('w-full flex items-center justify-between group transition-all', isSelected ? (isDarkMode ? 'bg-teal-500/10' : 'bg-teal-50') : (isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'))}>
-                  <button onClick={() => handleToggle(opt)} className="flex-1 text-left px-4 py-2 text-sm font-bold flex items-center gap-2">
-                    <div className={cn("w-3.5 h-3.5 rounded flex items-center justify-center shrink-0 border", isSelected ? "bg-teal-500 border-teal-500" : isDarkMode ? "border-slate-500" : "border-slate-400")}>{isSelected && <Check size={10} className="text-white" strokeWidth={4} />}</div>
-                    <span className={cn(isSelected ? (isDarkMode ? 'text-teal-400' : 'text-teal-700') : (isDarkMode ? 'text-slate-300' : 'text-slate-700'))}>{opt}</span>
-                  </button>
-                  <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity pr-2">
-                     <button onClick={(e) => { e.stopPropagation(); setQuery(opt); onDeleteOption(opt); setLocalMemory(prev => prev.filter(m => m !== opt)); }} className="p-1.5 text-slate-500 hover:text-blue-500" title="Rename"><Edit3 size={13}/></button>
-                     {onDeleteOption && (<button onClick={(e) => { e.stopPropagation(); onDeleteOption(opt); setLocalMemory(prev => prev.filter(m => m !== opt)); }} className="p-1.5 text-slate-500 hover:text-red-500" title="Delete from system"><Trash2 size={13} /></button>)}
-                  </div>
+                  {editingOpt === opt ? (
+                    <div className="flex-1 flex items-center gap-2 px-3 py-1.5 animate-in fade-in" onClick={e => e.stopPropagation()}>
+                       <input autoFocus value={editVal} onChange={e => setEditVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleInlineRename(opt); else if (e.key === 'Escape') setEditingOpt(null); }} className="flex-1 bg-transparent border-b-2 border-teal-500 outline-none text-[13px] font-black text-teal-600 dark:text-teal-400 py-0.5" />
+                       <button onClick={() => handleInlineRename(opt)} className="p-1 text-white bg-teal-500 hover:bg-teal-600 rounded shadow-sm transition-colors"><Check size={12} strokeWidth={3}/></button>
+                       <button onClick={() => setEditingOpt(null)} className="p-1 text-slate-500 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded transition-colors"><X size={12} strokeWidth={3}/></button>
+                    </div>
+                  ) : (
+                    <>
+                      <button onClick={() => handleToggle(opt)} className="flex-1 text-left px-4 py-2 text-sm font-bold flex items-center gap-2">
+                        <div className={cn("w-3.5 h-3.5 rounded flex items-center justify-center shrink-0 border", isSelected ? "bg-teal-500 border-teal-500" : isDarkMode ? "border-slate-500" : "border-slate-400")}>{isSelected && <Check size={10} className="text-white" strokeWidth={4} />}</div>
+                        <span className={cn(isSelected ? (isDarkMode ? 'text-teal-400' : 'text-teal-700') : (isDarkMode ? 'text-slate-300' : 'text-slate-700'))}>{opt}</span>
+                      </button>
+                      
+                      {confirmDeleteOpt === opt ? (
+                         <div className="flex items-center gap-1 pr-3 animate-in fade-in" onClick={e => e.stopPropagation()}>
+                            <span className="text-[10px] font-black text-red-500 uppercase mr-1">{lang === 'de' ? 'Sicher?' : 'Sure?'}</span>
+                            <button onClick={() => handleInlineDelete(opt)} className="p-1 text-white bg-red-500 hover:bg-red-600 rounded shadow-sm transition-colors"><Check size={12} strokeWidth={3}/></button>
+                            <button onClick={() => setConfirmDeleteOpt(null)} className="p-1 text-slate-600 bg-slate-200 hover:bg-slate-300 rounded transition-colors"><X size={12} strokeWidth={3}/></button>
+                         </div>
+                      ) : (
+                         <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity pr-2" onClick={e => e.stopPropagation()}>
+                           <button onClick={() => { setEditingOpt(opt); setEditVal(opt); setConfirmDeleteOpt(null); }} className="p-1.5 text-slate-400 hover:text-teal-500 transition-colors" title="Rename"><Edit3 size={14}/></button>
+                           {onDeleteOption && (<button onClick={() => { setConfirmDeleteOpt(opt); setEditingOpt(null); }} className="p-1.5 text-slate-400 hover:text-red-500 transition-colors" title="Delete from system"><Trash2 size={14} /></button>)}
+                         </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )
             })}
@@ -400,8 +442,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
     </div>
   );
 }
-
-export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onAddOption, viewOnly, isSelected = false, onSelect = () => {}, isBulkActive = false, isOpen = false, onToggle = () => {}, showGlobalFinancials = false, activeSort = 'created_at', activeFilterDue, activeFilterDeposit }: any) {
+export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onRenameCompanyOption, onAddOption, viewOnly, isSelected = false, onSelect = () => {}, isBulkActive = false, isOpen = false, onToggle = () => {}, showGlobalFinancials = false, activeSort = 'created_at', activeFilterDue, activeFilterDeposit }: any) {
   const [activeTab, setActiveTab] = useState<'bookings'|'billing'|'info'>('bookings');
   
   const [showNotes, setShowNotes] = useState(false);
@@ -773,8 +814,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             isDarkMode={dk} 
             lang={lang} 
             onChange={(tags:any) => patchHotel({ companyTag: tags })} 
-            onDeleteCompanyOption={onDeleteCompanyOption}    // Change this
-            onAddOption={onAddOption}                         // And this
+            onDeleteOption={onDeleteCompanyOption}
+            onRenameOption={onRenameCompanyOption} 
+            onAddOption={onAddOption}
             searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} 
           />
           </div>
