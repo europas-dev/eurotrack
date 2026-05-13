@@ -345,8 +345,11 @@ export function ModernDropdown({ value, options, onChange, isDarkMode, lang, pla
   );
 }
 
-export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange, onDeleteOption, onRenameOption, onAddOption, disabled, searchQuery }: any) {
+export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChange, onDeleteOption, onRenameOption, onAddOption, disabled, searchQuery, onOpenChange }: any) {
   const [open, setOpen] = useState(false);
+  
+  useEffect(() => { if (onOpenChange) onOpenChange(open); }, [open, onOpenChange]);
+
   const [query, setQuery] = useState('');
   const [localMemory, setLocalMemory] = useState<string[]>([]);
   
@@ -361,8 +364,11 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
   const handleInlineRename = (oldName: string) => {
       const val = editVal.trim();
       if (val && val !== oldName) {
-         if (onRenameOption) onRenameOption(oldName, val);
-         if (safeSelected.includes(oldName)) onChange([...safeSelected.filter((t:any) => t !== oldName), val]);
+         if (onRenameOption) {
+             onRenameOption(oldName, val); // Dashboard will cascade to ALL rows
+         } else {
+             if (safeSelected.includes(oldName)) onChange([...safeSelected.filter((t:any) => t !== oldName), val]);
+         }
          setLocalMemory(prev => [...prev.filter(m => m !== oldName), val]);
       }
       setEditingOpt(null);
@@ -501,8 +507,18 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
   const [isRowFocused, setIsRowFocused] = useState(false);
   const [isRowHovered, setIsRowHovered] = useState(false);
+  const [isDropdownActive, setIsDropdownActive] = useState(false);
 
+  // Sync local state instantly when Dashboard updates it via Cascade!
   useEffect(() => {
+     setLocalHotel((prev: any) => {
+        const newTags = entry.companyTag || entry.company_tag || [];
+        if (JSON.stringify(prev.companyTag) !== JSON.stringify(newTags)) {
+           return { ...prev, companyTag: newTags };
+        }
+        return prev;
+     });
+  }, [entry.companyTag, entry.company_tag]);
      setLocalHotel((prev: any) => {
         const newTags = entry.companyTag || entry.company_tag || [];
         if (JSON.stringify(prev.companyTag) !== JSON.stringify(newTags)) {
@@ -794,8 +810,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
  return (
     <div 
        className="space-y-1 relative" 
-       style={{ zIndex: isRowHovered || isRowFocused ? 99999 : 40 - ((index || 0) % 30) }} 
-       onMouseEnter={() => setIsRowHovered(true)} 
+       style={{ zIndex: isDropdownActive || isRowHovered || isRowFocused ? 99999 : 40 - ((index || 0) % 30) }} 
+       onMouseEnter={() => setIsRowHovered(true)}
        onMouseLeave={() => setIsRowHovered(false)}
        onFocus={() => setIsRowFocused(true)}
        onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsRowFocused(false); }}
@@ -828,7 +844,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
           <div className="w-[120px] shrink-0 pr-2" onClick={e => e.stopPropagation()}>
             <CompanyMultiSelect 
-            disabled={viewOnly} 
+            onOpenChange={setIsDropdownActive}
+            disabled={viewOnly}
             selected={localHotel.companyTag} 
             options={companyOptions} 
             isDarkMode={dk} 
