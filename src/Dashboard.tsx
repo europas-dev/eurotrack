@@ -684,11 +684,11 @@ finalFiltered.forEach(h => {
               </div>
            </div>
            <div className="flex-1 h-full">
-             <Header 
+            <Header 
                 theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} 
                 searchQuery={searchQuery} setSearchQuery={setSearchQuery} 
                 searchScope={searchScope} setSearchScope={setSearchScope} 
-                onSignOut={onSignOut} onExportCsv={() => setShowStudio(true)} onPrint={() => {}}
+                onSignOut={onSignOut} onPrint={() => setShowStudio(true)}
                 viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} 
                 offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} 
               />
