@@ -164,7 +164,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         if (user && isMounted) {
           const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
           
-          // Securely check Ghost status straight from the DB on load
+          // Securely check Invisible status straight from the DB on load before tracking!
           const { data: profile } = await supabase.from('profiles').select('invisible, is_ghost').eq('id', user.id).single();
           const isGhost = profile?.invisible || profile?.is_ghost || false;
           
@@ -173,7 +173,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       }
     });
 
-    // Instantly catch the Settings switch and re-broadcast your presence without a refresh!
+    // Instantly catch the Settings switch and re-broadcast your presence without a refresh
     const handleGhostChange = async (e: any) => {
        const isGhost = e.detail;
        const { data: { user } } = await supabase.auth.getUser();
@@ -185,7 +185,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     window.addEventListener('ghost-mode-changed', handleGhostChange);
 
     return () => { isMounted = false; window.removeEventListener('ghost-mode-changed', handleGhostChange); channel.unsubscribe(); supabase.removeChannel(channel); };
-  }, []);
+  }, [accessLevel]);
 
   // --- DATA FETCHING LOGIC ---
   useEffect(() => { 
