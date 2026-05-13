@@ -208,7 +208,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         const { data, error } = await supabase
           .from('hotels')
           .select('*, durations(*, room_cards(*, employees(*)), employees(*))')
-          .eq('year', selectedYear)
           .order('created_at', { ascending: false });
 
         if (error) throw error; 
@@ -380,6 +379,18 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
   const finalFiltered = useMemo(() => {
     return hotels.filter(h => {
+      // --- FINANCIAL OVERLAP ENGINE: Does this hotel belong in this year? ---
+      const durationInYear = (h.durations || []).some((d: any) => {
+        if (!d.startDate || !d.endDate) return false;
+        return new Date(d.startDate).getFullYear() <= selectedYear && new Date(d.endDate).getFullYear() >= selectedYear;
+      });
+      const invoiceInYear = (h.invoices || []).some((inv: any) => {
+        const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
+        return dateStr && new Date(dateStr).getFullYear() === selectedYear;
+      });
+      // If no bookings or payments touch the selected year, hide it entirely!
+      if (!durationInYear && !invoiceInYear) return false;
+
       if (showBookmarks && !bookmarks.includes(h.id)) return false;
       if (searchQuery) {
           const q = searchQuery.toLowerCase();
@@ -605,12 +616,14 @@ finalFiltered.forEach(h => {
   let rawUnpaid = 0;
 
   (h.invoices || []).forEach((inv: any) => {
-    if (selectedMonth !== null && selectedYear !== null) {
-      const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
-      if (!dateStr) return;
-      const d = new Date(dateStr);
-      if (d.getMonth() !== selectedMonth || d.getFullYear() !== selectedYear) return;
-    }
+    const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
+    if (!dateStr) return;
+    const d = new Date(dateStr);
+    
+    // STRICT FINANCIAL BOUNDARY: Must belong to the selected year
+    if (d.getFullYear() !== selectedYear) return;
+    // Strict month boundary (if active)
+    if (selectedMonth !== null && d.getMonth() !== selectedMonth) return;
 
     let invBrutto = 0;
     if (inv.billingMode === 'total') {
