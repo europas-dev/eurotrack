@@ -407,7 +407,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
                 <div key={opt} className={cn('w-full flex items-center justify-between group transition-all', isSelected ? (isDarkMode ? 'bg-teal-500/10' : 'bg-teal-50') : (isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'))}>
                   {editingOpt === opt ? (
                     <div className="flex-1 flex items-center gap-2 px-3 py-1.5 animate-in fade-in" onClick={e => e.stopPropagation()}>
-                       <input autoFocus value={editVal} onChange={e => setEditVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleInlineRename(opt); else if (e.key === 'Escape') setEditingOpt(null); }} className="flex-1 bg-transparent border-b-2 border-teal-500 outline-none text-[13px] font-black text-teal-600 dark:text-teal-400 py-0.5" />
+                       <input autoFocus autoComplete="off" spellCheck="false" name="hidden-company-rename" value={editVal} onChange={e => setEditVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleInlineRename(opt); else if (e.key === 'Escape') setEditingOpt(null); }} className="flex-1 bg-transparent border-b-2 border-teal-500 outline-none text-[13px] font-black text-teal-600 dark:text-teal-400 py-0.5" />
                        <button onClick={() => handleInlineRename(opt)} className="p-1 text-white bg-teal-500 hover:bg-teal-600 rounded shadow-sm transition-colors"><Check size={12} strokeWidth={3}/></button>
                        <button onClick={() => setEditingOpt(null)} className="p-1 text-slate-500 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded transition-colors"><X size={12} strokeWidth={3}/></button>
                     </div>
