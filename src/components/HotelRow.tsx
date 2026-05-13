@@ -395,7 +395,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
         <div className={cn('absolute top-full mt-2 left-0 z-[200] rounded-xl border shadow-xl min-w-[240px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')} onClick={e => e.stopPropagation()}>
           <div className={cn("flex items-center px-3 py-2 border-b", isDarkMode ? "border-white/10 bg-[#1E293B]" : "border-slate-100 bg-slate-50")}>
             <Search size={14} className={isDarkMode ? "text-slate-400" : "text-slate-500"} />
-            <input autoFocus value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAddNew(); }} placeholder={lang === 'de' ? "Suchen..." : "Search..."} className={cn("ml-2 bg-transparent text-sm font-bold outline-none w-full", isDarkMode ? "text-white placeholder:text-slate-500" : "text-slate-900 placeholder:text-slate-400")} />
+            <input autoFocus autoComplete="new-password" spellCheck="false" name={Math.random().toString()} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAddNew(); }} placeholder={lang === 'de' ? "Suchen..." : "Search..."} className={cn("ml-2 bg-transparent text-sm font-bold outline-none w-full", isDarkMode ? "text-white placeholder:text-slate-500" : "text-slate-900 placeholder:text-slate-400")} />
           </div>
           <div className="max-h-48 overflow-y-auto no-scrollbar py-1">
             {query.trim() && !exactMatchExists && !isAlreadySelected && (
@@ -407,7 +407,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
                 <div key={opt} className={cn('w-full flex items-center justify-between group transition-all', isSelected ? (isDarkMode ? 'bg-teal-500/10' : 'bg-teal-50') : (isDarkMode ? 'hover:bg-white/10' : 'hover:bg-slate-100'))}>
                   {editingOpt === opt ? (
                     <div className="flex-1 flex items-center gap-2 px-3 py-1.5 animate-in fade-in" onClick={e => e.stopPropagation()}>
-                       <input autoFocus autoComplete="off" spellCheck="false" name="hidden-company-rename" value={editVal} onChange={e => setEditVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleInlineRename(opt); else if (e.key === 'Escape') setEditingOpt(null); }} className="flex-1 bg-transparent border-b-2 border-teal-500 outline-none text-[13px] font-black text-teal-600 dark:text-teal-400 py-0.5" />
+                       <input autoFocus autoComplete="new-password" spellCheck="false" name={Math.random().toString()} value={editVal} onChange={e => setEditVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleInlineRename(opt); else if (e.key === 'Escape') setEditingOpt(null); }} className="flex-1 bg-transparent border-b-2 border-teal-500 outline-none text-[13px] font-black text-teal-600 dark:text-teal-400 py-0.5" />
                        <button onClick={() => handleInlineRename(opt)} className="p-1 text-white bg-teal-500 hover:bg-teal-600 rounded shadow-sm transition-colors"><Check size={12} strokeWidth={3}/></button>
                        <button onClick={() => setEditingOpt(null)} className="p-1 text-slate-500 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded transition-colors"><X size={12} strokeWidth={3}/></button>
                     </div>
@@ -498,6 +498,19 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 items: inv.items || []
              }))
   });
+
+  const [isRowFocused, setIsRowFocused] = useState(false);
+  const [isRowHovered, setIsRowHovered] = useState(false);
+
+  useEffect(() => {
+     setLocalHotel((prev: any) => {
+        const newTags = entry.companyTag || entry.company_tag || [];
+        if (JSON.stringify(prev.companyTag) !== JSON.stringify(newTags)) {
+           return { ...prev, companyTag: newTags };
+        }
+        return prev;
+     });
+  }, [entry.companyTag, entry.company_tag]);
 
   const activeInvoice = useMemo(() => localHotel.invoices?.find((i:any) => i.id === selectedInvoiceId), [localHotel.invoices, selectedInvoiceId]);
 
@@ -779,7 +792,14 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const unpaidInvs = totalInvs - paidInvs;
 
  return (
-    <div className="space-y-1 relative" style={{ zIndex: 40 - ((index || 0) % 30) }} onMouseEnter={e => e.currentTarget.style.zIndex = '99999'} onMouseLeave={e => e.currentTarget.style.zIndex = (40 - ((index || 0) % 30)).toString()}>
+    <div 
+       className="space-y-1 relative" 
+       style={{ zIndex: isRowHovered || isRowFocused ? 99999 : 40 - ((index || 0) % 30) }} 
+       onMouseEnter={() => setIsRowHovered(true)} 
+       onMouseLeave={() => setIsRowHovered(false)}
+       onFocus={() => setIsRowFocused(true)}
+       onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsRowFocused(false); }}
+    >
       
       <div className={cn("absolute -left-7 top-0 bottom-0 w-10 flex items-center justify-center transition-all duration-300 z-[100]", isSelected || isBulkActive ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 hover:opacity-100")}>
         <input type="checkbox" checked={isSelected} onChange={(e) => { e.stopPropagation(); onSelect(); }} className="w-4 h-4 rounded border-slate-300 accent-teal-600 cursor-pointer shadow-sm transition-transform active:scale-90" />
