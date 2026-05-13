@@ -553,14 +553,20 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     if (invoiceFilter === 'paid') filtered = filtered.filter((inv:any) => inv.isPaid);
     if (invoiceFilter === 'unpaid') filtered = filtered.filter((inv:any) => !inv.isPaid);
 
-    if (activeMonthFilter !== 'all') {
-        filtered = filtered.filter((inv:any) => {
-            const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
-            if (!dateStr) return false;
-            const d = new Date(dateStr);
-            return d.getMonth() === activeMonthFilter && d.getFullYear() === (selectedYear || new Date().getFullYear());
-        });
-    }
+    filtered = filtered.filter((inv:any) => {
+        const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
+        if (!dateStr) return false;
+        const d = new Date(dateStr);
+        
+        // STRICT FINANCIAL BOUNDARY: Lock invoices to the selected year view
+        if (d.getFullYear() !== (selectedYear || new Date().getFullYear())) return false;
+        
+        // Apply month filter if active
+        if (activeMonthFilter !== 'all') {
+            return d.getMonth() === activeMonthFilter;
+        }
+        return true;
+    });
 
     if (itemSearchQuery.trim()) {
         const lowerQ = itemSearchQuery.toLowerCase();
@@ -603,7 +609,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       tFree += calcDurationFreeBeds(d, today);
     });
 
-    const invoicesToScan = (!activeInvoice && activeMonthFilter !== 'all') ? filteredMasterInvoices : (localHotel.invoices || []);
+    const invoicesToScan = activeInvoice ? [activeInvoice] : filteredMasterInvoices;
 
     invoicesToScan.forEach((inv: any) => {
        let invBrutto = 0;
