@@ -1,6 +1,7 @@
 // src/components/Header.tsx
 import React, { useState, useEffect } from 'react';
 import { cn } from '../lib/utils';
+import { createPortal } from 'react-dom';
 import {
   getMyProfile, updateMyProfile, getCollaborators,
   updateCollaboratorPermission, removeCollaborator, searchProfiles,
@@ -342,8 +343,8 @@ export default function Header({
         </div>
       </header>
 
-      {showSettings && (
-        <div className="fixed inset-0 z-[999999] flex pointer-events-none">
+      {showSettings && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 flex pointer-events-none" style={{ zIndex: 999999 }}>
           <div className="flex-1 pointer-events-auto" onClick={() => setShowSettings(false)} />
           <div className={cn('relative w-full max-w-md h-full flex flex-col shadow-2xl border-l pointer-events-auto', drawerBg, dk ? 'border-white/10' : 'border-slate-200')} style={{ animation: 'slideInRight 220ms cubic-bezier(0.16,1,0.3,1)' }}>
             <div className={cn('flex items-center justify-between px-6 py-4 border-b shrink-0', dk ? 'border-white/10' : 'border-slate-200')}>
@@ -494,6 +495,7 @@ export default function Header({
             </div>
           </div>
         </div>
+      document.body
       )}
 
       <style>{`
