@@ -494,7 +494,7 @@ export default function Header({
               )}
             </div>
           </div>
-        </div>
+        </div>,
       document.body
       )}
 
