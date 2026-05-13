@@ -662,8 +662,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
      durs.sort((a, b) => new Date(b.startDate || 0).getTime() - new Date(a.startDate || 0).getTime());
      return durs;
   }, [localHotel.durations]);
-  const visibleDurs = sortedDurations.slice(0, 6);
-  const hiddenDurs = sortedDurations.slice(6);
+  const visibleDurs = sortedDurations.slice(0, 5);
+  const hiddenDurs = sortedDurations.slice(5);
 
   function patchHotel(changes: any) {
     if (viewOnly) return; 
@@ -737,8 +737,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const paidInvs = (localHotel.invoices || []).filter((i: any) => i.isPaid).length;
   const unpaidInvs = totalInvs - paidInvs;
 
-  return (
-    <div className="space-y-1 relative hover:z-[9999]" style={{ zIndex: 40 - (index % 30) }}>
+ return (
+    <div className="space-y-1 relative" style={{ zIndex: 40 - ((index || 0) % 30) }} onMouseEnter={e => e.currentTarget.style.zIndex = '99999'} onMouseLeave={e => e.currentTarget.style.zIndex = (40 - ((index || 0) % 30)).toString()}>
       
       <div className={cn("absolute -left-7 top-0 bottom-0 w-10 flex items-center justify-center transition-all duration-300 z-[100]", isSelected || isBulkActive ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 hover:opacity-100")}>
         <input type="checkbox" checked={isSelected} onChange={(e) => { e.stopPropagation(); onSelect(); }} className="w-4 h-4 rounded border-slate-300 accent-teal-600 cursor-pointer shadow-sm transition-transform active:scale-90" />
@@ -779,30 +779,42 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           />
           </div>
 
-          <div className="w-[340px] shrink-0 pr-2 grid grid-cols-3 gap-1.5 content-center items-center">
+          <div className="w-[340px] shrink-0 pr-2 flex flex-wrap gap-1.5 content-center items-center">
               {visibleDurs.map((d: any, i: number) => {
                 const title = `${calculateNights(d.startDate, d.endDate)} N, ${(d.roomCards || []).length} Rooms`;
+                const formatChipStr = (iso: string) => {
+                    if (!iso) return '';
+                    const date = new Date(iso);
+                    const locale = lang === 'de' ? 'de-DE' : 'en-GB';
+                    return `${date.getDate().toString().padStart(2, '0')} ${date.toLocaleString(locale, { month: 'short' }).replace('.', '')}`;
+                };
                 return (
                   <button key={d.id} title={title} onClick={(e) => { 
                       e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); 
                       const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
                       setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); 
-                  }} className={cn('px-2 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all', dk ? 'bg-[#0F172A] border-white/10 text-slate-300 hover:bg-white/10' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100')}>
-                    {d.startDate && d.endDate ? `${formatDateChip(d.startDate)} - ${formatDateChip(d.endDate)}` : 'New'}
+                  }} className={cn('flex-1 min-w-[100px] max-w-[105px] px-1 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all', dk ? 'bg-[#0F172A] border-white/10 text-slate-300 hover:bg-white/10' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100')}>
+                    {d.startDate && d.endDate ? `${formatChipStr(d.startDate)} - ${formatChipStr(d.endDate)}` : 'New'}
                   </button>
                 )
               })}
               {hiddenDurs.length > 0 && (
-                 <div className="relative group/hiddenDur">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold border border-dashed border-slate-300 dark:border-white/20 text-slate-400 cursor-pointer">+{hiddenDurs.length}</span>
+                 <div className="relative group/hiddenDur flex-1 min-w-[100px] max-w-[105px]">
+                    <span className="w-full block px-1 py-0.5 rounded text-[10px] font-bold border border-dashed border-slate-300 dark:border-white/20 text-slate-400 text-center cursor-pointer">+{hiddenDurs.length}</span>
                     <div className="absolute top-full left-0 mt-2 w-max max-w-[280px] p-2 bg-slate-800 text-white rounded-lg opacity-0 group-hover/hiddenDur:opacity-100 transition-opacity z-[99999] shadow-xl flex flex-wrap gap-1.5 pointer-events-auto">
                         {hiddenDurs.map((d: any) => {
                             const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
+                            const formatChipStr = (iso: string) => {
+                                if (!iso) return '';
+                                const date = new Date(iso);
+                                const locale = lang === 'de' ? 'de-DE' : 'en-GB';
+                                return `${date.getDate().toString().padStart(2, '0')} ${date.toLocaleString(locale, { month: 'short' }).replace('.', '')}`;
+                            };
                             return (
                                 <button key={d.id} onClick={(e) => { 
                                     e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); 
                                 }} className="px-2 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all bg-slate-700 border-white/10 text-white hover:bg-slate-600">
-                                {d.startDate && d.endDate ? `${formatDateChip(d.startDate)} - ${formatDateChip(d.endDate)}` : 'New'}
+                                {d.startDate && d.endDate ? `${formatChipStr(d.startDate)} - ${formatChipStr(d.endDate)}` : 'New'}
                                 </button>
                             );
                         })}
@@ -810,7 +822,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                  </div>
               )}
           </div>
-
           <div className="flex-1 min-w-[200px] flex flex-wrap gap-1.5 pr-4 content-center">
               {visibleEmps.map((emp: any) => {
                 const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
@@ -920,7 +931,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                </div>
             )}
 
-            {!showGlobalFinancials && (activeSort === 'payment_due' || activeFilterDue !== 'all') && masterMath.nearestDueDate && (
+            {!showGlobalFinancials && (activeSort === 'payment_due' || (activeFilterDue && activeFilterDue !== 'all')) && masterMath.nearestDueDate && (
                <div className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider">
                   {lang === 'de' ? 'Fällig: ' : 'Due: '} {formatShortDate(masterMath.nearestDueDate)}
                </div>
