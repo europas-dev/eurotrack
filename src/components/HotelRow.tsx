@@ -854,7 +854,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           />
           </div>
 
-          <div className="w-[340px] shrink-0 pr-2 flex flex-wrap gap-1.5 content-center items-center">
+          <div className="w-[380px] shrink-0 pr-2 flex flex-wrap gap-1.5 content-center items-center">
               {visibleDurs.map((d: any, i: number) => {
                 const title = `${calculateNights(d.startDate, d.endDate)} N, ${(d.roomCards || []).length} Rooms`;
                 const formatChipStr = (iso: string) => {
@@ -874,30 +874,32 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 )
               })}
               {hiddenDurs.length > 0 && (
-                 <div className="relative group/hiddenDur flex-1 min-w-[100px] max-w-[105px]">
+                 <div className="relative group/hiddenDur flex-1 min-w-[100px] max-w-[105px]" onMouseEnter={() => setIsDropdownActive(true)} onMouseLeave={() => setIsDropdownActive(false)}>
                     <span className="w-full block px-1 py-0.5 rounded text-[10px] font-bold border border-dashed border-slate-300 dark:border-white/20 text-slate-400 text-center cursor-pointer hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">+{hiddenDurs.length}</span>
                     <div className="absolute top-full left-0 pt-2 w-max max-w-[280px] z-[999999] opacity-0 group-hover/hiddenDur:opacity-100 transition-opacity pointer-events-none group-hover/hiddenDur:pointer-events-auto">
                         <div className="p-2 bg-slate-800 text-white rounded-lg shadow-xl flex flex-wrap gap-1.5">
                             {hiddenDurs.map((d: any) => {
-                            const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
-                            const formatChipStr = (iso: string) => {
-                                if (!iso) return '';
-                                const date = new Date(iso);
-                                const locale = lang === 'de' ? 'de-DE' : 'en-GB';
-                                return `${date.getDate().toString().padStart(2, '0')} ${date.toLocaleString(locale, { month: 'short' }).replace('.', '')}`;
-                            };
-                            return (
-                                <button key={d.id} onClick={(e) => { 
-                                    e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); 
-                                }} className="px-2 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all bg-slate-700 border-white/10 text-white hover:bg-slate-600">
-                                {d.startDate && d.endDate ? `${formatChipStr(d.startDate)} - ${formatChipStr(d.endDate)}` : 'New'}
-                                </button>
-                            );
-                        })}
+                                const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
+                                const formatChipStr = (iso: string) => {
+                                    if (!iso) return '';
+                                    const date = new Date(iso);
+                                    const locale = lang === 'de' ? 'de-DE' : 'en-GB';
+                                    return `${date.getDate().toString().padStart(2, '0')} ${date.toLocaleString(locale, { month: 'short' }).replace('.', '')}`;
+                                };
+                                return (
+                                    <button key={d.id} onClick={(e) => { 
+                                        e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); 
+                                    }} className="px-2 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all bg-slate-700 border-white/10 text-white hover:bg-slate-600">
+                                    {d.startDate && d.endDate ? `${formatChipStr(d.startDate)} - ${formatChipStr(d.endDate)}` : 'New'}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
                  </div>
               )}
           </div>
+
           <div className="flex-1 min-w-[200px] flex flex-wrap gap-1.5 pr-4 content-center">
               {visibleEmps.map((emp: any, empIdx: number) => {
                 const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
@@ -905,7 +907,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
                 const shortName = emp.name ? emp.name.trim().split(' ').pop() : '_ _ _';
                 
-                // True RoomCard logic for Substitutes & Partials
                 const parentDur = localHotel.durations.find((d:any) => (d.roomCards||[]).some((rc:any) => (rc.employees||[]).some((e:any) => e.id === emp.id)));
                 const parentRc = parentDur?.roomCards?.find((rc:any) => (rc.employees||[]).some((e:any) => e.id === emp.id));
                 const empsInSlot = (parentRc?.employees || []).filter((e:any) => e.slotIndex === emp.slotIndex);
@@ -948,7 +949,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               })}
               
               {hiddenEmps.length > 0 && (
-                 <div className="relative group/hiddenEmp">
+                 <div className="relative group/hiddenEmp" onMouseEnter={() => setIsDropdownActive(true)} onMouseLeave={() => setIsDropdownActive(false)}>
                     <span className="px-2 py-0.5 rounded-full border border-dashed border-slate-400 text-[10px] font-bold flex items-center justify-center text-slate-500 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">+{hiddenEmps.length}</span>
                     <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 w-max max-w-[280px] z-[999999] opacity-0 group-hover/hiddenEmp:opacity-100 transition-opacity pointer-events-none group-hover/hiddenEmp:pointer-events-auto">
                         <div className="p-2 bg-slate-800 text-white rounded-lg shadow-xl flex flex-wrap gap-1.5">
@@ -991,7 +992,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                  </div>
               )}
           </div>
-
+          
           <div className="w-12 shrink-0 text-center">
             <p className={cn('text-xl font-black', masterMath.freeBeds > 0 ? 'text-red-500' : dk ? 'text-teal-500' : 'text-teal-600')}>{masterMath.freeBeds}</p>
           </div>
@@ -1581,7 +1582,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       )}
 
       {invoiceToDelete && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 pointer-events-auto">
           <div className={cn('w-full max-w-sm rounded-3xl border p-6 shadow-2xl animate-in zoom-in-95', dk ? 'bg-[#1E293B] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200')}>
             <div className="flex items-center gap-3 mb-2 text-red-500"><AlertTriangle size={24} /><h3 className="text-xl font-black">{lang === 'de' ? 'Rechnung löschen?' : 'Delete invoice?'}</h3></div>
             <p className="text-sm font-bold text-slate-500 mb-6 mt-2">{lang === 'de' ? 'Diese Aktion kann nicht rückgängig gemacht werden.' : 'This action cannot be undone.'}</p>
