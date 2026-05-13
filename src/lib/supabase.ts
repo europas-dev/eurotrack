@@ -75,7 +75,8 @@ export async function getMyProfile() {
       avatar: row?.avatar ?? null,
       fontFamily: row?.font_family ?? 'inter',
       fontSize: row?.font_size ?? 16,
-      role: row?.role ?? 'pending'
+      role: row?.role ?? 'pending',
+      invisible: row?.invisible ?? false
     }
   } catch { return null }
 }
@@ -88,6 +89,9 @@ export async function updateMyProfile(updates: any) {
   if (updates.avatar !== undefined) payload.avatar = updates.avatar
   if (updates.fontFamily) payload.font_family = updates.fontFamily
   if (updates.fontSize) payload.font_size = updates.fontSize
+  if (updates.invisible !== undefined) payload.invisible = updates.invisible;
+  if (updates.is_ghost !== undefined) payload.invisible = updates.is_ghost; // Catch both just in case
+  
   const { error } = await supabase.from('profiles').update(payload).eq('id', user.id)
   if (error) throw error
   return getMyProfile()
