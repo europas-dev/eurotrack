@@ -1107,7 +1107,7 @@ finalFiltered.forEach(h => {
             <div className="flex flex-col gap-3">
                 {/* ADD HOTEL FORM */}
                 {addingHotel && !isStrictViewer && (
-                  <div className={cn('rounded-2xl border p-5 shadow-xl mb-4 animate-in slide-in-from-top duration-300', dk ? 'bg-[#1E293B] border-teal-500/30' : 'bg-white border-teal-500/30')}>
+                  <div className={cn('rounded-2xl border p-5 shadow-xl mb-4 animate-in slide-in-from-top duration-300 relative z-[99999]', dk ? 'bg-[#1E293B] border-teal-500/30' : 'bg-white border-teal-500/30')}>
                     <div className="flex flex-wrap lg:flex-nowrap items-end gap-4 w-full">
                       
                       <div className="flex-1 min-w-[200px]">
