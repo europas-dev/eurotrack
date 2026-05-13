@@ -384,12 +384,17 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         if (!d.startDate || !d.endDate) return false;
         return new Date(d.startDate).getFullYear() <= selectedYear && new Date(d.endDate).getFullYear() >= selectedYear;
       });
+      
       const invoiceInYear = (h.invoices || []).some((inv: any) => {
         const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
         return dateStr && new Date(dateStr).getFullYear() === selectedYear;
       });
-      // If no bookings or payments touch the selected year, hide it entirely!
-      if (!durationInYear && !invoiceInYear) return false;
+
+      // THE ANCHOR YEAR: The year dashboard where this hotel was originally created
+      const isAnchorYear = h.year === selectedYear;
+
+      // Show if it physically overlaps, financially overlaps, OR is in its home creation year!
+      if (!durationInYear && !invoiceInYear && !isAnchorYear) return false;
 
       if (showBookmarks && !bookmarks.includes(h.id)) return false;
       if (searchQuery) {
