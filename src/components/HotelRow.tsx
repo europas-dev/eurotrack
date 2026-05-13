@@ -519,14 +519,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         return prev;
      });
   }, [entry.companyTag, entry.company_tag]);
-     setLocalHotel((prev: any) => {
-        const newTags = entry.companyTag || entry.company_tag || [];
-        if (JSON.stringify(prev.companyTag) !== JSON.stringify(newTags)) {
-           return { ...prev, companyTag: newTags };
-        }
-        return prev;
-     });
-  }, [entry.companyTag, entry.company_tag]);
 
   const activeInvoice = useMemo(() => localHotel.invoices?.find((i:any) => i.id === selectedInvoiceId), [localHotel.invoices, selectedInvoiceId]);
 
