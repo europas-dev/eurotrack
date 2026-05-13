@@ -1,6 +1,6 @@
 // src/Dashboard.tsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { supabase, deleteHotel, createHotel } from './lib/supabase';
+import { supabase, deleteHotel, createHotel, updateHotel } from './lib/supabase';
 import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday, calculateNights, calcInvoiceItem } from './lib/utils';
 import { calcRoomCardNettoSum, calcRoomCardTotal } from './lib/roomCardUtils';
 import type { AccessLevel } from './lib/supabase';
@@ -262,9 +262,45 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     catch (err) { console.error("Failed to add company globally", err); }
   };
 
+  const handleRenameGlobalCompany = async (oldName: string, newName: string) => {
+    try {
+      await deleteSystemCompany(oldName);
+      await addSystemCompany(newName);
+      setSystemCompanies(prev => [...prev.filter(c => c !== oldName), newName].sort());
+      
+      setHotels(prevHotels => {
+        const updated = prevHotels.map(h => {
+          if (h.companyTag?.includes(oldName)) {
+             const newTags = h.companyTag.map((t: string) => t === oldName ? newName : t);
+             updateHotel(h.id, { company_tag: newTags }); // Fire silent background DB save
+             return { ...h, companyTag: newTags };
+          }
+          return h;
+        });
+        pushToHistory(updated);
+        return updated;
+      });
+    } catch (err) { console.error("Failed to rename company", err); }
+  };
+
   const handleDeleteGlobalCompany = async (name: string) => {
-    try { await deleteSystemCompany(name); setSystemCompanies(prev => prev.filter(c => c !== name)); } 
-    catch (err) { console.error("Failed to delete company from system", err); }
+    try { 
+      await deleteSystemCompany(name); 
+      setSystemCompanies(prev => prev.filter(c => c !== name)); 
+      
+      setHotels(prevHotels => {
+        const updated = prevHotels.map(h => {
+          if (h.companyTag?.includes(name)) {
+             const newTags = h.companyTag.filter((t: string) => t !== name);
+             updateHotel(h.id, { company_tag: newTags }); // Fire silent background DB save
+             return { ...h, companyTag: newTags };
+          }
+          return h;
+        });
+        pushToHistory(updated);
+        return updated;
+      });
+    } catch (err) { console.error("Failed to delete company from system", err); }
   };
 
   function pushToHistory(next: any[]) { 
@@ -1173,6 +1209,7 @@ finalFiltered.forEach(h => {
                           onDelete={hId => setHotels(hotels.filter(ho=>ho.id!==hId))} 
                           onUpdate={(hId, up) => setHotels(hotels.map(ho=>ho.id===hId?{...ho,...up}:ho))} 
                           onDeleteCompanyOption={handleDeleteGlobalCompany} 
+                          onRenameCompanyOption={handleRenameGlobalCompany}
                           onAddOption={handleAddGlobalCompany} 
                           hotelOptions={uniqueHotelNames}
                           employeeOptions={uniqueEmployeeNames}
@@ -1209,6 +1246,7 @@ finalFiltered.forEach(h => {
                       onDelete={hId => setHotels(hotels.filter(h=>h.id!==hId))} 
                       onUpdate={(hId, up) => setHotels(hotels.map(h=>h.id===hId?{...h,...up}:h))} 
                       onDeleteCompanyOption={handleDeleteGlobalCompany} 
+                      onRenameCompanyOption={handleRenameGlobalCompany}
                       onAddOption={handleAddGlobalCompany} 
                       hotelOptions={uniqueHotelNames}
                       employeeOptions={uniqueEmployeeNames}
