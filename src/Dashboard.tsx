@@ -815,7 +815,7 @@ finalFiltered.forEach(h => {
           <main className="flex-1 overflow-y-auto p-8 relative no-scrollbar pb-64">
             
             {/* TIER 3: DATA CONTROLS */}
-            <div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative z-[100]">
+            <div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative" style={{ zIndex: 999998 }}>
               <h2 className="text-2xl font-bold tracking-tight">{displayTitle}</h2>
               
               <div className="flex items-center gap-2">
