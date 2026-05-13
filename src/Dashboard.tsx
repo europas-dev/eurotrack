@@ -1,7 +1,7 @@
 // src/Dashboard.tsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase, deleteHotel, createHotel } from './lib/supabase';
-import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday, calculateNights } from './lib/utils';
+import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday, calculateNights, calcInvoiceItem } from './lib/utils';
 import { calcRoomCardNettoSum, calcRoomCardTotal } from './lib/roomCardUtils';
 import type { AccessLevel } from './lib/supabase';
 import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Star, Calendar, MapPin, Building, Building2, CloudOff, Globe, Trash2, Copy, Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react';
@@ -429,10 +429,14 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                       }
                   });
               });
-              return min === Infinity ? 0 : min;
+              return min;
           };
           va = getMinPrice(a); vb = getMinPrice(b);
-      } 
+          
+          if ((va === Infinity || va === 0) && (vb === Infinity || vb === 0)) return 0;
+          if (va === Infinity || va === 0) return 1;
+          if (vb === Infinity || vb === 0) return -1;
+      }
       else if (sortBy === 'cost') { va = calcHotelTotalCost(a, selectedMonth !== null ? selectedMonth : null, selectedYear); vb = calcHotelTotalCost(b, selectedMonth !== null ? selectedMonth : null, selectedYear); }
       else if (sortBy === 'free_beds') { va = calcHotelFreeBedsToday(a); vb = calcHotelFreeBedsToday(b); }
       else if (sortBy === 'created_at') { va = new Date(a.created_at).getTime(); vb = new Date(b.created_at).getTime(); }
@@ -680,11 +684,11 @@ finalFiltered.forEach(h => {
               </div>
            </div>
            <div className="flex-1 h-full">
-              <Header 
+             <Header 
                 theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} 
                 searchQuery={searchQuery} setSearchQuery={setSearchQuery} 
                 searchScope={searchScope} setSearchScope={setSearchScope} 
-                onSignOut={onSignOut} onExportCsv={() => {}} onPrint={() => {}} 
+                onSignOut={onSignOut} onExportCsv={() => setShowStudio(true)} onPrint={() => {}}
                 viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} 
                 offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} 
               />
@@ -1021,16 +1025,12 @@ finalFiltered.forEach(h => {
                 
                 {/* ACTION BUTTONS */}
                 <div className="flex items-center gap-3 ml-4 border-l pl-4 dark:border-white/10 border-slate-200">
-                    <button onClick={() => setShowStudio(true)} className={cn("px-4 py-2.5 rounded-xl border font-bold flex items-center gap-2 transition-all shadow-sm", dk ? "bg-slate-800 border-white/10 text-white hover:bg-white/10" : "bg-white border-slate-200 text-slate-800 hover:bg-slate-50")}>
-                        Export
-                    </button>
                     {!isStrictViewer && (
                     <button onClick={() => setAddingHotel(true)} className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl flex items-center gap-2 text-sm transition-all shadow-md active:scale-95">
                         <Plus size={18} strokeWidth={2.5} /> {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
                     </button>
                     )}
                 </div>
-
               </div>
             </div>
 
@@ -1157,6 +1157,8 @@ finalFiltered.forEach(h => {
                           onToggle={() => setExpandedHotelId(prev => prev === h.id ? null : h.id)}
                           showGlobalFinancials={showGlobalFinancials}
                           activeSort={sortBy}
+                          activeFilterDue={filterDue}
+                          activeFilterDeposit={filterDeposit}
                           isSelected={selectedIds.has(h.id)}
                           onSelect={() => toggleSelect(h.id)}
                           isBulkActive={selectedIds.size > 0}
