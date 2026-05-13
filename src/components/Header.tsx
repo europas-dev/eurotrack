@@ -180,7 +180,7 @@ export default function Header({
       if (!p) return;
       setProfile(p); setEditName(p.fullName || p.full_name || ''); setNewUsername(p.username || '');
       setSelectedAvatar(p.avatar ?? null);
-      setIsGhostMode(p.is_ghost || false);
+      setIsGhostMode(p.invisible ?? p.is_ghost ?? false);
       const fam = p.fontFamily ?? 'sans'; const size = p.fontSize ?? 16;
       setFontFamilyState(fam); setFontSizeState(size); applyFont(fam, size);
     }).catch(() => { }).finally(() => setProfileLoading(false));
@@ -210,7 +210,7 @@ export default function Header({
     const next = !isGhostMode;
     setIsGhostMode(next);
     try { 
-       await updateMyProfile({ is_ghost: next }); 
+       await updateMyProfile({ invisible: next, is_ghost: next }); 
        if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('ghost-mode-changed', { detail: next }));
     } catch { setIsGhostMode(!next); }
   }
@@ -231,7 +231,7 @@ export default function Header({
     return () => clearTimeout(t);
   }, [accessSearch]);
 
-  async function handleSaveProfile() { setSavingProfile(true); setProfileMsg(''); try { const updated = await updateMyProfile({ full_name: editName, avatar: selectedAvatar }); setProfile(updated); setEditingName(false); setProfileMsg(isDe ? '✓ Gespeichert' : '✓ Saved'); setTimeout(() => setProfileMsg(''), 2500); } catch (e: any) { setProfileMsg(`Error: ${e.message}`); } finally { setSavingProfile(false); } }
+  async function handleSaveProfile(overrideAvatar?: string) { setSavingProfile(true); setProfileMsg(''); try { const avatarToSave = overrideAvatar !== undefined ? overrideAvatar : selectedAvatar; const updated = await updateMyProfile({ full_name: editName, avatar: avatarToSave }); setProfile(updated); setEditingName(false); setProfileMsg(isDe ? '✓ Gespeichert' : '✓ Saved'); setTimeout(() => setProfileMsg(''), 2500); } catch (e: any) { setProfileMsg(`Error: ${e.message}`); } finally { setSavingProfile(false); } }
   async function handleSaveUsername() { setSavingUsername(true); setUsernameMsg(''); try { await updateMyUsername(newUsername); setProfile((p: any) => ({ ...p, username: newUsername })); setUsernameMsg(isDe ? '✓ Benutzername aktualisiert' : '✓ Username updated'); setEditingUsername(false); setTimeout(() => setUsernameMsg(''), 3000); } catch (e: any) { setUsernameMsg(`Error: ${e.message}`); } finally { setSavingUsername(false); } }
   async function handleSaveEmail() { setSavingEmail(true); setEmailMsg(''); try { await updateMyEmail(newEmail); setEmailMsg(isDe ? '✓ Bestätigungslink gesendet' : '✓ Confirmation link sent — check your email'); } catch (e: any) { setEmailMsg(`Error: ${e.message}`); } finally { setSavingEmail(false); } }
   async function handleSavePassword() { if (newPass !== confirmPass) { setPassMsg(isDe ? 'Passwörter stimmen nicht überein' : 'Passwords do not match'); return; } setSavingPass(true); setPassMsg(''); try { await updateMyPassword(currentPass, newPass); setCurrentPass(''); setNewPass(''); setConfirmPass(''); setPassMsg(isDe ? '✓ Passwort geändert' : '✓ Password changed'); setTimeout(() => setPassMsg(''), 3000); } catch (e: any) { setPassMsg(`Error: ${e.message}`); } finally { setSavingPass(false); } }
@@ -405,7 +405,7 @@ export default function Header({
                           <div className={cn('mt-4 pt-4 border-t', dk ? 'border-white/10' : 'border-slate-200')}>
                             <div className="flex items-center justify-between mb-3"><p className={cn('text-xs font-bold', dk ? 'text-slate-400' : 'text-slate-600')}>{isDe ? 'Avatar wählen' : 'Choose avatar'}</p><button onClick={() => setShowAvatarPicker(false)} className={cn('p-1 rounded text-xs', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-200 text-slate-500')}><X size={13} /></button></div>
                             <div className="grid grid-cols-6 gap-2">
-                              {AVATARS.map(av => <button key={av.id} onClick={() => { setSelectedAvatar(av.id); setShowAvatarPicker(false); handleSaveProfile(); }} className={cn('w-10 h-10 rounded-full flex items-center justify-center text-lg transition-all hover:scale-110', selectedAvatar === av.id ? 'ring-2 ring-blue-500 ring-offset-2' : '')} style={{ background: av.bg }}>{av.emoji}</button>)}
+                              {AVATARS.map(av => <button key={av.id} onClick={() => { setSelectedAvatar(av.id); setShowAvatarPicker(false); handleSaveProfile(av.id); }} className={cn('w-10 h-10 rounded-full flex items-center justify-center text-lg transition-all hover:scale-110', selectedAvatar === av.id ? 'ring-2 ring-blue-500 ring-offset-2' : '')} style={{ background: av.bg }}>{av.emoji}</button>)}
                             </div>
                           </div>
                         )}
