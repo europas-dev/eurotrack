@@ -220,7 +220,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
                )}
            </div>
 
-           <div className="w-[60px] shrink-0 px-1 relative z-[60]">
+          <div className="w-[60px] shrink-0 px-1 relative z-[60]">
                <MwstInput value={draft.mwst} onChange={(v:any) => setDraft({ ...draft, mwst: v })} isDarkMode={dk} disabled={false} />
            </div>
 
@@ -228,6 +228,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
                <input type="number" disabled={hasNettoInput} placeholder={hasNettoInput ? formatCurrency(brutto) : "Brutto"} value={draft.brutto ?? ''} onChange={e => setDraft({ ...draft, brutto: e.target.value, netto: null })} className={cn(inputClass, "w-full text-left", hasNettoInput ? "disabled:opacity-100 disabled:bg-transparent disabled:border-transparent text-[13px] font-black px-1 placeholder-slate-900 dark:placeholder-white" : "")} />
            </div>
 
+           {/* FIX: Check and X visible. Trash hidden on far right until hover */}
            <div className="w-[65px] flex items-start justify-end gap-1.5 shrink-0 pl-1 relative group/actions pr-1">
               {/* Trash is absolute to the LEFT of the group, invisible until hover */}
               <div className="absolute right-[calc(100%-8px)] mr-2 top-0 opacity-0 group-hover/actions:opacity-100 transition-opacity flex items-center z-50">
@@ -249,7 +250,8 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
 
   return (
     <div className={cn("flex items-start px-3 py-3 border-b last:border-b-0 transition-colors group relative", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
-       <div className="w-[180px] flex flex-col gap-0.5 shrink-0 pr-2">
+       <div className="flex-1 min-w-[150px] flex flex-col gap-0.5 shrink-0 pr-2">
+          {/* FIX: flex-1 ensures it has the space to stretch! */}
           <div className={cn("text-[12px] font-black leading-tight", dk ? "text-slate-200" : "text-slate-800")}>
              {getTranslation(COST_TYPES, currentItem.type || 'room', lang)}
              {currentItem.method === 'per_bed' && <span className="text-[9.5px] font-bold text-slate-500 ml-1 tracking-normal font-sans">({activeNights} {lang==='de'?'Nächte':'Nights'}, {currentItem.beds||1} {lang==='de'?'Betten':'Beds'})</span>}
@@ -264,7 +266,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
           )}
        </div>
 
-       <div className="flex-1 flex items-start justify-end pr-5">
+       <div className="w-[240px] flex items-start justify-end shrink-0 pr-6">
           {currentItem.method === 'per_bed' ? (
              <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(parseFloat(currentItem.netto)||0)}</span>
           ) : (
@@ -289,11 +291,43 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
           </span>
        </div>
 
-       <div className="w-[65px] flex items-start justify-end opacity-0 group-hover:opacity-100 transition-opacity pt-0.5 pr-1 shrink-0">
+       {/* FIX: Only Edit button in hover view, Delete is strictly inside Edit Mode */}
+       <div className="w-[60px] flex items-start justify-end opacity-0 group-hover:opacity-100 transition-opacity pt-0.5 pr-1 shrink-0">
           {!viewOnly && <button onClick={onEdit} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 transition-colors"><Edit3 size={14}/></button>}
        </div>
     </div>
   )
+}
+
+function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, className, textClass, searchQuery, disabled }: any) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value || '');
+  const [showOptions, setShowOptions] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => { setDraft(value || ''); }, [value]);
+  useEffect(() => {
+    function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) { setEditing(false); setShowOptions(false); setDraft(value || ''); } }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [value]);
+  const filtered = draft.trim().length > 0 ? (options || []).filter((o: string) => o.toLowerCase().includes(draft.toLowerCase()) && o.toLowerCase() !== draft.toLowerCase()).slice(0, 5) : [];
+  if (!editing || disabled) {
+    return (
+      <div className={cn("truncate transition-opacity w-full min-h-[20px]", disabled ? "cursor-default" : "cursor-text hover:opacity-70", textClass)} onClick={(e) => { if (disabled) return; e.stopPropagation(); setEditing(true); setDraft(value || ''); setShowOptions(true); }}>
+        {value ? <HighlightText text={value} query={searchQuery} /> : <span className="opacity-40">{placeholder}</span>}
+      </div>
+    );
+  }
+  return (
+    <div ref={ref} className={cn("relative w-full", className)} onClick={e => e.stopPropagation()}>
+      <input autoFocus value={draft} onChange={e => { setDraft(e.target.value); setShowOptions(true); }} onKeyDown={e => { if (e.key === 'Enter') { onChange(draft); setEditing(false); setShowOptions(false); } }} placeholder={placeholder} className={cn("w-full bg-transparent border-none outline-none focus:ring-0 p-0 m-0 truncate placeholder:opacity-40 transition-colors focus:text-teal-500", textClass)} />
+      {showOptions && filtered.length > 0 && (
+        <div className={cn("absolute top-full left-0 mt-1 w-max min-w-[200px] z-[200] rounded-xl border shadow-xl py-1 overflow-hidden", isDarkMode ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+          {filtered.map((opt: string) => <button key={opt} onClick={() => { setDraft(opt); onChange(opt); setEditing(false); setShowOptions(false); }} className={cn("w-full text-left px-3 py-2 text-xs font-bold transition-all", isDarkMode ? "text-slate-300 hover:bg-white/10" : "text-slate-700 hover:bg-slate-100")}>{opt}</button>)}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, className, textClass, searchQuery, disabled }: any) {
