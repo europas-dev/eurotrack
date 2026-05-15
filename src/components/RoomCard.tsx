@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
   Bed, ChevronDown, ChevronUp, Copy, Loader2, Phone,
-  Minus, Plus, Tag, Trash2, X, Zap, CornerDownRight, Moon, Calendar, Check, Ticket, Lock, Unlock, RotateCcw
+  Minus, Plus, Tag, Trash2, X, Zap, CornerDownRight, Moon, Calendar, Check, Ticket, Lock, Unlock, RotateCcw, Eye
 } from 'lucide-react'
 import { cn, calculateNights, formatCurrency, normalizeNumberInput, getEmployeeStatus } from '../lib/utils'
 import { bedsForType, calcRoomCardTotal, calcRoomCardNettoSum } from '../lib/roomCardUtils'
