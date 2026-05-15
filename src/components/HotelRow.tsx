@@ -101,63 +101,69 @@ export function getTranslation(dict: any[], id: string, lang: string) {
   return { finalNetto, mwst, brutto };
 }*/
 
-export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onDelete, viewOnly, dk, lang, defaultNights = 1, defaultStart, defaultEnd }: any) {
-  const { finalNetto, mwst, brutto } = calcInvoiceItem(item, defaultNights);
-  const [showDiscount, setShowDiscount] = useState(parseFloat(item.discountValue || 0) > 0);
+export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onDelete, viewOnly, dk, lang, defaultNights = 1, defaultStart, defaultEnd }: any) {
+  const [draft, setDraft] = useState(item);
   const [calOpen, setCalOpen] = useState(false);
+  const [showDiscount, setShowDiscount] = useState(parseFloat(item.discountValue || 0) > 0);
   
   const noSpinner = "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
   const inputClass = cn('px-2 py-1.5 rounded text-[12px] font-bold outline-none border transition-all h-[30px]', noSpinner, dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-teal-500' : 'bg-white border-slate-200 text-slate-900 focus:border-teal-500');
 
-  const hasNettoInput = item.netto != null && item.netto !== '';
-  const hasBruttoInput = item.brutto != null && item.brutto !== '';
-  const isPerBedAllowed = item.type === 'room' || item.type === 'energy' || item.type === 'tax';
-  const needsNote = item.type === 'base' || item.type === 'extra';
-  const activeNights = item.nights || defaultNights;
+  useEffect(() => { if (isEditing) setDraft(item); }, [isEditing, item]);
+
+  const currentItem = isEditing ? draft : item;
+  const { finalNetto, mwst, brutto } = calcInvoiceItem(currentItem, defaultNights);
+  
+  const hasNettoInput = currentItem.netto != null && currentItem.netto !== '';
+  const hasBruttoInput = currentItem.brutto != null && currentItem.brutto !== '';
+  const isPerBedAllowed = currentItem.type === 'room' || currentItem.type === 'energy' || currentItem.type === 'tax';
+  const needsNote = currentItem.type === 'base' || currentItem.type === 'extra';
+  const activeNights = currentItem.nights || defaultNights;
 
   const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     e.target.style.height = '30px';
     e.target.style.height = `${e.target.scrollHeight}px`;
-    onChange({ note: e.target.value });
+    setDraft({ ...draft, note: e.target.value });
   };
 
   if (isEditing && !viewOnly) {
     return (
-      <div className={cn("flex flex-col p-2 border-b transition-all w-full", dk ? "bg-white/5 border-white/10" : "bg-slate-50 border-slate-200")}>
+      <div className={cn("flex flex-col p-2 border-b transition-all w-full relative z-20 shadow-xl", dk ? "bg-teal-900/20 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
         <div className="flex items-start w-full">
            <div className="w-[200px] flex items-center gap-1.5 shrink-0 pr-2">
-               <select value={item.type || 'room'} onChange={e => {
+               <select value={draft.type || 'room'} onChange={e => {
                    const newType = e.target.value;
-                   const newMethod = (newType === 'base' || newType === 'extra') ? 'total' : item.method;
-                   onChange({ type: newType, method: newMethod });
+                   const newMethod = (newType === 'base' || newType === 'extra') ? 'total' : draft.method;
+                   setDraft({ ...draft, type: newType, method: newMethod });
                }} className={cn(inputClass, "w-1/2 px-1 text-[11px]")}>
                  {COST_TYPES.map(o => <option key={o.id} value={o.id}>{lang === 'de' ? o.de : o.en}</option>)}
                </select>
-               <select disabled={!isPerBedAllowed} value={!isPerBedAllowed ? 'total' : (item.method || 'total')} onChange={e => onChange({ method: e.target.value })} className={cn(inputClass, "w-1/2 px-1 text-[11px] disabled:opacity-50")}>
+               <select disabled={!isPerBedAllowed} value={!isPerBedAllowed ? 'total' : (draft.method || 'total')} onChange={e => setDraft({ ...draft, method: e.target.value })} className={cn(inputClass, "w-1/2 px-1 text-[11px] disabled:opacity-50")}>
                     {COST_METHODS.map(m => <option key={m.id} value={m.id}>{lang === 'de' ? m.de : m.en}</option>)}
                </select>
            </div>
 
            <div className="flex-1 flex flex-col items-end shrink-0 pr-2 relative">
-               {item.method === 'per_bed' && isPerBedAllowed ? (
+               {draft.method === 'per_bed' && isPerBedAllowed ? (
                  <div className="flex flex-col items-end gap-1.5 w-full">
                      <div className="flex items-center justify-end gap-1.5 w-full">
-                        <input type="number" title={lang === 'de' ? 'Betten' : 'Beds'} value={item.beds ?? 1} onChange={e => onChange({ beds: e.target.value })} className={cn(inputClass, "w-[50px] pl-2 pr-0 text-left [appearance:auto] [&::-webkit-outer-spin-button]:appearance-auto [&::-webkit-inner-spin-button]:appearance-auto")} placeholder="1" />
+                        <input type="number" title={lang === 'de' ? 'Betten' : 'Beds'} value={draft.beds ?? 1} onChange={e => setDraft({ ...draft, beds: e.target.value })} className={cn(inputClass, "w-[50px] pl-2 pr-0 text-left [appearance:auto] [&::-webkit-outer-spin-button]:appearance-auto [&::-webkit-inner-spin-button]:appearance-auto")} placeholder="1" />
                        <span className="text-[12px] text-slate-400 font-black">×</span>
                          <div className={cn("flex items-center rounded border h-[30px] cursor-pointer hover:border-teal-500 transition-colors", dk ? "bg-black/20 border-white/10 text-white" : "bg-white border-slate-200 text-slate-700")} onClick={() => setCalOpen(!calOpen)}>
                              <span className="w-[26px] text-center text-[11px] font-bold">{activeNights}</span>
                              <div className={cn("px-1 border-l h-full flex items-center", dk ? "border-white/10 text-slate-400" : "border-slate-200 text-slate-400")}><Calendar size={12}/></div>
                          </div>
                          <div className="relative w-[100px] ml-1 shrink-0">
-                            <input type="number" disabled={hasBruttoInput} placeholder="0.00" value={item.netto ?? ''} onChange={e => onChange({ netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 text-left")} />
+                            <input type="number" disabled={hasBruttoInput} placeholder="0.00" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 text-left")} />
                             {(!showDiscount && !hasBruttoInput) && <button onClick={() => setShowDiscount(true)} className="absolute right-1 top-[5px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
                          </div>
                      </div>
                      {showDiscount && !hasBruttoInput && (
-                         <div className="flex items-center w-[120px] animate-in fade-in slide-in-from-top-1 mt-1">
-                            <input type="number" value={item.discountValue ?? ''} onChange={e => onChange({ discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-[60px] px-2 text-left")} placeholder="0" />
-                            <button onClick={() => onChange({ discountType: item.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[30px] h-[30px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{item.discountType === 'percentage' ? '%' : '€'}</button>
-                            <button onClick={() => { setShowDiscount(false); onChange({ discountValue: null }); }} className={cn("w-[30px] h-[30px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
+                         <div className="flex items-center w-[130px] animate-in fade-in slide-in-from-top-1 mt-1">
+                            {/* FIX: Wider placeholder for Rabatt */}
+                            <input type="number" value={draft.discountValue ?? ''} onChange={e => setDraft({ ...draft, discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-[65px] px-1.5 text-right placeholder:text-[10px]")} placeholder="Rabatt" />
+                            <button onClick={() => setDraft({ ...draft, discountType: draft.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[30px] h-[30px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{draft.discountType === 'percentage' ? '%' : '€'}</button>
+                            <button onClick={() => { setShowDiscount(false); setDraft({ ...draft, discountValue: null }); }} className={cn("w-[30px] h-[30px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
                          </div>
                      )}
                      {calOpen && (
@@ -165,11 +171,11 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
                             <div className="flex items-center gap-2 w-full">
                                 <div className="flex-1 flex flex-col gap-1">
                                    <label className="text-[9px] font-bold text-slate-500 uppercase">Start</label>
-                                   <NativeDatePicker dk={dk} value={item.startDate || defaultStart || ''} onChange={(s: string) => onChange({ startDate: s, nights: calculateNights(s, item.endDate || defaultEnd || s) })} className="w-full h-[30px]" />
+                                   <NativeDatePicker dk={dk} value={draft.startDate || defaultStart || ''} onChange={(s: string) => setDraft({ ...draft, startDate: s, nights: calculateNights(s, draft.endDate || defaultEnd || s) })} className="w-full h-[30px]" />
                                 </div>
                                 <div className="flex-1 flex flex-col gap-1">
                                    <label className="text-[9px] font-bold text-slate-500 uppercase">End</label>
-                                   <NativeDatePicker dk={dk} min={item.startDate || defaultStart} value={item.endDate || defaultEnd || ''} onChange={(end: string) => onChange({ endDate: end, nights: calculateNights(item.startDate || defaultStart || end, end) })} className="w-full h-[30px]" />
+                                   <NativeDatePicker dk={dk} min={draft.startDate || defaultStart} value={draft.endDate || defaultEnd || ''} onChange={(end: string) => setDraft({ ...draft, endDate: end, nights: calculateNights(draft.startDate || defaultStart || end, end) })} className="w-full h-[30px]" />
                                 </div>
                             </div>
                             <button onClick={() => setCalOpen(false)} className="w-full py-1.5 bg-teal-500 hover:bg-teal-600 transition-colors text-white text-[11px] font-bold rounded shadow-sm">OK</button>
@@ -182,17 +188,17 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
            </div>
 
            <div className="w-[110px] flex items-center justify-end shrink-0 pr-2 relative">
-               {item.method === 'total' || !isPerBedAllowed ? (
+               {draft.method === 'total' || !isPerBedAllowed ? (
                    <div className="flex flex-col items-end gap-1.5 w-full">
                        <div className="relative w-full">
-                           <input type="number" disabled={hasBruttoInput} placeholder="Netto" value={item.netto ?? ''} onChange={e => onChange({ netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 pr-6 text-left")} />
+                           <input type="number" disabled={hasBruttoInput} placeholder="Netto" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 pr-6 text-left")} />
                            {(!showDiscount && !hasBruttoInput) && <button onClick={() => setShowDiscount(true)} className="absolute right-1 top-[5px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
                        </div>
                        {showDiscount && !hasBruttoInput && (
-                           <div className="flex items-center w-[120px] animate-in fade-in slide-in-from-top-1 mt-1">
-                            <input type="number" value={item.discountValue ?? ''} onChange={e => onChange({ discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-[60px] px-2 text-left")} placeholder="0" />
-                            <button onClick={() => onChange({ discountType: item.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[30px] h-[30px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{item.discountType === 'percentage' ? '%' : '€'}</button>
-                            <button onClick={() => { setShowDiscount(false); onChange({ discountValue: null }); }} className={cn("w-[30px] h-[30px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
+                           <div className="flex items-center w-[130px] animate-in fade-in slide-in-from-top-1 mt-1">
+                            <input type="number" value={draft.discountValue ?? ''} onChange={e => setDraft({ ...draft, discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-[65px] px-1.5 text-right placeholder:text-[10px]")} placeholder="Rabatt" />
+                            <button onClick={() => setDraft({ ...draft, discountType: draft.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[30px] h-[30px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{draft.discountType === 'percentage' ? '%' : '€'}</button>
+                            <button onClick={() => { setShowDiscount(false); setDraft({ ...draft, discountValue: null }); }} className={cn("w-[30px] h-[30px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
                          </div>
                        )}
                    </div>
@@ -202,27 +208,78 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onChange, onD
            </div>
 
            <div className="w-[70px] shrink-0 px-2 relative z-[60]">
-               <MwstInput value={item.mwst} onChange={(v:any) => onChange({ mwst: v })} isDarkMode={dk} disabled={false} />
+               <MwstInput value={draft.mwst} onChange={(v:any) => setDraft({ ...draft, mwst: v })} isDarkMode={dk} disabled={false} />
            </div>
 
            <div className="w-[110px] shrink-0 pl-2">
-               <input type="number" disabled={hasNettoInput} placeholder={hasNettoInput ? formatCurrency(brutto) : "Brutto"} value={item.brutto ?? ''} onChange={e => onChange({ brutto: e.target.value, netto: null })} className={cn(inputClass, "w-full text-left", hasNettoInput ? "disabled:opacity-100 disabled:bg-transparent disabled:border-transparent text-[13px] font-black px-1 placeholder-slate-900 dark:placeholder-white" : "")} />
+               <input type="number" disabled={hasNettoInput} placeholder={hasNettoInput ? formatCurrency(brutto) : "Brutto"} value={draft.brutto ?? ''} onChange={e => setDraft({ ...draft, brutto: e.target.value, netto: null })} className={cn(inputClass, "w-full text-left", hasNettoInput ? "disabled:opacity-100 disabled:bg-transparent disabled:border-transparent text-[13px] font-black px-1 placeholder-slate-900 dark:placeholder-white" : "")} />
            </div>
 
-           <div className="w-[50px] flex items-start justify-end gap-1.5 shrink-0 pl-1">
-              <button onClick={onSave} className="p-1.5 h-[30px] w-[26px] flex items-center justify-center text-white bg-teal-500 hover:bg-teal-600 rounded transition-all shadow-sm"><Check size={14} strokeWidth={3}/></button>
-              <button onClick={onDelete} className="p-1.5 h-[30px] w-[26px] flex items-center justify-center text-white bg-red-500 hover:bg-red-600 rounded transition-all shadow-sm"><Trash2 size={13}/></button>
+           {/* FIX: Replaced Delete with Cancel (X) */}
+           <div className="w-[65px] flex items-start justify-end gap-1.5 shrink-0 pl-1">
+              <button onClick={() => onSave(draft)} className="p-1.5 h-[30px] w-[28px] flex items-center justify-center text-white bg-teal-500 hover:bg-teal-600 rounded transition-all shadow-sm"><Check size={14} strokeWidth={3}/></button>
+              <button onClick={onCancel} className={cn("p-1.5 h-[30px] w-[28px] flex items-center justify-center rounded transition-all shadow-sm border", dk ? "border-white/10 text-slate-300 hover:bg-white/10 hover:text-white" : "border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-900")}><X size={14} strokeWidth={3}/></button>
            </div>
         </div>
         
         {needsNote && (
            <div className="w-full mt-2 animate-in fade-in">
-              <textarea rows={1} value={item.note || ''} onChange={handleNoteChange} className={cn(inputClass, "w-full text-[11px] font-medium resize-none overflow-hidden placeholder-opacity-50 min-h-[30px]")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />
+              <textarea rows={1} value={draft.note || ''} onChange={handleNoteChange} className={cn(inputClass, "w-full text-[11px] font-medium resize-none overflow-hidden placeholder-opacity-50 min-h-[30px]")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />
            </div>
         )}
       </div>
     )
   }
+
+  return (
+    <div className={cn("flex items-start px-3 py-3 border-b last:border-b-0 transition-colors group relative", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
+       <div className="w-[160px] flex flex-col gap-0.5 shrink-0 pr-2">
+          {/* FIX: Removed truncate, allowing text to wrap naturally! */}
+          <span className={cn("text-[12px] font-black break-words leading-tight", dk ? "text-slate-200" : "text-slate-800")}>{getTranslation(COST_TYPES, currentItem.type || 'room', lang)}</span>
+          {currentItem.method === 'per_bed' && <span className="text-[9.5px] font-bold text-slate-500 shrink-0">({activeNights} {lang==='de'?'Nächte':'Nights'}, {currentItem.beds||1} {lang==='de'?'Betten':'Beds'})</span>}
+          {(currentItem.startDate || currentItem.endDate || defaultStart || defaultEnd) && currentItem.method === 'per_bed' && (
+             <span className="text-[10px] italic text-slate-400 mt-0.5 opacity-80">
+                {formatShortDate(currentItem.startDate || defaultStart)} - {formatShortDate(currentItem.endDate || defaultEnd)}
+             </span>
+          )}
+          {currentItem.note && (
+             <span className="text-[11px] font-medium text-slate-500 italic mt-1 whitespace-pre-wrap leading-tight">{currentItem.note}</span>
+          )}
+       </div>
+
+       <div className="flex-1 flex items-start justify-end pr-3">
+          {currentItem.method === 'per_bed' ? (
+             <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(parseFloat(currentItem.netto)||0)}</span>
+          ) : (
+             <span className="text-[11px] italic text-slate-400 opacity-50 w-[75px] text-right pt-0.5">--</span>
+          )}
+       </div>
+
+       <div className="w-[110px] shrink-0 flex flex-col items-end pr-2">
+          <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>
+             {hasBruttoInput ? (lang === 'de' ? 'Auto' : 'Auto') : formatCurrency(finalNetto)}
+          </span>
+          {currentItem.discountValue > 0 && !hasBruttoInput && <span className="text-[9px] font-black text-teal-500 leading-none mt-1 border border-teal-500/20 bg-teal-500/10 px-1.5 py-0.5 rounded">-{currentItem.discountType === 'percentage' ? `${currentItem.discountValue}%` : `${currentItem.discountValue}€`}</span>}
+       </div>
+
+       <div className="w-[60px] shrink-0 pt-0.5 text-center">
+          <span className={cn("text-[13px] font-bold", dk ? "text-slate-400" : "text-slate-500")}>{currentItem.mwst ?? 7}%</span>
+       </div>
+
+       <div className="w-[110px] shrink-0 pt-0.5 pr-2 text-right">
+          <span className={cn("text-[13px] font-black", dk ? "text-white" : "text-slate-900")}>
+             {hasNettoInput ? formatCurrency(brutto) : formatCurrency(parseFloat(currentItem.brutto)||0)}
+          </span>
+       </div>
+
+       {/* FIX: Added Delete to hover state so you don't need to click edit to delete */}
+       <div className="w-[65px] flex items-start justify-end opacity-0 group-hover:opacity-100 transition-opacity pt-0.5 gap-1">
+          {!viewOnly && <button onClick={onEdit} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 transition-colors"><Edit3 size={14}/></button>}
+          {!viewOnly && <button onClick={onDelete} className="p-1.5 rounded text-slate-400 hover:text-red-500 bg-black/5 dark:bg-white/5 transition-colors"><Trash2 size={14}/></button>}
+       </div>
+    </div>
+  )
+}
 
   return (
     <div className={cn("flex items-start px-3 py-3 border-b last:border-b-0 transition-colors group", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
@@ -521,6 +578,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingTotal, setEditingTotal] = useState(false);
+  const [totalDraft, setTotalDraft] = useState<any>(null); // NEW: Draft state for Total mode
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [invoiceDraft, setInvoiceDraft] = useState<any>(null);
   const [expandedInvoices, setExpandedInvoices] = useState<string[]>([]);
@@ -1371,24 +1429,25 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       {activeInvoice ? (
                          activeInvoice.billingMode === 'total' ? (
                             <div className="p-4">
-                               <div className={cn("flex flex-col p-4 rounded-2xl border shadow-sm animate-in fade-in slide-in-from-top-2", dk ? "bg-[#1E293B] border-teal-500/30" : "bg-white border-teal-300")}>
+                               <div className={cn("flex flex-col p-4 rounded-2xl border shadow-sm animate-in fade-in slide-in-from-top-2 relative z-20", dk ? "bg-[#1E293B]" : "bg-white", editingTotal ? (dk ? "border-teal-500/50 shadow-xl bg-teal-900/20" : "border-teal-300 shadow-xl bg-teal-50") : (dk ? "border-slate-800" : "border-slate-100"))}>
                                   <div className="flex items-center gap-3 w-full">
                                      <div className="flex-1 flex items-center gap-2 min-w-[250px]">
                                         <label className={labelCls}>Netto</label>
-                                        <input disabled={viewOnly || !editingTotal || activeInvoice.totalBrutto} type="number" value={activeInvoice.totalNetto || ''} onChange={e => patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, totalNetto: e.target.value, totalBrutto: null} : i) })} className={cn(inputCls, "w-[100px] disabled:opacity-30 text-right")} placeholder="0.00" />
-                                        {(!showTotalDiscount && !activeInvoice.totalBrutto) && <button onClick={() => setShowTotalDiscount(true)} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 shrink-0"><Ticket size={14}/></button>}
-                                        {showTotalDiscount && !activeInvoice.totalBrutto && (
-                                            <div className="flex items-center w-[120px] shrink-0 animate-in fade-in slide-in-from-left-2 ml-1">
-                                               <input type="number" value={activeInvoice.discountValue ?? ''} onChange={e => patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, discountValue: e.target.value} : i) })} className={cn(inputCls, "rounded-r-none border-r-0 w-[50px] px-1.5 text-right")} placeholder="Rabatt" />
-                                               <button onClick={() => patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, discountType: i.discountType === 'percentage' ? 'fixed' : 'percentage'} : i) })} className={cn("w-[35px] h-[34px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{activeInvoice.discountType === 'percentage' ? '%' : '€'}</button>
-                                               <button onClick={() => { setShowTotalDiscount(false); patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, discountValue: null} : i) }); }} className={cn("w-[25px] h-[34px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
+                                        <input disabled={viewOnly || !editingTotal || (editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto)} type="number" value={editingTotal ? (totalDraft?.totalNetto ?? '') : (activeInvoice.totalNetto ?? '')} onChange={e => setTotalDraft({...totalDraft, totalNetto: e.target.value, totalBrutto: null})} className={cn(inputCls, "w-[100px] disabled:opacity-30 text-right")} placeholder="0.00" />
+                                        {/* Hides ticket icon securely when NOT editing */}
+                                        {(!showTotalDiscount && !(editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto) && editingTotal && !viewOnly) && <button onClick={() => setShowTotalDiscount(true)} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 shrink-0"><Ticket size={14}/></button>}
+                                        {showTotalDiscount && !(editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto) && (
+                                            <div className="flex items-center w-[130px] shrink-0 animate-in fade-in slide-in-from-left-2 ml-1">
+                                               <input disabled={!editingTotal} type="number" value={editingTotal ? (totalDraft?.discountValue ?? '') : (activeInvoice.discountValue ?? '')} onChange={e => setTotalDraft({...totalDraft, discountValue: e.target.value})} className={cn(inputCls, "rounded-r-none border-r-0 w-[65px] px-1.5 text-right placeholder:text-[10px]")} placeholder="Rabatt" />
+                                               <button disabled={!editingTotal} onClick={() => setTotalDraft({...totalDraft, discountType: totalDraft?.discountType === 'percentage' ? 'fixed' : 'percentage'})} className={cn("w-[30px] h-[34px] border-y border-r text-[11px] font-bold transition-colors disabled:opacity-50", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{editingTotal ? (totalDraft?.discountType === 'percentage' ? '%' : '€') : (activeInvoice.discountType === 'percentage' ? '%' : '€')}</button>
+                                               {editingTotal && <button onClick={() => { setShowTotalDiscount(false); setTotalDraft({...totalDraft, discountValue: null}); }} className={cn("w-[30px] h-[34px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>}
                                             </div>
                                         )}
                                      </div>
                                      <div className="w-[100px] shrink-0 flex items-center gap-2">
                                         <label className={labelCls}>MwSt</label>
                                         {editingTotal && !viewOnly ? (
-                                           <MwstInput value={activeInvoice.totalMwst} onChange={(v:any) => patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, totalMwst: v} : i) })} isDarkMode={dk} />
+                                           <MwstInput value={totalDraft?.totalMwst} onChange={(v:any) => setTotalDraft({...totalDraft, totalMwst: v})} isDarkMode={dk} />
                                         ) : (
                                            <div className={cn(inputCls, "text-center border-transparent bg-transparent px-0 text-sm")}>{activeInvoice.totalMwst || 7}%</div>
                                         )}
@@ -1396,19 +1455,37 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                      <div className="w-[160px] shrink-0 flex items-center gap-2">
                                         <label className={labelCls}>Brutto</label>
                                         <div className="relative flex-1">
-                                            <input disabled={viewOnly || !editingTotal || activeInvoice.totalNetto} type="number" value={activeInvoice.totalBrutto || ''} onChange={e => patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, totalBrutto: e.target.value, totalNetto: null} : i) })} className={cn(inputCls, "w-full disabled:opacity-100 disabled:bg-transparent disabled:border-transparent font-black text-sm text-right pr-2 placeholder-slate-900 dark:placeholder-white")} placeholder={activeInvoice.totalNetto ? formatCurrency(parseFloat(activeInvoice.totalNetto) * (1 + (parseFloat(activeInvoice.totalMwst)||0)/100)) : "0.00"} />
+                                            <input disabled={viewOnly || !editingTotal || (editingTotal ? totalDraft?.totalNetto : activeInvoice.totalNetto)} type="number" value={editingTotal ? (totalDraft?.totalBrutto ?? '') : (activeInvoice.totalBrutto ?? '')} onChange={e => setTotalDraft({...totalDraft, totalBrutto: e.target.value, totalNetto: null})} className={cn(inputCls, "w-full disabled:opacity-100 disabled:bg-transparent disabled:border-transparent font-black text-sm text-right pr-2 placeholder-slate-900 dark:placeholder-white")} placeholder={(editingTotal ? totalDraft?.totalNetto : activeInvoice.totalNetto) ? formatCurrency(parseFloat((editingTotal ? totalDraft?.totalNetto : activeInvoice.totalNetto)) * (1 + (parseFloat((editingTotal ? totalDraft?.totalMwst : activeInvoice.totalMwst))||0)/100)) : "0.00"} />
                                         </div>
                                      </div>
                                      {!viewOnly && (
-                                        <div className="w-[45px] flex items-center justify-end">
-                                           <button onClick={() => setEditingTotal(!editingTotal)} className={cn("h-[34px] w-[34px] rounded-xl flex items-center justify-center font-bold transition-all shadow-sm", editingTotal ? "bg-teal-500 hover:bg-teal-600 text-white" : dk ? "bg-white/10 hover:bg-white/20 text-slate-300" : "bg-slate-100 hover:bg-slate-200 text-slate-700")}>
-                                              {editingTotal ? <Check size={16} /> : <Edit3 size={14} />}
-                                           </button>
+                                        <div className="w-max flex items-center justify-end gap-1.5 ml-3">
+                                           {editingTotal ? (
+                                              <>
+                                                <button onClick={() => {
+                                                    patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, ...totalDraft} : i) });
+                                                    setEditingTotal(false);
+                                                }} className="h-[34px] w-[34px] rounded-xl flex items-center justify-center font-bold transition-all shadow-sm bg-teal-500 hover:bg-teal-600 text-white">
+                                                   <Check size={16} strokeWidth={3} />
+                                                </button>
+                                                <button onClick={() => setEditingTotal(false)} className={cn("h-[34px] w-[34px] rounded-xl flex items-center justify-center font-bold transition-all border", dk ? "border-white/10 hover:bg-white/10 text-slate-400 hover:text-white" : "border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-800")}>
+                                                   <X size={16} strokeWidth={3} />
+                                                </button>
+                                              </>
+                                           ) : (
+                                              <button onClick={() => {
+                                                  setTotalDraft({ totalNetto: activeInvoice.totalNetto, totalBrutto: activeInvoice.totalBrutto, totalMwst: activeInvoice.totalMwst, discountValue: activeInvoice.discountValue, discountType: activeInvoice.discountType || 'percentage', note: activeInvoice.note });
+                                                  setShowTotalDiscount(parseFloat(activeInvoice.discountValue || 0) > 0);
+                                                  setEditingTotal(true);
+                                              }} className={cn("h-[34px] w-[34px] rounded-xl flex items-center justify-center font-bold transition-all shadow-sm", dk ? "bg-white/10 hover:bg-white/20 text-slate-300" : "bg-slate-100 hover:bg-slate-200 text-slate-700")}>
+                                                 <Edit3 size={14} />
+                                              </button>
+                                           )}
                                         </div>
                                      )}
                                   </div>
                                   <div className="w-full mt-3 border-t pt-3 dark:border-white/10 border-slate-100 animate-in fade-in">
-                                     <textarea rows={1} value={activeInvoice.note || ''} onChange={e => { e.target.style.height='34px'; e.target.style.height=`${e.target.scrollHeight}px`; patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, note: e.target.value} : i) }) }} className={cn(inputCls, "w-full text-[12px] font-medium resize-none overflow-hidden placeholder-opacity-50 min-h-[34px]")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />
+                                     <textarea disabled={!editingTotal} rows={1} value={editingTotal ? (totalDraft?.note || '') : (activeInvoice.note || '')} onChange={e => { e.target.style.height='34px'; e.target.style.height=`${e.target.scrollHeight}px`; setTotalDraft({...totalDraft, note: e.target.value}) }} className={cn(inputCls, "w-full text-[12px] font-medium resize-none overflow-hidden placeholder-opacity-50 min-h-[34px] disabled:bg-transparent disabled:border-transparent")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />
                                   </div>
                                </div>
                             </div>
@@ -1426,15 +1503,20 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                {(activeInvoice.items || []).length === 0 && <p className="text-[12px] font-bold text-slate-400 italic mt-6 mx-5 text-center py-6 bg-slate-100 dark:bg-white/5 rounded-xl border border-dashed border-slate-300 dark:border-white/10">{lang === 'de' ? 'Noch keine Posten vorhanden. Klicke unten, um zu starten.' : 'No line items. Click below to start.'}</p>}
                                
                                {(activeInvoice.items || []).map((item: any) => (
-                                  <InvoiceLineItem 
-                                     key={item.id} item={item} dk={dk} lang={lang} viewOnly={viewOnly}
-                                     defaultNights={activeInvoice.startDate && activeInvoice.endDate ? calculateNights(activeInvoice.startDate, activeInvoice.endDate) : 1}
-                                     defaultStart={activeInvoice.startDate} defaultEnd={activeInvoice.endDate}
-                                     isEditing={editingItemId === item.id} onEdit={() => setEditingItemId(item.id)} onSave={() => setEditingItemId(null)}
-                                     onChange={(updates: any) => patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: i.items.map((it:any) => it.id === item.id ? {...it, ...updates} : it)} : i) })}
-                                     onDelete={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: i.items.filter((it:any) => it.id !== item.id)} : i) }); setEditingItemId(null); }}
-                                  />
-                               ))}
+                                          <InvoiceLineItem 
+                                             key={item.id} item={item} dk={dk} lang={lang} viewOnly={viewOnly}
+                                             defaultNights={activeInvoice.startDate && activeInvoice.endDate ? calculateNights(activeInvoice.startDate, activeInvoice.endDate) : 1}
+                                             defaultStart={activeInvoice.startDate} defaultEnd={activeInvoice.endDate}
+                                             isEditing={editingItemId === item.id} 
+                                             onEdit={() => setEditingItemId(item.id)} 
+                                             onSave={(savedDraft: any) => { 
+                                                 patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: i.items.map((it:any) => it.id === item.id ? savedDraft : it)} : i) });
+                                                 setEditingItemId(null); 
+                                             }}
+                                             onCancel={() => setEditingItemId(null)}
+                                             onDelete={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: i.items.filter((it:any) => it.id !== item.id)} : i) }); setEditingItemId(null); }}
+                                          />
+                                       ))}
                                {!viewOnly && (
                                   <button onClick={() => {
                                       const newId = Math.random().toString();
@@ -1489,13 +1571,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                const { finalNetto, mwst, brutto } = calcInvoiceItem(item, defaultN);
                                                return (
                                                   <div key={item.id} className="flex items-start px-2 py-2.5 border-b border-slate-100 dark:border-white/5 last:border-0">
-                                                     <div className="w-[220px] shrink-0 flex flex-col pr-2">
-                                                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate">
-                                                           <HighlightText text={getTranslation(COST_TYPES, item.type || 'room', lang)} query={itemSearchQuery} />
-                                                           {item.method === 'per_bed' && <span className="text-[9px] text-slate-400 font-bold uppercase ml-1">({item.nights||defaultN} {lang==='de'?'Nächte':'Nights'}, {item.beds||1} {lang==='de'?'Betten':'Beds'})</span>}
-                                                        </span>
-                                                        {item.note && <span className="text-[10px] italic text-slate-400 mt-1 whitespace-pre-wrap"><HighlightText text={item.note} query={itemSearchQuery} /></span>}
-                                                     </div>
+                                                     <div className="w-[220px] shrink-0 flex flex-col gap-0.5 pr-2">
+                                                                        <span className="text-[12px] font-bold text-slate-700 dark:text-slate-300 break-words leading-tight">
+                                                                           <HighlightText text={getTranslation(COST_TYPES, item.type || 'room', lang)} query={itemSearchQuery} />
+                                                                        </span>
+                                                                        {item.method === 'per_bed' && <span className="text-[9.5px] text-slate-400 font-bold uppercase">({item.nights||defaultN} {lang==='de'?'Nächte':'Nights'}, {item.beds||1} {lang==='de'?'Betten':'Beds'})</span>}
+                                                                        {item.note && <span className="text-[10px] italic text-slate-400 mt-1 whitespace-pre-wrap"><HighlightText text={item.note} query={itemSearchQuery} /></span>}
+                                                                     </div>
                                                      <div className="flex-1 text-[12px] font-bold text-slate-700 dark:text-slate-300 pt-0.5 text-right pr-6">
                                                         {item.method === 'per_bed' ? <HighlightText text={formatCurrency(parseFloat(item.netto)||0)} query={itemSearchQuery} /> : <span className="opacity-50 text-[11px] italic">--</span>}
                                                      </div>
