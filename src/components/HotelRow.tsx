@@ -281,55 +281,6 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
   )
 }
 
-  return (
-    <div className={cn("flex items-start px-3 py-3 border-b last:border-b-0 transition-colors group", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
-       <div className="w-[160px] flex flex-col gap-0.5 shrink-0 overflow-hidden pr-2">
-          <div className="flex items-center gap-1.5">
-             <span className={cn("text-[12px] font-black truncate", dk ? "text-slate-200" : "text-slate-800")}>{getTranslation(COST_TYPES, item.type || 'room', lang)}</span>
-             {item.method === 'per_bed' && <span className="text-[10px] font-bold text-slate-500 shrink-0">({activeNights} {lang==='de'?'Nächte':'Nights'}, {item.beds||1} {lang==='de'?'Betten':'Beds'})</span>}
-          </div>
-          {(item.startDate || item.endDate || defaultStart || defaultEnd) && item.method === 'per_bed' && (
-             <span className="text-[10px] italic text-slate-400 mt-0.5 opacity-80">
-                {formatShortDate(item.startDate || defaultStart)} - {formatShortDate(item.endDate || defaultEnd)}
-             </span>
-          )}
-          {item.note && (
-             <span className="text-[11px] font-medium text-slate-500 italic mt-1 whitespace-pre-wrap leading-tight">{item.note}</span>
-          )}
-       </div>
-
-       <div className="flex-1 flex items-start justify-end pr-3">
-          {item.method === 'per_bed' ? (
-             <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(parseFloat(item.netto)||0)}</span>
-          ) : (
-             <span className="text-[11px] italic text-slate-400 opacity-50 w-[75px] text-right pt-0.5">--</span>
-          )}
-       </div>
-
-       <div className="w-[110px] shrink-0 flex flex-col items-end pr-2">
-          <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>
-             {hasBruttoInput ? (lang === 'de' ? 'Auto' : 'Auto') : formatCurrency(finalNetto)}
-          </span>
-          {item.discountValue > 0 && !hasBruttoInput && <span className="text-[9px] font-black text-teal-500 leading-none mt-1 border border-teal-500/20 bg-teal-500/10 px-1.5 py-0.5 rounded">-{item.discountType === 'percentage' ? `${item.discountValue}%` : `${item.discountValue}€`}</span>}
-       </div>
-
-       <div className="w-[60px] shrink-0 pt-0.5 text-center">
-          <span className={cn("text-[13px] font-bold", dk ? "text-slate-400" : "text-slate-500")}>{item.mwst ?? 7}%</span>
-       </div>
-
-       <div className="w-[110px] shrink-0 pt-0.5 pr-2 text-right">
-          <span className={cn("text-[13px] font-black", dk ? "text-white" : "text-slate-900")}>
-             {hasNettoInput ? formatCurrency(brutto) : formatCurrency(parseFloat(item.brutto)||0)}
-          </span>
-       </div>
-
-       <div className="w-[50px] flex items-start justify-end opacity-0 group-hover:opacity-100 transition-opacity pt-0.5">
-          {!viewOnly && <button onClick={onEdit} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 transition-colors"><Edit3 size={14}/></button>}
-       </div>
-    </div>
-  )
-}
-
 function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, className, textClass, searchQuery, disabled }: any) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value || '');
