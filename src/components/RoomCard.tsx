@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
   Bed, ChevronDown, ChevronUp, Copy, Loader2, Phone,
-  Minus, Plus, Tag, Trash2, X, Zap, CornerDownRight, Moon, Calendar, Check, Ticket, Lock, Unlock
+  Minus, Plus, Tag, Trash2, X, Zap, CornerDownRight, Moon, Calendar, Check, Ticket, Lock, Unlock, RotateCcw
 } from 'lucide-react'
 import { cn, calculateNights, formatCurrency, normalizeNumberInput, getEmployeeStatus } from '../lib/utils'
 import { bedsForType, calcRoomCardTotal, calcRoomCardNettoSum } from '../lib/roomCardUtils'
@@ -175,28 +175,30 @@ function BedSlot({
   if (!editing && employee) {
     return (
       <div 
-      id={`emp-slot-${employee.id}`} // <-- ADD THIS ID
-      className={cn('flex items-center gap-4 px-4 py-3 rounded-lg transition-all group relative', borderCls, isPartial ? 'border-2 border-dashed' : 'border-2 border-solid', dk ? 'bg-[#0F172A]' : 'bg-white')}
-    >
-        <IconToUse size={18} className={status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400'} />
-        
-        <div className="flex flex-col flex-1 overflow-hidden relative">
-          {/* SURGICAL FIX: Prevent click to edit if viewOnly */}
-          <span onClick={() => { if(viewOnly) return; setName(employee.name); setPhone(employee.phone || '+49 '); setCheckIn(employee.checkIn ?? effectiveIn); setCheckOut(employee.checkOut ?? effectiveOut); setEditing(true) }} className={cn('text-[15px] font-bold truncate', !viewOnly ? "cursor-pointer" : "cursor-default", dk ? 'text-white' : 'text-slate-900')}>{employee.name}</span>
+        id={`emp-slot-${employee.id}`}
+        className={cn('flex flex-col gap-1.5 px-3 py-2.5 rounded-lg transition-all group relative', borderCls, isPartial ? 'border-2 border-dashed' : 'border-2 border-solid', dk ? 'bg-[#0F172A]' : 'bg-white')}
+      >
+        {/* LINE 1: ICON + NAME + DELETE */}
+        <div className="flex items-start justify-between gap-2 w-full">
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <IconToUse size={16} className={cn("shrink-0 mt-0.5", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} />
+            <span onClick={() => { if(viewOnly) return; setName(employee.name); setPhone(employee.phone || '+49 '); setCheckIn(employee.checkIn ?? effectiveIn); setCheckOut(employee.checkOut ?? effectiveOut); setEditing(true) }} className={cn('text-[14px] font-black truncate flex-1', !viewOnly ? "cursor-pointer hover:underline" : "cursor-default", dk ? 'text-white' : 'text-slate-900')}>{employee.name}</span>
+          </div>
+          {!viewOnly && (
+            saving ? <Loader2 size={16} className="animate-spin text-blue-400 shrink-0" /> : <button onClick={() => setConfirmDel(true)} className={cn('opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded shrink-0', dk ? 'text-red-400 hover:bg-red-900/20' : 'text-red-500 hover:bg-red-50')}><Trash2 size={16} /></button>
+          )}
         </div>
 
-        {employee.phone && employee.phone !== '+49' && employee.phone.trim() !== '' && (
-          <a href={`tel:${employee.phone.replace(/\s/g, '')}`} onClick={e => e.stopPropagation()} className={cn("flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition-colors border shrink-0", dk ? "bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10" : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100")}>
-            <Phone size={12} /> <span className="hidden sm:inline">{employee.phone}</span>
-          </a>
-        )}
-
-        <span className={cn('text-[14px] font-bold tabular-nums shrink-0 hidden md:block', dk ? 'text-slate-400' : 'text-slate-500')}>{fmtDateDe(employee.checkIn ?? '')} ➔ {fmtDateDe(employee.checkOut ?? '')}</span>
-        <span className={cn('text-[15px] font-black shrink-0 w-12 text-right', dk ? 'text-slate-300' : 'text-slate-600')}>{calculateNights(employee.checkIn||'', employee.checkOut||'')}N</span>
-        {/* SURGICAL FIX: Hide employee Trash icon for viewers */}
-        {!viewOnly && (
-          saving ? <Loader2 size={18} className="animate-spin text-blue-400" /> : <button onClick={() => setConfirmDel(true)} className={cn('opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded shrink-0', dk ? 'text-red-400 hover:bg-red-900/20' : 'text-red-500 hover:bg-red-50')}><Trash2 size={18} /></button>
-        )}
+        {/* LINE 2: PHONE + DATES + NIGHTS */}
+        <div className="flex items-center gap-3 pl-7 flex-wrap">
+          {employee.phone && employee.phone !== '+49' && employee.phone.trim() !== '' && (
+            <a href={`tel:${employee.phone.replace(/\s/g, '')}`} onClick={e => e.stopPropagation()} className={cn("flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md transition-colors border", dk ? "bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10" : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100")}>
+              <Phone size={10} /> <span>{employee.phone}</span>
+            </a>
+          )}
+          <span className={cn('text-[11px] font-bold tabular-nums', dk ? 'text-slate-400' : 'text-slate-500')}>{fmtDateDe(employee.checkIn ?? '')} ➔ {fmtDateDe(employee.checkOut ?? '')}</span>
+          <span className={cn('text-[12px] font-black ml-auto', dk ? 'text-slate-300' : 'text-slate-600')}>{calculateNights(employee.checkIn||'', employee.checkOut||'')}N</span>
+        </div>
       </div>
     )
   }
@@ -204,95 +206,72 @@ function BedSlot({
   if (!editing) {
     const isGap = !!(gapStart || gapEnd)
     return (
-      // SURGICAL FIX: Disable the empty bed assign button via pointer-events-none and disabled flag
-      <button disabled={viewOnly} onClick={() => { if(!viewOnly) { setCheckIn(effectiveIn); setCheckOut(effectiveOut); setEditing(true); setTimeout(() => inputRef.current?.focus(), 40) } }} className={cn('w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border-2 border-dashed text-sm font-bold transition-all', isGap ? (dk ? 'border-amber-500/40 text-amber-400 hover:bg-amber-900/10' : 'border-amber-400 text-amber-600 hover:bg-amber-50') : (dk ? 'border-white/10 text-slate-500 hover:border-blue-500/40 hover:text-blue-400' : 'border-slate-200 text-slate-400 hover:border-blue-400 hover:text-blue-500'), viewOnly && "opacity-60 cursor-default hover:bg-transparent pointer-events-none")}>
+      <button disabled={viewOnly} onClick={() => { if(!viewOnly) { setCheckIn(effectiveIn); setCheckOut(effectiveOut); setEditing(true); setTimeout(() => inputRef.current?.focus(), 40) } }} className={cn('w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg border-2 border-dashed text-sm font-bold transition-all h-[52px]', isGap ? (dk ? 'border-amber-500/40 text-amber-400 hover:bg-amber-900/10' : 'border-amber-400 text-amber-600 hover:bg-amber-50') : (dk ? 'border-white/10 text-slate-500 hover:border-blue-500/40 hover:text-blue-400' : 'border-slate-200 text-slate-400 hover:border-blue-400 hover:text-blue-500'), viewOnly && "opacity-60 cursor-default hover:bg-transparent pointer-events-none")}>
         {!viewOnly && <Plus size={16} />} {isGap ? `${lang === 'de' ? 'Lücke füllen' : 'Fill gap'} (${fmtDateDe(effectiveIn)} ➔ ${fmtDateDe(effectiveOut)})` : (lang === 'de' ? 'Bett zuweisen' : 'Assign bed')}
       </button>
     )
   }
 
   return (
-    <div className={cn('flex flex-col gap-3 p-4 rounded-xl border shadow-sm', dk ? 'bg-[#0F172A] border-white/10' : 'bg-slate-50 border-slate-200')}>
-      <div className="flex items-center gap-3 w-full">
-        <input disabled={viewOnly} ref={inputRef} type="text" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder={lang === 'de' ? 'Name...' : 'Name...'} className={cn(inputCls, 'flex-[6] min-w-0 text-base', viewOnly && "opacity-60")} list={`emp-list-${roomCardId}-${slotIndex}`} />
+    <div className={cn('flex flex-col gap-2.5 p-3 rounded-xl border shadow-sm', dk ? 'bg-[#0F172A] border-white/10' : 'bg-slate-50 border-slate-200')}>
+      <div className="flex items-center gap-2 w-full">
+        <input disabled={viewOnly} ref={inputRef} type="text" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder={lang === 'de' ? 'Name...' : 'Name...'} className={cn(inputCls, 'flex-[6] min-w-0 text-[13px] h-[34px]', viewOnly && "opacity-60")} list={`emp-list-${roomCardId}-${slotIndex}`} />
         <datalist id={`emp-list-${roomCardId}-${slotIndex}`}>
             {name.trim().length > 0 && employeeOptions?.map(opt => <option key={opt} value={opt} />)}
         </datalist>
         <div className="relative flex items-center flex-[4] min-w-0">
-          <Phone size={14} className={cn("absolute left-2.5", dk ? "text-slate-500" : "text-slate-400")} />
-          <input disabled={viewOnly} type="text" value={phone} onChange={e => setPhone(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder="+49" className={cn(inputCls, 'w-full pl-8 text-base', viewOnly && "opacity-60")} />
+          <Phone size={12} className={cn("absolute left-2.5", dk ? "text-slate-500" : "text-slate-400")} />
+          <input disabled={viewOnly} type="text" value={phone} onChange={e => setPhone(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder="+49" className={cn(inputCls, 'w-full pl-7 text-[13px] h-[34px]', viewOnly && "opacity-60")} />
         </div>
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap w-full">
-        {/* Check In - Invisible Overlay */}
-        <div className="relative w-[135px] h-[38px] shrink-0 group">
-          <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent', viewOnly && "opacity-60")}>
-            <span className="text-[13px]">{fmtDateDe(checkIn)}</span>
-            <Calendar size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
+      <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap w-full">
+        {/* Check In */}
+        <div className="relative w-[115px] h-[34px] shrink-0 group">
+          <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent h-[34px] px-2', viewOnly && "opacity-60")}>
+            <span className="text-[12px]">{fmtDateDe(checkIn)}</span>
+            <Calendar size={12} className="opacity-40 group-hover:opacity-100 transition-opacity" />
           </div>
-          <input 
-            type="date" 
-            disabled={viewOnly}
-            value={checkIn || ''} 
-            min={effectiveIn} 
-            max={effectiveOut} 
-            onChange={e => setCheckIn(e.target.value)} 
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer" 
-          />
+          <input type="date" disabled={viewOnly} value={checkIn || ''} min={effectiveIn} max={effectiveOut} onChange={e => setCheckIn(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
         </div>
         
-        <span className="text-slate-400 text-sm hidden sm:block shrink-0">➔</span>
+        <span className="text-slate-400 text-xs hidden sm:block shrink-0">➔</span>
         
-        {/* Check Out - Invisible Overlay */}
-        <div className="relative w-[135px] h-[38px] shrink-0 group">
-          <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent', viewOnly && "opacity-60")}>
-            <span className="text-[13px]">{fmtDateDe(checkOut)}</span>
-            <Calendar size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
+        {/* Check Out */}
+        <div className="relative w-[115px] h-[34px] shrink-0 group">
+          <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent h-[34px] px-2', viewOnly && "opacity-60")}>
+            <span className="text-[12px]">{fmtDateDe(checkOut)}</span>
+            <Calendar size={12} className="opacity-40 group-hover:opacity-100 transition-opacity" />
           </div>
-          <input 
-            type="date" 
-            disabled={viewOnly}
-            value={checkOut || ''} 
-            min={checkIn || effectiveIn} 
-            max={effectiveOut} 
-            onChange={e => setCheckOut(e.target.value)} 
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer" 
-          />
+          <input type="date" disabled={viewOnly} value={checkOut || ''} min={checkIn || effectiveIn} max={effectiveOut} onChange={e => setCheckOut(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
         </div>
 
-        {/* Clear Dates Inline (Using Trash icon to separate from Cancel) */}
+        {/* Clear Dates Inline (Using RotateCcw) */}
         {!viewOnly && (
-          <button 
-            type="button" 
-            onClick={() => { setCheckIn(''); setCheckOut(''); }} 
-            className={cn("p-2 h-[38px] w-[38px] rounded-lg transition-colors border shrink-0 flex items-center justify-center", dk ? "border-white/10 text-slate-500 hover:text-red-400 hover:bg-white/5" : "border-slate-200 text-slate-400 hover:text-red-500 hover:bg-slate-50")} 
-            title={lang === 'de' ? 'Daten löschen' : 'Clear dates'}
-          >
-             <Trash2 size={16} className="opacity-70" />
+          <button type="button" onClick={() => { setCheckIn(''); setCheckOut(''); }} className={cn("h-[34px] w-[34px] rounded-lg transition-colors border shrink-0 flex items-center justify-center", dk ? "border-white/10 text-slate-500 hover:text-amber-400 hover:bg-white/5" : "border-slate-200 text-slate-400 hover:text-amber-500 hover:bg-slate-50")} title={lang === 'de' ? 'Daten zurücksetzen' : 'Reset dates'}>
+             <RotateCcw size={14} className="opacity-70" />
           </button>
         )}
 
-        <div className={cn('px-2 rounded-lg border text-xs font-black text-center h-[38px] flex items-center justify-center shrink-0 w-12', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>{nights}N</div>
+        <div className={cn('px-1.5 rounded-lg border text-xs font-black text-center h-[34px] flex items-center justify-center shrink-0 min-w-[34px]', dk ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>{nights}N</div>
         
-        <div className="flex-1 min-w-[10px]" />
+        <div className="flex-1 min-w-[5px]" />
         
         {/* COMPACT SAVE & CANCEL ICONS */}
         {!viewOnly && (
-           <button onClick={save} disabled={saving || !name.trim()} className="h-[38px] w-[46px] rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-md shrink-0 transition-colors">
-              {saving ? <Loader2 size={18} className="animate-spin" /> : <Check size={20} strokeWidth={3} />}
+           <button onClick={save} disabled={saving || !name.trim()} className="h-[34px] w-[38px] rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-md shrink-0 transition-colors">
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={18} strokeWidth={3} />}
            </button>
         )}
         {!viewOnly && (
-           <button onClick={() => setEditing(false)} className={cn('h-[38px] w-[46px] rounded-lg flex items-center justify-center transition-all shrink-0 border', dk ? 'border-white/10 text-slate-400 hover:bg-white/10 hover:text-white' : 'border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-900')}>
-              <X size={20} strokeWidth={2.5} />
+           <button onClick={() => setEditing(false)} className={cn('h-[34px] w-[38px] rounded-lg flex items-center justify-center transition-all shrink-0 border', dk ? 'border-white/10 text-slate-400 hover:bg-white/10 hover:text-white' : 'border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-900')}>
+              <X size={18} strokeWidth={2.5} />
            </button>
         )}
       </div>
     </div>
   )
 }
-
 function getGapSlots(beds: number, employees: Employee[], durationStart: string, durationEnd: string): { slotIndex: number; gapStart: string; gapEnd: string }[] {
   const gaps: { slotIndex: number; gapStart: string; gapEnd: string }[] = []
   const occupied: Record<number, Employee[]> = {}
@@ -677,8 +656,7 @@ export default function RoomCard({
   }
 
   return (
-    <div className={cn('rounded-xl border transition-all shadow-sm flex flex-col w-full overflow-hidden', dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')}>
-      
+    <div className={cn('rounded-xl border transition-all shadow-sm flex flex-col w-full', dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')}> 
             {/* HEADER: COMPACT LAYOUT */}
       <div className={cn("flex items-center gap-4 px-4 py-3 cursor-pointer w-full", isOpen && (dk ? "border-b border-white/10" : "border-b border-slate-100"))} onClick={(e) => { if (!['INPUT','BUTTON','SELECT'].includes((e.target as HTMLElement).tagName)) setIsOpen(!isOpen) }}>
         <button onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className={cn("p-1.5 rounded-md transition-all shrink-0", dk ? "hover:bg-white/10 text-slate-400" : "hover:bg-slate-100 text-slate-500")}>{isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}</button>
