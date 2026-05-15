@@ -69,18 +69,35 @@ export function formatLastUpdated(name?: string, dateIso?: string, lang: 'de' | 
 
 export function getEmployeeStatus(checkIn?: string | null, checkOut?: string | null): 'upcoming' | 'active' | 'ending-soon' | 'completed' | 'none' {
   if (!checkIn || !checkOut) return 'none';
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const inDate = new Date(checkIn);
-  const outDate = new Date(checkOut);
   
-  if (outDate < today) return 'completed';
-  if (inDate > today) return 'upcoming';
+  const now = new Date();
   
-  const diffDays = Math.ceil((outDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  if (diffDays <= 2) return 'ending-soon';
+  // Safely parse YYYY-MM-DD without UTC timezone shifting bugs
+  const [inY, inM, inD] = checkIn.split('-');
+  const inDateCutoff = new Date(parseInt(inY), parseInt(inM) - 1, parseInt(inD));
+  // Set Check-In exact time to 1:00 PM (13:00) Local Time
+  inDateCutoff.setHours(13, 0, 0, 0); 
+  
+  const [outY, outM, outD] = checkOut.split('-');
+  const outDateCutoff = new Date(parseInt(outY), parseInt(outM) - 1, parseInt(outD));
+  // Set Check-Out exact time to 12:00 PM (12:00) Local Time
+  outDateCutoff.setHours(12, 0, 0, 0); 
+  
+  // 1. If it is past 12:00 PM on checkout day (or days later) -> Completed
+  if (now >= outDateCutoff) return 'completed';
+  
+  // 2. If it is before 1:00 PM on check-in day (or days earlier) -> Upcoming
+  if (now < inDateCutoff) return 'upcoming';
+  
+  // 3. If they are currently checked in, calculate if they leave within 48 hours
+  const msUntilCheckout = outDateCutoff.getTime() - now.getTime();
+  const hoursUntilCheckout = msUntilCheckout / (1000 * 60 * 60);
+  
+  if (hoursUntilCheckout <= 48) return 'ending-soon';
+  
   return 'active';
 }
+
 
 export function calcDurationFreeBeds(duration: any, targetDateIso: string): number {
   if (!duration.startDate || !duration.endDate || !duration.roomCards) return 0;
