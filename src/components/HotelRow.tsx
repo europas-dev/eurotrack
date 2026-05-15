@@ -466,8 +466,48 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
     </div>
   );
 }
+
+export function MonthFilterDropdown({ selectedMonth, localMonthFilter, setLocalMonthFilter, selectedYear, monthOptions, lang, dk, disabled }: any) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, []);
+
+  const currentVal = selectedMonth !== null ? selectedMonth : localMonthFilter;
+  const displayStr = currentVal === 'all' ? (lang === 'de' ? 'Alle Monate' : 'All Months') : monthOptions[currentVal as number];
+
+  return (
+    <div ref={ref} className="relative">
+      <button disabled={disabled} onClick={() => setOpen(!open)} className={cn("flex items-center px-2 py-1.5 rounded-lg border w-max transition-all shadow-sm outline-none", dk ? "bg-black/40 border-white/10 hover:border-white/30" : "bg-white border-slate-200 hover:border-slate-300", disabled && "opacity-50 cursor-not-allowed")}>
+         <span className={cn("text-[12px] font-black border-r pr-2 mr-2", dk ? "text-teal-400 border-white/10" : "text-teal-600 border-slate-200")}>{selectedYear || new Date().getFullYear()}</span>
+         <Filter size={14} className={cn("mr-1.5", dk ? "text-slate-500" : "text-slate-400")}/>
+         <span className={cn("text-[11px] font-black uppercase tracking-wide pr-2", dk ? "text-white" : "text-slate-700")}>{displayStr}</span>
+         <ChevronDown size={12} className={dk ? "text-slate-500" : "text-slate-400"}/>
+      </button>
+      {open && !disabled && (
+        <div className={cn("absolute top-full left-0 mt-1 w-[160px] z-[200] rounded-xl border shadow-xl py-1 overflow-hidden animate-in fade-in slide-in-from-top-2", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+           <div className="max-h-60 overflow-y-auto no-scrollbar">
+             <button onClick={() => { setLocalMonthFilter('all'); setOpen(false); }} className={cn("w-full text-left px-3 py-2 text-[11px] font-black uppercase tracking-wide transition-all", currentVal === 'all' ? (dk ? "bg-teal-500/20 text-teal-400" : "bg-teal-50 text-teal-600") : (dk ? "text-slate-300 hover:bg-white/10" : "text-slate-700 hover:bg-slate-100"))}>
+                {lang === 'de' ? 'Alle Monate' : 'All Months'}
+             </button>
+             {monthOptions.map((m: string, idx: number) => (
+               <button key={idx} onClick={() => { setLocalMonthFilter(idx); setOpen(false); }} className={cn("w-full text-left px-3 py-2 text-[11px] font-black uppercase tracking-wide transition-all", currentVal === idx ? (dk ? "bg-teal-500/20 text-teal-400" : "bg-teal-50 text-teal-600") : (dk ? "text-slate-300 hover:bg-white/10" : "text-slate-700 hover:bg-slate-100"))}>
+                  {m}
+               </button>
+             ))}
+           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onRenameCompanyOption, onAddOption, viewOnly, isSelected = false, onSelect = () => {}, isBulkActive = false, isOpen = false, onToggle = () => {}, showGlobalFinancials = false, activeSort = 'created_at', activeFilterDue, activeFilterDeposit }: any) {
-  const [activeTab, setActiveTab] = useState<'bookings'|'billing'|'info'>('bookings');
+ const [activeTab, setActiveTab] = useState<'bookings'|'billing'|'info'>('bookings');
   
   const [showNotes, setShowNotes] = useState(false);
   const [editingOBrutto, setEditingOBrutto] = useState(false);
@@ -1302,15 +1342,16 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                     <input value={itemSearchQuery} onChange={(e) => setItemSearchQuery(e.target.value)} className={cn("w-full bg-transparent border-none outline-none text-[12px] font-bold px-2 placeholder-slate-400 focus:ring-0", dk ? "text-white" : "text-slate-900")} placeholder={lang === 'de' ? "Suchen..." : "Search..."} />
                                     {itemSearchQuery && <button onClick={() => setItemSearchQuery('')} className="text-slate-400 hover:text-slate-600"><X size={14}/></button>}
                                 </div>
-                                <div className={cn("flex items-center px-2 py-1.5 rounded-lg border w-max transition-colors shadow-sm", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
-                                   <span className={cn("text-[12px] font-black border-r pr-2 mr-2", dk ? "text-teal-400 border-white/10" : "text-teal-600 border-slate-200")}>{selectedYear || new Date().getFullYear()}</span>
-                                   <Filter size={14} className={dk ? "text-slate-500 mr-1" : "text-slate-400 mr-1"}/>
-                                   <select disabled={selectedMonth !== null} value={selectedMonth !== null ? selectedMonth.toString() : (localMonthFilter === 'all' ? 'all' : localMonthFilter.toString())} className={cn("bg-transparent text-[11px] font-black uppercase outline-none focus:ring-0 appearance-none border-none p-0 cursor-pointer pr-1", dk ? "text-white disabled:opacity-50 [&>option]:bg-slate-800" : "text-slate-700 disabled:opacity-50")} onChange={(e) => setLocalMonthFilter(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}>
-                                       <option value="all">{lang === 'de' ? 'Alle Monate' : 'All Months'}</option>
-                                       {monthOptions.map((m, idx) => <option key={idx} value={idx.toString()}>{m}</option>)}
-                                   </select>
-                                   <ChevronDown size={12} className={dk ? "text-slate-500" : "text-slate-400"}/>
-                                </div>
+                                <MonthFilterDropdown 
+                                  selectedMonth={selectedMonth} 
+                                  localMonthFilter={localMonthFilter} 
+                                  setLocalMonthFilter={setLocalMonthFilter} 
+                                  selectedYear={selectedYear} 
+                                  monthOptions={monthOptions} 
+                                  lang={lang} 
+                                  dk={dk} 
+                                  disabled={selectedMonth !== null} 
+                                />
                              </>
                           )}
                       </div>
@@ -1485,7 +1526,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                          <span className="text-[14px] font-black text-teal-600 dark:text-teal-400 bg-teal-500/10 px-3 py-1 rounded-md">{activeInvoice.number || 'Draft'}</span>
                       ) : (
                          <span className="text-[12px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 dark:bg-white/5 px-3 py-1 rounded-md">
-                            {activeMonthFilter !== 'all' ? (lang === 'de' ? `Übersicht: ${monthOptions[activeMonthFilter as number]} ${selectedYear || new Date().getFullYear()}` : `Summary: ${monthOptions[activeMonthFilter as number]} ${selectedYear || new Date().getFullYear()}`) : (lang === 'de' ? 'Hotel Übersicht' : 'Hotel Summary')}
+                            {activeMonthFilter !== 'all' 
+                              ? `${monthOptions[activeMonthFilter as number]} ${selectedYear || new Date().getFullYear()}` 
+                              : `${lang === 'de' ? 'Übersicht' : 'Summary'} ${selectedYear || new Date().getFullYear()}`}
                          </span>
                       )}
                       <div className={cn("px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border shadow-sm cursor-default", (activeInvoice ? activeInvoice.isPaid : localHotel.isPaid) ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/40" : "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30")}>
