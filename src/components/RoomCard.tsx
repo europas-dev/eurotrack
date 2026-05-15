@@ -800,14 +800,9 @@ export default function RoomCard({
                <Bed size={16} /> <span className="text-[15px]">{beds}</span>
              </span>
              
-             <div className="flex-1 min-w-[10px]" />
+            <div className="flex-1 min-w-[10px]" />
              
              <div className="flex items-center shrink-0 gap-2">
-               {!viewOnly && allCardsOfSameType.length > 1 && (
-                 <button onClick={(e) => { e.stopPropagation(); onApplyToSameType(card); setApplyActive(true); setTimeout(()=>setApplyActive(false), 1000); }} className={cn('px-3 h-[38px] rounded-lg text-sm font-black border flex items-center gap-2 transition-all', isApplyActive ? 'bg-green-500 text-white border-transparent shadow-lg' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5 hover:text-blue-400 bg-[#1E293B]' : 'border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 bg-white')} title="Copy settings to all rooms of this type">
-                   {isApplyActive ? <Check size={14}/> : <Copy size={14}/>} All {card.roomType}
-                 </button>
-               )}
                {!viewOnly && (
                  <button 
                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} 
