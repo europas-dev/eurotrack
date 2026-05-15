@@ -701,7 +701,7 @@ export default function RoomCard({
           setShowHistory(true); // Auto-expands the Mehr section so the pill appears!
       }
 
-      // 4. Scroll to the exact PILL and flash it green!
+      // 4. Scroll to the exact PILL and flash it with a purple gradient!
       setTimeout(() => {
           const el = document.getElementById(`emp-pill-${targetId}`);
           if (el) {
@@ -710,8 +710,8 @@ export default function RoomCard({
               // Find the button inside the pill wrapper and flash it
               const btn = el.querySelector('button');
               if (btn) {
-                  btn.classList.add('ring-2', 'ring-teal-500', 'bg-teal-500/20');
-                  setTimeout(() => btn.classList.remove('ring-2', 'ring-teal-500', 'bg-teal-500/20'), 2500);
+                  btn.classList.add('ring-2', 'ring-purple-500', 'bg-gradient-to-r', 'from-purple-500/20', 'to-fuchsia-500/20');
+                  setTimeout(() => btn.classList.remove('ring-2', 'ring-purple-500', 'bg-gradient-to-r', 'from-purple-500/20', 'to-fuchsia-500/20'), 2500);
               }
           }
       }, 350);
@@ -763,8 +763,8 @@ export default function RoomCard({
                         const el = document.getElementById(`emp-slot-${empId}`);
                         if (el) {
                             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            el.classList.add('ring-2', 'ring-teal-500', 'bg-teal-500/10');
-                            setTimeout(() => el.classList.remove('ring-2', 'ring-teal-500', 'bg-teal-500/10'), 2500);
+                            el.classList.add('ring-2', 'ring-purple-500', 'bg-gradient-to-r', 'from-purple-500/10', 'to-fuchsia-500/10');
+                            setTimeout(() => el.classList.remove('ring-2', 'ring-purple-500', 'bg-gradient-to-r', 'from-purple-500/10', 'to-fuchsia-500/10'), 2500);
                         }
                     }, 350);
                 };
