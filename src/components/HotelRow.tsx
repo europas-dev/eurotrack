@@ -297,8 +297,6 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
 }
 
 function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, className, textClass, searchQuery, disabled }: any) {
-
-function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, className, textClass, searchQuery, disabled }: any) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value || '');
   const [showOptions, setShowOptions] = useState(false);
