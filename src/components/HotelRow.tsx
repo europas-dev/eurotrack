@@ -2,9 +2,7 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, ChevronRight, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, FileText, Ticket, Calendar, AlertTriangle, Edit3, Filter } from 'lucide-react';
-import {cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatLastUpdated, calculateNights, calcInvoiceItem, formatDateChip
-} from '../lib/utils';
-import { createPortal } from 'react-dom';
+import {cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatLastUpdated, calculateNights, calcInvoiceItem, formatDateChip} from '../lib/utils';
 import { createDuration, updateHotel, deleteHotel } from '../lib/supabase';
 import { calcRoomCardTotal, calcRoomCardNettoSum } from '../lib/roomCardUtils';
 import { enqueue } from '../lib/offlineSync';
@@ -76,31 +74,6 @@ export function getTranslation(dict: any[], id: string, lang: string) {
   return item ? (lang === 'de' ? item.de : item.en) : id;
 }
 
-/*export function calcInvoiceItem(item: any, defaultNights: number = 1) {
-  const mwst = item.mwst != null ? parseFloat(item.mwst) : 0;
-  let finalNetto = 0;
-  let brutto = 0;
-
-  if (item.brutto != null && item.brutto !== '') {
-      brutto = parseFloat(item.brutto);
-      finalNetto = brutto / (1 + mwst / 100);
-  } else {
-      let baseNetto = parseFloat(item.netto) || 0;
-      if (item.method === 'per_bed') {
-        const beds = parseFloat(item.beds) || 1;
-        const nights = parseFloat(item.nights) || defaultNights;
-        baseNetto = baseNetto * beds * nights;
-      }
-      finalNetto = baseNetto;
-      if (item.discountValue && parseFloat(item.discountValue) > 0) {
-        const dVal = parseFloat(item.discountValue);
-        finalNetto = item.discountType === 'percentage' ? baseNetto * (1 - dVal/100) : Math.max(0, baseNetto - dVal);
-      }
-      brutto = finalNetto * (1 + mwst / 100);
-  }
-  return { finalNetto, mwst, brutto };
-}*/
-
 export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onDelete, viewOnly, dk, lang, defaultNights = 1, defaultStart, defaultEnd }: any) {
   const [draft, setDraft] = useState(item);
   const editRef = useRef<HTMLDivElement>(null);
@@ -144,19 +117,21 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
     return (
       <div ref={editRef} className={cn("flex flex-col p-2 border-b transition-all w-full relative z-20 shadow-xl", dk ? "bg-teal-900/20 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
         <div className="flex items-start w-full">
+           {/* UNIFIED GRID: 180px */}
            <div className="w-[180px] flex items-center gap-1.5 shrink-0 pr-2">
                <select value={draft.type || 'room'} onChange={e => {
                    const newType = e.target.value;
                    const newMethod = (newType === 'base' || newType === 'extra') ? 'total' : draft.method;
                    setDraft({ ...draft, type: newType, method: newMethod });
-               }} className={cn(inputClass, "flex-1 w-full min-w-0 px-1 text-[11px]")}>
+               }} className={cn(inputClass, "flex-1 min-w-0 px-1 text-[11px] truncate")}>
                  {COST_TYPES.map(o => <option key={o.id} value={o.id}>{lang === 'de' ? o.de : o.en}</option>)}
                </select>
-               <select disabled={!isPerBedAllowed} value={!isPerBedAllowed ? 'total' : (draft.method || 'total')} onChange={e => setDraft({ ...draft, method: e.target.value })} className={cn(inputClass, "flex-1 w-full min-w-0 px-1 text-[11px] disabled:opacity-50")}>
+               <select disabled={!isPerBedAllowed} value={!isPerBedAllowed ? 'total' : (draft.method || 'total')} onChange={e => setDraft({ ...draft, method: e.target.value })} className={cn(inputClass, "flex-1 min-w-0 px-1 text-[11px] disabled:opacity-50 truncate")}>
                     {COST_METHODS.map(m => <option key={m.id} value={m.id}>{lang === 'de' ? m.de : m.en}</option>)}
                </select>
            </div>
 
+           {/* UNIFIED GRID: flex-1 */}
            <div className="flex-1 flex flex-col items-end shrink-0 pr-5 relative">
                {draft.method === 'per_bed' && isPerBedAllowed ? (
                  <div className="flex flex-col items-end gap-1.5 w-full">
@@ -200,6 +175,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
                )}
            </div>
 
+           {/* UNIFIED GRID: 100px */}
            <div className="w-[100px] flex items-center justify-end shrink-0 pr-2 relative">
                {draft.method === 'total' || !isPerBedAllowed ? (
                    <div className="flex flex-col items-end gap-1.5 w-full">
@@ -220,17 +196,18 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
                )}
            </div>
 
-          <div className="w-[60px] shrink-0 px-1 relative z-[60]">
+           {/* UNIFIED GRID: 60px */}
+           <div className="w-[60px] shrink-0 px-1 relative z-[60]">
                <MwstInput value={draft.mwst} onChange={(v:any) => setDraft({ ...draft, mwst: v })} isDarkMode={dk} disabled={false} />
            </div>
 
+           {/* UNIFIED GRID: 110px */}
            <div className="w-[110px] shrink-0 pl-1 pr-2 text-right">
                <input type="number" disabled={hasNettoInput} placeholder={hasNettoInput ? formatCurrency(brutto) : "Brutto"} value={draft.brutto ?? ''} onChange={e => setDraft({ ...draft, brutto: e.target.value, netto: null })} className={cn(inputClass, "w-full text-left", hasNettoInput ? "disabled:opacity-100 disabled:bg-transparent disabled:border-transparent text-[13px] font-black px-1 placeholder-slate-900 dark:placeholder-white" : "")} />
            </div>
 
-           {/* FIX: Check and X visible. Trash hidden on far right until hover */}
+           {/* UNIFIED GRID: 65px (ACTIONS) */}
            <div className="w-[65px] flex items-start justify-end gap-1.5 shrink-0 pl-1 relative group/actions pr-1">
-              {/* Trash is absolute to the LEFT of the group, invisible until hover */}
               <div className="absolute right-[calc(100%-8px)] mr-2 top-0 opacity-0 group-hover/actions:opacity-100 transition-opacity flex items-center z-50">
                  <button onClick={onDelete} className={cn("p-1.5 rounded-lg border transition-colors shadow-sm", dk ? "bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white" : "bg-red-50 border-red-200 text-red-500 hover:bg-red-600 hover:text-white")} title={lang === 'de' ? 'Löschen' : 'Delete'}><Trash2 size={14}/></button>
               </div>
@@ -250,8 +227,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
 
   return (
     <div className={cn("flex items-start px-3 py-3 border-b last:border-b-0 transition-colors group relative", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
-       <div className="flex-1 min-w-[150px] flex flex-col gap-0.5 shrink-0 pr-2">
-          {/* FIX: flex-1 ensures it has the space to stretch! */}
+       <div className="w-[180px] flex flex-col gap-0.5 shrink-0 pr-2">
           <div className={cn("text-[12px] font-black leading-tight", dk ? "text-slate-200" : "text-slate-800")}>
              {getTranslation(COST_TYPES, currentItem.type || 'room', lang)}
              {currentItem.method === 'per_bed' && <span className="text-[9.5px] font-bold text-slate-500 ml-1 tracking-normal font-sans">({activeNights} {lang==='de'?'Nächte':'Nights'}, {currentItem.beds||1} {lang==='de'?'Betten':'Beds'})</span>}
@@ -266,7 +242,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
           )}
        </div>
 
-       <div className="w-[240px] flex items-start justify-end shrink-0 pr-6">
+       <div className="flex-1 flex items-start justify-end pr-5">
           {currentItem.method === 'per_bed' ? (
              <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(parseFloat(currentItem.netto)||0)}</span>
           ) : (
@@ -291,43 +267,11 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
           </span>
        </div>
 
-       {/* FIX: Only Edit button in hover view, Delete is strictly inside Edit Mode */}
-       <div className="w-[60px] flex items-start justify-end opacity-0 group-hover:opacity-100 transition-opacity pt-0.5 pr-1 shrink-0">
+       <div className="w-[65px] flex items-start justify-end opacity-0 group-hover:opacity-100 transition-opacity pt-0.5 pr-1 shrink-0">
           {!viewOnly && <button onClick={onEdit} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 transition-colors"><Edit3 size={14}/></button>}
        </div>
     </div>
   )
-}
-
-function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, className, textClass, searchQuery, disabled }: any) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value || '');
-  const [showOptions, setShowOptions] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => { setDraft(value || ''); }, [value]);
-  useEffect(() => {
-    function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) { setEditing(false); setShowOptions(false); setDraft(value || ''); } }
-    document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
-  }, [value]);
-  const filtered = draft.trim().length > 0 ? (options || []).filter((o: string) => o.toLowerCase().includes(draft.toLowerCase()) && o.toLowerCase() !== draft.toLowerCase()).slice(0, 5) : [];
-  if (!editing || disabled) {
-    return (
-      <div className={cn("truncate transition-opacity w-full min-h-[20px]", disabled ? "cursor-default" : "cursor-text hover:opacity-70", textClass)} onClick={(e) => { if (disabled) return; e.stopPropagation(); setEditing(true); setDraft(value || ''); setShowOptions(true); }}>
-        {value ? <HighlightText text={value} query={searchQuery} /> : <span className="opacity-40">{placeholder}</span>}
-      </div>
-    );
-  }
-  return (
-    <div ref={ref} className={cn("relative w-full", className)} onClick={e => e.stopPropagation()}>
-      <input autoFocus value={draft} onChange={e => { setDraft(e.target.value); setShowOptions(true); }} onKeyDown={e => { if (e.key === 'Enter') { onChange(draft); setEditing(false); setShowOptions(false); } }} placeholder={placeholder} className={cn("w-full bg-transparent border-none outline-none focus:ring-0 p-0 m-0 truncate placeholder:opacity-40 transition-colors focus:text-teal-500", textClass)} />
-      {showOptions && filtered.length > 0 && (
-        <div className={cn("absolute top-full left-0 mt-1 w-max min-w-[200px] z-[200] rounded-xl border shadow-xl py-1 overflow-hidden", isDarkMode ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
-          {filtered.map((opt: string) => <button key={opt} onClick={() => { setDraft(opt); onChange(opt); setEditing(false); setShowOptions(false); }} className={cn("w-full text-left px-3 py-2 text-xs font-bold transition-all", isDarkMode ? "text-slate-300 hover:bg-white/10" : "text-slate-700 hover:bg-slate-100")}>{opt}</button>)}
-        </div>
-      )}
-    </div>
-  );
 }
 
 function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, className, textClass, searchQuery, disabled }: any) {
@@ -425,7 +369,6 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
   const [query, setQuery] = useState('');
   const [localMemory, setLocalMemory] = useState<string[]>([]);
   
-  // New Inline States
   const [editingOpt, setEditingOpt] = useState<string | null>(null);
   const [editVal, setEditVal] = useState('');
   const [confirmDeleteOpt, setConfirmDeleteOpt] = useState<string | null>(null);
@@ -437,7 +380,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
       const val = editVal.trim();
       if (val && val !== oldName) {
          if (onRenameOption) {
-             onRenameOption(oldName, val); // Dashboard will cascade to ALL rows
+             onRenameOption(oldName, val);
          } else {
              if (safeSelected.includes(oldName)) onChange([...safeSelected.filter((t:any) => t !== oldName), val]);
          }
@@ -448,7 +391,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
 
   const handleInlineDelete = (opt: string) => {
       if (onDeleteOption) {
-          onDeleteOption(opt); // Global delete handles the hotel state update
+          onDeleteOption(opt);
       } else {
           if (safeSelected.includes(opt)) onChange(safeSelected.filter((t:any) => t !== opt));
       }
@@ -551,7 +494,6 @@ export function MonthFilterDropdown({ selectedMonth, localMonthFilter, setLocalM
              <button onClick={() => { setLocalMonthFilter('all'); setOpen(false); }} className={cn("w-full text-center px-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", currentVal === 'all' ? (dk ? "bg-teal-500/20 text-teal-400" : "bg-teal-50 text-teal-600") : (dk ? "bg-white/5 text-slate-300 hover:bg-white/10" : "bg-slate-100 text-slate-700 hover:bg-slate-200"))}>
                 {lang === 'de' ? 'Alle Monate' : 'All Months'}
              </button>
-             {/* THE 3x4 MINI CALENDAR GRID */}
              <div className="grid grid-cols-3 gap-1 mt-1">
                {monthOptions.map((m: string, idx: number) => (
                  <button key={idx} onClick={() => { setLocalMonthFilter(idx); setOpen(false); }} className={cn("w-full text-center py-2.5 rounded-xl text-[11px] font-black uppercase transition-all border", currentVal === idx ? (dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400 shadow-inner" : "bg-teal-50 border-teal-200 text-teal-600 shadow-inner") : (dk ? "border-transparent bg-transparent text-slate-400 hover:bg-white/5 hover:text-white" : "border-transparent bg-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-900"))}>
@@ -578,7 +520,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingTotal, setEditingTotal] = useState(false);
-  const [totalDraft, setTotalDraft] = useState<any>(null); // NEW: Draft state for Total mode
+  const [totalDraft, setTotalDraft] = useState<any>(null);
+  const totalRef = useRef<HTMLDivElement>(null);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [invoiceDraft, setInvoiceDraft] = useState<any>(null);
   const [expandedInvoices, setExpandedInvoices] = useState<string[]>([]);
@@ -594,6 +537,20 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [saving, setSaving] = useState(false);
   const [creatingDuration, setCreatingDuration] = useState(false);
   const saveTimer = useRef<any>(null);
+
+  useEffect(() => {
+      function handleTotalClick(e: MouseEvent) {
+          if (editingTotal && totalRef.current && !totalRef.current.contains(e.target as Node)) {
+              setEditingTotal(false);
+          }
+      }
+      function handleTotalKey(e: KeyboardEvent) {
+          if (editingTotal && e.key === 'Escape') setEditingTotal(false);
+      }
+      document.addEventListener('mousedown', handleTotalClick);
+      document.addEventListener('keydown', handleTotalKey);
+      return () => { document.removeEventListener('mousedown', handleTotalClick); document.removeEventListener('keydown', handleTotalKey); }
+  }, [editingTotal]);
 
   useEffect(() => {
      if (!isOpen) setLocalMonthFilter('all');
@@ -628,7 +585,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [isRowHovered, setIsRowHovered] = useState(false);
   const [isDropdownActive, setIsDropdownActive] = useState(false);
 
-  // Sync local state instantly when Dashboard updates it via Cascade!
   useEffect(() => {
      setLocalHotel((prev: any) => {
         const newTags = entry.companyTag || entry.company_tag || [];
@@ -672,11 +628,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
         if (!dateStr) return false;
         const d = new Date(dateStr);
-        
-        // STRICT FINANCIAL BOUNDARY: Lock invoices to the selected year view
         if (d.getFullYear() !== (selectedYear || new Date().getFullYear())) return false;
-        
-        // Apply month filter if active
         if (activeMonthFilter !== 'all') {
             return d.getMonth() === activeMonthFilter;
         }
@@ -829,7 +781,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       totalUnpaid,
       nearestDueDate,
       isOverriddenBrutto: localHotel.override_total_brutto != null, 
-      isOverriddenBed
+      isOverriddenBed,
+      isMasterActive: false
     };
   }, [localHotel, activeInvoice, filteredMasterInvoices, activeMonthFilter]);
 
@@ -1429,12 +1382,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       {activeInvoice ? (
                          activeInvoice.billingMode === 'total' ? (
                             <div className="p-4">
-                               <div className={cn("flex flex-col p-4 rounded-2xl border shadow-sm animate-in fade-in slide-in-from-top-2 relative z-20", dk ? "bg-[#1E293B]" : "bg-white", editingTotal ? (dk ? "border-teal-500/50 shadow-xl bg-teal-900/20" : "border-teal-300 shadow-xl bg-teal-50") : (dk ? "border-slate-800" : "border-slate-100"))}>
+                               <div ref={totalRef} className={cn("flex flex-col p-4 rounded-2xl border shadow-sm animate-in fade-in slide-in-from-top-2 relative z-20", dk ? "bg-[#1E293B]" : "bg-white", editingTotal ? (dk ? "border-teal-500/50 shadow-xl bg-teal-900/20" : "border-teal-300 shadow-xl bg-teal-50") : (dk ? "border-slate-800" : "border-slate-100"))}>
                                   <div className="flex items-center gap-3 w-full">
                                      <div className="flex-1 flex items-center gap-2 min-w-[250px]">
                                         <label className={labelCls}>Netto</label>
                                         <input disabled={viewOnly || !editingTotal || (editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto)} type="number" value={editingTotal ? (totalDraft?.totalNetto ?? '') : (activeInvoice.totalNetto ?? '')} onChange={e => setTotalDraft({...totalDraft, totalNetto: e.target.value, totalBrutto: null})} className={cn(inputCls, "w-[100px] disabled:opacity-30 text-right")} placeholder="0.00" />
-                                       {/* Hides ticket icon securely when NOT editing */}
                                         {(!showTotalDiscount && !(editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto) && editingTotal && !viewOnly) && <button onClick={() => { setShowTotalDiscount(true); if(!totalDraft?.discountType) setTotalDraft({...totalDraft, discountType: 'fixed'}); }} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 shrink-0"><Ticket size={14}/></button>}
                                         {showTotalDiscount && !(editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto) && (
                                             <div className="flex items-center w-[130px] shrink-0 animate-in fade-in slide-in-from-left-2 ml-1">
@@ -1491,13 +1443,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                             </div>
                          ) : (
                             <div className="flex flex-col animate-in fade-in pb-5">
-                               <div className={cn("sticky top-0 z-10 flex items-center px-3 py-2 border-b backdrop-blur-md", dk ? "bg-[#0B1224]/95 border-white/10" : "bg-slate-50/95 border-slate-200")}>
-                                  <div className="flex-1 min-w-[200px] text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">{lang === 'de' ? 'Beschreibung' : 'Description'}</div>
-                                  <div className="w-[240px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-6">Netto (Bed)</div>
+                               <div className={cn("sticky top-0 z-10 flex items-center px-3 py-2 border-b mb-3 backdrop-blur-md", dk ? "bg-[#0B1224]/95 border-white/10" : "bg-slate-50/95 border-slate-200")}>
+                                  <div className="w-[180px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 pr-2">{lang === 'de' ? 'Beschreibung' : 'Description'}</div>
+                                  <div className="flex-1 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-5">Netto (Bed)</div>
                                   <div className="w-[100px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-2">Total Netto</div>
-                                  <div className="w-[70px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">MwSt</div>
+                                  <div className="w-[60px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">MwSt</div>
                                   <div className="w-[110px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-2">Total Brutto</div>
-                                  <div className="w-[60px] shrink-0"></div>
+                                  <div className="w-[65px] shrink-0"></div>
                                </div>
                                
                                {(activeInvoice.items || []).length === 0 && <p className="text-[12px] font-bold text-slate-400 italic mt-6 mx-5 text-center py-6 bg-slate-100 dark:bg-white/5 rounded-xl border border-dashed border-slate-300 dark:border-white/10">{lang === 'de' ? 'Noch keine Posten vorhanden. Klicke unten, um zu starten.' : 'No line items. Click below to start.'}</p>}
@@ -1516,7 +1468,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                              onCancel={() => setEditingItemId(null)}
                                              onDelete={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: i.items.filter((it:any) => it.id !== item.id)} : i) }); setEditingItemId(null); }}
                                           />
-                                       ))}
+                               ))}
                                {!viewOnly && (
                                   <button onClick={() => {
                                       const newId = Math.random().toString();
@@ -1527,7 +1479,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                             </div>
                          )
                       ) : (
-                         <div className={cn("sticky top-0 z-10 flex items-center px-3 py-2 border-b mb-3 backdrop-blur-md", dk ? "bg-[#0B1224]/95 border-white/10" : "bg-slate-50/95 border-slate-200")}>
+                         <div className="flex flex-col animate-in fade-in pb-5">
+                            <div className={cn("sticky top-0 z-10 flex items-center px-3 py-2 border-b mb-3 backdrop-blur-md", dk ? "bg-[#0B1224]/95 border-white/10" : "bg-slate-50/95 border-slate-200")}>
                                <div className="w-[180px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 pr-2">{lang === 'de' ? 'Beschreibung' : 'Description'}</div>
                                <div className="flex-1 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-5">Netto (Bed)</div>
                                <div className="w-[100px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-2">Total Netto</div>
@@ -1570,20 +1523,20 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                const { finalNetto, mwst, brutto } = calcInvoiceItem(item, defaultN);
                                                return (
                                                   <div key={item.id} className="flex items-start px-2 py-2.5 border-b border-slate-100 dark:border-white/5 last:border-0">
-                                                     <div className="flex-1 min-w-[150px] shrink-0 flex flex-col gap-0.5 pr-2">
-                                                                        <div className="text-[12px] font-bold text-slate-700 dark:text-slate-300 leading-tight">
-                                                                           <HighlightText text={getTranslation(COST_TYPES, item.type || 'room', lang)} query={itemSearchQuery} />
-                                                                           {item.method === 'per_bed' && <span className="text-[9.5px] text-slate-400 font-bold ml-1 tracking-normal font-sans">({item.nights||defaultN} {lang==='de'?'Nächte':'Nights'}, {item.beds||1} {lang==='de'?'Betten':'Beds'})</span>}
-                                                                        </div>
-                                                                        {item.note && <span className="text-[10px] italic text-slate-400 mt-1 whitespace-pre-wrap"><HighlightText text={item.note} query={itemSearchQuery} /></span>}
-                                                                     </div>
-                                                                     <div className="w-[240px] shrink-0 text-[12px] font-bold text-slate-700 dark:text-slate-300 pt-0.5 text-right pr-6">
-                                                                        {item.method === 'per_bed' ? <HighlightText text={formatCurrency(parseFloat(item.netto)||0)} query={itemSearchQuery} /> : <span className="opacity-50 text-[11px] italic">--</span>}
-                                                                     </div>
-                                                     <div className="w-[110px] shrink-0 text-[12px] font-bold text-slate-700 dark:text-slate-300 pt-0.5 text-right pr-2"><HighlightText text={formatCurrency(finalNetto)} query={itemSearchQuery} /></div>
-                                                     <div className="w-[70px] shrink-0 text-[12px] font-bold text-slate-500 pt-0.5 text-center">{mwst}%</div>
+                                                     <div className="w-[180px] shrink-0 flex flex-col gap-0.5 pr-2">
+                                                        <div className="text-[12px] font-bold text-slate-700 dark:text-slate-300 leading-tight">
+                                                           <HighlightText text={getTranslation(COST_TYPES, item.type || 'room', lang)} query={itemSearchQuery} />
+                                                           {item.method === 'per_bed' && <span className="text-[9.5px] text-slate-400 font-bold ml-1 tracking-normal font-sans">({item.nights||defaultN} {lang==='de'?'Nächte':'Nights'}, {item.beds||1} {lang==='de'?'Betten':'Beds'})</span>}
+                                                        </div>
+                                                        {item.note && <span className="text-[10px] italic text-slate-400 mt-1 whitespace-pre-wrap"><HighlightText text={item.note} query={itemSearchQuery} /></span>}
+                                                     </div>
+                                                     <div className="flex-1 text-[12px] font-bold text-slate-700 dark:text-slate-300 pt-0.5 text-right pr-5">
+                                                        {item.method === 'per_bed' ? <HighlightText text={formatCurrency(parseFloat(item.netto)||0)} query={itemSearchQuery} /> : <span className="opacity-50 text-[11px] italic">--</span>}
+                                                     </div>
+                                                     <div className="w-[100px] shrink-0 text-[12px] font-bold text-slate-700 dark:text-slate-300 pt-0.5 text-right pr-2"><HighlightText text={formatCurrency(finalNetto)} query={itemSearchQuery} /></div>
+                                                     <div className="w-[60px] shrink-0 text-[12px] font-bold text-slate-500 pt-0.5 text-center">{mwst}%</div>
                                                      <div className="w-[110px] shrink-0 text-[12px] font-black text-slate-900 dark:text-white pt-0.5 text-right pr-2"><HighlightText text={formatCurrency(brutto)} query={itemSearchQuery} /></div>
-                                                     <div className="w-[50px] shrink-0"></div>
+                                                     <div className="w-[65px] shrink-0"></div>
                                                   </div>
                                                )
                                             })}
