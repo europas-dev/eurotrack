@@ -65,7 +65,7 @@ function CompactEmployeePill({ emp, dk, durationStart, durationEnd, isSubstitute
   const shortName = emp.name ? emp.name.trim().split(' ').pop() : '_ _ _';
 
   return (
-    <div className="relative group/pill hover:z-[99999]">
+    <div id={`emp-pill-${emp.id}`} className="relative group/pill hover:z-[99999]">
       <button onClick={(e) => { e.stopPropagation(); onOpenSlot(emp.id); }} className={cn("px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all", isPartial ? "border border-dashed" : "border border-solid shadow-sm", empBorderColor(emp, dk).replace('border-2', 'border'), dk ? "bg-[#1E293B] text-slate-200 hover:bg-slate-800" : "bg-white text-slate-700 hover:bg-slate-50")}>
         {isSubstitute ? <CornerDownRight size={12} className={textColor} /> : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />}
         <span className="truncate max-w-[100px]">{shortName}</span>
@@ -686,10 +686,10 @@ export default function RoomCard({
       const hasEmp = employees.some((emp: any) => emp.id === targetId);
       if (!hasEmp) return;
 
-      // 2. Open the Room Card!
-      setIsOpen(true);
+      // 2. Ensure the Room Card is CLOSED so the summary pills are visible!
+      setIsOpen(false);
 
-      // 3. Figure out if the employee is hidden in the "More/Mehr" section (> 18 limit)
+      // 3. Figure out if the employee is hidden in the "Mehr" section (index >= 18)
       const activeEmps = employees.filter(e => getEmployeeStatus(e.checkIn||'', e.checkOut||'') !== 'completed');
       const expiredEmps = employees.filter(e => getEmployeeStatus(e.checkIn||'', e.checkOut||'') === 'completed');
       activeEmps.sort((a, b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
@@ -698,18 +698,23 @@ export default function RoomCard({
       
       const empIndex = allOrdered.findIndex(e => e.id === targetId);
       if (empIndex >= 18) {
-          setShowHistory(true); // Auto-expands the More/Mehr section!
+          setShowHistory(true); // Auto-expands the Mehr section so the pill appears!
       }
 
-      // 4. Scroll to the exact bed slot and flash it with the green ring!
+      // 4. Scroll to the exact PILL and flash it green!
       setTimeout(() => {
-          const el = document.getElementById(`emp-slot-${targetId}`);
+          const el = document.getElementById(`emp-pill-${targetId}`);
           if (el) {
               el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              el.classList.add('ring-2', 'ring-teal-500', 'bg-teal-500/10');
-              setTimeout(() => el.classList.remove('ring-2', 'ring-teal-500', 'bg-teal-500/10'), 2500);
+              
+              // Find the button inside the pill wrapper and flash it
+              const btn = el.querySelector('button');
+              if (btn) {
+                  btn.classList.add('ring-2', 'ring-teal-500', 'bg-teal-500/20');
+                  setTimeout(() => btn.classList.remove('ring-2', 'ring-teal-500', 'bg-teal-500/20'), 2500);
+              }
           }
-      }, 350); // 350ms gives the UI time to expand smoothly before scrolling
+      }, 350);
     };
 
     window.addEventListener('open-emp-slot', handleOpenSlot);
