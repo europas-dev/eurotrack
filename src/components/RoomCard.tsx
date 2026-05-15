@@ -55,26 +55,21 @@ function MwstInput({ value, onChange, isDarkMode, disabled }: { value: string | 
 }
 
 
-function CompactEmployeePill({ emp, dk, durationStart, durationEnd, isSubstitute }: any) {
-  const [showPhone, setShowPhone] = useState(false);
+function CompactEmployeePill({ emp, dk, durationStart, durationEnd, isSubstitute, onOpenSlot }: any) {
   const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
   const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
   const textColor = status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400';
   const isPartial = (emp.checkIn || '') > durationStart || (emp.checkOut || '') < durationEnd;
   const hasPhone = emp.phone && emp.phone.trim() !== '+49' && emp.phone.trim() !== '';
 
-  const tooltipText = `${calculateNights(emp.checkIn||'', emp.checkOut||'')}N (${fmtDateDe(emp.checkIn||'')} ➔ ${fmtDateDe(emp.checkOut||'')})`;
+  const shortName = emp.name ? emp.name.trim().split(' ').pop() : '_ _ _';
+  const tooltipText = `${emp.name}\n${calculateNights(emp.checkIn||'', emp.checkOut||'')}N (${fmtDateDe(emp.checkIn||'')} ➔ ${fmtDateDe(emp.checkOut||'')})\n${hasPhone ? emp.phone : ''}`;
 
   return (
-    <div title={tooltipText} onClick={(e) => { if(hasPhone) { e.stopPropagation(); setShowPhone(!showPhone); } }} className={cn("px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-2 transition-all cursor-pointer", isPartial ? "border-2 border-dashed" : "border-2 border-solid", empBorderColor(emp, dk), dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-700")}>
+    <div title={tooltipText} onClick={(e) => { e.stopPropagation(); onOpenSlot(emp.id); }} className={cn("px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-2 transition-all cursor-pointer hover:scale-105 shadow-sm", isPartial ? "border-2 border-dashed" : "border-2 border-solid", empBorderColor(emp, dk), dk ? "bg-[#1E293B] text-slate-200 hover:bg-white/10" : "bg-slate-50 text-slate-700 hover:bg-slate-100")}>
       {isSubstitute ? <CornerDownRight size={12} className={textColor} /> : <span className={cn("w-2 h-2 rounded-full shrink-0", dotColor)} />}
-      <span className="truncate max-w-[120px]">{emp.name}</span>
-      {hasPhone && !showPhone && (
-        <Phone size={11} className={dk ? "text-slate-400" : "text-slate-500"} />
-      )}
-      {showPhone && hasPhone && (
-        <span className={cn("ml-1 font-black text-[15px]", dk ? "text-blue-400" : "text-blue-600")} onClick={e => e.stopPropagation()}>{emp.phone}</span>
-      )}
+      <span className="truncate max-w-[120px]">{shortName}</span>
+      {hasPhone && <Phone size={10} className={cn("shrink-0", dk ? "text-slate-500" : "text-slate-400")} />}
     </div>
   )
 }
@@ -594,6 +589,7 @@ export default function RoomCard({
   const [showPricing, setShowPricing] = useState(false)
   const [isApplyActive, setApplyActive] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const saveTimer = useRef<any>(null)
 
   const beds = bedsForType(card.roomType, card.bedCount)
@@ -675,20 +671,66 @@ export default function RoomCard({
                  <Bed size={18} /> <span className="text-[16px] lg:text-[18px]">{beds}</span>
                </span>
              </div>
-             <div className="flex-1 flex gap-2 items-center px-4 overflow-x-auto no-scrollbar">
-             {Array.from({ length: beds }).flatMap((_, i) => {
-                const slotE = employees.filter(e => (e.slotIndex ?? 0) === i).sort((a,b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
-                return slotE.map((emp, empIdx) => {
-                  return <CompactEmployeePill key={emp.id} emp={emp} dk={dk} lang={lang} durationStart={durationStart} durationEnd={durationEnd} isSubstitute={empIdx > 0} />
-                });
-             })}
+             <div className="flex-1 flex flex-wrap gap-2 items-center px-4 py-1.5 min-h-[44px]">
              {(() => {
-               const occupiedSlots = new Set(employees.map(e => e.slotIndex ?? 0)).size;
-               const freeSlots = beds - occupiedSlots;
-               if (freeSlots > 0) {
-                 return <div className={cn("flex items-center gap-2 px-5 py-2 rounded-full text-[14px] font-black whitespace-nowrap border-2 border-dashed", dk ? "border-amber-500/40 text-amber-500 bg-amber-500/5" : "border-amber-400 text-amber-600 bg-amber-50")}><Plus size={16} /> {freeSlots} {lang === 'de' ? 'Frei' : 'Empty'}</div>;
-               }
-               return null;
+                // 1. Group active vs expired
+                const activeEmps = employees.filter(e => getEmployeeStatus(e.checkIn||'', e.checkOut||'') !== 'completed');
+                const expiredEmps = employees.filter(e => getEmployeeStatus(e.checkIn||'', e.checkOut||'') === 'completed');
+                
+                // 2. Sort them individually by check-in date
+                activeEmps.sort((a, b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
+                expiredEmps.sort((a, b) => (b.checkOut || '').localeCompare(a.checkOut || '')); // Newest expired first
+
+                // 3. Combine with Active strictly at the front
+                const allOrdered = [...activeEmps, ...expiredEmps];
+                
+                // 4. Apply 24 Limit
+                const visibleEmps = allOrdered.slice(0, 24);
+                const hiddenEmps = allOrdered.slice(24);
+
+                const handleOpenSlot = (empId: string) => {
+                    setIsOpen(true);
+                    setTimeout(() => {
+                        const el = document.getElementById(`emp-slot-${empId}`);
+                        if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            el.classList.add('ring-2', 'ring-teal-500', 'bg-teal-500/10');
+                            setTimeout(() => el.classList.remove('ring-2', 'ring-teal-500', 'bg-teal-500/10'), 2500);
+                        }
+                    }, 350);
+                };
+
+                return (
+                  <>
+                    {visibleEmps.map(emp => {
+                       // Find if they are a substitute visually by checking if they are the FIRST person in that slot array
+                       const slotMates = employees.filter(e => e.slotIndex === emp.slotIndex).sort((a,b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
+                       const isSub = slotMates.length > 1 && slotMates[0].id !== emp.id;
+                       return <CompactEmployeePill key={emp.id} emp={emp} dk={dk} lang={lang} durationStart={durationStart} durationEnd={durationEnd} isSubstitute={isSub} onOpenSlot={handleOpenSlot} />
+                    })}
+                    
+                    {showHistory && hiddenEmps.map(emp => {
+                       const slotMates = employees.filter(e => e.slotIndex === emp.slotIndex).sort((a,b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
+                       const isSub = slotMates.length > 1 && slotMates[0].id !== emp.id;
+                       return <CompactEmployeePill key={emp.id} emp={emp} dk={dk} lang={lang} durationStart={durationStart} durationEnd={durationEnd} isSubstitute={isSub} onOpenSlot={handleOpenSlot} />
+                    })}
+
+                    {!showHistory && hiddenEmps.length > 0 && (
+                      <button onClick={(e) => { e.stopPropagation(); setShowHistory(true); }} className={cn("px-3 py-1.5 rounded-full text-xs font-bold border-2 border-dashed flex items-center gap-1.5 transition-colors", dk ? "border-slate-600 text-slate-400 hover:text-white" : "border-slate-300 text-slate-500 hover:text-slate-800")}>
+                        <Eye size={12} /> {lang === 'de' ? 'Verlauf' : 'History'} (+{hiddenEmps.length})
+                      </button>
+                    )}
+
+                    {(() => {
+                      const occupiedSlots = new Set(employees.map(e => e.slotIndex ?? 0)).size;
+                      const freeSlots = beds - occupiedSlots;
+                      if (freeSlots > 0) {
+                        return <div className={cn("flex items-center gap-2 px-5 py-2 rounded-full text-[14px] font-black whitespace-nowrap border-2 border-dashed", dk ? "border-amber-500/40 text-amber-500 bg-amber-500/5" : "border-amber-400 text-amber-600 bg-amber-50")}><Plus size={16} /> {freeSlots} {lang === 'de' ? 'Frei' : 'Empty'}</div>;
+                      }
+                      return null;
+                    })()}
+                  </>
+                );
              })()}
           </div>
           
