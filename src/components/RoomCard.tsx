@@ -748,9 +748,6 @@ export default function RoomCard({
         <div className={cn("p-6 border-t", dk ? "bg-black/20 border-white/5" : "bg-slate-50/50 border-slate-100")}>
            {/* --- BED AND EMPLOYEE MANAGEMENT --- */}
            <div className="grid gap-6 items-start" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(400px, 1fr))` }}>
-             
-           {/* --- SURGICAL FIX: PASSING EMPLOYEE OPTIONS TO ALL 3 BED SCENARIOS --- */}
-           <div className="grid gap-6 items-start" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(400px, 1fr))` }}>
               {Array.from({ length: beds }).map((_, i) => {
                  const slotE = employees.filter(e => (e.slotIndex ?? 0) === i).sort((a,b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
                  return (
