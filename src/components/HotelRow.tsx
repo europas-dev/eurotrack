@@ -103,6 +103,7 @@ export function getTranslation(dict: any[], id: string, lang: string) {
 
 export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onDelete, viewOnly, dk, lang, defaultNights = 1, defaultStart, defaultEnd }: any) {
   const [draft, setDraft] = useState(item);
+  const editRef = useRef<HTMLDivElement>(null);
   const [calOpen, setCalOpen] = useState(false);
   const [showDiscount, setShowDiscount] = useState(parseFloat(item.discountValue || 0) > 0);
   
@@ -110,6 +111,19 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
   const inputClass = cn('px-2 py-1.5 rounded text-[12px] font-bold outline-none border transition-all h-[30px]', noSpinner, dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-teal-500' : 'bg-white border-slate-200 text-slate-900 focus:border-teal-500');
 
   useEffect(() => { if (isEditing) setDraft(item); }, [isEditing, item]);
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (isEditing && editRef.current && !editRef.current.contains(e.target as Node)) {
+        const target = e.target as HTMLElement;
+        if (!target.closest('.flatpickr-calendar')) onCancel();
+      }
+    }
+    function handleKey(e: KeyboardEvent) { if (isEditing && e.key === 'Escape') onCancel(); }
+    document.addEventListener('mousedown', handle);
+    document.addEventListener('keydown', handleKey);
+    return () => { document.removeEventListener('mousedown', handle); document.removeEventListener('keydown', handleKey); }
+  }, [isEditing, onCancel]);
 
   const currentItem = isEditing ? draft : item;
   const { finalNetto, mwst, brutto } = calcInvoiceItem(currentItem, defaultNights);
@@ -128,7 +142,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
 
   if (isEditing && !viewOnly) {
     return (
-      <div className={cn("flex flex-col p-2 border-b transition-all w-full relative z-20 shadow-xl", dk ? "bg-teal-900/20 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
+      <div ref={editRef} className={cn("flex flex-col p-2 border-b transition-all w-full relative z-20 shadow-xl", dk ? "bg-teal-900/20 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
         <div className="flex items-start w-full">
            <div className="w-[200px] flex items-center gap-1.5 shrink-0 pr-2">
                <select value={draft.type || 'room'} onChange={e => {
@@ -160,7 +174,6 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
                      </div>
                      {showDiscount && !hasBruttoInput && (
                          <div className="flex items-center w-[130px] animate-in fade-in slide-in-from-top-1 mt-1">
-                            {/* FIX: Wider placeholder for Rabatt */}
                             <input type="number" value={draft.discountValue ?? ''} onChange={e => setDraft({ ...draft, discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-[65px] px-1.5 text-right placeholder:text-[10px]")} placeholder="Rabatt" />
                             <button onClick={() => setDraft({ ...draft, discountType: draft.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[30px] h-[30px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{draft.discountType === 'percentage' ? '%' : '€'}</button>
                             <button onClick={() => { setShowDiscount(false); setDraft({ ...draft, discountValue: null }); }} className={cn("w-[30px] h-[30px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
@@ -215,16 +228,15 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
                <input type="number" disabled={hasNettoInput} placeholder={hasNettoInput ? formatCurrency(brutto) : "Brutto"} value={draft.brutto ?? ''} onChange={e => setDraft({ ...draft, brutto: e.target.value, netto: null })} className={cn(inputClass, "w-full text-left", hasNettoInput ? "disabled:opacity-100 disabled:bg-transparent disabled:border-transparent text-[13px] font-black px-1 placeholder-slate-900 dark:placeholder-white" : "")} />
            </div>
 
-           {/* FIX: Explicit Save and Cancel, with a strictly separated Delete button */}
            <div className="w-[65px] flex items-start justify-end gap-1.5 shrink-0 pl-1 relative group/actions">
               <button onClick={() => onSave(draft)} className="p-1.5 h-[30px] w-[28px] flex items-center justify-center text-white bg-teal-500 hover:bg-teal-600 rounded transition-all shadow-sm shrink-0"><Check size={14} strokeWidth={3}/></button>
               <button onClick={onCancel} className={cn("p-1.5 h-[30px] w-[28px] flex items-center justify-center rounded transition-all shadow-sm border shrink-0", dk ? "border-white/10 text-slate-300 hover:bg-white/10 hover:text-white" : "border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-900")}><X size={14} strokeWidth={3}/></button>
               
-              {/* Subtle absolute delete button to the right of the X */}
               <div className="absolute left-full ml-2 top-0 bottom-0 flex items-center opacity-0 group-hover/actions:opacity-100 transition-all pointer-events-none group-hover/actions:pointer-events-auto">
                   <button onClick={onDelete} className={cn("p-1.5 rounded-lg border transition-all shadow-sm flex items-center justify-center", dk ? "bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white" : "bg-red-50 border-red-200 text-red-500 hover:bg-red-500 hover:text-white")} title={lang === 'de' ? 'Löschen' : 'Delete'}><Trash2 size={14}/></button>
               </div>
            </div>
+        </div>
         
         {needsNote && (
            <div className="w-full mt-2 animate-in fade-in">
@@ -236,8 +248,8 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
   }
 
   return (
-    <div className="w-[160px] flex flex-col gap-0.5 shrink-0 pr-2">
-          {/* FIX: Keeps Room Cost and details on ONE dynamic wrap-friendly line */}
+    <div className={cn("flex items-start px-3 py-3 border-b last:border-b-0 transition-colors group relative", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
+       <div className="w-[160px] flex flex-col gap-0.5 shrink-0 pr-2">
           <div className={cn("text-[12px] font-black leading-tight", dk ? "text-slate-200" : "text-slate-800")}>
              {getTranslation(COST_TYPES, currentItem.type || 'room', lang)}
              {currentItem.method === 'per_bed' && <span className="text-[9.5px] font-bold text-slate-500 ml-1 tracking-normal font-sans">({activeNights} {lang==='de'?'Nächte':'Nights'}, {currentItem.beds||1} {lang==='de'?'Betten':'Beds'})</span>}
@@ -277,13 +289,14 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
           </span>
        </div>
 
-       {/* FIX: Only Edit button in hover view, Delete is strictly inside Edit Mode */}
        <div className="w-[65px] flex items-start justify-end opacity-0 group-hover:opacity-100 transition-opacity pt-0.5 pr-1">
           {!viewOnly && <button onClick={onEdit} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 transition-colors"><Edit3 size={14}/></button>}
        </div>
     </div>
   )
 }
+
+function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, className, textClass, searchQuery, disabled }: any) {
 
 function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, className, textClass, searchQuery, disabled }: any) {
   const [editing, setEditing] = useState(false);
