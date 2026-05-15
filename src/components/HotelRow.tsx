@@ -948,9 +948,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                           };
                           setActiveDurationTab(findEmpTab());
                           setTimeout(() => { 
-                             const el = document.getElementById(`emp-slot-${emp.id}`); 
-                             if(el){ el.scrollIntoView({behavior: 'smooth', block: 'center'}); el.classList.add('ring-2', 'ring-teal-500'); setTimeout(()=>el.classList.remove('ring-2','ring-teal-500'), 2000);} 
-                          }, 250); 
+                             window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id }));
+                          }, 300);
                       }} 
                         className={cn("px-2 py-0.5 rounded-full border text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, isPartial ? "border-dashed" : "border-solid", dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-700")}>
                         {isSubstitute ? <CornerDownRight size={10} className={cn("shrink-0", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} /> : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />}
@@ -997,9 +996,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                         };
                                         setActiveDurationTab(findEmpTab());
                                         setTimeout(() => { 
-                                           const el = document.getElementById(`emp-slot-${emp.id}`); 
-                                           if(el){ el.scrollIntoView({behavior: 'smooth', block: 'center'}); el.classList.add('ring-2', 'ring-teal-500'); setTimeout(()=>el.classList.remove('ring-2','ring-teal-500'), 2000);} 
-                                        }, 250); 
+                                           window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id }));
+                                        }, 300);
                                     }} 
                                     className={cn("px-2 py-0.5 rounded-full border text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, isPartial ? "border-dashed" : "border-solid", "bg-slate-700 text-white hover:bg-slate-600")}>
                                     {isSubstitute ? <CornerDownRight size={10} className={cn("shrink-0", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} /> : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />}
