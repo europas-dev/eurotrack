@@ -655,84 +655,6 @@ export default function RoomCard({
       catch (e) { console.error(e) }
     }, 400)
   }
-  
-    const multiplier = activeTab === 'per_bed' ? (beds * nights) : activeTab === 'per_room' ? nights : 1;
-  
-      let baseNetto = 0; 
-      let mwstRate = 0;
-      let cEnergyNetto = 0; 
-      let eMwstRate = 0;
-      let currentDiscountValue = 0; 
-      let currentDiscountType: 'percentage' | 'fixed' = 'percentage';
-      
-      if (activeTab === 'per_bed') {
-         baseNetto = (Number(card.bedNetto) || 0) * multiplier;
-         mwstRate = Number(card.bedMwst) || 0;
-         cEnergyNetto = (Number(card.bedEnergyNetto) || 0) * multiplier;
-         eMwstRate = Number(card.bedEnergyMwst) || 0;
-         currentDiscountValue = Number(card.bedDiscountValue) || 0;
-         currentDiscountType = card.bedDiscountType || 'percentage';
-      } else if (activeTab === 'per_room') {
-         baseNetto = (Number(card.roomNetto) || 0) * multiplier;
-         mwstRate = Number(card.roomMwst) || 0;
-         cEnergyNetto = (Number(card.roomEnergyNetto) || 0) * multiplier;
-         eMwstRate = Number(card.roomEnergyMwst) || 0;
-         currentDiscountValue = Number(card.roomDiscountValue) || 0;
-         currentDiscountType = card.roomDiscountType || 'percentage';
-      } else {
-         // ✅ For total_room: values are already totals for the duration
-         baseNetto = Number(card.totalNetto) || 0;
-         mwstRate = Number(card.totalMwst) || 0;
-         cEnergyNetto = Number(card.totalEnergyNetto) || 0;  // ✅ NOT multiplied
-         eMwstRate = Number(card.totalEnergyMwst) || 0;
-         currentDiscountValue = Number(card.totalDiscountValue) || 0;  // ✅ ADD THIS
-         currentDiscountType = card.totalDiscountType || 'percentage';  // ✅ ADD THIS
-      }
-      
-      // ✅ CORRECT - For total_room, use the exact stored value
-      let cRoomNetto = baseNetto;
-      if (currentDiscountValue > 0) {
-         if (currentDiscountType === 'percentage') {
-             cRoomNetto = baseNetto * (1 - currentDiscountValue/100);
-         } else {
-             if (activeTab === 'total_room') {
-                 // SURGICAL FIX: Actually apply the fixed discount to the total room netto!
-                 cRoomNetto = Math.max(0, baseNetto - currentDiscountValue);
-             } else {
-                 const baseUnit = (activeTab === 'per_bed' ? Number(card.bedNetto) : activeTab === 'per_room' ? Number(card.roomNetto) : Number(card.totalNetto)) || 0;
-                 const discountedUnit = Math.max(0, baseUnit - currentDiscountValue);
-                 cRoomNetto = discountedUnit * multiplier;
-             }
-         }
-      }
-  
-  // DELETE EVERYTHING AFTER THIS UNTIL const cRoomMwst
-  const cRoomMwst = cRoomNetto * (mwstRate / 100);
-  const cEnergyMwst = cEnergyNetto * (eMwstRate / 100);
-  
-  // ✅ CALCULATE THIS FIRST
-  const calculatedFinalBrutto = calcRoomCardTotal(card, durationStart, durationEnd);
-  const roomTotalDisplay = formatCurrency(calculatedFinalBrutto);
-
-  // ✅ THEN CALCULATE PRICE PER BED (moved to the END)
-  // ✅ CORRECTED CALCULATION
-  let pricePerBedPerNight = 0;
-  if (beds > 0 && nights > 0) {
-    if (card.basePrice && card.baseNights && activeTab === 'total_room') {
-      // ✅ FIX: Use baseRoomPrice (room-only) instead of basePrice (total)
-      const baseRoomBrutto = card.baseRoomPrice || card.basePrice; // Fallback for old data
-      const baseMwst = Number(card.totalMwst) || 0;
-      
-      // Calculate netto from room-only brutto
-      const baseRoomNetto = baseMwst > 0 
-        ? baseRoomBrutto / (1 + baseMwst / 100)
-        : baseRoomBrutto;
-      
-      pricePerBedPerNight = baseRoomNetto / (card.baseNights * beds);
-    } else {
-      pricePerBedPerNight = cRoomNetto / (beds * nights);
-    }
-  }
 
   return (
     <div className={cn('rounded-xl border transition-all shadow-sm flex flex-col w-full overflow-hidden', dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')}>
@@ -770,30 +692,11 @@ export default function RoomCard({
              })()}
           </div>
           
-          {/* ✅ SHOW PRICE OR MASTER STATUS - clicking price opens pricing tab */}
-          {isMasterPricingActive ? (
-            <span className="text-xs font-black text-slate-500 uppercase tracking-widest shrink-0 px-3">
-              {lang === 'de' ? 'Master aktiv' : 'Master active'}
-            </span>
-          ) : (
-            <button 
-              onClick={(e) => { 
-                e.stopPropagation(); 
-                setIsOpen(true); 
-                setShowPricing(true); 
-              }} 
-              className={cn(
-                "px-4 py-2 rounded-lg text-lg font-black transition-all shrink-0",
-                dk ? "text-teal-400 hover:bg-white/5" : "text-teal-600 hover:bg-slate-50"
-              )}
-            >
-              {roomTotalDisplay}
-            </button>
-          )}
-          
-          {!viewOnly && (
-            <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className={cn('p-2 rounded transition-all shrink-0', dk ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-red-500 hover:bg-red-50')}><Trash2 size={18} /></button>
-          )}
+          <div className="shrink-0 pl-4">
+            {!viewOnly && (
+              <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className={cn('p-2 rounded transition-all', dk ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-red-500 hover:bg-red-50')}><Trash2 size={18} /></button>
+            )}
+          </div>
              
            </>
         ) : (
@@ -822,202 +725,30 @@ export default function RoomCard({
              
              <div className="flex-1 min-w-[10px]" />
              
-             {!isMasterPricingActive && (
-               <div className="flex items-center shrink-0 gap-3">
-                 <button 
-                   onClick={(e) => { 
-                     e.stopPropagation(); 
-                     setShowPricing(!showPricing);
-                   }} 
-                   className={tabBtn(showPricing)}
-                 >
-                   {lang === 'de' ? 'Preis' : 'Price'}
+             <div className="flex items-center shrink-0 gap-2">
+               {!viewOnly && allCardsOfSameType.length > 1 && (
+                 <button onClick={(e) => { e.stopPropagation(); onApplyToSameType(card); setApplyActive(true); setTimeout(()=>setApplyActive(false), 1000); }} className={cn('px-3 h-[38px] rounded-lg text-sm font-black border flex items-center gap-2 transition-all', isApplyActive ? 'bg-green-500 text-white border-transparent shadow-lg' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5 hover:text-blue-400 bg-[#1E293B]' : 'border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 bg-white')} title="Copy settings to all rooms of this type">
+                   {isApplyActive ? <Check size={14}/> : <Copy size={14}/>} All {card.roomType}
                  </button>
-                 
-                 <div className="flex flex-col items-end min-w-[100px]">
-                   <span className="text-xl font-black">{roomTotalDisplay}</span>
-                 </div>
-                 
-                 {!viewOnly && (
-                   <button 
-                     onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} 
-                     className="p-2 text-slate-400 hover:text-red-500 shrink-0"
-                   >
-                     <Trash2 size={18} />
-                   </button>
-                 )}
-               </div>
-             )}
+               )}
+               {!viewOnly && (
+                 <button 
+                   onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} 
+                   className="p-2 text-slate-400 hover:text-red-500 shrink-0"
+                 >
+                   <Trash2 size={18} />
+                 </button>
+               )}
+             </div>
            </div>
         )}
       </div>
       
       {isOpen && (
         <div className={cn("p-6 border-t", dk ? "bg-black/20 border-white/5" : "bg-slate-50/50 border-slate-100")}>
-           {showPricing && !isMasterPricingActive && (
-             <div className={cn("mb-6 flex flex-col xl:flex-row shadow-sm rounded-xl border", dk ? "border-white/10 bg-[#0F172A]" : "border-slate-200 bg-white")}>
-               
-               {/* LEFT SIDE: PRICING INPUTS */}
-               <div className={cn("flex-1 p-5 border-b xl:border-b-0 xl:border-r flex flex-col gap-5 rounded-t-xl xl:rounded-l-xl xl:rounded-tr-none", dk ? "border-white/10" : "border-slate-200")}>
-                 <div className="flex items-center gap-3">
-                   {/* SURGICAL FIX: Disable pricing tab buttons for Viewers */}
-                   <button disabled={viewOnly} onClick={() => {if(!viewOnly) queueSave({ pricingTab: 'per_bed' })}} className={cn(tabBtn(activeTab === 'per_bed'), viewOnly && "cursor-default pointer-events-none")}>{lang === 'de' ? 'Preis/Bett' : 'Price/Bed'}</button>
-                   <button disabled={viewOnly} onClick={() => {if(!viewOnly) queueSave({ pricingTab: 'per_room' })}} className={cn(tabBtn(activeTab === 'per_room'), viewOnly && "cursor-default pointer-events-none")}>{lang === 'de' ? 'Preis/Zimmer' : 'Price/Room'}</button>
-                   <button disabled={viewOnly} onClick={() => {if(!viewOnly) queueSave({ pricingTab: 'total_room' })}} className={cn(tabBtn(activeTab === 'total_room'), viewOnly && "cursor-default pointer-events-none")}>{lang === 'de' ? 'Gesamt/Zimmer' : 'Total/Room'}</button>
-                 </div>
-                 
-                 <div className="flex items-start gap-4 flex-wrap pb-2">
-                   <InlineNMBRow 
-                     nettoKey={activeTab === 'per_bed' ? "bedNetto" : activeTab === 'per_room' ? "roomNetto" : "totalNetto"} 
-                     mwstKey={activeTab === 'per_bed' ? "bedMwst" : activeTab === 'per_room' ? "roomMwst" : "totalMwst"} 
-                     bruttoKey={activeTab === 'per_bed' ? "bedBrutto" : activeTab === 'per_room' ? "roomBrutto" : "totalBrutto"} 
-                     energyNettoKey={activeTab === 'per_bed' ? "bedEnergyNetto" : activeTab === 'per_room' ? "roomEnergyNetto" : "totalEnergyNetto"}
-                     energyMwstKey={activeTab === 'per_bed' ? "bedEnergyMwst" : activeTab === 'per_room' ? "roomEnergyMwst" : "totalEnergyMwst"}
-                     energyBruttoKey={activeTab === 'per_bed' ? "bedEnergyBrutto" : activeTab === 'per_room' ? "roomEnergyBrutto" : "totalEnergyBrutto"}
-                     discountValueKey={activeTab === 'per_bed' ? "bedDiscountValue" : activeTab === 'per_room' ? "roomDiscountValue" : "totalDiscountValue"}
-                     discountTypeKey={activeTab === 'per_bed' ? "bedDiscountType" : activeTab === 'per_room' ? "roomDiscountType" : "totalDiscountType"}
-                     card={card} dk={dk} lang={lang} onPatch={queueSave} multiplier={multiplier} activeTab={activeTab} queueSave={queueSave}
-                     viewOnly={viewOnly} // SURGICAL FIX: Pass prop down
-                   />
-
-                   {/* ADD THIS SECTION BELOW  */}
-                 {activeTab === 'total_room' && !viewOnly && (
-                  <div className="flex items-start pt-[26px]">
-                    <button
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        const isLocked = !!card.basePrice;
-                        
-                        if (!isLocked) {
-                          // ✅ LOCK CALCULATION: Store room and energy separately
-                          const roomNetto = Number(card.totalNetto) || 0;
-                          const energyNetto = Number(card.totalEnergyNetto) || 0;
-                          const roomMwst = Number(card.totalMwst) || 0;
-                          const energyMwst = Number(card.totalEnergyMwst) || 0;
-                          
-                          // Calculate room brutto (without energy)
-                          const roomBrutto = roomMwst > 0 
-                            ? roomNetto * (1 + roomMwst / 100)
-                            : roomNetto;
-                          
-                          // Calculate energy brutto
-                          const energyBrutto = energyMwst > 0 
-                            ? energyNetto * (1 + energyMwst / 100)
-                            : energyNetto;
-                          
-                          // Calculate TOTAL brutto (with energy) for display
-                          const totalBrutto = calculatedFinalBrutto;
-                          
-                          queueSave({
-                            basePrice: totalBrutto,           // Locked total (for display in blue box)
-                            baseRoomPrice: roomBrutto,        // Room-only price (for calculations)
-                            baseEnergyPrice: energyBrutto,    // ✅ ADD THIS: Energy price
-                            baseNights: nights,
-                            lastSyncedEndDate: durationEnd
-                          });
-                        } else {
-                          queueSave({
-                            basePrice: null,
-                            baseRoomPrice: null,
-                            baseEnergyPrice: null,            // ✅ ADD THIS: Clear energy price
-                            baseNights: null,
-                            lastSyncedEndDate: null
-                          });
-                        }
-                      }}
-                        className={cn(
-                          "p-2 h-[38px] w-[42px] rounded-lg border transition-all flex items-center justify-center",
-                          card.basePrice 
-                            ? "bg-blue-600 border-blue-700 text-white shadow-md" 
-                            : dk ? "bg-white/5 border-white/10 text-slate-500 hover:text-white" : "bg-white border-slate-200 text-slate-400 hover:bg-slate-50"
-                        )}
-                        title={card.basePrice ? "Price Locked" : "Lock this Total as Base"}
-                      >
-                        {card.basePrice ? <Lock size={18} /> : <Unlock size={18} />}
-                      </button>
-                    </div>
-                  )}
-                                     
-                   {/* SURGICAL FIX: Hide Copy All button for Viewers */}
-                   {!viewOnly && allCardsOfSameType.length > 1 && (
-                     <div className="flex items-start h-full pt-[22px]">
-                       <button onClick={() => { onApplyToSameType(card); setApplyActive(true); setTimeout(()=>setApplyActive(false), 1000); }} className={cn('px-4 h-[38px] rounded-lg text-sm font-black border flex items-center gap-2 transition-all', isApplyActive ? 'bg-green-500 text-white border-transparent shadow-lg' : dk ? 'border-white/10 text-slate-400 hover:bg-white/5 hover:text-blue-400 bg-[#1E293B]' : 'border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 bg-white')}>
-                         {isApplyActive ? <Check size={14}/> : <Copy size={14}/>} All {card.roomType}
-                       </button>
-                     </div>
-                   )}
-                 </div>
-               </div>
-
-                               {/* RIGHT SIDE: DETAILED SUMMARY COLUMN */}
-               <div className={cn("w-full xl:w-[320px] shrink-0 p-5 flex flex-col justify-between rounded-b-xl xl:rounded-r-xl xl:rounded-bl-none", dk ? "bg-[#0B1224]" : "bg-slate-50")}>
-                 {activeTab === 'total_room' && card.basePrice && (
-                  <div className={cn(
-                    "flex flex-col gap-1.5 mb-3 px-3 py-2 rounded-lg border",
-                    dk ? "bg-blue-500/10 border-blue-500/30" : "bg-blue-50 border-blue-300"
-                  )}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <Lock size={12} className="text-blue-500" />
-                        <span className="text-[10px] font-black text-blue-500 uppercase">
-                          {lang === 'de' ? 'Gesperrter Basiswert' : 'Locked Base'}
-                        </span>
-                      </div>
-                      <span className="text-xs font-bold text-blue-600">
-                        {card.baseNights}N
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-[11px] font-bold text-slate-500">
-                        {/* ✅ FIX: Calculate from room-only base, not total */}
-                        {(() => {
-                          const baseRoomBrutto = card.baseRoomPrice || card.basePrice;
-                          const baseMwst = Number(card.totalMwst) || 0;
-                          const baseRoomNetto = baseMwst > 0 
-                            ? baseRoomBrutto / (1 + baseMwst / 100)
-                            : baseRoomBrutto;
-                          return formatCurrency(baseRoomNetto / (card.baseNights || 1));
-                        })()} / N
-                      </span>
-                      <span className="text-sm font-black text-blue-600">
-                        {/* Display total (with energy) */}
-                        {formatCurrency(card.basePrice)}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                 <div className="space-y-2 mb-4 text-[13px] font-medium">
-                   <div className="flex justify-between items-center">
-                     <span className={dk ? "text-slate-400" : "text-slate-500"}>{lang === 'de' ? 'Zimmer Netto' : 'Room Netto'}</span>
-                     <span className={cn("font-bold", dk ? "text-white" : "text-slate-900")}>{formatCurrency(cRoomNetto)}</span>
-                   </div>
-                   {cEnergyNetto > 0 && (
-                     <div className="flex justify-between items-center text-yellow-600 dark:text-yellow-500">
-                       <span className="opacity-80">{lang === 'de' ? 'Energie Netto' : 'Energy Netto'}</span>
-                       <span>{formatCurrency(cEnergyNetto)}</span>
-                     </div>
-                   )}
-                   
-                   {(cRoomMwst > 0 || cEnergyMwst > 0) && <div className={cn("w-full h-px my-2", dk ? "bg-white/10" : "bg-slate-200")} />}
-                   
-                   {cRoomMwst > 0 && <div className="flex justify-between items-center text-slate-500 dark:text-slate-400"><span>{lang === 'de' ? 'MwSt (Zimmer)' : 'MwSt (Room)'}</span><span>{formatCurrency(cRoomMwst)}</span></div>}
-                   {cEnergyMwst > 0 && <div className="flex justify-between items-center text-slate-500 dark:text-slate-400"><span>{lang === 'de' ? 'MwSt (Energie)' : 'MwSt (Energy)'}</span><span>{formatCurrency(cEnergyMwst)}</span></div>}
-                 </div>
-                 
-                 <div className={cn("pt-3 border-t", dk ? "border-white/10" : "border-slate-200")}>
-                   <div className="flex justify-between items-center">
-                     <span className="text-xs font-black uppercase text-slate-500">Brutto</span>
-                     <span className="text-xl font-black text-teal-600 dark:text-teal-400">{formatCurrency(calculatedFinalBrutto)}</span>
-                   </div>
-                   <div className="flex justify-between items-center mt-1 text-[11px] font-bold text-slate-400">
-                     <span>{lang === 'de' ? 'Preis / Bett (Netto)' : 'Price / Bed (Netto)'}</span>
-                     <span>{formatCurrency(pricePerBedPerNight)} / N</span>
-                   </div>
-                 </div>
-               </div>
-             </div>
-           )}
+           {/* --- BED AND EMPLOYEE MANAGEMENT --- */}
+           <div className="grid gap-6 items-start" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(400px, 1fr))` }}>
+             
            {/* --- SURGICAL FIX: PASSING EMPLOYEE OPTIONS TO ALL 3 BED SCENARIOS --- */}
            <div className="grid gap-6 items-start" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(400px, 1fr))` }}>
               {Array.from({ length: beds }).map((_, i) => {
