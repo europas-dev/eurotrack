@@ -144,7 +144,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
     return (
       <div ref={editRef} className={cn("flex flex-col p-2 border-b transition-all w-full relative z-20 shadow-xl", dk ? "bg-teal-900/20 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
         <div className="flex items-start w-full">
-           <div className="w-[200px] flex items-center gap-1.5 shrink-0 pr-2">
+           <div className="flex-1 min-w-[150px] flex items-center gap-1.5 shrink-0 pr-2">
                <select value={draft.type || 'room'} onChange={e => {
                    const newType = e.target.value;
                    const newMethod = (newType === 'base' || newType === 'extra') ? 'total' : draft.method;
@@ -157,7 +157,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
                </select>
            </div>
 
-           <div className="flex-1 flex flex-col items-end shrink-0 pr-2 relative">
+           <div className="w-[240px] flex flex-col items-end shrink-0 pr-6 relative">
                {draft.method === 'per_bed' && isPerBedAllowed ? (
                  <div className="flex flex-col items-end gap-1.5 w-full">
                      <div className="flex items-center justify-end gap-1.5 w-full">
@@ -200,7 +200,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
                )}
            </div>
 
-           <div className="w-[110px] flex items-center justify-end shrink-0 pr-2 relative">
+           <div className="w-[100px] flex items-center justify-end shrink-0 pr-2 relative">
                {draft.method === 'total' || !isPerBedAllowed ? (
                    <div className="flex flex-col items-end gap-1.5 w-full">
                        <div className="relative w-full">
@@ -228,12 +228,13 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
                <input type="number" disabled={hasNettoInput} placeholder={hasNettoInput ? formatCurrency(brutto) : "Brutto"} value={draft.brutto ?? ''} onChange={e => setDraft({ ...draft, brutto: e.target.value, netto: null })} className={cn(inputClass, "w-full text-left", hasNettoInput ? "disabled:opacity-100 disabled:bg-transparent disabled:border-transparent text-[13px] font-black px-1 placeholder-slate-900 dark:placeholder-white" : "")} />
            </div>
 
-           <div className="w-[65px] flex items-start justify-end gap-1.5 shrink-0 pl-1 relative group/actions">
+           {/* FIX: Check and X visible. Trash hidden on far right until hover */}
+           <div className="w-[100px] flex items-start justify-end gap-1.5 shrink-0 pl-1 group/actions">
               <button onClick={() => onSave(draft)} className="p-1.5 h-[30px] w-[28px] flex items-center justify-center text-white bg-teal-500 hover:bg-teal-600 rounded transition-all shadow-sm shrink-0"><Check size={14} strokeWidth={3}/></button>
               <button onClick={onCancel} className={cn("p-1.5 h-[30px] w-[28px] flex items-center justify-center rounded transition-all shadow-sm border shrink-0", dk ? "border-white/10 text-slate-300 hover:bg-white/10 hover:text-white" : "border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-900")}><X size={14} strokeWidth={3}/></button>
               
-              <div className="absolute left-full ml-2 top-0 bottom-0 flex items-center opacity-0 group-hover/actions:opacity-100 transition-all pointer-events-none group-hover/actions:pointer-events-auto">
-                  <button onClick={onDelete} className={cn("p-1.5 rounded-lg border transition-all shadow-sm flex items-center justify-center", dk ? "bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white" : "bg-red-50 border-red-200 text-red-500 hover:bg-red-500 hover:text-white")} title={lang === 'de' ? 'Löschen' : 'Delete'}><Trash2 size={14}/></button>
+              <div className="w-8 ml-1 flex items-center justify-end opacity-0 group-hover/actions:opacity-100 transition-opacity">
+                  <button onClick={onDelete} className={cn("p-1.5 rounded-lg border transition-colors flex items-center justify-center", dk ? "bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white" : "bg-red-50 border-red-200 text-red-500 hover:bg-red-500 hover:text-white")} title={lang === 'de' ? 'Löschen' : 'Delete'}><Trash2 size={14}/></button>
               </div>
            </div>
         </div>
@@ -249,7 +250,8 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
 
   return (
     <div className={cn("flex items-start px-3 py-3 border-b last:border-b-0 transition-colors group relative", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
-       <div className="w-[160px] flex flex-col gap-0.5 shrink-0 pr-2">
+       <div className="flex-1 min-w-[150px] flex flex-col gap-0.5 shrink-0 pr-2">
+          {/* FIX: flex-1 ensures it has the space to stretch! */}
           <div className={cn("text-[12px] font-black leading-tight", dk ? "text-slate-200" : "text-slate-800")}>
              {getTranslation(COST_TYPES, currentItem.type || 'room', lang)}
              {currentItem.method === 'per_bed' && <span className="text-[9.5px] font-bold text-slate-500 ml-1 tracking-normal font-sans">({activeNights} {lang==='de'?'Nächte':'Nights'}, {currentItem.beds||1} {lang==='de'?'Betten':'Beds'})</span>}
@@ -264,7 +266,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
           )}
        </div>
 
-       <div className="flex-1 flex items-start justify-end pr-3">
+       <div className="w-[240px] flex items-start justify-end shrink-0 pr-6">
           {currentItem.method === 'per_bed' ? (
              <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(parseFloat(currentItem.netto)||0)}</span>
           ) : (
@@ -272,14 +274,14 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
           )}
        </div>
 
-       <div className="w-[110px] shrink-0 flex flex-col items-end pr-2">
+       <div className="w-[100px] shrink-0 flex flex-col items-end pr-2">
           <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>
              {hasBruttoInput ? (lang === 'de' ? 'Auto' : 'Auto') : formatCurrency(finalNetto)}
           </span>
           {currentItem.discountValue > 0 && !hasBruttoInput && <span className="text-[9px] font-black text-teal-500 leading-none mt-1 border border-teal-500/20 bg-teal-500/10 px-1.5 py-0.5 rounded">-{currentItem.discountType === 'percentage' ? `${currentItem.discountValue}%` : `${currentItem.discountValue}€`}</span>}
        </div>
 
-       <div className="w-[60px] shrink-0 pt-0.5 text-center">
+       <div className="w-[70px] shrink-0 pt-0.5 text-center">
           <span className={cn("text-[13px] font-bold", dk ? "text-slate-400" : "text-slate-500")}>{currentItem.mwst ?? 7}%</span>
        </div>
 
@@ -289,7 +291,8 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
           </span>
        </div>
 
-       <div className="w-[65px] flex items-start justify-end opacity-0 group-hover:opacity-100 transition-opacity pt-0.5 pr-1">
+       {/* FIX: Only Edit button in hover view, Delete is strictly inside Edit Mode */}
+       <div className="w-[60px] flex items-start justify-end opacity-0 group-hover:opacity-100 transition-opacity pt-0.5 pr-1 shrink-0">
           {!viewOnly && <button onClick={onEdit} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 transition-colors"><Edit3 size={14}/></button>}
        </div>
     </div>
@@ -1537,16 +1540,16 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                const { finalNetto, mwst, brutto } = calcInvoiceItem(item, defaultN);
                                                return (
                                                   <div key={item.id} className="flex items-start px-2 py-2.5 border-b border-slate-100 dark:border-white/5 last:border-0">
-                                                     <div className="w-[220px] shrink-0 flex flex-col gap-0.5 pr-2">
+                                                     <div className="flex-1 min-w-[150px] shrink-0 flex flex-col gap-0.5 pr-2">
                                                                         <div className="text-[12px] font-bold text-slate-700 dark:text-slate-300 leading-tight">
                                                                            <HighlightText text={getTranslation(COST_TYPES, item.type || 'room', lang)} query={itemSearchQuery} />
                                                                            {item.method === 'per_bed' && <span className="text-[9.5px] text-slate-400 font-bold ml-1 tracking-normal font-sans">({item.nights||defaultN} {lang==='de'?'Nächte':'Nights'}, {item.beds||1} {lang==='de'?'Betten':'Beds'})</span>}
                                                                         </div>
                                                                         {item.note && <span className="text-[10px] italic text-slate-400 mt-1 whitespace-pre-wrap"><HighlightText text={item.note} query={itemSearchQuery} /></span>}
                                                                      </div>
-                                                     <div className="flex-1 text-[12px] font-bold text-slate-700 dark:text-slate-300 pt-0.5 text-right pr-6">
-                                                        {item.method === 'per_bed' ? <HighlightText text={formatCurrency(parseFloat(item.netto)||0)} query={itemSearchQuery} /> : <span className="opacity-50 text-[11px] italic">--</span>}
-                                                     </div>
+                                                                     <div className="w-[240px] shrink-0 text-[12px] font-bold text-slate-700 dark:text-slate-300 pt-0.5 text-right pr-6">
+                                                                        {item.method === 'per_bed' ? <HighlightText text={formatCurrency(parseFloat(item.netto)||0)} query={itemSearchQuery} /> : <span className="opacity-50 text-[11px] italic">--</span>}
+                                                                     </div>
                                                      <div className="w-[110px] shrink-0 text-[12px] font-bold text-slate-700 dark:text-slate-300 pt-0.5 text-right pr-2"><HighlightText text={formatCurrency(finalNetto)} query={itemSearchQuery} /></div>
                                                      <div className="w-[70px] shrink-0 text-[12px] font-bold text-slate-500 pt-0.5 text-center">{mwst}%</div>
                                                      <div className="w-[110px] shrink-0 text-[12px] font-black text-slate-900 dark:text-white pt-0.5 text-right pr-2"><HighlightText text={formatCurrency(brutto)} query={itemSearchQuery} /></div>
