@@ -65,15 +65,15 @@ function CompactEmployeePill({ emp, dk, durationStart, durationEnd, isSubstitute
   const shortName = emp.name ? emp.name.trim().split(' ').pop() : '_ _ _';
 
   return (
-    <div className="relative group/pill">
+    <div className="relative group/pill hover:z-[99999]">
       <button onClick={(e) => { e.stopPropagation(); onOpenSlot(emp.id); }} className={cn("px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all", isPartial ? "border border-dashed" : "border border-solid shadow-sm", empBorderColor(emp, dk).replace('border-2', 'border'), dk ? "bg-[#1E293B] text-slate-200 hover:bg-slate-800" : "bg-white text-slate-700 hover:bg-slate-50")}>
         {isSubstitute ? <CornerDownRight size={12} className={textColor} /> : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />}
         <span className="truncate max-w-[100px]">{shortName}</span>
         {hasPhone && <Phone size={10} className={cn("shrink-0", dk ? "text-slate-500" : "text-slate-400")} />}
       </button>
       
-      {/* BEAUTIFUL CUSTOM TOOLTIP */}
-      <div className={cn("absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max min-w-[180px] p-3 rounded-2xl shadow-xl border opacity-0 group-hover/pill:opacity-100 transition-all pointer-events-none z-[9999] translate-y-1 group-hover/pill:translate-y-0 flex flex-col items-center gap-1.5", dk ? "bg-slate-800 border-white/10" : "bg-white border-slate-200")}>
+      {/* BEAUTIFUL CUSTOM TOOLTIP (DROPPING DOWNWARDS) */}
+      <div className={cn("absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max min-w-[180px] p-3 rounded-2xl shadow-2xl border opacity-0 group-hover/pill:opacity-100 transition-all pointer-events-none -translate-y-1 group-hover/pill:translate-y-0 flex flex-col items-center gap-1.5", dk ? "bg-slate-800 border-white/10" : "bg-white border-slate-200")}>
         <span className={cn("text-sm font-black", dk ? "text-white" : "text-slate-900")}>{emp.name}</span>
         <span className="text-[11px] font-bold text-slate-500">
           {fmtDateDe(emp.checkIn||'')} ➔ {fmtDateDe(emp.checkOut||'')} <span className="opacity-60">({calculateNights(emp.checkIn||'', emp.checkOut||'')}N)</span>
@@ -91,7 +91,7 @@ function CompactEmployeePill({ emp, dk, durationStart, durationEnd, isSubstitute
 
 function BedSlot({
   slotIndex, employee, durationStart, durationEnd, gapStart, gapEnd,
-  roomCardId, durationId, dk, lang, isSubstitute, onUpdated, viewOnly, employeeOptions // ADDED viewOnly
+  roomCardId, durationId, dk, lang, isSubstitute, onUpdated, viewOnly, employeeOptions, isCompact
 }: {
   slotIndex: number; employee: Employee | null; durationStart: string; durationEnd: string;
   gapStart?: string; gapEnd?: string; roomCardId: string; durationId: string;
@@ -99,6 +99,7 @@ function BedSlot({
   onUpdated: (slotIndex: number, emp: Employee | null, isGapFill?: boolean, deletedId?: string) => void;
   viewOnly?: boolean;
   employeeOptions?: string[];
+  isCompact?: boolean;
 }) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(employee?.name ?? '')
@@ -173,34 +174,55 @@ function BedSlot({
   }
 
   if (!editing && employee) {
-    return (
-      <div 
-        id={`emp-slot-${employee.id}`}
-        className={cn('flex flex-col gap-1.5 px-3 py-2.5 rounded-lg transition-all group relative', borderCls, isPartial ? 'border-2 border-dashed' : 'border-2 border-solid', dk ? 'bg-[#0F172A]' : 'bg-white')}
-      >
-        {/* LINE 1: ICON + NAME + DELETE */}
-        <div className="flex items-start justify-between gap-2 w-full">
-          <div className="flex items-center gap-2.5 flex-1 min-w-0">
-            <IconToUse size={16} className={cn("shrink-0 mt-0.5", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} />
-            <span onClick={() => { if(viewOnly) return; setName(employee.name); setPhone(employee.phone || '+49 '); setCheckIn(employee.checkIn ?? effectiveIn); setCheckOut(employee.checkOut ?? effectiveOut); setEditing(true) }} className={cn('text-[14px] font-black truncate flex-1', !viewOnly ? "cursor-pointer hover:underline" : "cursor-default", dk ? 'text-white' : 'text-slate-900')}>{employee.name}</span>
+    if (!isCompact) {
+      // ONE-LINE LAYOUT (For 1 or 2 beds per room)
+      return (
+        <div id={`emp-slot-${employee.id}`} className={cn('flex items-center gap-4 px-4 py-3 rounded-lg transition-all group relative', borderCls, isPartial ? 'border-2 border-dashed' : 'border-2 border-solid', dk ? 'bg-[#0F172A]' : 'bg-white')}>
+          <IconToUse size={18} className={cn("shrink-0", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} />
+          
+          <div className="flex flex-col flex-1 overflow-hidden relative">
+            <span onClick={() => { if(viewOnly) return; setName(employee.name); setPhone(employee.phone || '+49 '); setCheckIn(employee.checkIn ?? effectiveIn); setCheckOut(employee.checkOut ?? effectiveOut); setEditing(true) }} className={cn('text-[15px] font-bold truncate', !viewOnly ? "cursor-pointer hover:underline" : "cursor-default", dk ? 'text-white' : 'text-slate-900')}>{employee.name}</span>
           </div>
-          {!viewOnly && (
-            saving ? <Loader2 size={16} className="animate-spin text-blue-400 shrink-0" /> : <button onClick={() => setConfirmDel(true)} className={cn('opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded shrink-0', dk ? 'text-red-400 hover:bg-red-900/20' : 'text-red-500 hover:bg-red-50')}><Trash2 size={16} /></button>
-          )}
-        </div>
 
-        {/* LINE 2: PHONE + DATES + NIGHTS */}
-        <div className="flex items-center gap-3 pl-7 flex-wrap">
           {employee.phone && employee.phone !== '+49' && employee.phone.trim() !== '' && (
-            <a href={`tel:${employee.phone.replace(/\s/g, '')}`} onClick={e => e.stopPropagation()} className={cn("flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md transition-colors border", dk ? "bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10" : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100")}>
-              <Phone size={10} /> <span>{employee.phone}</span>
+            <a href={`tel:${employee.phone.replace(/\s/g, '')}`} onClick={e => e.stopPropagation()} className={cn("flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition-colors border shrink-0", dk ? "bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10" : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100")}>
+              <Phone size={12} /> <span className="hidden sm:inline">{employee.phone}</span>
             </a>
           )}
-          <span className={cn('text-[11px] font-bold tabular-nums', dk ? 'text-slate-400' : 'text-slate-500')}>{fmtDateDe(employee.checkIn ?? '')} ➔ {fmtDateDe(employee.checkOut ?? '')}</span>
-          <span className={cn('text-[12px] font-black ml-auto', dk ? 'text-slate-300' : 'text-slate-600')}>{calculateNights(employee.checkIn||'', employee.checkOut||'')}N</span>
+
+          <span className={cn('text-[14px] font-bold tabular-nums shrink-0 hidden md:block', dk ? 'text-slate-400' : 'text-slate-500')}>{fmtDateDe(employee.checkIn ?? '')} ➔ {fmtDateDe(employee.checkOut ?? '')}</span>
+          <span className={cn('text-[15px] font-black shrink-0 w-12 text-right', dk ? 'text-slate-300' : 'text-slate-600')}>{calculateNights(employee.checkIn||'', employee.checkOut||'')}N</span>
+          
+          {!viewOnly && (
+            saving ? <Loader2 size={18} className="animate-spin text-blue-400 shrink-0" /> : <button onClick={() => setConfirmDel(true)} className={cn('opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded shrink-0', dk ? 'text-red-400 hover:bg-red-900/20' : 'text-red-500 hover:bg-red-50')}><Trash2 size={18} /></button>
+          )}
         </div>
-      </div>
-    )
+      )
+    } else {
+      // TWO-LINE LAYOUT (For 3+ beds per room)
+      return (
+        <div id={`emp-slot-${employee.id}`} className={cn('flex flex-col gap-1.5 px-3 py-2.5 rounded-lg transition-all group relative', borderCls, isPartial ? 'border-2 border-dashed' : 'border-2 border-solid', dk ? 'bg-[#0F172A]' : 'bg-white')}>
+          <div className="flex items-start justify-between gap-2 w-full">
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+              <IconToUse size={16} className={cn("shrink-0 mt-0.5", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} />
+              <span onClick={() => { if(viewOnly) return; setName(employee.name); setPhone(employee.phone || '+49 '); setCheckIn(employee.checkIn ?? effectiveIn); setCheckOut(employee.checkOut ?? effectiveOut); setEditing(true) }} className={cn('text-[14px] font-black truncate flex-1', !viewOnly ? "cursor-pointer hover:underline" : "cursor-default", dk ? 'text-white' : 'text-slate-900')}>{employee.name}</span>
+            </div>
+            {!viewOnly && (
+              saving ? <Loader2 size={16} className="animate-spin text-blue-400 shrink-0" /> : <button onClick={() => setConfirmDel(true)} className={cn('opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded shrink-0', dk ? 'text-red-400 hover:bg-red-900/20' : 'text-red-500 hover:bg-red-50')}><Trash2 size={16} /></button>
+            )}
+          </div>
+          <div className="flex items-center gap-3 pl-7 flex-wrap">
+            {employee.phone && employee.phone !== '+49' && employee.phone.trim() !== '' && (
+              <a href={`tel:${employee.phone.replace(/\s/g, '')}`} onClick={e => e.stopPropagation()} className={cn("flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md transition-colors border", dk ? "bg-white/5 border-white/10 text-slate-300 hover:text-white hover:bg-white/10" : "bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100")}>
+                <Phone size={10} /> <span>{employee.phone}</span>
+              </a>
+            )}
+            <span className={cn('text-[11px] font-bold tabular-nums', dk ? 'text-slate-400' : 'text-slate-500')}>{fmtDateDe(employee.checkIn ?? '')} ➔ {fmtDateDe(employee.checkOut ?? '')}</span>
+            <span className={cn('text-[12px] font-black ml-auto', dk ? 'text-slate-300' : 'text-slate-600')}>{calculateNights(employee.checkIn||'', employee.checkOut||'')}N</span>
+          </div>
+        </div>
+      )
+    }
   }
 
   if (!editing) {
@@ -802,8 +824,9 @@ export default function RoomCard({
                        {/* SCENARIO 1: COMPLETELY EMPTY BED */}
                        {slotE.length === 0 ? (
                          <BedSlot 
+                           isCompact={beds > 2}
                            viewOnly={viewOnly} 
-                           employeeOptions={employeeOptions} 
+                           employeeOptions={employeeOptions}
                            slotIndex={i} 
                            employee={null} 
                            durationStart={durationStart} 
@@ -821,8 +844,9 @@ export default function RoomCard({
                          /* SCENARIO 2: OCCUPIED BED */
                          slotE.map((emp, empIdx) => (
                            <BedSlot 
+                             isCompact={beds > 2}
                              viewOnly={viewOnly} 
-                             employeeOptions={employeeOptions} 
+                             employeeOptions={employeeOptions}
                              key={emp.id} 
                              slotIndex={i} 
                              employee={emp} 
@@ -844,8 +868,9 @@ export default function RoomCard({
                        {/* SCENARIO 3: GAPS BETWEEN EMPLOYEES */}
                        {getGapSlots(beds, employees, durationStart, durationEnd).filter(g => g.slotIndex === i).map((gap, gi) => (
                          <BedSlot 
+                           isCompact={beds > 2}
                            viewOnly={viewOnly} 
-                           employeeOptions={employeeOptions} 
+                           employeeOptions={employeeOptions}
                            key={`gap-${i}-${gi}`} 
                            slotIndex={i} 
                            employee={null} 
