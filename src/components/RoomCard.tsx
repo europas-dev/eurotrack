@@ -677,9 +677,49 @@ export default function RoomCard({
     }, 400)
   }
 
+  // --- THE TARGETING SIGNAL LISTENER ---
+  useEffect(() => {
+    const handleOpenSlot = (e: any) => {
+      const targetId = e.detail;
+      
+      // 1. Does this specific RoomCard contain the targeted employee?
+      const hasEmp = employees.some((emp: any) => emp.id === targetId);
+      if (!hasEmp) return;
+
+      // 2. Open the Room Card!
+      setIsOpen(true);
+
+      // 3. Figure out if the employee is hidden in the "More/Mehr" section (> 18 limit)
+      const activeEmps = employees.filter(e => getEmployeeStatus(e.checkIn||'', e.checkOut||'') !== 'completed');
+      const expiredEmps = employees.filter(e => getEmployeeStatus(e.checkIn||'', e.checkOut||'') === 'completed');
+      activeEmps.sort((a, b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
+      expiredEmps.sort((a, b) => (b.checkOut || '').localeCompare(a.checkOut || ''));
+      const allOrdered = [...activeEmps, ...expiredEmps];
+      
+      const empIndex = allOrdered.findIndex(e => e.id === targetId);
+      if (empIndex >= 18) {
+          setShowHistory(true); // Auto-expands the More/Mehr section!
+      }
+
+      // 4. Scroll to the exact bed slot and flash it with the green ring!
+      setTimeout(() => {
+          const el = document.getElementById(`emp-slot-${targetId}`);
+          if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              el.classList.add('ring-2', 'ring-teal-500', 'bg-teal-500/10');
+              setTimeout(() => el.classList.remove('ring-2', 'ring-teal-500', 'bg-teal-500/10'), 2500);
+          }
+      }, 350); // 350ms gives the UI time to expand smoothly before scrolling
+    };
+
+    window.addEventListener('open-emp-slot', handleOpenSlot);
+    return () => window.removeEventListener('open-emp-slot', handleOpenSlot);
+  }, [employees]);
+
   return (
-    <div className={cn('rounded-xl border transition-all shadow-sm flex flex-col w-full', dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')}> 
-            {/* HEADER: COMPACT LAYOUT */}
+    <div className={cn('rounded-xl border transition-all shadow-sm flex flex-col w-full', dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')}>
+  
+  {/* HEADER: COMPACT LAYOUT */}
       <div className={cn("flex items-center gap-4 px-4 py-3 cursor-pointer w-full", isOpen && (dk ? "border-b border-white/10" : "border-b border-slate-100"))} onClick={(e) => { if (!['INPUT','BUTTON','SELECT'].includes((e.target as HTMLElement).tagName)) setIsOpen(!isOpen) }}>
         <button onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className={cn("p-1.5 rounded-md transition-all shrink-0", dk ? "hover:bg-white/10 text-slate-400" : "hover:bg-slate-100 text-slate-500")}>{isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}</button>
 
