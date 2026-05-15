@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
   Bed, ChevronDown, ChevronUp, Copy, Loader2, Phone,
-  Minus, Plus, Tag, Trash2, X, Zap, CornerDownRight, Moon, Calendar, Check, Ticket, Lock, Unlock, RotateCcw, Eye
+  Minus, Plus, Tag, Trash2, X, Zap, CornerDownRight, Moon, Calendar, Check, Ticket, Lock, Unlock, RotateCcw, Eye, EyeOff
 } from 'lucide-react'
 import { cn, calculateNights, formatCurrency, normalizeNumberInput, getEmployeeStatus } from '../lib/utils'
 import { bedsForType, calcRoomCardTotal, calcRoomCardNettoSum } from '../lib/roomCardUtils'
@@ -708,9 +708,9 @@ export default function RoomCard({
                 // 3. Combine with Active strictly at the front
                 const allOrdered = [...activeEmps, ...expiredEmps];
                 
-                // 4. Apply 24 Limit
-                const visibleEmps = allOrdered.slice(0, 24);
-                const hiddenEmps = allOrdered.slice(24);
+                // 4. Apply 18 Limit (Keeps it cleanly on 2 lines!)
+                const visibleEmps = allOrdered.slice(0, 18);
+                const hiddenEmps = allOrdered.slice(18);
 
                 const handleOpenSlot = (empId: string) => {
                     setIsOpen(true);
@@ -727,7 +727,6 @@ export default function RoomCard({
                 return (
                   <>
                     {visibleEmps.map(emp => {
-                       // Find if they are a substitute visually by checking if they are the FIRST person in that slot array
                        const slotMates = employees.filter(e => e.slotIndex === emp.slotIndex).sort((a,b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
                        const isSub = slotMates.length > 1 && slotMates[0].id !== emp.id;
                        return <CompactEmployeePill key={emp.id} emp={emp} dk={dk} lang={lang} durationStart={durationStart} durationEnd={durationEnd} isSubstitute={isSub} onOpenSlot={handleOpenSlot} />
@@ -739,9 +738,21 @@ export default function RoomCard({
                        return <CompactEmployeePill key={emp.id} emp={emp} dk={dk} lang={lang} durationStart={durationStart} durationEnd={durationEnd} isSubstitute={isSub} onOpenSlot={handleOpenSlot} />
                     })}
 
-                    {!showHistory && hiddenEmps.length > 0 && (
-                      <button onClick={(e) => { e.stopPropagation(); setShowHistory(true); }} className={cn("px-3 py-1.5 rounded-full text-xs font-bold border-2 border-dashed flex items-center gap-1.5 transition-colors", dk ? "border-slate-600 text-slate-400 hover:text-white" : "border-slate-300 text-slate-500 hover:text-slate-800")}>
-                        <Eye size={12} /> {lang === 'de' ? 'Verlauf' : 'History'} (+{hiddenEmps.length})
+                    {/* THE BIDIRECTIONAL TOGGLE BUTTON */}
+                    {hiddenEmps.length > 0 && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setShowHistory(!showHistory); }} 
+                        className={cn(
+                          "px-3 py-1.5 rounded-full text-xs font-bold border-2 flex items-center gap-1.5 transition-colors", 
+                          showHistory 
+                            ? (dk ? "border-solid border-slate-600 text-slate-300 hover:bg-white/10" : "border-solid border-slate-300 text-slate-600 hover:bg-slate-100") 
+                            : (dk ? "border-dashed border-slate-600 text-slate-400 hover:text-white" : "border-dashed border-slate-300 text-slate-500 hover:text-slate-800")
+                        )}
+                      >
+                        {showHistory ? <EyeOff size={12} /> : <Eye size={12} />} 
+                        {showHistory 
+                          ? (lang === 'de' ? 'Ausblenden' : 'Hide') 
+                          : `${lang === 'de' ? 'Verlauf' : 'History'} (+${hiddenEmps.length})`}
                       </button>
                     )}
 
