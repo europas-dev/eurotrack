@@ -63,13 +63,28 @@ function CompactEmployeePill({ emp, dk, durationStart, durationEnd, isSubstitute
   const hasPhone = emp.phone && emp.phone.trim() !== '+49' && emp.phone.trim() !== '';
 
   const shortName = emp.name ? emp.name.trim().split(' ').pop() : '_ _ _';
-  const tooltipText = `${emp.name}\n${calculateNights(emp.checkIn||'', emp.checkOut||'')}N (${fmtDateDe(emp.checkIn||'')} ➔ ${fmtDateDe(emp.checkOut||'')})\n${hasPhone ? emp.phone : ''}`;
 
   return (
-    <div title={tooltipText} onClick={(e) => { e.stopPropagation(); onOpenSlot(emp.id); }} className={cn("px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-2 transition-all cursor-pointer hover:scale-105 shadow-sm", isPartial ? "border-2 border-dashed" : "border-2 border-solid", empBorderColor(emp, dk), dk ? "bg-[#1E293B] text-slate-200 hover:bg-white/10" : "bg-slate-50 text-slate-700 hover:bg-slate-100")}>
-      {isSubstitute ? <CornerDownRight size={12} className={textColor} /> : <span className={cn("w-2 h-2 rounded-full shrink-0", dotColor)} />}
-      <span className="truncate max-w-[120px]">{shortName}</span>
-      {hasPhone && <Phone size={10} className={cn("shrink-0", dk ? "text-slate-500" : "text-slate-400")} />}
+    <div className="relative group/pill">
+      <button onClick={(e) => { e.stopPropagation(); onOpenSlot(emp.id); }} className={cn("px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all", isPartial ? "border border-dashed" : "border border-solid shadow-sm", empBorderColor(emp, dk).replace('border-2', 'border'), dk ? "bg-[#1E293B] text-slate-200 hover:bg-slate-800" : "bg-white text-slate-700 hover:bg-slate-50")}>
+        {isSubstitute ? <CornerDownRight size={12} className={textColor} /> : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />}
+        <span className="truncate max-w-[100px]">{shortName}</span>
+        {hasPhone && <Phone size={10} className={cn("shrink-0", dk ? "text-slate-500" : "text-slate-400")} />}
+      </button>
+      
+      {/* BEAUTIFUL CUSTOM TOOLTIP */}
+      <div className={cn("absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max min-w-[180px] p-3 rounded-2xl shadow-xl border opacity-0 group-hover/pill:opacity-100 transition-all pointer-events-none z-[9999] translate-y-1 group-hover/pill:translate-y-0 flex flex-col items-center gap-1.5", dk ? "bg-slate-800 border-white/10" : "bg-white border-slate-200")}>
+        <span className={cn("text-sm font-black", dk ? "text-white" : "text-slate-900")}>{emp.name}</span>
+        <span className="text-[11px] font-bold text-slate-500">
+          {fmtDateDe(emp.checkIn||'')} ➔ {fmtDateDe(emp.checkOut||'')} <span className="opacity-60">({calculateNights(emp.checkIn||'', emp.checkOut||'')}N)</span>
+        </span>
+        {hasPhone && (
+          <div className="mt-1 w-full flex justify-center py-1.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 items-center gap-1.5">
+            <Phone size={13} strokeWidth={2.5} />
+            <span className="text-sm font-black tracking-wide">{emp.phone}</span>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -246,7 +261,7 @@ function BedSlot({
           />
         </div>
 
-        {/* Clear Dates Inline */}
+        {/* Clear Dates Inline (Using Trash icon to separate from Cancel) */}
         {!viewOnly && (
           <button 
             type="button" 
@@ -254,7 +269,7 @@ function BedSlot({
             className={cn("p-2 h-[38px] w-[38px] rounded-lg transition-colors border shrink-0 flex items-center justify-center", dk ? "border-white/10 text-slate-500 hover:text-red-400 hover:bg-white/5" : "border-slate-200 text-slate-400 hover:text-red-500 hover:bg-slate-50")} 
             title={lang === 'de' ? 'Daten löschen' : 'Clear dates'}
           >
-             <X size={18} />
+             <Trash2 size={16} className="opacity-70" />
           </button>
         )}
 
@@ -262,8 +277,17 @@ function BedSlot({
         
         <div className="flex-1 min-w-[10px]" />
         
-        {!viewOnly && <button onClick={save} disabled={saving || !name.trim()} className="px-5 h-[38px] rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md shrink-0 transition-colors">{lang === 'de' ? 'Speichern' : 'Save'}</button>}
-        {!viewOnly && <button onClick={() => setEditing(false)} className={cn('px-3 h-[38px] rounded-lg text-sm transition-all shrink-0 border', dk ? 'border-white/10 text-slate-400 hover:bg-white/10' : 'border-slate-200 text-slate-500 hover:bg-slate-100')}><X size={16} /></button>}
+        {/* COMPACT SAVE & CANCEL ICONS */}
+        {!viewOnly && (
+           <button onClick={save} disabled={saving || !name.trim()} className="h-[38px] w-[46px] rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-md shrink-0 transition-colors">
+              {saving ? <Loader2 size={18} className="animate-spin" /> : <Check size={20} strokeWidth={3} />}
+           </button>
+        )}
+        {!viewOnly && (
+           <button onClick={() => setEditing(false)} className={cn('h-[38px] w-[46px] rounded-lg flex items-center justify-center transition-all shrink-0 border', dk ? 'border-white/10 text-slate-400 hover:bg-white/10 hover:text-white' : 'border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-900')}>
+              <X size={20} strokeWidth={2.5} />
+           </button>
+        )}
       </div>
     </div>
   )
