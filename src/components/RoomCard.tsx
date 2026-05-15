@@ -752,7 +752,7 @@ export default function RoomCard({
                         {showHistory ? <EyeOff size={12} /> : <Eye size={12} />} 
                         {showHistory 
                           ? (lang === 'de' ? 'Ausblenden' : 'Hide') 
-                          : `${lang === 'de' ? 'Verlauf' : 'History'} (+${hiddenEmps.length})`}
+                          : `${lang === 'de' ? 'Mehr' : 'More'} (+${hiddenEmps.length})`}
                       </button>
                     )}
 
