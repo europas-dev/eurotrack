@@ -1728,6 +1728,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                  </div>
                );
             })()}
+          </div>
+        )}
+      </div>
 
       {confirmDelete && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 pointer-events-auto">
