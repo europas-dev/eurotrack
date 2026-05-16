@@ -627,11 +627,6 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
                     <div className={cn("w-px h-6 mx-1", dk ? "bg-white/10" : "bg-slate-300")}></div>
                   </>
               ) : null}
-              {isMasterPricingActive ? (
-                  <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Master active</span>
-              ) : (
-                  <span className="text-xl font-black text-teal-600 dark:text-teal-400">{formatCurrency(roomCardsTotal)}</span>
-              )}
             </>
           )}
           
