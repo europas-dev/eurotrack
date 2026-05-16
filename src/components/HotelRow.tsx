@@ -263,10 +263,11 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
        </div>
 
        {confirmDelete ? (
-           <div className="w-[75px] flex items-center justify-end gap-1 opacity-100 transition-opacity pt-0.5 shrink-0 animate-in fade-in slide-in-from-right-2">
-              <span className="text-[10px] font-black text-red-500 mr-1">{lang === 'de' ? 'Zeile löschen?' : 'Delete row?'}</span>
-              <button onClick={onDelete} className="p-1 text-white bg-red-500 hover:bg-red-600 rounded shadow-sm transition-colors"><Check size={12} strokeWidth={3}/></button>
-              <button onClick={() => setConfirmDelete(false)} className={cn("p-1 text-slate-600 bg-slate-200 hover:bg-slate-300 rounded transition-colors", dk && "bg-slate-700 text-slate-300 hover:bg-slate-600")}><X size={12} strokeWidth={3}/></button>
+           /* FIX: Absolute overlay, solid background, whitespace-nowrap */
+           <div className={cn("absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 p-1.5 rounded-lg shadow-xl border animate-in fade-in slide-in-from-right-2 z-50", dk ? "bg-slate-800 border-red-500/30" : "bg-white border-red-200")}>
+              <span className="text-[11px] font-black text-red-500 px-2 whitespace-nowrap">{lang === 'de' ? 'Zeile löschen?' : 'Delete row?'}</span>
+              <button onClick={onDelete} className="p-1.5 text-white bg-red-500 hover:bg-red-600 rounded shadow-sm transition-colors"><Check size={14} strokeWidth={3}/></button>
+              <button onClick={() => setConfirmDelete(false)} className={cn("p-1.5 rounded transition-colors shadow-sm", dk ? "bg-slate-700 text-slate-300 hover:bg-slate-600" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}><X size={14} strokeWidth={3}/></button>
            </div>
        ) : (
            <div className="w-[75px] flex items-start justify-end opacity-0 group-hover:opacity-100 transition-opacity pt-0.5 shrink-0 gap-1">
