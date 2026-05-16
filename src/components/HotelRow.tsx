@@ -76,6 +76,7 @@ export function getTranslation(dict: any[], id: string, lang: string) {
 
 export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onDelete, viewOnly, dk, lang, defaultNights = 1, defaultStart, defaultEnd }: any) {
   const [draft, setDraft] = useState(item);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const editRef = useRef<HTMLDivElement>(null);
   const [calOpen, setCalOpen] = useState(false);
   const [showDiscount, setShowDiscount] = useState(parseFloat(item.discountValue || 0) > 0);
@@ -116,9 +117,9 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
   if (isEditing && !viewOnly) {
     return (
       <div ref={editRef} className={cn("flex flex-col p-2 border-b transition-all w-full relative z-20 shadow-xl", dk ? "bg-teal-900/20 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
-        <div className="flex items-start w-full">
-           {/* UNIFIED GRID: 180px */}
-           <div className="w-[180px] flex items-center gap-1.5 shrink-0 pr-2">
+        <div className="flex items-start w-full gap-2">
+           {/* WIDTH FIX: Expanded to 220px to prevent dropdowns from choking */}
+           <div className="w-[220px] flex items-center gap-1.5 shrink-0">
                <select value={draft.type || 'room'} onChange={e => {
                    const newType = e.target.value;
                    const newMethod = (newType === 'base' || newType === 'extra') ? 'total' : draft.method;
@@ -131,8 +132,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
                </select>
            </div>
 
-           {/* UNIFIED GRID: flex-1 */}
-           <div className="flex-1 flex flex-col items-end shrink-0 pr-5 relative">
+           <div className="flex-1 flex flex-col items-end shrink-0 pr-3 relative">
                {draft.method === 'per_bed' && isPerBedAllowed ? (
                  <div className="flex flex-col items-end gap-1.5 w-full">
                      <div className="flex items-center justify-end gap-1.5 w-full">
@@ -175,8 +175,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
                )}
            </div>
 
-           {/* UNIFIED GRID: 100px */}
-           <div className="w-[100px] flex items-center justify-end shrink-0 pr-2 relative">
+           <div className="w-[100px] flex items-center justify-end shrink-0 relative">
                {draft.method === 'total' || !isPerBedAllowed ? (
                    <div className="flex flex-col items-end gap-1.5 w-full">
                        <div className="relative w-full">
@@ -196,23 +195,19 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
                )}
            </div>
 
-           {/* UNIFIED GRID: 60px */}
-           <div className="w-[60px] shrink-0 px-1 relative z-[60]">
+           {/* WIDTH FIX: Expanded MwSt to 75px */}
+           <div className="w-[75px] shrink-0 px-2 relative z-[60]">
                <MwstInput value={draft.mwst} onChange={(v:any) => setDraft({ ...draft, mwst: v })} isDarkMode={dk} disabled={false} />
            </div>
 
-           {/* UNIFIED GRID: 110px */}
-           <div className="w-[110px] shrink-0 pl-1 pr-2 text-right">
+           <div className="w-[110px] shrink-0 pr-2 text-right">
                <input type="number" disabled={hasNettoInput} placeholder={hasNettoInput ? formatCurrency(brutto) : "Brutto"} value={draft.brutto ?? ''} onChange={e => setDraft({ ...draft, brutto: e.target.value, netto: null })} className={cn(inputClass, "w-full text-left", hasNettoInput ? "disabled:opacity-100 disabled:bg-transparent disabled:border-transparent text-[13px] font-black px-1 placeholder-slate-900 dark:placeholder-white" : "")} />
            </div>
 
-           {/* UNIFIED GRID: 65px (ACTIONS) */}
-           <div className="w-[65px] flex items-start justify-end gap-1.5 shrink-0 pl-1 relative group/actions pr-1">
-              <div className="absolute right-[calc(100%-8px)] mr-2 top-0 opacity-0 group-hover/actions:opacity-100 transition-opacity flex items-center z-50">
-                 <button onClick={onDelete} className={cn("p-1.5 rounded-lg border transition-colors shadow-sm", dk ? "bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white" : "bg-red-50 border-red-200 text-red-500 hover:bg-red-600 hover:text-white")} title={lang === 'de' ? 'Löschen' : 'Delete'}><Trash2 size={14}/></button>
-              </div>
-              <button onClick={() => onSave(draft)} className="p-1.5 h-[30px] w-[28px] flex items-center justify-center text-white bg-teal-500 hover:bg-teal-600 rounded transition-all shadow-sm shrink-0"><Check size={14} strokeWidth={3}/></button>
-              <button onClick={onCancel} className={cn("p-1.5 h-[30px] w-[28px] flex items-center justify-center rounded transition-all shadow-sm border shrink-0", dk ? "border-white/10 text-slate-300 hover:bg-white/10 hover:text-white" : "border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-900")}><X size={14} strokeWidth={3}/></button>
+           {/* UX FIX: Removed Delete Button completely from Edit Mode. Replaced with clean Save/Cancel */}
+           <div className="w-[75px] flex items-start justify-end gap-1.5 shrink-0">
+              <button onClick={() => onSave(draft)} className="p-1.5 h-[30px] w-[32px] flex items-center justify-center text-white bg-teal-500 hover:bg-teal-600 rounded transition-all shadow-sm shrink-0"><Check size={14} strokeWidth={3}/></button>
+              <button onClick={onCancel} className={cn("p-1.5 h-[30px] w-[32px] flex items-center justify-center rounded transition-all shadow-sm border shrink-0", dk ? "border-white/10 text-slate-300 hover:bg-white/10 hover:text-white" : "border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-900")}><X size={14} strokeWidth={3}/></button>
            </div>
         </div>
         
@@ -226,8 +221,8 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
   }
 
   return (
-    <div className={cn("flex items-start px-3 py-3 border-b last:border-b-0 transition-colors group relative", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
-       <div className="w-[180px] flex flex-col gap-0.5 shrink-0 pr-2">
+    <div className={cn("flex items-start px-3 py-3 border-b last:border-b-0 transition-colors group relative gap-2", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
+       <div className="w-[220px] flex flex-col gap-0.5 shrink-0 pr-2">
           <div className={cn("text-[12px] font-black leading-tight", dk ? "text-slate-200" : "text-slate-800")}>
              {getTranslation(COST_TYPES, currentItem.type || 'room', lang)}
              {currentItem.method === 'per_bed' && <span className="text-[9.5px] font-bold text-slate-500 ml-1 tracking-normal font-sans">({activeNights} {lang==='de'?'Nächte':'Nights'}, {currentItem.beds||1} {lang==='de'?'Betten':'Beds'})</span>}
@@ -242,7 +237,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
           )}
        </div>
 
-       <div className="flex-1 flex items-start justify-end pr-5">
+       <div className="flex-1 flex items-start justify-end pr-3">
           {currentItem.method === 'per_bed' ? (
              <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(parseFloat(currentItem.netto)||0)}</span>
           ) : (
@@ -250,14 +245,14 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
           )}
        </div>
 
-       <div className="w-[100px] shrink-0 flex flex-col items-end pr-2">
+       <div className="w-[100px] shrink-0 flex flex-col items-end">
           <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>
              {hasBruttoInput ? (lang === 'de' ? 'Auto' : 'Auto') : formatCurrency(finalNetto)}
           </span>
           {currentItem.discountValue > 0 && !hasBruttoInput && <span className="text-[9px] font-black text-teal-500 leading-none mt-1 border border-teal-500/20 bg-teal-500/10 px-1.5 py-0.5 rounded">-{currentItem.discountType === 'percentage' ? `${currentItem.discountValue}%` : `${currentItem.discountValue}€`}</span>}
        </div>
 
-       <div className="w-[60px] shrink-0 pt-0.5 text-center">
+       <div className="w-[75px] shrink-0 pt-0.5 text-center px-2">
           <span className={cn("text-[13px] font-bold", dk ? "text-slate-400" : "text-slate-500")}>{currentItem.mwst ?? 7}%</span>
        </div>
 
@@ -267,9 +262,18 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
           </span>
        </div>
 
-       <div className="w-[65px] flex items-start justify-end opacity-0 group-hover:opacity-100 transition-opacity pt-0.5 pr-1 shrink-0">
-          {!viewOnly && <button onClick={onEdit} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 transition-colors"><Edit3 size={14}/></button>}
-       </div>
+       {confirmDelete ? (
+           <div className="w-[75px] flex items-center justify-end gap-1 opacity-100 transition-opacity pt-0.5 shrink-0 animate-in fade-in slide-in-from-right-2">
+              <span className="text-[10px] font-black text-red-500 mr-1">{lang === 'de' ? 'Zeile löschen?' : 'Delete row?'}</span>
+              <button onClick={onDelete} className="p-1 text-white bg-red-500 hover:bg-red-600 rounded shadow-sm transition-colors"><Check size={12} strokeWidth={3}/></button>
+              <button onClick={() => setConfirmDelete(false)} className={cn("p-1 text-slate-600 bg-slate-200 hover:bg-slate-300 rounded transition-colors", dk && "bg-slate-700 text-slate-300 hover:bg-slate-600")}><X size={12} strokeWidth={3}/></button>
+           </div>
+       ) : (
+           <div className="w-[75px] flex items-start justify-end opacity-0 group-hover:opacity-100 transition-opacity pt-0.5 shrink-0 gap-1">
+              {!viewOnly && <button onClick={onEdit} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 transition-colors"><Edit3 size={14}/></button>}
+              {!viewOnly && <button onClick={() => setConfirmDelete(true)} className="p-1.5 rounded text-slate-400 hover:text-red-500 bg-black/5 dark:bg-white/5 transition-colors"><Trash2 size={14}/></button>}
+           </div>
+       )}
     </div>
   )
 }
@@ -1383,8 +1387,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                          activeInvoice.billingMode === 'total' ? (
                             <div className="p-4">
                                <div ref={totalRef} className={cn("flex flex-col p-4 rounded-2xl border shadow-sm animate-in fade-in slide-in-from-top-2 relative z-20", dk ? "bg-[#1E293B]" : "bg-white", editingTotal ? (dk ? "border-teal-500/50 shadow-xl bg-teal-900/20" : "border-teal-300 shadow-xl bg-teal-50") : (dk ? "border-slate-800" : "border-slate-100"))}>
-                                  <div className="flex items-center gap-3 w-full">
-                                     <div className="flex-1 flex items-center gap-2 min-w-[250px]">
+                                  {/* WIDTH FIX: Added gap-5 to prevent inputs from overlapping */}
+                                  <div className="flex items-center gap-5 w-full">
+                                     <div className="flex-1 flex items-center gap-2 min-w-[200px]">
                                         <label className={labelCls}>Netto</label>
                                         <input disabled={viewOnly || !editingTotal || (editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto)} type="number" value={editingTotal ? (totalDraft?.totalNetto ?? '') : (activeInvoice.totalNetto ?? '')} onChange={e => setTotalDraft({...totalDraft, totalNetto: e.target.value, totalBrutto: null})} className={cn(inputCls, "w-[100px] disabled:opacity-30 text-right")} placeholder="0.00" />
                                         {(!showTotalDiscount && !(editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto) && editingTotal && !viewOnly) && <button onClick={() => { setShowTotalDiscount(true); if(!totalDraft?.discountType) setTotalDraft({...totalDraft, discountType: 'fixed'}); }} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 shrink-0"><Ticket size={14}/></button>}
@@ -1443,14 +1448,14 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                             </div>
                          ) : (
                             <div className="flex flex-col animate-in fade-in pb-5">
-                               <div className={cn("sticky top-0 z-10 flex items-center px-3 py-2 border-b mb-3 backdrop-blur-md", dk ? "bg-[#0B1224]/95 border-white/10" : "bg-slate-50/95 border-slate-200")}>
-                                  <div className="w-[180px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 pr-2">{lang === 'de' ? 'Beschreibung' : 'Description'}</div>
-                                  <div className="flex-1 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-5">Netto (Bed)</div>
-                                  <div className="w-[100px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-2">Total Netto</div>
-                                  <div className="w-[60px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">MwSt</div>
-                                  <div className="w-[110px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-2">Total Brutto</div>
-                                  <div className="w-[65px] shrink-0"></div>
-                               </div>
+                               <div className={cn("sticky top-0 z-10 flex items-center px-3 py-2 gap-2 border-b mb-3 backdrop-blur-md", dk ? "bg-[#0B1224]/95 border-white/10" : "bg-slate-50/95 border-slate-200")}>
+                               <div className="w-[220px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">{lang === 'de' ? 'Beschreibung' : 'Description'}</div>
+                               <div className="flex-1 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-3">Netto (Bed)</div>
+                               <div className="w-[100px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Total Netto</div>
+                               <div className="w-[75px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center px-2">MwSt</div>
+                               <div className="w-[110px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-2">Total Brutto</div>
+                               <div className="w-[75px] shrink-0"></div>
+                            </div>
                                
                                {(activeInvoice.items || []).length === 0 && <p className="text-[12px] font-bold text-slate-400 italic mt-6 mx-5 text-center py-6 bg-slate-100 dark:bg-white/5 rounded-xl border border-dashed border-slate-300 dark:border-white/10">{lang === 'de' ? 'Noch keine Posten vorhanden. Klicke unten, um zu starten.' : 'No line items. Click below to start.'}</p>}
                                
@@ -1480,13 +1485,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                          )
                       ) : (
                          <div className="flex flex-col animate-in fade-in pb-5">
-                            <div className={cn("sticky top-0 z-10 flex items-center px-3 py-2 border-b mb-3 backdrop-blur-md", dk ? "bg-[#0B1224]/95 border-white/10" : "bg-slate-50/95 border-slate-200")}>
-                               <div className="w-[180px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 pr-2">{lang === 'de' ? 'Beschreibung' : 'Description'}</div>
-                               <div className="flex-1 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-5">Netto (Bed)</div>
-                               <div className="w-[100px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-2">Total Netto</div>
-                               <div className="w-[60px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">MwSt</div>
+                            <div className={cn("sticky top-0 z-10 flex items-center px-3 py-2 gap-2 border-b mb-3 backdrop-blur-md", dk ? "bg-[#0B1224]/95 border-white/10" : "bg-slate-50/95 border-slate-200")}>
+                               <div className="w-[220px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">{lang === 'de' ? 'Beschreibung' : 'Description'}</div>
+                               <div className="flex-1 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-3">Netto (Bed)</div>
+                               <div className="w-[100px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Total Netto</div>
+                               <div className="w-[75px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center px-2">MwSt</div>
                                <div className="w-[110px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-2">Total Brutto</div>
-                               <div className="w-[65px] shrink-0"></div>
+                               <div className="w-[75px] shrink-0"></div>
                             </div>
                             
                             {filteredMasterInvoices.length > 0 ? filteredMasterInvoices.map((inv: any) => {
@@ -1495,6 +1500,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                let invBrutto = inv.billingMode === 'total' ? (parseFloat(inv.totalNetto)||0) * (1 + (parseFloat(inv.totalMwst)||0)/100) : (inv.items||[]).reduce((sum:number, it:any) => sum + calcInvoiceItem(it, defaultN).brutto, 0);
                                return (
                                <div key={inv.id} className="flex flex-col mb-3 px-3">
+                                  {/* ... expand button remains same ... */}
                                   <button onClick={() => setExpandedInvoices(prev => isExpanded ? prev.filter(id => id !== inv.id) : [...prev, inv.id])} className={cn("flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg transition-colors group border shadow-sm", inv.isPaid ? (dk ? "bg-emerald-950/20 border-emerald-500/20" : "bg-emerald-50 border-emerald-200") : (dk ? "bg-red-950/20 border-red-500/20" : "bg-red-50 border-red-200"))}>
                                      <div className="flex items-center gap-2">
                                         {isExpanded ? <ChevronDown size={16} className={inv.isPaid ? "text-emerald-500" : "text-red-500"}/> : <ChevronRight size={16} className={inv.isPaid ? "text-emerald-500" : "text-red-500"}/>}
@@ -1509,34 +1515,34 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                   {isExpanded && (
                                     <div className="pl-6 pt-1 animate-in fade-in slide-in-from-top-1">
                                       {inv.billingMode === 'total' ? (
-                                         <div className="flex items-center px-2 py-2 border-b border-slate-100 dark:border-white/5">
-                                            <div className="flex-1 min-w-[200px] text-[12px] font-bold text-slate-600 dark:text-slate-300">{lang === 'de' ? 'Gesamtbetrag' : 'Total'}</div>
-                                            <div className="w-[240px] shrink-0 text-[11px] italic text-slate-400 opacity-50 text-right pr-6">--</div>
-                                            <div className="w-[100px] shrink-0 text-[12px] font-bold text-slate-700 dark:text-slate-300 text-right pr-2"><HighlightText text={formatCurrency(parseFloat(inv.totalNetto)||0)} query={itemSearchQuery} /></div>
-                                            <div className="w-[70px] shrink-0 text-[12px] font-bold text-slate-500 text-center">{inv.totalMwst}%</div>
+                                         <div className="flex items-center px-2 py-2 gap-2 border-b border-slate-100 dark:border-white/5">
+                                            <div className="w-[220px] shrink-0 text-[12px] font-bold text-slate-600 dark:text-slate-300">{lang === 'de' ? 'Gesamtbetrag' : 'Total'}</div>
+                                            <div className="flex-1 text-[11px] italic text-slate-400 opacity-50 text-right pr-3">--</div>
+                                            <div className="w-[100px] shrink-0 text-[12px] font-bold text-slate-700 dark:text-slate-300 text-right"><HighlightText text={formatCurrency(parseFloat(inv.totalNetto)||0)} query={itemSearchQuery} /></div>
+                                            <div className="w-[75px] shrink-0 text-[12px] font-bold text-slate-500 text-center px-2">{inv.totalMwst}%</div>
                                             <div className="w-[110px] shrink-0 text-[12px] font-black text-slate-900 dark:text-white text-right pr-2"><HighlightText text={formatCurrency(invBrutto)} query={itemSearchQuery} /></div>
-                                            <div className="w-[60px] shrink-0"></div>
+                                            <div className="w-[75px] shrink-0"></div>
                                          </div>
                                       ) : (
                                          <div className="flex flex-col">
                                             {(inv.items || []).map((item: any) => {
                                                const { finalNetto, mwst, brutto } = calcInvoiceItem(item, defaultN);
                                                return (
-                                                  <div key={item.id} className="flex items-start px-2 py-2.5 border-b border-slate-100 dark:border-white/5 last:border-0">
-                                                     <div className="w-[180px] shrink-0 flex flex-col gap-0.5 pr-2">
+                                                  <div key={item.id} className="flex items-start px-2 py-2.5 gap-2 border-b border-slate-100 dark:border-white/5 last:border-0">
+                                                     <div className="w-[220px] shrink-0 flex flex-col gap-0.5">
                                                         <div className="text-[12px] font-bold text-slate-700 dark:text-slate-300 leading-tight">
                                                            <HighlightText text={getTranslation(COST_TYPES, item.type || 'room', lang)} query={itemSearchQuery} />
                                                            {item.method === 'per_bed' && <span className="text-[9.5px] text-slate-400 font-bold ml-1 tracking-normal font-sans">({item.nights||defaultN} {lang==='de'?'Nächte':'Nights'}, {item.beds||1} {lang==='de'?'Betten':'Beds'})</span>}
                                                         </div>
                                                         {item.note && <span className="text-[10px] italic text-slate-400 mt-1 whitespace-pre-wrap"><HighlightText text={item.note} query={itemSearchQuery} /></span>}
                                                      </div>
-                                                     <div className="flex-1 text-[12px] font-bold text-slate-700 dark:text-slate-300 pt-0.5 text-right pr-5">
+                                                     <div className="flex-1 text-[12px] font-bold text-slate-700 dark:text-slate-300 pt-0.5 text-right pr-3">
                                                         {item.method === 'per_bed' ? <HighlightText text={formatCurrency(parseFloat(item.netto)||0)} query={itemSearchQuery} /> : <span className="opacity-50 text-[11px] italic">--</span>}
                                                      </div>
-                                                     <div className="w-[100px] shrink-0 text-[12px] font-bold text-slate-700 dark:text-slate-300 pt-0.5 text-right pr-2"><HighlightText text={formatCurrency(finalNetto)} query={itemSearchQuery} /></div>
-                                                     <div className="w-[60px] shrink-0 text-[12px] font-bold text-slate-500 pt-0.5 text-center">{mwst}%</div>
+                                                     <div className="w-[100px] shrink-0 text-[12px] font-bold text-slate-700 dark:text-slate-300 pt-0.5 text-right"><HighlightText text={formatCurrency(finalNetto)} query={itemSearchQuery} /></div>
+                                                     <div className="w-[75px] shrink-0 text-[12px] font-bold text-slate-500 pt-0.5 text-center px-2">{mwst}%</div>
                                                      <div className="w-[110px] shrink-0 text-[12px] font-black text-slate-900 dark:text-white pt-0.5 text-right pr-2"><HighlightText text={formatCurrency(brutto)} query={itemSearchQuery} /></div>
-                                                     <div className="w-[65px] shrink-0"></div>
+                                                     <div className="w-[75px] shrink-0"></div>
                                                   </div>
                                                )
                                             })}
