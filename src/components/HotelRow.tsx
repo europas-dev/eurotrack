@@ -1430,9 +1430,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                    <X size={16} strokeWidth={3} />
                                                 </button>
                                               </>
-                                           ) : (
+                                          ) : (
                                               <button onClick={() => {
-                                                  setTotalDraft({ totalNetto: activeInvoice.totalNetto, totalBrutto: activeInvoice.totalBrutto, totalMwst: activeInvoice.totalMwst, discountValue: activeInvoice.discountValue, discountType: activeInvoice.discountType || 'percentage', note: activeInvoice.note });
+                                                  setTotalDraft({ totalNetto: activeInvoice.totalNetto, totalBrutto: activeInvoice.totalBrutto, totalMwst: activeInvoice.totalMwst, discountValue: activeInvoice.discountValue, discountType: activeInvoice.discountType || 'fixed', note: activeInvoice.note });
                                                   setShowTotalDiscount(parseFloat(activeInvoice.discountValue || 0) > 0);
                                                   setEditingTotal(true);
                                               }} className={cn("h-[34px] w-[34px] rounded-xl flex items-center justify-center font-bold transition-all shadow-sm", dk ? "bg-white/10 hover:bg-white/20 text-slate-300" : "bg-slate-100 hover:bg-slate-200 text-slate-700")}>
