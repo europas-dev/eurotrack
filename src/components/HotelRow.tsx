@@ -1586,7 +1586,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    
                    <div className="space-y-2 mb-5 font-medium text-[14px] border-b pb-4 border-slate-100 dark:border-white/10">
                       <div className="flex justify-between items-center">
-                         <span className={dk ? "text-slate-400" : "text-slate-500"}>{lang === 'de' ? 'Total Netto' : 'Total Netto'}</span>
+                         <span className={dk ? "text-slate-400" : "text-slate-500"}>{lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</span>
                          <span className={cn("font-bold", dk ? "text-white" : "text-slate-900")}>{formatCurrency(activeInvoice ? masterMath.activeNetto : masterMath.displayNetto)}</span>
                       </div>
                       {Object.entries(activeInvoice ? masterMath.activeBuckets : masterMath.buckets).map(([percent, amount]: any) => (
