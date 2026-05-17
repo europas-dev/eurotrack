@@ -485,31 +485,51 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
          if (!hasFree) return false;
       }
 
-      return true;
+     return true;
     }).sort((a, b) => {
       let va: any; let vb: any;
+      
       if (sortBy === 'bed_price') {
           const getMinPrice = (hotel: any) => {
-              if (hotel.override_price_per_bed != null && hotel.override_price_per_bed > 0) return parseFloat(hotel.override_price_per_bed);
-              let min = Infinity;
-              hotel.durations?.forEach((d:any) => {
-                  const nights = calculateNights(d.startDate, d.endDate);
-                  d.roomCards?.forEach((c:any) => {
-                      const beds = c.roomType === 'EZ' ? 1 : c.roomType === 'DZ' ? 2 : c.roomType === 'TZ' ? 3 : (c.bedCount || 2);
-                      const netto = calcRoomCardNettoSum(c, d.startDate, d.endDate);
-                      if (beds > 0 && nights > 0 && netto > 0) {
-                          const p = netto / (beds * nights);
-                          if (p < min) min = p;
-                      }
-                  });
+              let minPricePerBed: number | null = null;
+              
+              // 1. Scan invoices for room bed prices (Exactly matches HotelRow UI logic)
+              const invoicesToScan = hotel.invoices || [];
+              invoicesToScan.forEach((inv: any) => {
+                  const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
+                  if (!dateStr) return;
+                  const d = new Date(dateStr);
+                  if (d.getFullYear() !== selectedYear) return;
+                  if (selectedMonth !== null && d.getMonth() !== selectedMonth) return;
+
+                  if (inv.billingMode !== 'total') {
+                      (inv.items || []).forEach((item: any) => {
+                          if (item.type === 'room' && item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 0) {
+                              const bedPrice = parseFloat(item.netto);
+                              if (minPricePerBed === null || bedPrice < minPricePerBed) minPricePerBed = bedPrice;
+                          }
+                      });
+                  }
               });
-              return min;
+
+              let finalPrice = minPricePerBed !== null ? minPricePerBed : Infinity;
+
+              // 2. Prioritize Manual Override if valid
+              if (hotel.override_price_per_bed != null) {
+                  const overrideVal = parseFloat(hotel.override_price_per_bed);
+                  if (minPricePerBed !== null && minPricePerBed < overrideVal) {
+                      finalPrice = minPricePerBed; 
+                  } else {
+                      finalPrice = overrideVal;
+                  }
+              }
+              
+              // If it's exactly 0, treat it as Infinity so it safely drops to the bottom
+              return (finalPrice === 0) ? Infinity : finalPrice;
           };
-          va = getMinPrice(a); vb = getMinPrice(b);
           
-          if ((va === Infinity || va === 0) && (vb === Infinity || vb === 0)) return 0;
-          if (va === Infinity || va === 0) return 1;
-          if (vb === Infinity || vb === 0) return -1;
+          va = getMinPrice(a); 
+          vb = getMinPrice(b);
       }
       else if (sortBy === 'cost') { va = calcHotelTotalCost(a, selectedMonth !== null ? selectedMonth : null, selectedYear); vb = calcHotelTotalCost(b, selectedMonth !== null ? selectedMonth : null, selectedYear); }
       else if (sortBy === 'free_beds') { va = calcHotelFreeBedsToday(a); vb = calcHotelFreeBedsToday(b); }
@@ -537,18 +557,16 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           };
           va = getPaid(a); vb = getPaid(b);
       }
-      else { va = a.name?.toLowerCase(); vb = b.name?.toLowerCase(); }
+      else { va = a.name?.toLowerCase() || ''; vb = b.name?.toLowerCase() || ''; }
       
-      if (sortBy === 'payment_due') {
-          // Push hotels with no due dates to the very bottom automatically
-          if (va === Infinity && vb === Infinity) return 0;
-          if (va === Infinity) return 1;
-          if (vb === Infinity) return -1;
-      }
+      // UX FIX: Force any Infinity/Empty values to the absolute bottom, regardless of ASC/DESC
+      if (va === Infinity && vb === Infinity) return 0;
+      if (va === Infinity) return 1;
+      if (vb === Infinity) return -1;
+      
       return (va < vb ? -1 : va > vb ? 1 : 0) * (sortDir === 'asc' ? 1 : -1);
     });
   }, [hotels, searchQuery, searchScope, showBookmarks, bookmarks, sortBy, sortDir, tlType, tlStart, tlEnd, fbType, filterPaid, filterDue, filterDeposit, selectedMonth, selectedYear]);
-
   const groupData = useMemo(() => {
     if (groupBy === 'none') return null;
     const groups: Record<string, any[]> = {};
