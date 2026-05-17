@@ -948,20 +948,28 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                     return `${date.getDate().toString().padStart(2, '0')} ${date.toLocaleString(locale, { month: 'short' }).replace('.', '')}`;
                 };
                 return (
-                  <button key={d.id} title={title} onClick={(e) => { 
-                      e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); 
-                      const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
-                      setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); 
-                  }} className={cn('flex-1 min-w-[100px] max-w-[105px] px-1 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all', dk ? 'bg-[#0F172A] border-white/10 text-slate-300 hover:bg-white/10' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100')}>
-                    {d.startDate && d.endDate ? `${formatChipStr(d.startDate)} - ${formatChipStr(d.endDate)}` : 'New'}
-                  </button>
+                  <div key={d.id} className="relative group/dur">
+                    <button onClick={(e) => { 
+                        e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); 
+                        const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
+                        setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); 
+                    }} className={cn('w-full min-w-[100px] max-w-[105px] px-1 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all', dk ? 'bg-[#0F172A] border-white/10 text-slate-300 hover:bg-white/10' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100')}>
+                      {d.startDate && d.endDate ? `${formatChipStr(d.startDate)} - ${formatChipStr(d.endDate)}` : 'New'}
+                    </button>
+                    {/* NEW: Custom Tooltip that pops UP and avoids the cursor */}
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 pb-2 mb-1 w-max z-[999999] opacity-0 group-hover/dur:opacity-100 transition-opacity pointer-events-none">
+                        <div className={cn("px-3 py-1.5 rounded-lg shadow-xl text-center text-[11px] font-black border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-800 border-slate-200")}>
+                            {title}
+                        </div>
+                    </div>
+                  </div>
                 )
               })}
               {hiddenDurs.length > 0 && (
                  <div className="relative group/hiddenDur" onMouseEnter={() => setIsDropdownActive(true)} onMouseLeave={() => setIsDropdownActive(false)}>
                     <span className="px-2 py-0.5 rounded-full border border-dashed border-slate-400 text-[10px] font-bold flex items-center justify-center text-slate-500 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">+{hiddenDurs.length}</span>
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 pb-2 mb-1 w-max max-w-[280px] opacity-0 group-hover/hiddenDur:opacity-100 transition-opacity pointer-events-none group-hover/hiddenDur:pointer-events-auto" style={{ zIndex: 999999 }}>
-                        <div className="p-2 bg-slate-800 text-white rounded-lg shadow-xl flex flex-wrap gap-1.5">
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 w-max max-w-[280px] opacity-0 group-hover/hiddenDur:opacity-100 transition-opacity pointer-events-none group-hover/hiddenDur:pointer-events-auto" style={{ zIndex: 999999 }}>
+                        <div className={cn("p-2 rounded-lg shadow-2xl flex flex-wrap gap-1.5 border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-900 border-slate-200")}>
                             {hiddenDurs.map((d: any) => {
                                 const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
                                 const formatChipStr = (iso: string) => {
@@ -1036,8 +1044,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               {hiddenEmps.length > 0 && (
                  <div className="relative group/hiddenEmp" onMouseEnter={() => setIsDropdownActive(true)} onMouseLeave={() => setIsDropdownActive(false)}>
                     <span className="px-2 py-0.5 rounded-full border border-dashed border-slate-400 text-[10px] font-bold flex items-center justify-center text-slate-500 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">+{hiddenEmps.length}</span>
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 pb-2 mb-1 w-max max-w-[280px] z-[999999] opacity-0 group-hover/hiddenEmp:opacity-100 transition-opacity pointer-events-none group-hover/hiddenEmp:pointer-events-auto">
-                        <div className="p-2 bg-slate-800 text-white rounded-lg shadow-xl flex flex-wrap gap-1.5">
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 w-max max-w-[280px] z-[999999] opacity-0 group-hover/hiddenEmp:opacity-100 transition-opacity pointer-events-none group-hover/hiddenEmp:pointer-events-auto">
+                        <div className={cn("p-2 rounded-lg shadow-2xl flex flex-wrap gap-1.5 border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-900 border-slate-200")}>
                             {hiddenEmps.map((emp: any) => {
                                 const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
                                 const borderCls = status === 'active' ? (dk ? "border-emerald-500/50" : "border-emerald-400") : 
