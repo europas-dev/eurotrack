@@ -895,12 +895,14 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
        onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsRowFocused(false); }}
     >
       
-      <div className={cn("absolute -left-7 top-0 bottom-0 w-10 flex items-center justify-center transition-all duration-300 z-[100]", isSelected || isBulkActive ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 hover:opacity-100")}>
-        <input type="checkbox" checked={isSelected} onChange={(e) => { e.stopPropagation(); onSelect(); }} className="w-4 h-4 rounded border-slate-300 accent-teal-600 cursor-pointer shadow-sm transition-transform active:scale-90" />
-      </div>
+      {/* FIX: Hide selector entirely for viewers */}
+      {!viewOnly && (
+        <div className={cn("absolute -left-7 top-0 bottom-0 w-10 flex items-center justify-center transition-all duration-300 z-[100]", isSelected || isBulkActive ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 hover:opacity-100")}>
+          <input type="checkbox" checked={isSelected} onChange={(e) => { e.stopPropagation(); onSelect(); }} className="w-4 h-4 rounded border-slate-300 accent-teal-600 cursor-pointer shadow-sm transition-transform active:scale-90" />
+        </div>
+      )}
 
-      <div className={cn('rounded-xl border transition-all duration-200 shadow-sm relative overflow-visible', isSelected ? (dk ? 'bg-teal-500/10 border-teal-500/50' : 'bg-teal-50 border-teal-500/40') : (dk ? 'bg-[#1E293B] border-white/5 hover:border-white/10' : 'bg-white border-slate-200 hover:border-slate-300'))}>
-        
+      <div className={cn('rounded-xl border transition-all duration-200 shadow-sm relative overflow-visible', isSelected ? (dk ? 'bg-teal-500/10 border-teal-500/50' : 'bg-teal-50 border-teal-500/40') : (dk ? 'bg-[#1E293B] border-white/5 hover:border-white/10' : 'bg-white border-slate-200 hover:border-slate-300'))}>  
         <div className={cn("absolute right-0 top-0 bottom-0 w-[4px] rounded-r-xl transition-colors z-[60]", masterMath.totalUnpaid > 0 ? "bg-red-500" : (masterMath.totalPaid > 0 ? "bg-emerald-500" : "bg-transparent border-l border-slate-200 dark:border-white/10"))} />
 
         <div className={cn('flex items-center cursor-pointer py-1 px-2 pr-2 group', dk ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/70', isOpen && 'border-b', isOpen && (dk ? 'border-white/5 bg-black/20' : 'border-slate-100 bg-slate-50/50'))} onClick={onToggle}>
