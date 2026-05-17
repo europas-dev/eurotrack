@@ -1101,8 +1101,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             )}
 
             {!showGlobalFinancials && activeFilterDeposit === 'yes' && localHotel.depositEnabled && (
-               <div className="text-[9px] font-bold text-amber-500 mt-1 uppercase tracking-wider">
-                  {lang === 'de' ? 'Kaution: ' : 'Deposit: '} {formatCurrency(localHotel.depositAmount || 0)}
+               <div className="text-[11px] font-bold text-amber-500 mt-1 uppercase tracking-wider">
+                  {lang === 'de' ? 'Kaution: ' : 'Deposit: '} {formatCurrency(parseFloat(localHotel.depositAmount || '0'))}
                </div>
             )}
             
