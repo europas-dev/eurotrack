@@ -53,7 +53,6 @@ export default function ExportStudio({ hotels, calcCost, lang, title, total, onC
   };
 
   return (
-    {/* FIX: Massive Z-Index to prevent Dashboard header bleed-through */}
     <div className="fixed inset-0 z-[9999999] bg-slate-900/90 backdrop-blur-md flex flex-col animate-in fade-in duration-300">
       {/* TOP NAV */}
       <div className="h-16 border-b border-white/10 flex items-center justify-between px-8 bg-slate-900 shrink-0">
