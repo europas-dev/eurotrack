@@ -7,11 +7,33 @@ export default function ExportStudio({ hotels, calcCost, lang, title, total, onC
   const [activeCols, setActiveCols] = React.useState<string[]>(['company', 'address', 'contact', 'phone', 'invoice', 'durations', 'employees']);
   const isDe = lang === 'de';
 
-   // We wrap the calcCost function so that it always uses the selected period
+  // We wrap the calcCost function so that it always uses the selected period
   const reportData = React.useMemo(() => {
-  const periodCalc = (h: any) => calcCost(h, selectedMonth, selectedYear);
-  return buildReportData(hotels, periodCalc, lang);
-}, [hotels, lang, selectedMonth, selectedYear, calcCost]);
+    const periodCalc = (h: any) => calcCost(h, selectedMonth, selectedYear);
+    const baseData = buildReportData(hotels, periodCalc, lang);
+    
+    // FIX: Map the modern invoices array directly into the export data
+    return baseData.map((row: any, i: number) => {
+       const h = hotels[i];
+       
+       // Grab invoices that belong to the active Year/Month filter
+       const validInvoices = (h.invoices || []).filter((inv: any) => {
+           const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
+           if (!dateStr) return false;
+           const d = new Date(dateStr);
+           if (d.getFullYear() !== selectedYear) return false;
+           if (selectedMonth !== null && d.getMonth() !== selectedMonth) return false;
+           return true;
+       }).map((inv: any) => inv.number).filter(Boolean);
+       
+       const finalInvoices = validInvoices.length > 0 ? validInvoices.join(', ') : (h.rechnungNr || '—');
+       
+       return {
+          ...row,
+          invoice: finalInvoices
+       };
+    });
+  }, [hotels, lang, selectedMonth, selectedYear, calcCost]);
 
   const toggleCol = (id: string) => {
     setActiveCols(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
@@ -31,7 +53,8 @@ export default function ExportStudio({ hotels, calcCost, lang, title, total, onC
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-slate-900/90 backdrop-blur-md flex flex-col animate-in fade-in duration-300">
+    {/* FIX: Massive Z-Index to prevent Dashboard header bleed-through */}
+    <div className="fixed inset-0 z-[9999999] bg-slate-900/90 backdrop-blur-md flex flex-col animate-in fade-in duration-300">
       {/* TOP NAV */}
       <div className="h-16 border-b border-white/10 flex items-center justify-between px-8 bg-slate-900 shrink-0">
         <div className="flex items-center gap-4">
