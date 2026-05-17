@@ -987,12 +987,33 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                     const locale = lang === 'de' ? 'de-DE' : 'en-GB';
                                     return `${date.getDate().toString().padStart(2, '0')} ${date.toLocaleString(locale, { month: 'short' }).replace('.', '')}`;
                                 };
+                                
+                                // FIX: Generate the rich title for the inner chips
+                                const nights = calculateNights(d.startDate, d.endDate);
+                                const roomCount = (d.roomCards || []).length;
+                                const typeCounts = (d.roomCards || []).reduce((acc: any, rc: any) => {
+                                    acc[rc.roomType] = (acc[rc.roomType] || 0) + 1;
+                                    return acc;
+                                }, {});
+                                const typeStr = Object.entries(typeCounts).map(([type, count]) => `${count} ${type}`).join(', ');
+                                const roomsLabel = lang === 'de' ? 'Zimmer' : (roomCount === 1 ? 'Room' : 'Rooms');
+                                const title = `${nights} N, ${roomCount} ${roomsLabel}${typeStr ? ` (${typeStr})` : ''}`;
+
                                 return (
-                                    <button key={d.id} onClick={(e) => { 
-                                        e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); 
-                                    }} className={cn("px-2 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all", dk ? "bg-slate-700 border-white/10 text-white hover:bg-slate-600" : "bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200")}>
-                                    {d.startDate && d.endDate ? `${formatChipStr(d.startDate)} - ${formatChipStr(d.endDate)}` : 'New'}
-                                    </button>
+                                    <div key={d.id} className="relative group/innerDur">
+                                        <button onClick={(e) => { 
+                                            e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); 
+                                        }} className={cn("px-2 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all", dk ? "bg-slate-700 border-white/10 text-white hover:bg-slate-600" : "bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200")}>
+                                        {d.startDate && d.endDate ? `${formatChipStr(d.startDate)} - ${formatChipStr(d.endDate)}` : 'New'}
+                                        </button>
+                                        
+                                        {/* NEW: Hover Tooltip for inside the dropdown */}
+                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 pb-2 mb-1 w-max z-[999999] opacity-0 group-hover/innerDur:opacity-100 transition-opacity pointer-events-none">
+                                            <div className={cn("px-3 py-1.5 rounded-lg shadow-xl text-center text-[11px] font-black border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-800 border-slate-200")}>
+                                                {title}
+                                            </div>
+                                        </div>
+                                    </div>
                                 );
                             })}
                         </div>
@@ -1074,22 +1095,32 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                 if (parentDur && (emp.checkIn > parentDur.startDate || emp.checkOut < parentDur.endDate)) isPartial = true;
                                 
                                 return (
-                                    <button key={emp.id} onClick={(e) => { 
-                                        e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); 
-                                        const findEmpTab = () => {
-                                           for (let i = 0; i < localHotel.durations.length; i++) {
-                                              if ((localHotel.durations[i].roomCards || []).some((rc:any) => (rc.employees || []).some((ex:any) => ex.id === emp.id))) return i;
-                                           } return 0;
-                                        };
-                                        setActiveDurationTab(findEmpTab());
-                                        setTimeout(() => { 
-                                           window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id }));
-                                        }, 300);
-                                    }} 
-                                    className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, isPartial ? "border-[1.5px] border-dashed" : "border border-solid", dk ? "bg-slate-700 text-white hover:bg-slate-600" : "bg-slate-50 text-slate-800 hover:bg-slate-100")}>
-                                    {isSubstitute ? <CornerDownRight size={10} className={cn("shrink-0", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} /> : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />}
-                                    {emp.name?.trim().split(' ').pop()}
-                                    </button>
+                                    <div key={emp.id} className="relative group/innerEmp">
+                                        <button onClick={(e) => { 
+                                            e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); 
+                                            const findEmpTab = () => {
+                                               for (let i = 0; i < localHotel.durations.length; i++) {
+                                                  if ((localHotel.durations[i].roomCards || []).some((rc:any) => (rc.employees || []).some((ex:any) => ex.id === emp.id))) return i;
+                                               } return 0;
+                                            };
+                                            setActiveDurationTab(findEmpTab());
+                                            setTimeout(() => { 
+                                               window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id }));
+                                            }, 300);
+                                        }} 
+                                        className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, isPartial ? "border-[1.5px] border-dashed" : "border border-solid", dk ? "bg-slate-700 text-white hover:bg-slate-600" : "bg-slate-50 text-slate-800 hover:bg-slate-100")}>
+                                        {isSubstitute ? <CornerDownRight size={10} className={cn("shrink-0", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} /> : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />}
+                                        {emp.name?.trim().split(' ').pop()}
+                                        </button>
+
+                                        {/* NEW: Hover Tooltip for inside the dropdown */}
+                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 pb-2 mb-1 w-max z-[999999] opacity-0 group-hover/innerEmp:opacity-100 transition-opacity pointer-events-none">
+                                            <div className="px-3 py-2 bg-slate-800 text-white rounded-lg shadow-xl text-center">
+                                                <p className="text-xs font-bold">{emp.name}</p>
+                                                <p className="text-[10px] text-slate-300">{formatShortDate(emp.checkIn, lang)} ➔ {formatShortDate(emp.checkOut, lang)} ({calculateNights(emp.checkIn||'', emp.checkOut||'')}N)</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 );
                             })}
                         </div>
