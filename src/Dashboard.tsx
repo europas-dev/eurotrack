@@ -1289,6 +1289,8 @@ finalFiltered.forEach(h => {
                       onToggle={() => setExpandedHotelId(prev => prev === hotel.id ? null : hotel.id)}
                       showGlobalFinancials={showGlobalFinancials}
                       activeSort={sortBy}
+                      activeFilterDue={filterDue}
+                      activeFilterDeposit={filterDeposit}
                       isSelected={selectedIds.has(hotel.id)}
                       onSelect={() => toggleSelect(hotel.id)}
                       isBulkActive={selectedIds.size > 0}
