@@ -742,12 +742,21 @@ finalFiltered.forEach(h => {
     const badges = [];
     const fmt = (iso:string) => { if(!iso) return ''; const [y,m,d] = iso.split('-'); return `${d}.${m}.${y}`; };
     
-    if (tlType !== 'all') badges.push({ id: 'tl', label: lang === 'de' ? 'Zeitraum' : 'Timeline', val: tlType === 'range' ? `${fmt(tlStart)} ➔ ${fmt(tlEnd)}` : tlType, clear: () => { setTlType('all'); setTlStart(''); setTlEnd(''); } });
-    if (fbType !== 'all') badges.push({ id: 'fb', label: lang === 'de' ? 'Freie Betten' : 'Free Beds', val: fbType, clear: () => setFbType('all') });
+    // Translation Maps
+    const timeLabels: any = { today: lang === 'de' ? 'Heute' : 'Today', tomorrow: lang === 'de' ? 'Morgen' : 'Tomorrow', '3days': lang === 'de' ? '3 Tage' : '3 Days', '7days': lang === 'de' ? '7 Tage' : '7 Days' };
+    const grpLabels: any = { hotel: 'Hotel', company: lang === 'de' ? 'Firma' : 'Company', city: lang === 'de' ? 'Stadt' : 'City', country: lang === 'de' ? 'Land' : 'Country' };
+    
+    if (tlType !== 'all') badges.push({ id: 'tl', label: lang === 'de' ? 'Zeitraum' : 'Timeline', val: tlType === 'range' ? `${fmt(tlStart)} ➔ ${fmt(tlEnd)}` : timeLabels[tlType], clear: () => { setTlType('all'); setTlStart(''); setTlEnd(''); } });
+    if (fbType !== 'all') badges.push({ id: 'fb', label: lang === 'de' ? 'Freie Betten' : 'Free Beds', val: timeLabels[fbType] || fbType, clear: () => setFbType('all') });
     if (filterPaid !== 'all') badges.push({ id: 'paid', label: lang === 'de' ? 'Zahlung' : 'Payment', val: lang === 'de' ? (filterPaid === 'paid' ? 'Bezahlt' : 'Offen') : filterPaid, clear: () => setFilterPaid('all') });
-    if (filterDue !== 'all') badges.push({ id: 'due', label: lang === 'de' ? 'Fälligkeit' : 'Payment Due', val: filterDue === 'today' ? (lang === 'de' ? 'Heute' : 'Today') : (filterDue === '3days' ? 'In 3 Days' : 'In 5 Days'), clear: () => setFilterDue('all') });
-    if (filterDeposit !== 'all') badges.push({ id: 'dep', label: lang === 'de' ? 'Kaution' : 'Deposit', val: filterDeposit, clear: () => setFilterDeposit('all') });
-    if (groupBy !== 'none') badges.push({ id: 'grp', label: lang === 'de' ? 'Gruppe' : 'Group', val: lang === 'de' && groupBy === 'company' ? 'Firma' : groupBy, clear: () => setGroupBy('none') });
+    
+    if (filterDue !== 'all') {
+        const dueVal = filterDue === 'today' ? (lang === 'de' ? 'Heute' : 'Today') : (filterDue === '3days' ? (lang === 'de' ? 'In 3 Tagen' : 'In 3 Days') : (lang === 'de' ? 'In 5 Tagen' : 'In 5 Days'));
+        badges.push({ id: 'due', label: lang === 'de' ? 'Fälligkeit' : 'Payment Due', val: dueVal, clear: () => setFilterDue('all') });
+    }
+    
+    if (filterDeposit !== 'all') badges.push({ id: 'dep', label: lang === 'de' ? 'Kaution' : 'Deposit', val: filterDeposit === 'yes' ? (lang === 'de' ? 'Ja' : 'Yes') : (lang === 'de' ? 'Nein' : 'No'), clear: () => setFilterDeposit('all') });
+    if (groupBy !== 'none') badges.push({ id: 'grp', label: lang === 'de' ? 'Gruppe' : 'Group', val: grpLabels[groupBy] || groupBy, clear: () => setGroupBy('none') });
     
     if (sortBy !== 'created_at' || sortDir !== 'desc') {
         let label = sortBy.replace('_', ' ').toUpperCase();
@@ -758,6 +767,8 @@ finalFiltered.forEach(h => {
           else if (sortBy === 'free_beds') label = 'FREIE BETTEN';
           else if (sortBy === 'payment_due') label = 'FÄLLIGKEIT';
           else if (sortBy === 'total_paid') label = 'TOTAL BEZAHLT';
+          else if (sortBy === 'updated_at') label = 'ZULETZT AKTUALISIERT';
+          else if (sortBy === 'created_at') label = 'ZULETZT HINZUGEFÜGT';
         }
         badges.push({ id: 'srt', label: lang === 'de' ? 'Sortierung' : 'Sort', val: `${label} (${sortDir === 'asc' ? (lang === 'de' ? 'AUF' : 'ASC') : (lang === 'de' ? 'AB' : 'DESC')})`, clear: () => { setSortBy('created_at'); setSortDir('desc'); } });
     }
