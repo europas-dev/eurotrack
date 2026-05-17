@@ -930,7 +930,7 @@ finalFiltered.forEach(h => {
   )}
 </div>
 
-{/* MODERN MONTH SELECTOR */}
+{/* MODERN MONTH SELECTOR (3x4 Grid) */}
 <div className="relative" ref={monthMenuRef}>
   <button 
     onClick={() => { 
@@ -939,32 +939,32 @@ finalFiltered.forEach(h => {
     }} 
     className={cn("px-4 py-2.5 rounded-xl border text-sm font-bold flex items-center gap-2 transition-all shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800")}
   >
-    {selectedMonth === null ? (lang === 'de' ? 'Alle Monate' : 'All Months') : (lang === 'de' ? monthNamesDe[selectedMonth] : monthNamesEn[selectedMonth])} <ChevronDown size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} />
+    {selectedMonth === null 
+      ? (lang === 'de' ? 'Alle Monate' : 'All Months') 
+      : (lang === 'de' ? ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'][selectedMonth] : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][selectedMonth])
+    } <ChevronDown size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} />
   </button>
   {showMonthMenu && (
-    <div className={cn(popupCls, "w-[200px] p-2 flex flex-col gap-1")} onClick={(e) => e.stopPropagation()}>
-      <button 
-        onClick={() => { 
-          setSelectedMonth(null); 
-          setShowMonthMenu(false); 
-        }} 
-        className={cn("py-2 px-3 rounded-lg text-sm font-bold transition-all text-left", selectedMonth === null ? btnActive : btnInactive)}
-      >
-        {lang === 'de' ? 'Alle Monate' : 'All Months'}
-      </button>
-      <div className="w-full h-px bg-slate-200 dark:bg-white/10 my-1"></div>
-      {(lang === 'de' ? monthNamesDe : monthNamesEn).map((m, i) => (
-        <button 
-          key={i} 
-          onClick={() => { 
-            setSelectedMonth(i); 
-            setShowMonthMenu(false); 
-          }} 
-          className={cn("py-1.5 px-3 rounded-lg text-sm font-bold transition-all text-left", selectedMonth === i ? btnActive : btnInactive)}
-        >
-          {m}
-        </button>
-      ))}
+    <div className={cn(popupCls, "w-[220px] p-2")} onClick={(e) => e.stopPropagation()}>
+       <div className="flex flex-col gap-1">
+         <button 
+            onClick={() => { setSelectedMonth(null); setShowMonthMenu(false); }} 
+            className={cn("w-full text-center px-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", selectedMonth === null ? (dk ? "bg-teal-500/20 text-teal-400" : "bg-teal-50 text-teal-600") : (dk ? "bg-white/5 text-slate-300 hover:bg-white/10" : "bg-slate-100 text-slate-700 hover:bg-slate-200"))}
+         >
+            {lang === 'de' ? 'Alle Monate' : 'All Months'}
+         </button>
+         <div className="grid grid-cols-3 gap-1 mt-1">
+           {(lang === 'de' ? ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'] : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']).map((m, i) => (
+             <button 
+                key={i} 
+                onClick={() => { setSelectedMonth(i); setShowMonthMenu(false); }} 
+                className={cn("w-full text-center py-2.5 rounded-xl text-[11px] font-black uppercase transition-all border", selectedMonth === i ? (dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400 shadow-inner" : "bg-teal-50 border-teal-200 text-teal-600 shadow-inner") : (dk ? "border-transparent bg-transparent text-slate-400 hover:bg-white/5 hover:text-white" : "border-transparent bg-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-900"))}
+             >
+                {m}
+             </button>
+           ))}
+         </div>
+       </div>
     </div>
   )}
 </div>
