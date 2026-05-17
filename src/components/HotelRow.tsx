@@ -1107,13 +1107,14 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             )}
             
             {!showGlobalFinancials && activeSort === 'bed_price' && masterMath.pricePerBed > 0 && (
-               <div className="text-[10px] font-bold text-slate-500 mt-1">
+               <div className="text-[12px] font-bold text-slate-500 mt-1">
                   {formatCurrency(masterMath.pricePerBed)} / {lang === 'de' ? 'Bett' : 'Bed'}
                </div>
             )}
             
-            {!showGlobalFinancials && activeSort === 'total_paid' && masterMath.totalPaid > 0 && (
-               <div className="text-[10px] font-bold text-emerald-500 mt-1">
+            {/* FIX: Always show Total Paid when sorting by it, even if 0 */}
+            {!showGlobalFinancials && activeSort === 'total_paid' && (
+               <div className="text-[12px] font-bold text-emerald-500 mt-1">
                   {formatCurrency(masterMath.totalPaid)}
                </div>
             )}
