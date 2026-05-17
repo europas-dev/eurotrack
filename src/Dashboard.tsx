@@ -466,6 +466,16 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       
       if (filterDeposit === 'yes' && !h.depositEnabled) return false;
       if (filterDeposit === 'no' && h.depositEnabled) return false;
+
+      // FIX: TIMELINE OVERLAP ENGINE
+      if (tlType !== 'all' && tlStart && tlEnd) {
+          const hasTimelineOverlap = (h.durations || []).some((dur: any) => {
+              if (!dur.startDate || !dur.endDate) return false;
+              // A duration overlaps if it starts BEFORE/ON the timeline end, AND ends AFTER/ON the timeline start.
+              return dur.startDate <= tlEnd && dur.endDate >= tlStart;
+          });
+          if (!hasTimelineOverlap) return false;
+      }
       
       if (fbType !== 'all') {
          let targetDate = new Date().toISOString().split('T')[0];
