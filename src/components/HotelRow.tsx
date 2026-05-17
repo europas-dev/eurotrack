@@ -940,7 +940,16 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
           <div className="w-[380px] shrink-0 pr-6 flex flex-wrap gap-1.5 content-center items-center">
               {visibleDurs.map((d: any, i: number) => {
-                const title = `${calculateNights(d.startDate, d.endDate)} N, ${(d.roomCards || []).length} Rooms`;
+                const nights = calculateNights(d.startDate, d.endDate);
+                const roomCount = (d.roomCards || []).length;
+                const typeCounts = (d.roomCards || []).reduce((acc: any, rc: any) => {
+                    acc[rc.roomType] = (acc[rc.roomType] || 0) + 1;
+                    return acc;
+                }, {});
+                const typeStr = Object.entries(typeCounts).map(([type, count]) => `${count} ${type}`).join(', ');
+                const roomsLabel = lang === 'de' ? 'Zimmer' : (roomCount === 1 ? 'Room' : 'Rooms');
+                const title = `${nights} N, ${roomCount} ${roomsLabel}${typeStr ? ` (${typeStr})` : ''}`;
+                
                 const formatChipStr = (iso: string) => {
                     if (!iso) return '';
                     const date = new Date(iso);
@@ -981,7 +990,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                 return (
                                     <button key={d.id} onClick={(e) => { 
                                         e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); 
-                                    }} className="px-2 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all bg-slate-700 border-white/10 text-white hover:bg-slate-600">
+                                    }} className={cn("px-2 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all", dk ? "bg-slate-700 border-white/10 text-white hover:bg-slate-600" : "bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200")}>
                                     {d.startDate && d.endDate ? `${formatChipStr(d.startDate)} - ${formatChipStr(d.endDate)}` : 'New'}
                                     </button>
                                 );
@@ -1077,7 +1086,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                            window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id }));
                                         }, 300);
                                     }} 
-                                    className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, isPartial ? "border-[1.5px] border-dashed" : "border border-solid", "bg-slate-700 text-white hover:bg-slate-600")}>
+                                    className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, isPartial ? "border-[1.5px] border-dashed" : "border border-solid", dk ? "bg-slate-700 text-white hover:bg-slate-600" : "bg-slate-50 text-slate-800 hover:bg-slate-100")}>
                                     {isSubstitute ? <CornerDownRight size={10} className={cn("shrink-0", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} /> : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />}
                                     {emp.name?.trim().split(' ').pop()}
                                     </button>
