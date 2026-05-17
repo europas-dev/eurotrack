@@ -922,7 +922,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
           
 
-          <div className="w-[120px] shrink-0 pr-2" onClick={e => e.stopPropagation()}>
+          <div className="w-[140px] shrink-0 pr-6" onClick={e => e.stopPropagation()}>
             <CompanyMultiSelect 
             onOpenChange={setIsDropdownActive}
             disabled={viewOnly}
@@ -938,7 +938,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           />
           </div>
 
-          <div className="w-[380px] shrink-0 pr-2 flex flex-wrap gap-1.5 content-center items-center">
+          <div className="w-[380px] shrink-0 pr-6 flex flex-wrap gap-1.5 content-center items-center">
               {visibleDurs.map((d: any, i: number) => {
                 const title = `${calculateNights(d.startDate, d.endDate)} N, ${(d.roomCards || []).length} Rooms`;
                 const formatChipStr = (iso: string) => {
@@ -1075,11 +1075,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               )}
           </div>
           
-          <div className="w-12 shrink-0 text-center">
+          <div className="w-16 shrink-0 text-right pr-4">
             <p className={cn('text-xl font-black', masterMath.freeBeds > 0 ? 'text-red-500' : dk ? 'text-teal-500' : 'text-teal-600')}>{masterMath.freeBeds}</p>
           </div>
           
-          <div className="w-12 shrink-0 text-center">
+          <div className="w-16 shrink-0 text-right pr-4">
             <p className={cn('text-xl font-black', dk ? 'text-slate-300' : 'text-slate-700')}>{masterMath.totalBeds}</p>
           </div>
         
