@@ -960,7 +960,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               {hiddenDurs.length > 0 && (
                  <div className="relative group/hiddenDur" onMouseEnter={() => setIsDropdownActive(true)} onMouseLeave={() => setIsDropdownActive(false)}>
                     <span className="px-2 py-0.5 rounded-full border border-dashed border-slate-400 text-[10px] font-bold flex items-center justify-center text-slate-500 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">+{hiddenDurs.length}</span>
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 w-max max-w-[280px] opacity-0 group-hover/hiddenDur:opacity-100 transition-opacity pointer-events-none group-hover/hiddenDur:pointer-events-auto" style={{ zIndex: 999999 }}>
+                    {/* FIX: Tooltip flips UP (bottom-full pb-2 mb-1) */}
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 pb-2 mb-1 w-max max-w-[280px] opacity-0 group-hover/hiddenDur:opacity-100 transition-opacity pointer-events-none group-hover/hiddenDur:pointer-events-auto" style={{ zIndex: 999999 }}>
                         <div className="p-2 bg-slate-800 text-white rounded-lg shadow-xl flex flex-wrap gap-1.5">
                             {hiddenDurs.map((d: any) => {
                                 const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
@@ -987,7 +988,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           <div className="flex-1 min-w-[200px] flex flex-wrap gap-1.5 pr-4 content-center">
               {visibleEmps.map((emp: any, empIdx: number) => {
                 const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
-                const borderCls = status === 'active' ? "border-emerald-500/50" : status === 'upcoming' ? "border-blue-500/50" : status === 'ending-soon' ? "border-red-500/50" : "border-slate-500/40";
+                
+                {/* FIX: Stronger Contrast & border thicknesses for Light Mode */}
+                const borderCls = status === 'active' ? (dk ? "border-emerald-500/50" : "border-emerald-600") : 
+                                  status === 'upcoming' ? (dk ? "border-blue-500/50" : "border-blue-600") : 
+                                  status === 'ending-soon' ? (dk ? "border-red-500/50" : "border-red-600") : 
+                                  (dk ? "border-slate-500/40" : "border-slate-400");
+                                  
                 const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
                 const shortName = emp.name ? emp.name.trim().split(' ').pop() : '_ _ _';
                 
@@ -1001,8 +1008,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 if (parentDur && (emp.checkIn > parentDur.startDate || emp.checkOut < parentDur.endDate)) isPartial = true;
                 
                 return (
-                <React.Fragment key={emp.id}>
-                  <div className="relative group/emp">
+                  <div key={emp.id} className="relative group/emp">
                       <button onClick={(e) => { 
                           e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); 
                           const findEmpTab = () => {
@@ -1015,30 +1021,35 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                              window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id }));
                           }, 300);
                       }} 
-                        className={cn("px-2 py-0.5 rounded-full border text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, isPartial ? "border-dashed" : "border-solid", dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-700")}>
+                        {/* FIX: Apply 1.5px dashed border for distinct visibility */}
+                        className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, isPartial ? (dk ? "border border-dashed" : "border-[1.5px] border-dashed") : "border border-solid", dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-800")}>
                         {isSubstitute ? <CornerDownRight size={10} className={cn("shrink-0", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} /> : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />}
                         <HighlightText text={shortName} query={searchScope === 'all' || searchScope === 'employee' ? searchQuery : ''} />
                       </button>
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 pb-2 w-max z-[999999] opacity-0 group-hover/emp:opacity-100 transition-opacity pointer-events-none">
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 pb-2 mb-1 w-max z-[999999] opacity-0 group-hover/emp:opacity-100 transition-opacity pointer-events-none">
                           <div className="px-3 py-2 bg-slate-800 text-white rounded-lg shadow-xl text-center">
                               <p className="text-xs font-bold">{emp.name}</p>
                               <p className="text-[10px] text-slate-300">{formatShortDate(emp.checkIn, lang)} ➔ {formatShortDate(emp.checkOut, lang)} ({calculateNights(emp.checkIn||'', emp.checkOut||'')}N)</p>
                           </div>
                       </div>
                   </div>
-                  {empIdx === 6 && <div className="basis-full h-0" />}
-                </React.Fragment>
                 );
               })}
               
               {hiddenEmps.length > 0 && (
                  <div className="relative group/hiddenEmp" onMouseEnter={() => setIsDropdownActive(true)} onMouseLeave={() => setIsDropdownActive(false)}>
                     <span className="px-2 py-0.5 rounded-full border border-dashed border-slate-400 text-[10px] font-bold flex items-center justify-center text-slate-500 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">+{hiddenEmps.length}</span>
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 w-max max-w-[280px] z-[999999] opacity-0 group-hover/hiddenEmp:opacity-100 transition-opacity pointer-events-none group-hover/hiddenEmp:pointer-events-auto">
+                    {/* FIX: Tooltip flips UP (bottom-full pb-2 mb-1) */}
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 pb-2 mb-1 w-max max-w-[280px] z-[999999] opacity-0 group-hover/hiddenEmp:opacity-100 transition-opacity pointer-events-none group-hover/hiddenEmp:pointer-events-auto">
                         <div className="p-2 bg-slate-800 text-white rounded-lg shadow-xl flex flex-wrap gap-1.5">
                             {hiddenEmps.map((emp: any) => {
                                 const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
-                                const borderCls = status === 'active' ? "border-emerald-500/50" : status === 'upcoming' ? "border-blue-500/50" : status === 'ending-soon' ? "border-red-500/50" : "border-slate-500/40";
+                                {/* FIX: Dark mode tooltip gets readable colored borders */}
+                                const borderCls = status === 'active' ? (dk ? "border-emerald-500/50" : "border-emerald-400") : 
+                                                  status === 'upcoming' ? (dk ? "border-blue-500/50" : "border-blue-400") : 
+                                                  status === 'ending-soon' ? (dk ? "border-red-500/50" : "border-red-400") : 
+                                                  (dk ? "border-slate-500/40" : "border-slate-400");
+                                                  
                                 const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
                                 
                                 const parentDur = localHotel.durations.find((d:any) => (d.roomCards||[]).some((rc:any) => (rc.employees||[]).some((e:any) => e.id === emp.id)));
@@ -1063,7 +1074,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                            window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id }));
                                         }, 300);
                                     }} 
-                                    className={cn("px-2 py-0.5 rounded-full border text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, isPartial ? "border-dashed" : "border-solid", "bg-slate-700 text-white hover:bg-slate-600")}>
+                                    className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, isPartial ? "border-[1.5px] border-dashed" : "border border-solid", "bg-slate-700 text-white hover:bg-slate-600")}>
                                     {isSubstitute ? <CornerDownRight size={10} className={cn("shrink-0", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} /> : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />}
                                     {emp.name?.trim().split(' ').pop()}
                                     </button>
