@@ -1455,10 +1455,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                             <div className="flex flex-col animate-in fade-in pb-5">
                                <div className={cn("sticky top-0 z-10 flex items-center px-3 py-2 gap-2 border-b mb-3 backdrop-blur-md", dk ? "bg-[#0B1224]/95 border-white/10" : "bg-slate-50/95 border-slate-200")}>
                                <div className="w-[220px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">{lang === 'de' ? 'Beschreibung' : 'Description'}</div>
-                               <div className="flex-1 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-3">Netto (Bed)</div>
-                               <div className="w-[100px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Total Netto</div>
+                               <div className="flex-1 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-3">{lang === 'de' ? 'Netto (Bett)' : 'Netto (Bed)'}</div>
+                               <div className="w-[100px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</div>
                                <div className="w-[75px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center px-2">MwSt</div>
-                               <div className="w-[110px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-2">Total Brutto</div>
+                               <div className="w-[110px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-2">{lang === 'de' ? 'Gesamt Brutto' : 'Total Brutto'}</div>
                                <div className="w-[75px] shrink-0"></div>
                             </div>
                                
@@ -1492,10 +1492,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                          <div className="flex flex-col animate-in fade-in pb-5">
                             <div className={cn("sticky top-0 z-10 flex items-center px-3 py-2 gap-2 border-b mb-3 backdrop-blur-md", dk ? "bg-[#0B1224]/95 border-white/10" : "bg-slate-50/95 border-slate-200")}>
                                <div className="w-[220px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">{lang === 'de' ? 'Beschreibung' : 'Description'}</div>
-                               <div className="flex-1 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-3">Netto (Bed)</div>
-                               <div className="w-[100px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Total Netto</div>
+                               <div className="flex-1 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-3">{lang === 'de' ? 'Netto (Bett)' : 'Netto (Bed)'}</div>
+                               <div className="w-[100px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</div>
                                <div className="w-[75px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center px-2">MwSt</div>
-                               <div className="w-[110px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-2">Total Brutto</div>
+                               <div className="w-[110px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-2">{lang === 'de' ? 'Gesamt Brutto' : 'Total Brutto'}</div>
                                <div className="w-[75px] shrink-0"></div>
                             </div>
                             
