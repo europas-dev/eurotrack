@@ -590,8 +590,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     return groups;
   }, [finalFiltered, groupBy, lang]);
 
-  const isAllSelected = useMemo(() => {
-    const visible = groupBy !== 'none' && activeGroupTab && groupData ? groupData[activeGroupTab] : finalFiltered;
+    const isAllSelected = useMemo(() => {
+    const visible = groupBy !== 'none' && activeGroupTab && groupData ? (groupData[activeGroupTab] || []) : finalFiltered;
     return visible.length > 0 && visible.every(h => selectedIds.has(h.id));
   }, [selectedIds, finalFiltered, groupData, activeGroupTab, groupBy]);
 
@@ -602,11 +602,12 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   };
 
   const toggleSelectAll = () => {
-    const visible = groupBy !== 'none' && activeGroupTab && groupData ? groupData[activeGroupTab] : finalFiltered;
+    const visible = groupBy !== 'none' && activeGroupTab && groupData ? (groupData[activeGroupTab] || []) : finalFiltered;
     const next = new Set(selectedIds);
     if (isAllSelected) visible.forEach(h => next.delete(h.id)); else visible.forEach(h => next.add(h.id));
     setSelectedIds(next);
   };
+
 
   const handleBulkDelete = async () => {
     const count = selectedIds.size;
@@ -1263,12 +1264,13 @@ finalFiltered.forEach(h => {
               </div>
             </div> {/* END OF STICKY CONTROL STACK */}
 
-            {/* THE DATA ROWS */}
+              {/* THE DATA ROWS */}
             {groupBy !== 'none' && groupData ? (
-              activeGroupTab ? (
+              (activeGroupTab && groupData[activeGroupTab]) ? (
                 <div className="flex flex-col gap-4 animate-in fade-in duration-300">
                   
                   {/* GROUP TOTALS BLOCK */}
+
                   <div className={cn("px-6 py-4 rounded-xl border flex items-center justify-between mb-2", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200 shadow-sm")}>
                     <div className="flex items-center gap-4">
                       <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{lang === 'de' ? 'Gruppe' : 'Group'}: {lang === 'de' && groupBy === 'company' ? 'Firma' : groupBy.toUpperCase()}</span>
