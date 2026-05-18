@@ -858,6 +858,7 @@ finalFiltered.forEach(h => {
               )}
             </Header>
         </div>
+      </div>
 
         {/* BULK ACTIONS & OFFLINE ALERTS */}
         {selectedIds.size > 0 && (
