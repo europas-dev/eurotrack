@@ -894,13 +894,10 @@ finalFiltered.forEach(h => {
              <Loader2 size={48} className="animate-spin text-teal-500 opacity-50" />
           </div>
         ) : (
-          {/* FIX: Removed pt-8 so the top is flush, making sticky top-0 bulletproof */}
           <main className="flex-1 overflow-y-auto px-8 pb-64 relative no-scrollbar">
             
             {/* STICKY CONTROL STACK */}
-            {/* FIX: Changed to top-0 and reduced pt-8 to pt-4 to tighten the gap nicely */}
-            <div className={cn("sticky top-0 z-[55] pt-4 pb-3 -mx-8 px-8 mb-4 border-b-2 shadow-sm", dk ? "bg-[#0F172A]/95 border-white/10 backdrop-blur-md" : "bg-slate-50/95 border-slate-300 backdrop-blur-md")}> 
-              {/* TIER 3: DATA CONTROLS */}
+            <div className={cn("sticky top-0 z-[55] pt-4 pb-3 -mx-8 px-8 mb-4 border-b-2 shadow-sm", dk ? "bg-[#0F172A]/95 border-white/10 backdrop-blur-md" : "bg-slate-50/95 border-slate-300 backdrop-blur-md")}>   {/* TIER 3: DATA CONTROLS */}
               <div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative" style={{ zIndex: 999998 }}>
               <h2 className="text-xl font-black tracking-tight">{displayTitle}</h2>
               
@@ -1254,6 +1251,7 @@ finalFiltered.forEach(h => {
                   </div>
                 )}
               </div>
+            </div>
 
                 {groupBy !== 'none' && groupData ? (
             
@@ -1313,7 +1311,6 @@ finalFiltered.forEach(h => {
                     </div>
                   )
                 ) : (
-                  {/* FIX: Wrapping rows in gap-3 for better visual separation */}
                   <div className="flex flex-col gap-3">
                     {finalFiltered.map((hotel, index) => (
                       <HotelRow 
@@ -1356,7 +1353,6 @@ finalFiltered.forEach(h => {
                     <p className="text-sm">{lang === 'de' ? 'Versuchen Sie, Ihre Filter anzupassen oder ein neues hinzuzufügen.' : 'Try adjusting your filters or adding a new one.'}</p>
                   </div>
                 )}
-            </div>
           </main>
         )}
 
