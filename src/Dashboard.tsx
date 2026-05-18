@@ -808,15 +808,15 @@ finalFiltered.forEach(h => {
                <span className={cn('text-[22px] font-black leading-none mt-0.5', dk ? 'text-white' : 'text-slate-900')}>{finalFiltered.length}</span>
              </div>
 
-                          {/* Kosten (Clickable Icon + Number to toggle financials) */}
+                           {/* Kosten (Clickable Icon + Number to toggle financials) */}
              <button 
                 onClick={() => setShowGlobalFinancials(!showGlobalFinancials)} 
-                className="flex items-center gap-2 group cursor-pointer transition-opacity hover:opacity-80 outline-none" 
+                className="flex items-center gap-2 cursor-pointer transition-opacity hover:opacity-80 outline-none" 
                 title={lang === 'de' ? 'Gesamtkosten (Klicken für Details)' : 'Total Spent (Click for Details)'}
              >
                 <Coins 
                   size={22} 
-                  className={cn("transition-colors duration-200", showGlobalFinancials ? "text-teal-500" : (dk ? "text-slate-500 group-hover:text-teal-400" : "text-slate-400 group-hover:text-teal-500"))} 
+                  className={cn("transition-colors duration-200", showGlobalFinancials ? "text-teal-500" : (dk ? "text-slate-500" : "text-slate-400"))} 
                   strokeWidth={2.5} 
                 />
                 <span className="text-[22px] font-black text-teal-600 dark:text-teal-400 leading-none mt-0.5">
@@ -824,12 +824,13 @@ finalFiltered.forEach(h => {
                 </span>
              </button>
 
+
              
              {/* Expanded Financials safely tucked next to total */}
              {showGlobalFinancials && (
                 <div className={cn("flex flex-col justify-center h-8 pl-4 ml-2 border-l animate-in fade-in slide-in-from-left-2", dk ? "border-white/10" : "border-slate-200")}>
-                    <span className="text-emerald-500 text-[11px] font-bold leading-tight">{formatCurrency(totalPaidGlobal)}</span>
-                    <span className="text-red-500 text-[11px] font-bold leading-tight">{formatCurrency(totalUnpaidGlobal)}</span>
+                    <span className="text-emerald-500 text-[11.5px] font-bold leading-tight">{formatCurrency(totalPaidGlobal)}</span>
+                    <span className="text-red-500 text-[11.5px] font-bold leading-tight">{formatCurrency(totalUnpaidGlobal)}</span>
                 </div>
              )}
            </div>
