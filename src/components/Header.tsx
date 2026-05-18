@@ -98,9 +98,10 @@ interface HeaderProps {
   onPrint?: () => void;
   viewOnly?: boolean;
   userRole?: string;
-  offlineMode?: boolean;
+ offlineMode?: boolean;
   onToggleOfflineMode?: () => void;
   isOnline?: boolean;
+  children?: React.ReactNode;
 }
 
 export default function Header({
@@ -283,8 +284,9 @@ export default function Header({
 
   return (
     <>
-      <header className={cn('shrink-0 flex items-center gap-3 px-6 py-3 border-b z-50 relative', surface)}>
-        <div className="flex-1 relative flex items-center max-w-2xl">
+      {/* STRIPPED HEADER WRAPPER for Mega-Row Integration */}
+      <div className="flex-1 flex items-center h-full min-w-0">
+        <div className="flex-1 relative flex items-center max-w-[400px]">
           <div className={cn('flex items-center rounded-lg border transition-all focus-within:ring-2 focus-within:ring-blue-500/50 w-full',
             dk ? 'bg-[#1E293B] border-white/10' : 'bg-white border-slate-200'
           )}>
@@ -320,7 +322,8 @@ export default function Header({
           </div>
         </div>
 
-        <div className="flex items-center gap-3 ml-auto">
+        <div className="flex items-center gap-2 ml-auto shrink-0">
+          {children}
           <button onClick={onPrint} className={iconBtn} title="Export">
             <Upload size={18} className="text-teal-500" />
           </button>
@@ -345,7 +348,7 @@ export default function Header({
             {isDe ? 'Abmelden' : 'Sign Out'}
           </button>
         </div>
-      </header>
+      </div>
 
       {showSettings && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 flex pointer-events-none" style={{ zIndex: 999999 }}>
