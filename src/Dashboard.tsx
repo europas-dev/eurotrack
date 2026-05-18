@@ -1235,10 +1235,9 @@ finalFiltered.forEach(h => {
                     </div>
                   </div>
                 )}
-
-                {/* DESKTOP HEADER ROW */}
+{/* DESKTOP HEADER ROW */}
                 {!loading && finalFiltered.length > 0 && (
-                  <div className={cn("hidden lg:flex items-center px-8 py-2 border-b text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 sticky top-[-32px] z-[55] backdrop-blur-md shadow-sm", dk ? "bg-[#0F172A]/90 border-white/10" : "bg-slate-50/90 border-slate-200")} style={{ margin: '0 -32px' }}>
+                  <div className="hidden lg:flex items-center px-8 pt-2 text-[10px] font-black uppercase tracking-widest text-slate-400" style={{ margin: '0 -32px' }}>
                     <div className="w-10 shrink-0"></div>
                     <div className="w-[200px] shrink-0 pr-4">{lang === 'de' ? 'Hotel' : 'Hotel'}</div>
                     <div className="w-[140px] shrink-0 pr-6">{lang === 'de' ? 'Firma' : 'Company'}</div>
@@ -1251,109 +1250,110 @@ finalFiltered.forEach(h => {
                   </div>
                 )}
               </div>
-            </div>
+            </div> {/* END OF STICKY CONTROL STACK */}
 
-                {groupBy !== 'none' && groupData ? (
-            
-                  activeGroupTab ? (
-                    <div className="flex flex-col gap-4 animate-in fade-in duration-300">
-                      
-                      {/* GROUP TOTALS BLOCK */}
-                      <div className={cn("px-6 py-4 rounded-xl border flex items-center justify-between mb-2", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200 shadow-sm")}>
-                        <div className="flex items-center gap-4">
-                          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{lang === 'de' ? 'Gruppe' : 'Group'}: {lang === 'de' && groupBy === 'company' ? 'Firma' : groupBy.toUpperCase()}</span>
-                          <h3 className="text-xl font-bold">{activeGroupTab}</h3>
-                          <span className="px-3 py-1 rounded-full bg-teal-500/10 text-teal-600 text-xs font-bold">{groupData[activeGroupTab].length} Hotels</span>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] font-bold text-slate-500 uppercase">{lang === 'de' ? 'Gesamtwert' : 'Total Value'}</p>
-                          <p className="text-lg font-bold text-teal-600 dark:text-teal-400">{formatCurrency(groupData[activeGroupTab].reduce((s,h)=>s+calcHotelTotalCost(h, selectedMonth !== null ? selectedMonth : null, selectedYear),0))}</p>
-                        </div>
+            {/* THE DATA ROWS */}
+            {groupBy !== 'none' && groupData ? (
+              activeGroupTab ? (
+                <div className="flex flex-col gap-4 animate-in fade-in duration-300">
+                  
+                  {/* GROUP TOTALS BLOCK */}
+                  <div className={cn("px-6 py-4 rounded-xl border flex items-center justify-between mb-2", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200 shadow-sm")}>
+                    <div className="flex items-center gap-4">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{lang === 'de' ? 'Gruppe' : 'Group'}: {lang === 'de' && groupBy === 'company' ? 'Firma' : groupBy.toUpperCase()}</span>
+                      <h3 className="text-xl font-bold">{activeGroupTab}</h3>
+                      <span className="px-3 py-1 rounded-full bg-teal-500/10 text-teal-600 text-xs font-bold">{groupData[activeGroupTab].length} Hotels</span>
                     </div>
-
-                    {/* FIX: Wrapping rows in gap-3 for better visual separation */}
-                    <div className="flex flex-col gap-3">
-                      {groupData[activeGroupTab].map((h, i) => (
-                        <HotelRow 
-                          key={h.id}
-                          selectedMonth={selectedMonth}
-                          selectedYear={selectedYear}
-                          isOpen={expandedHotelId === h.id}
-                          onToggle={() => setExpandedHotelId(prev => prev === h.id ? null : h.id)}
-                          showGlobalFinancials={showGlobalFinancials}
-                          activeSort={sortBy}
-                          activeFilterDue={filterDue}
-                          activeFilterDeposit={filterDeposit}
-                          isSelected={selectedIds.has(h.id)}
-                          onSelect={() => toggleSelect(h.id)}
-                          isBulkActive={selectedIds.size > 0}
-                          entry={h} 
-                          index={i} 
-                          isDarkMode={dk} 
-                          lang={lang} 
-                          searchQuery={searchQuery} 
-                          searchScope={searchScope} 
-                          companyOptions={allCompanyOptions} 
-                          cityOptions={uniqueCities} 
-                          onDelete={hId => setHotels(prev => prev.filter(ho=>ho.id!==hId))} 
-                          onUpdate={(hId, up) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))}
-                          onDeleteCompanyOption={handleDeleteGlobalCompany} 
-                          onRenameCompanyOption={handleRenameGlobalCompany}
-                          onAddOption={handleAddGlobalCompany} 
-                          hotelOptions={uniqueHotelNames}
-                          employeeOptions={uniqueEmployeeNames}
-                        />
-                      ))}
+                    <div className="text-right">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase">{lang === 'de' ? 'Gesamtwert' : 'Total Value'}</p>
+                      <p className="text-lg font-bold text-teal-600 dark:text-teal-400">{formatCurrency(groupData[activeGroupTab].reduce((s,h)=>s+calcHotelTotalCost(h, selectedMonth !== null ? selectedMonth : null, selectedYear),0))}</p>
                     </div>
-                  </div> {/* FIX: This closes the parent group container! */}
-                ) : (
-                  <div className="text-center py-20 text-slate-400 font-medium">
-                      {lang === 'de' ? 'Wählen Sie einen Tab oben aus' : 'Select a tab above to view entries'}
                   </div>
-                )
-                ) : (
+
+                  {/* Wrapping rows in gap-3 */}
                   <div className="flex flex-col gap-3">
-                    {finalFiltered.map((hotel, index) => (
+                    {groupData[activeGroupTab].map((h, i) => (
                       <HotelRow 
-                        key={hotel.id}
-                      selectedMonth={selectedMonth}
-                      selectedYear={selectedYear}
-                      isOpen={expandedHotelId === hotel.id}
-                      onToggle={() => setExpandedHotelId(prev => prev === hotel.id ? null : hotel.id)}
-                      showGlobalFinancials={showGlobalFinancials}
-                      activeSort={sortBy}
-                      activeFilterDue={filterDue}
-                      activeFilterDeposit={filterDeposit}
-                      isSelected={selectedIds.has(hotel.id)}
-                      onSelect={() => toggleSelect(hotel.id)}
-                      isBulkActive={selectedIds.size > 0}
-                      entry={hotel} 
-                      viewOnly={accessLevel?.role === 'viewer'} 
-                      index={index} 
-                      isDarkMode={dk} 
-                      lang={lang} 
-                      searchQuery={searchQuery} 
-                      searchScope={searchScope} 
-                      companyOptions={allCompanyOptions} 
-                      cityOptions={uniqueCities} 
-                      onDelete={hId => setHotels(hotels.filter(h=>h.id!==hId))} 
-                      onUpdate={(hId, up) => setHotels(hotels.map(h=>h.id===hId?{...h,...up}:h))} 
-                      onDeleteCompanyOption={handleDeleteGlobalCompany} 
-                      onRenameCompanyOption={handleRenameGlobalCompany}
-                      onAddOption={handleAddGlobalCompany} 
-                      hotelOptions={uniqueHotelNames}
-                      employeeOptions={uniqueEmployeeNames}
-                    />
-                  ))
-                )}
-                
-                {!loading && finalFiltered.length === 0 && (
-                  <div className="text-center py-20 opacity-50 flex flex-col items-center">
-                    <Building size={48} className="mb-4 text-slate-400" />
-                    <p className="text-lg font-bold">{lang === 'de' ? 'Keine Hotels gefunden' : 'No hotels found'}</p>
-                    <p className="text-sm">{lang === 'de' ? 'Versuchen Sie, Ihre Filter anzupassen oder ein neues hinzuzufügen.' : 'Try adjusting your filters or adding a new one.'}</p>
+                        key={h.id}
+                        selectedMonth={selectedMonth}
+                        selectedYear={selectedYear}
+                        isOpen={expandedHotelId === h.id}
+                        onToggle={() => setExpandedHotelId(prev => prev === h.id ? null : h.id)}
+                        showGlobalFinancials={showGlobalFinancials}
+                        activeSort={sortBy}
+                        activeFilterDue={filterDue}
+                        activeFilterDeposit={filterDeposit}
+                        isSelected={selectedIds.has(h.id)}
+                        onSelect={() => toggleSelect(h.id)}
+                        isBulkActive={selectedIds.size > 0}
+                        entry={h} 
+                        index={i} 
+                        isDarkMode={dk} 
+                        lang={lang} 
+                        searchQuery={searchQuery} 
+                        searchScope={searchScope} 
+                        companyOptions={allCompanyOptions} 
+                        cityOptions={uniqueCities} 
+                        onDelete={hId => setHotels(prev => prev.filter(ho=>ho.id!==hId))} 
+                        onUpdate={(hId, up) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))}
+                        onDeleteCompanyOption={handleDeleteGlobalCompany} 
+                        onRenameCompanyOption={handleRenameGlobalCompany}
+                        onAddOption={handleAddGlobalCompany} 
+                        hotelOptions={uniqueHotelNames}
+                        employeeOptions={uniqueEmployeeNames}
+                      />
+                    ))}
                   </div>
-                )}
+                </div>
+              ) : (
+                <div className="text-center py-20 text-slate-400 font-medium">
+                  {lang === 'de' ? 'Wählen Sie einen Tab oben aus' : 'Select a tab above to view entries'}
+                </div>
+              )
+            ) : (
+              <div className="flex flex-col gap-3">
+                {finalFiltered.map((hotel, index) => (
+                  <HotelRow 
+                    key={hotel.id}
+                    selectedMonth={selectedMonth}
+                    selectedYear={selectedYear}
+                    isOpen={expandedHotelId === hotel.id}
+                    onToggle={() => setExpandedHotelId(prev => prev === hotel.id ? null : hotel.id)}
+                    showGlobalFinancials={showGlobalFinancials}
+                    activeSort={sortBy}
+                    activeFilterDue={filterDue}
+                    activeFilterDeposit={filterDeposit}
+                    isSelected={selectedIds.has(hotel.id)}
+                    onSelect={() => toggleSelect(hotel.id)}
+                    isBulkActive={selectedIds.size > 0}
+                    entry={hotel} 
+                    viewOnly={accessLevel?.role === 'viewer'} 
+                    index={index} 
+                    isDarkMode={dk} 
+                    lang={lang} 
+                    searchQuery={searchQuery} 
+                    searchScope={searchScope} 
+                    companyOptions={allCompanyOptions} 
+                    cityOptions={uniqueCities} 
+                    onDelete={hId => setHotels(hotels.filter(h=>h.id!==hId))} 
+                    onUpdate={(hId, up) => setHotels(hotels.map(h=>h.id===hId?{...h,...up}:h))} 
+                    onDeleteCompanyOption={handleDeleteGlobalCompany} 
+                    onRenameCompanyOption={handleRenameGlobalCompany}
+                    onAddOption={handleAddGlobalCompany} 
+                    hotelOptions={uniqueHotelNames}
+                    employeeOptions={uniqueEmployeeNames}
+                  />
+                ))}
+              </div>
+            )}
+            
+            {!loading && finalFiltered.length === 0 && (
+              <div className="text-center py-20 opacity-50 flex flex-col items-center">
+                <Building size={48} className="mb-4 text-slate-400" />
+                <p className="text-lg font-bold">{lang === 'de' ? 'Keine Hotels gefunden' : 'No hotels found'}</p>
+                <p className="text-sm">{lang === 'de' ? 'Versuchen Sie, Ihre Filter anzupassen oder ein neues hinzuzufügen.' : 'Try adjusting your filters or adding a new one.'}</p>
+              </div>
+            )}
           </main>
         )}
 
