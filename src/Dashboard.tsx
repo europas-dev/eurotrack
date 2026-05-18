@@ -808,14 +808,22 @@ finalFiltered.forEach(h => {
                <span className={cn('text-[22px] font-black leading-none mt-0.5', dk ? 'text-white' : 'text-slate-900')}>{finalFiltered.length}</span>
              </div>
 
-             {/* Kosten (Eye icon moved BEFORE the number!) */}
-             <div className="flex items-center gap-2" title={lang === 'de' ? 'Gesamtkosten' : 'Total Spent'}>
-                <Coins size={22} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
-                <button onClick={() => setShowGlobalFinancials(!showGlobalFinancials)} className={cn("p-1 rounded transition-colors", showGlobalFinancials ? "text-teal-500 bg-teal-500/10" : "text-slate-400 hover:text-teal-500 hover:bg-slate-100 dark:hover:bg-white/5")}>
-               <Eye size={18} strokeWidth={2.5} />
-                </button>
-                <span className="text-[22px] font-black text-teal-600 dark:text-teal-400 leading-none mt-0.5 ml-1">{formatCurrency(totalSpend)}</span>
-             </div>
+                          {/* Kosten (Clickable Icon + Number to toggle financials) */}
+             <button 
+                onClick={() => setShowGlobalFinancials(!showGlobalFinancials)} 
+                className="flex items-center gap-2 group cursor-pointer transition-opacity hover:opacity-80 outline-none" 
+                title={lang === 'de' ? 'Gesamtkosten (Klicken für Details)' : 'Total Spent (Click for Details)'}
+             >
+                <Coins 
+                  size={22} 
+                  className={cn("transition-colors duration-200", showGlobalFinancials ? "text-teal-500" : (dk ? "text-slate-500 group-hover:text-teal-400" : "text-slate-400 group-hover:text-teal-500"))} 
+                  strokeWidth={2.5} 
+                />
+                <span className="text-[22px] font-black text-teal-600 dark:text-teal-400 leading-none mt-0.5">
+                  {formatCurrency(totalSpend)}
+                </span>
+             </button>
+
              
              {/* Expanded Financials safely tucked next to total */}
              {showGlobalFinancials && (
