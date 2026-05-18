@@ -897,8 +897,10 @@ finalFiltered.forEach(h => {
           <main className="flex-1 overflow-y-auto px-8 pb-64 relative no-scrollbar">
             
             {/* STICKY CONTROL STACK */}
-            <div className={cn("sticky top-0 z-[55] pt-4 pb-3 -mx-8 px-8 mb-4 border-b-2 shadow-sm", dk ? "bg-[#0F172A]/95 border-white/10 backdrop-blur-md" : "bg-slate-50/95 border-slate-300 backdrop-blur-md")}>   {/* TIER 3: DATA CONTROLS */}
-              <div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative" style={{ zIndex: 999998 }}>
+            <div 
+              className={cn("sticky top-0 pt-4 pb-3 -mx-8 px-8 mb-4 border-b-2 shadow-sm", dk ? "bg-[#0F172A]/95 border-white/10 backdrop-blur-md" : "bg-slate-50/95 border-slate-300 backdrop-blur-md")}
+              style={{ zIndex: (showYearMenu || showMonthMenu || showFilterMenu || showTimelineMenu || showSortMenu) ? 999999 : 60 }}
+            ><div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative" style={{ zIndex: 999998 }}>
               <h2 className="text-xl font-black tracking-tight">{displayTitle}</h2>
               
               <div className="flex items-center gap-2">
