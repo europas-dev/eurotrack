@@ -791,23 +791,74 @@ finalFiltered.forEach(h => {
       
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         
-        {/* TIER 1: APP HEADER (Logo properly docked) */}
-        <div className={cn("flex items-center w-full border-b shrink-0 z-50", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-200")}>
-           <div className={cn("px-6 flex items-center justify-center border-r h-[72px]", dk ? "border-white/5" : "border-slate-200")}>
-              <div className="text-2xl font-black italic select-none tracking-tighter opacity-80">
-                Euro<span className="text-yellow-500">Track.</span>
-              </div>
+        {/* MEGA-ROW: APP HEADER + STATS */}
+        <div className={cn("flex items-center w-full border-b shrink-0 z-50 h-[64px] px-6 transition-colors", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-200")}>
+           {/* 1. Logo */}
+           <div className="text-xl font-black italic select-none tracking-tighter opacity-80 mr-6 shrink-0">
+             Euro<span className="text-yellow-500">Track.</span>
            </div>
-           <div className="flex-1 h-full">
-            <Header 
-                theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} 
-                searchQuery={searchQuery} setSearchQuery={setSearchQuery} 
-                searchScope={searchScope} setSearchScope={setSearchScope} 
-                onSignOut={onSignOut} onPrint={() => setShowStudio(true)}
-                viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} 
-                offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} 
-              />
+
+           {/* 2. Stats Block */}
+           <div className="flex items-center gap-6 shrink-0">
+             {/* Freie Betten */}
+             <div className="flex flex-col justify-center">
+               <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1 leading-none">{lang === 'de' ? 'Freie Betten' : 'Free Beds'}</p>
+               <p className={cn('text-2xl font-black leading-none', freeBedsTotal > 0 ? 'text-red-500' : 'text-slate-400')}>{freeBedsTotal}</p>
+             </div>
+
+             {/* Hotels */}
+             <div className="flex flex-col justify-center">
+               <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1 leading-none">Hotels</p>
+               <p className="text-2xl font-black leading-none">{finalFiltered.length}</p>
+             </div>
+
+             {/* Kosten */}
+             <div className="flex items-center gap-4">
+               <div className="flex flex-col justify-center">
+                 <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1 leading-none flex items-center gap-1.5">
+                    {lang === 'de' ? 'GESAMTKOSTEN' : 'TOTAL SPENT'}
+                    <button onClick={() => setShowGlobalFinancials(!showGlobalFinancials)} className={cn("rounded transition-colors", showGlobalFinancials ? "text-teal-500" : "hover:text-teal-500")}><Eye size={10}/></button>
+                 </p>
+                 <p className="text-2xl font-black text-teal-600 dark:text-teal-400 leading-none">{formatCurrency(totalSpend)}</p>
+               </div>
+               
+               {/* Expanded Financials safely tucked next to total */}
+               {showGlobalFinancials && (
+                  <div className={cn("flex flex-col justify-center h-8 pl-4 border-l animate-in fade-in slide-in-from-left-2", dk ? "border-white/10" : "border-slate-200")}>
+                      <span className="text-emerald-500 text-[11px] font-bold leading-tight">{formatCurrency(totalPaidGlobal)}</span>
+                      <span className="text-red-500 text-[11px] font-bold leading-tight">{formatCurrency(totalUnpaidGlobal)}</span>
+                  </div>
+               )}
+             </div>
            </div>
+
+           {/* Divider */}
+           <div className={cn("w-px h-8 mx-6 shrink-0", dk ? "bg-white/10" : "bg-slate-200")} />
+
+           {/* 3. Search & Icons (Header Component) */}
+           <Header 
+              theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} 
+              searchQuery={searchQuery} setSearchQuery={setSearchQuery} 
+              searchScope={searchScope} setSearchScope={setSearchScope} 
+              onSignOut={onSignOut} onPrint={() => setShowStudio(true)}
+              viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} 
+              offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} 
+            >
+              {/* Live Dabei passed as children so it anchors right next to Icons */}
+              {activeUsers.length > 0 && (
+                <div className={cn("flex items-center gap-2 mr-2 border-r pr-4", dk ? "border-white/10" : "border-slate-200")}>
+                  <span className="text-[9px] font-bold uppercase tracking-widest opacity-50 hidden xl:block">{lang === 'de' ? 'Live:' : 'Live:'}</span>
+                  <div className="flex -space-x-2">
+                    {activeUsers.map((u: any, i: number) => (
+                      <div key={i} className="relative group cursor-pointer">
+                        <div className={cn("w-7 h-7 rounded-full border-2 flex items-center justify-center text-white text-[10px] font-bold shadow-sm z-10 relative", dk ? "bg-teal-600 border-[#0F172A]" : "bg-teal-600 border-white")}>{u.name.substring(0, 2).toUpperCase()}</div>
+                        <div className="absolute top-full right-0 mt-2 w-max px-3 py-2 bg-slate-800 text-white text-xs rounded-xl opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none shadow-xl">{u.name} <br/> <span className="text-slate-400 text-[10px]">{u.email}</span></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Header>
         </div>
 
         {/* BULK ACTIONS & OFFLINE ALERTS */}
@@ -831,51 +882,6 @@ finalFiltered.forEach(h => {
             <CloudOff size={16} strokeWidth={2.5} /> {lang === 'de' ? 'Offline Modus Aktiv' : 'Offline Mode Active'}
           </div>
         )}
-
-        {/* TIER 2: STATS BAR */}
-        <div className={cn('px-8 py-5 border-b shrink-0 z-40 relative', dk ? 'bg-[#0F172A] border-white/5' : 'bg-white border-slate-200')}>
-          <div className="flex items-center justify-between flex-wrap gap-4 w-full">
-            <div className="flex items-center gap-12 flex-wrap">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">{lang === 'de' ? 'Freie Betten' : 'Free Beds'}</p>
-                <p className={cn('text-3xl font-black', freeBedsTotal > 0 ? 'text-red-500' : 'text-slate-400')}>{freeBedsTotal}</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1">Hotels</p>
-                <p className="text-3xl font-black">{finalFiltered.length}</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest opacity-50 mb-1 flex items-center gap-1.5">
-                     {lang === 'de' ? 'GESAMTKOSTEN' : 'TOTAL SPENT'}
-                     <button onClick={() => setShowGlobalFinancials(!showGlobalFinancials)} className={cn("p-1 rounded transition-colors", showGlobalFinancials ? "text-teal-500 bg-teal-500/10" : "hover:bg-slate-200 dark:hover:bg-white/10")}><Eye size={14}/></button>
-                  </p>
-                  <p className="text-3xl font-black text-teal-600 dark:text-teal-400">{formatCurrency(totalSpend)}</p>
-                </div>
-                {showGlobalFinancials && (
-                   <div className="flex flex-col justify-center h-full pt-4 animate-in fade-in slide-in-from-left-2 pl-4 border-l border-slate-200 dark:border-white/10">
-                       <span className="text-emerald-500 text-sm font-bold leading-tight">{formatCurrency(totalPaidGlobal)}</span>
-                       <span className="text-red-500 text-sm font-bold leading-tight">{formatCurrency(totalUnpaidGlobal)}</span>
-                   </div>
-                )}
-              </div>
-            </div>
-            
-            {activeUsers.length > 0 && (
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">{lang === 'de' ? 'Live dabei:' : 'Live now:'}</span>
-                <div className="flex -space-x-3">
-                  {activeUsers.map((u: any, i: number) => (
-                    <div key={i} className="relative group cursor-pointer">
-                      <div className={cn("w-10 h-10 rounded-full border-2 flex items-center justify-center text-white text-sm font-bold shadow-md z-10 relative", dk ? "bg-teal-600 border-[#0F172A]" : "bg-teal-600 border-white")}>{u.name.substring(0, 2).toUpperCase()}</div>
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max px-3 py-2 bg-slate-800 text-white text-xs rounded-xl opacity-0 group-hover:opacity-100 transition-opacity z-[100] pointer-events-none shadow-xl">{u.name} <br/> <span className="text-slate-400 text-[10px]">{u.email}</span></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
 
         {error && (
            <div className="bg-red-500 text-white px-6 py-2 text-sm font-bold flex items-center justify-center gap-2 z-[60] relative">
