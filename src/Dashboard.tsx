@@ -1305,11 +1305,12 @@ finalFiltered.forEach(h => {
                         />
                       ))}
                     </div>
-                  ) : (
-                    <div className="text-center py-20 text-slate-400 font-medium">
+                  </div> {/* FIX: This closes the parent group container! */}
+                ) : (
+                  <div className="text-center py-20 text-slate-400 font-medium">
                       {lang === 'de' ? 'Wählen Sie einen Tab oben aus' : 'Select a tab above to view entries'}
-                    </div>
-                  )
+                  </div>
+                )
                 ) : (
                   <div className="flex flex-col gap-3">
                     {finalFiltered.map((hotel, index) => (
