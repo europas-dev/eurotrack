@@ -804,6 +804,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   }, [masterMath.employees]);
   const visibleEmps = sortedEmployees.slice(0, 12);
   const hiddenEmps = sortedEmployees.slice(12);
+  
+  // FIX: Detect if a searched employee is hiding in the +X list
+  const activeEmpSearchQuery = searchScope === 'all' || searchScope === 'employee' ? searchQuery : '';
+  const hasHiddenEmpMatch = activeEmpSearchQuery ? hiddenEmps.some((e:any) => e.name?.toLowerCase().includes(activeEmpSearchQuery.toLowerCase())) : false;
 
   const sortedDurations = useMemo(() => {
      const durs = [...(localHotel.durations || [])];
@@ -915,8 +919,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-[14px] font-black leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} />
             <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} className="mt-0.5" textClass={cn("text-[10px] font-bold uppercase tracking-widest gap-1.5", dk ? "text-slate-500" : "text-slate-400")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
             {hiddenMatchText && (
-               <button onClick={(e) => { e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('billing'); }} className="mt-1.5 w-max flex items-center gap-1 px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-500 text-[9px] font-black uppercase tracking-tighter hover:bg-teal-500/20 transition-colors cursor-pointer shadow-sm">
-                  <Search size={8} strokeWidth={3} /> {hiddenMatchText}
+               <button onClick={(e) => { e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('billing'); }} className={cn("mt-1.5 w-max flex items-center gap-1.5 px-2 py-0.5 rounded border text-[10px] font-medium transition-colors cursor-pointer shadow-sm", dk ? "border-teal-500/30 text-teal-400 hover:bg-teal-500/10" : "border-teal-200 text-teal-700 hover:bg-teal-50")}>
+                  <Search size={10} /> <span className="tracking-wide">{hiddenMatchText}</span>
                </button>
             )}
           </div>
@@ -1073,7 +1077,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
               
               {hiddenEmps.length > 0 && (
                  <div className="relative group/hiddenEmp" onMouseEnter={() => setIsDropdownActive(true)} onMouseLeave={() => setIsDropdownActive(false)}>
-                    <span className="px-2 py-0.5 rounded-full border border-dashed border-slate-400 text-[10px] font-bold flex items-center justify-center text-slate-500 cursor-pointer hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">+{hiddenEmps.length}</span>
+                    {/* FIX: The Glowing +X Indicator */}
+                    <span className={cn("px-2 py-0.5 rounded-full border text-[10px] font-bold flex items-center justify-center cursor-pointer transition-colors", hasHiddenEmpMatch ? (dk ? "border-teal-500 bg-teal-500/20 text-teal-300 shadow-[0_0_8px_rgba(20,184,166,0.3)]" : "border-teal-400 bg-teal-50 text-teal-700 shadow-sm") : (dk ? "border-dashed border-slate-500 text-slate-400 hover:bg-white/5" : "border-dashed border-slate-400 text-slate-500 hover:bg-slate-100"))}>
+                       +{hiddenEmps.length}
+                    </span>
+                    {/* REVERTED: Pops down again, and respects Light/Dark Mode */}
                     <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 w-max max-w-[280px] z-[999999] opacity-0 group-hover/hiddenEmp:opacity-100 transition-opacity pointer-events-none group-hover/hiddenEmp:pointer-events-auto">
                         <div className={cn("p-2 rounded-lg shadow-2xl flex flex-wrap gap-1.5 border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-900 border-slate-200")}>
                             {hiddenEmps.map((emp: any) => {
@@ -1110,10 +1118,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                         }} 
                                         className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1.5 shadow-sm hover:opacity-80 transition-opacity", borderCls, isPartial ? "border-[1.5px] border-dashed" : "border border-solid", dk ? "bg-slate-700 text-white hover:bg-slate-600" : "bg-slate-50 text-slate-800 hover:bg-slate-100")}>
                                         {isSubstitute ? <CornerDownRight size={10} className={cn("shrink-0", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} /> : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />}
-                                        {emp.name?.trim().split(' ').pop()}
+                                        
+                                        {/* FIX: Using HighlightText to mark the search match inside the dropdown! */}
+                                        <HighlightText text={emp.name?.trim().split(' ').pop() || ''} query={activeEmpSearchQuery} />
+                                        
                                         </button>
 
-                                        {/* NEW: Hover Tooltip for inside the dropdown */}
+                                        {/* Hover Tooltip for inside the dropdown */}
                                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 pb-2 mb-1 w-max z-[999999] opacity-0 group-hover/innerEmp:opacity-100 transition-opacity pointer-events-none">
                                             <div className="px-3 py-2 bg-slate-800 text-white rounded-lg shadow-xl text-center">
                                                 <p className="text-xs font-bold">{emp.name}</p>
