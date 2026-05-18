@@ -4,7 +4,7 @@ import { supabase, deleteHotel, createHotel, updateHotel } from './lib/supabase'
 import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday, calculateNights, calcInvoiceItem } from './lib/utils';
 import { calcRoomCardNettoSum, calcRoomCardTotal } from './lib/roomCardUtils';
 import type { AccessLevel } from './lib/supabase';
-import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Star, Calendar, MapPin, Building, Building2, CloudOff, Globe, Trash2, Copy, Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Star, Calendar, MapPin, Building, Building2, CloudOff, Globe, Trash2, Copy, Eye, EyeOff, ChevronDown, ChevronUp, Bed, Banknote } from 'lucide-react';
 import Header from './components/Header';
 import { HotelRow, ModernDropdown, CompanyMultiSelect, getCountryOptions } from './components/HotelRow';
 import ExportStudio from './components/ExportStudio';
@@ -792,48 +792,46 @@ finalFiltered.forEach(h => {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         
         {/* MEGA-ROW: APP HEADER + STATS */}
-        <div className={cn("flex items-center w-full border-b shrink-0 z-50 h-[64px] px-6 transition-colors", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-200")}>
-           {/* 1. Logo */}
-           <div className="text-xl font-black italic select-none tracking-tighter opacity-80 mr-6 shrink-0">
-             Euro<span className="text-yellow-500">Track.</span>
-           </div>
-
-           {/* 2. Stats Block */}
-           <div className="flex items-center gap-6 shrink-0">
+        <div className={cn("flex items-center w-full border-b shrink-0 z-50 h-[64px] pl-6 pr-2 transition-colors", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-200")}>
+           
+           {/* Stats Block (Icons only, pushed to absolute far left) */}
+           <div className="flex items-center gap-8 shrink-0">
+             
              {/* Freie Betten */}
-             <div className="flex flex-col justify-center">
-               <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1 leading-none">{lang === 'de' ? 'Freie Betten' : 'Free Beds'}</p>
-               <p className={cn('text-2xl font-black leading-none', freeBedsTotal > 0 ? 'text-red-500' : 'text-slate-400')}>{freeBedsTotal}</p>
+             <div className="flex items-center gap-2.5" title={lang === 'de' ? 'Freie Betten' : 'Free Beds'}>
+               <Bed size={22} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
+               <span className={cn('text-[22px] font-black leading-none mt-0.5', freeBedsTotal > 0 ? 'text-red-500' : 'text-slate-400')}>{freeBedsTotal}</span>
              </div>
 
              {/* Hotels */}
-             <div className="flex flex-col justify-center">
-               <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1 leading-none">Hotels</p>
-               <p className="text-2xl font-black leading-none">{finalFiltered.length}</p>
+             <div className="flex items-center gap-2.5" title="Hotels">
+               <Building size={20} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
+               <span className={cn('text-[22px] font-black leading-none mt-0.5', dk ? 'text-white' : 'text-slate-900')}>{finalFiltered.length}</span>
              </div>
 
-             {/* Kosten */}
-             <div className="flex items-center gap-4">
-               <div className="flex flex-col justify-center">
-                 <p className="text-[9px] font-black uppercase tracking-widest opacity-50 mb-1 leading-none flex items-center gap-1.5">
-                    {lang === 'de' ? 'GESAMTKOSTEN' : 'TOTAL SPENT'}
-                    <button onClick={() => setShowGlobalFinancials(!showGlobalFinancials)} className={cn("rounded transition-colors", showGlobalFinancials ? "text-teal-500" : "hover:text-teal-500")}><Eye size={10}/></button>
-                 </p>
-                 <p className="text-2xl font-black text-teal-600 dark:text-teal-400 leading-none">{formatCurrency(totalSpend)}</p>
-               </div>
-               
-               {/* Expanded Financials safely tucked next to total */}
-               {showGlobalFinancials && (
-                  <div className={cn("flex flex-col justify-center h-8 pl-4 border-l animate-in fade-in slide-in-from-left-2", dk ? "border-white/10" : "border-slate-200")}>
-                      <span className="text-emerald-500 text-[11px] font-bold leading-tight">{formatCurrency(totalPaidGlobal)}</span>
-                      <span className="text-red-500 text-[11px] font-bold leading-tight">{formatCurrency(totalUnpaidGlobal)}</span>
-                  </div>
-               )}
+             {/* Kosten (Eye icon moved BEFORE the number!) */}
+             <div className="flex items-center gap-2" title={lang === 'de' ? 'Gesamtkosten' : 'Total Spent'}>
+                <Banknote size={22} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
+                <button onClick={() => setShowGlobalFinancials(!showGlobalFinancials)} className={cn("p-1 rounded transition-colors", showGlobalFinancials ? "text-teal-500 bg-teal-500/10" : "text-slate-400 hover:text-teal-500 hover:bg-slate-100 dark:hover:bg-white/5")}>
+                  <Eye size={18} strokeWidth={2.5} />
+                </button>
+                <span className="text-[22px] font-black text-teal-600 dark:text-teal-400 leading-none mt-0.5 ml-1">{formatCurrency(totalSpend)}</span>
              </div>
+             
+             {/* Expanded Financials safely tucked next to total */}
+             {showGlobalFinancials && (
+                <div className={cn("flex flex-col justify-center h-8 pl-4 ml-2 border-l animate-in fade-in slide-in-from-left-2", dk ? "border-white/10" : "border-slate-200")}>
+                    <span className="text-emerald-500 text-[11px] font-bold leading-tight">{formatCurrency(totalPaidGlobal)}</span>
+                    <span className="text-red-500 text-[11px] font-bold leading-tight">{formatCurrency(totalUnpaidGlobal)}</span>
+                </div>
+             )}
            </div>
 
            {/* Divider */}
            <div className={cn("w-px h-8 mx-6 shrink-0", dk ? "bg-white/10" : "bg-slate-200")} />
+
+           {/* 3. Search & Icons (Header Component) */}
+           <div className="flex-1 min-w-0 h-full">
 
            {/* 3. Search & Icons (Header Component) */}
            <Header 
@@ -897,9 +895,12 @@ finalFiltered.forEach(h => {
         ) : (
           <main className="flex-1 overflow-y-auto p-8 relative no-scrollbar pb-64">
             
-            {/* TIER 3: DATA CONTROLS */}
-            <div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative" style={{ zIndex: 999998 }}>
-              <h2 className="text-2xl font-bold tracking-tight">{displayTitle}</h2>
+            {/* STICKY CONTROL STACK (Locks Filters & Headers to Top) */}
+            <div className={cn("sticky top-[-32px] z-[55] pt-8 pb-3 -mx-8 px-8 mb-3 border-b-2 shadow-sm", dk ? "bg-[#0F172A]/95 border-white/10 backdrop-blur-md" : "bg-slate-50/95 border-slate-300 backdrop-blur-md")}>
+            
+              {/* TIER 3: DATA CONTROLS */}
+              <div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative" style={{ zIndex: 999998 }}>
+              <h2 className="text-xl font-black tracking-tight">{displayTitle}</h2>
               
               <div className="flex items-center gap-2">
                 
@@ -1250,6 +1251,7 @@ finalFiltered.forEach(h => {
                     <div className="w-8 shrink-0"></div>
                   </div>
                 )}
+              </div>
 
                 {groupBy !== 'none' && groupData ? (
             
