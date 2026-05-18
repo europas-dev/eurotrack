@@ -109,7 +109,8 @@ export default function Header({
   searchQuery, setSearchQuery, searchScope, setSearchScope,
   onSignOut, onPrint,
   viewOnly = false, userRole = 'viewer',
-  offlineMode, onToggleOfflineMode, isOnline = true
+  offlineMode, onToggleOfflineMode, isOnline = true,
+  children // <-- FIX: Pulled children into the function!
 }: HeaderProps) {
   const dk = theme === 'dark';
   const isDe = lang === 'de';
