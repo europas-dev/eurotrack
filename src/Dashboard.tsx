@@ -4,7 +4,7 @@ import { supabase, deleteHotel, createHotel, updateHotel } from './lib/supabase'
 import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday, calculateNights, calcInvoiceItem } from './lib/utils';
 import { calcRoomCardNettoSum, calcRoomCardTotal } from './lib/roomCardUtils';
 import type { AccessLevel } from './lib/supabase';
-import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Star, Calendar, MapPin, Building, Building2, CloudOff, Globe, Trash2, Copy, Eye, EyeOff, ChevronDown, ChevronUp, Bed, Banknote } from 'lucide-react';
+import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Star, Calendar, MapPin, Building, Building2, CloudOff, Globe, Trash2, Copy, Eye, EyeOff, ChevronDown, ChevronUp, Bed, Coins } from 'lucide-react';
 import Header from './components/Header';
 import { HotelRow, ModernDropdown, CompanyMultiSelect, getCountryOptions } from './components/HotelRow';
 import ExportStudio from './components/ExportStudio';
@@ -811,9 +811,9 @@ finalFiltered.forEach(h => {
 
              {/* Kosten (Eye icon moved BEFORE the number!) */}
              <div className="flex items-center gap-2" title={lang === 'de' ? 'Gesamtkosten' : 'Total Spent'}>
-                <Banknote size={22} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
+                <Coins size={22} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
                 <button onClick={() => setShowGlobalFinancials(!showGlobalFinancials)} className={cn("p-1 rounded transition-colors", showGlobalFinancials ? "text-teal-500 bg-teal-500/10" : "text-slate-400 hover:text-teal-500 hover:bg-slate-100 dark:hover:bg-white/5")}>
-                  <Eye size={18} strokeWidth={2.5} />
+               <Eye size={18} strokeWidth={2.5} />
                 </button>
                 <span className="text-[22px] font-black text-teal-600 dark:text-teal-400 leading-none mt-0.5 ml-1">{formatCurrency(totalSpend)}</span>
              </div>
@@ -894,11 +894,12 @@ finalFiltered.forEach(h => {
              <Loader2 size={48} className="animate-spin text-teal-500 opacity-50" />
           </div>
         ) : (
-          <main className="flex-1 overflow-y-auto p-8 relative no-scrollbar pb-64">
+          {/* FIX: Removed pt-8 so the top is flush, making sticky top-0 bulletproof */}
+          <main className="flex-1 overflow-y-auto px-8 pb-64 relative no-scrollbar">
             
-            {/* STICKY CONTROL STACK (Locks Filters & Headers to Top) */}
-            <div className={cn("sticky top-[-32px] z-[55] pt-8 pb-3 -mx-8 px-8 mb-3 border-b-2 shadow-sm", dk ? "bg-[#0F172A]/95 border-white/10 backdrop-blur-md" : "bg-slate-50/95 border-slate-300 backdrop-blur-md")}>
-            
+            {/* STICKY CONTROL STACK */}
+            {/* FIX: Changed to top-0 and reduced pt-8 to pt-4 to tighten the gap nicely */}
+            <div className={cn("sticky top-0 z-[55] pt-4 pb-3 -mx-8 px-8 mb-4 border-b-2 shadow-sm", dk ? "bg-[#0F172A]/95 border-white/10 backdrop-blur-md" : "bg-slate-50/95 border-slate-300 backdrop-blur-md")}> 
               {/* TIER 3: DATA CONTROLS */}
               <div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative" style={{ zIndex: 999998 }}>
               <h2 className="text-xl font-black tracking-tight">{displayTitle}</h2>
@@ -1270,11 +1271,13 @@ finalFiltered.forEach(h => {
                           <p className="text-[10px] font-bold text-slate-500 uppercase">{lang === 'de' ? 'Gesamtwert' : 'Total Value'}</p>
                           <p className="text-lg font-bold text-teal-600 dark:text-teal-400">{formatCurrency(groupData[activeGroupTab].reduce((s,h)=>s+calcHotelTotalCost(h, selectedMonth !== null ? selectedMonth : null, selectedYear),0))}</p>
                         </div>
-                      </div>
+                    </div>
 
+                    {/* FIX: Wrapping rows in gap-3 for better visual separation */}
+                    <div className="flex flex-col gap-3">
                       {groupData[activeGroupTab].map((h, i) => (
                         <HotelRow 
-                          key={h.id} 
+                          key={h.id}
                           selectedMonth={selectedMonth}
                           selectedYear={selectedYear}
                           isOpen={expandedHotelId === h.id}
@@ -1310,9 +1313,11 @@ finalFiltered.forEach(h => {
                     </div>
                   )
                 ) : (
-                  finalFiltered.map((hotel, index) => (
-                    <HotelRow 
-                      key={hotel.id} 
+                  {/* FIX: Wrapping rows in gap-3 for better visual separation */}
+                  <div className="flex flex-col gap-3">
+                    {finalFiltered.map((hotel, index) => (
+                      <HotelRow 
+                        key={hotel.id}
                       selectedMonth={selectedMonth}
                       selectedYear={selectedYear}
                       isOpen={expandedHotelId === hotel.id}
