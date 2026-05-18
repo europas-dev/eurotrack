@@ -792,8 +792,7 @@ finalFiltered.forEach(h => {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         
         {/* MEGA-ROW: APP HEADER + STATS */}
-        <div className={cn("flex items-center w-full border-b shrink-0 z-50 h-[64px] pl-6 pr-2 transition-colors", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-200")}>
-           
+       <div className={cn("flex items-center w-full border-b shrink-0 h-[64px] pl-6 pr-2 transition-colors z-[60] hover:z-[999999] focus-within:z-[999999]", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-200")}>  
            {/* Stats Block (Icons only, pushed to absolute far left) */}
            <div className="flex items-center gap-8 shrink-0">
              
