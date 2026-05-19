@@ -54,8 +54,8 @@ export default function Landing({
 }: LandingProps) {
   const content = {
     de: {
-      tag:        'Asset-Management',
-      title:      'Präzises Bettenmanagement',
+      tag:        'Mitarbeiter- und Kostenmanagement',
+      title:      'Präzises Hotelmanagement',
       desc:       'Optimieren Sie Hotelbelegungen und tracken Sie Mitarbeiter-Substitutionen in Echtzeit für Europas GmbH',
       login:      'Anmelden',
       signup:     'Registrieren',
@@ -69,8 +69,8 @@ export default function Landing({
       ],
     },
     en: {
-      tag:        'Asset Management',
-      title:      'Precision Bed Management',
+      tag:        'Employee & Cost Management',
+      title:      'Precision Hotel Management',
       desc:       'Optimize hotel occupancies and track employee substitutions in real-time for Europas GmbH',
       login:      'Log In',
       signup:     'Sign Up',
