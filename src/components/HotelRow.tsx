@@ -1069,7 +1069,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                         {/* Dynamic Background and Text Colors */}
                         <div className={cn("px-3 py-2 rounded-lg shadow-xl text-center border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-900 border-slate-200")}>
                             <p className="text-xs font-bold">{emp.name}</p>
-                            <p className={cn("text-[10px]", dk ? "text-slate-300" : "text-slate-500")}>
+                            <p className={cn("text-[11px]", dk ? "text-slate-300" : "text-slate-500")}>
                                {formatShortDate(emp.checkIn, lang)} ➔ {formatShortDate(emp.checkOut, lang)} ({calculateNights(emp.checkIn||'', emp.checkOut||'')}N)
                             </p>
                         </div>
@@ -1129,9 +1129,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
                                         {/* Hover Tooltip for inside the dropdown */}
                                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 pb-2 mb-1 w-max z-[999999] opacity-0 group-hover/innerEmp:opacity-100 transition-opacity pointer-events-none">
-                                            <div className="px-3 py-2 bg-slate-800 text-white rounded-lg shadow-xl text-center">
+                                            <div className={cn("px-3 py-2 rounded-lg shadow-xl text-center border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-900 border-slate-200")}>
                                                 <p className="text-xs font-bold">{emp.name}</p>
-                                                <p className="text-[10px] text-slate-300">{formatShortDate(emp.checkIn, lang)} ➔ {formatShortDate(emp.checkOut, lang)} ({calculateNights(emp.checkIn||'', emp.checkOut||'')}N)</p>
+                                                <p className={cn("text-[11px]", dk ? "text-slate-300" : "text-slate-500")}>
+                                                   {formatShortDate(emp.checkIn, lang)} ➔ {formatShortDate(emp.checkOut, lang)} ({calculateNights(emp.checkIn||'', emp.checkOut||'')}N)
+                                                </p>
                                             </div>
                                         </div>
                                     </div>
