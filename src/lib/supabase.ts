@@ -59,6 +59,12 @@ export async function setUserRole(userId: string, role: UserRole): Promise<void>
   if (!data || data.length === 0) {
     throw new Error("Permission Denied: The database blocked this update. Check your RLS policies.");
   }
+
+  // NEW FIX: If we are upgrading them to an active role, forcefully verify their email via our secure RPC!
+  if (role !== 'pending') {
+    const { error: rpcError } = await supabase.rpc('admin_verify_user_email', { target_user_id: userId });
+    if (rpcError) console.error("Failed to auto-verify email, but role was updated:", rpcError);
+  }
 }
 
 // ─── Profiles ──────────────────────────────────────────────────────────────
