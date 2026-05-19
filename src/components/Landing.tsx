@@ -56,14 +56,14 @@ export default function Landing({
     de: {
       tag:        'Asset-Management',
       title:      'Präzises Bettenmanagement',
-      desc:       'Optimieren Sie Hotelbelegungen und tracken Sie Mitarbeiter-Substitutionen in Echtzeit.',
+      desc:       'Optimieren Sie Hotelbelegungen und tracken Sie Mitarbeiter-Substitutionen in Echtzeit für Europas GmbH',
       login:      'Anmelden',
       signup:     'Registrieren',
       getStarted: 'Jetzt Starten',
       adminLink:  'Systemadministration',
       features: [
         { icon: <LayoutDashboard size={20} />, title: 'Übersicht',    desc: 'Zentralisierte Verwaltung.' },
-        { icon: <Bed            size={20} />, title: 'Betten-Logik', desc: 'EZ/DZ/TZ Belegung.' },
+        { icon: <Bed            size={20} />, title: 'Betten-Logik', desc: 'EZ/DZ/TZ/WG Belegung.' },
         { icon: <BarChart3      size={20} />, title: 'Budget',        desc: 'Echtzeit-Summen.' },
         { icon: <ShieldCheck    size={20} />, title: 'Sicher',        desc: 'Cloud Speicherung.' },
       ],
@@ -71,14 +71,14 @@ export default function Landing({
     en: {
       tag:        'Asset Management',
       title:      'Precision Bed Management',
-      desc:       'Optimize hotel occupancies and track employee substitutions in real-time.',
+      desc:       'Optimize hotel occupancies and track employee substitutions in real-time for Europas GmbH',
       login:      'Log In',
       signup:     'Sign Up',
       getStarted: 'Get Started',
       adminLink:  'System Administration',
       features: [
         { icon: <LayoutDashboard size={20} />, title: 'Overview',  desc: 'Centralized management.' },
-        { icon: <Bed            size={20} />, title: 'Bed Logic', desc: 'SR/DR/TR tracking.' },
+        { icon: <Bed            size={20} />, title: 'Bed Logic', desc: 'SR/DR/TR/WR tracking.' },
         { icon: <BarChart3      size={20} />, title: 'Budget',    desc: 'Real-time totals.' },
         { icon: <ShieldCheck    size={20} />, title: 'Secure',    desc: 'Cloud storage.' },
       ],
