@@ -1374,16 +1374,16 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                        <div className={cn("w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-colors", dk ? "border-slate-600 text-slate-400" : "border-slate-300 text-slate-400 group-hover/info:border-teal-500 group-hover/info:text-teal-500")}>i</div>
                                        <div className={cn("absolute left-7 top-0 w-max min-w-[200px] max-w-[250px] p-3 rounded-xl shadow-2xl border opacity-0 group-hover/info:opacity-100 pointer-events-none transition-all z-[9999] -translate-x-2 group-hover/info:translate-x-0 flex flex-col gap-1", dk ? "bg-slate-800 border-white/10" : "bg-white border-slate-200")}>
                                          <p className={cn("text-[13px] font-black leading-tight border-b pb-1 mb-1", dk ? "text-white border-white/10" : "text-slate-900 border-slate-100")}>{inv.number || 'Unnamed'}</p>
-                                         <p className={cn("text-[11px] font-bold", dk ? "text-slate-300" : "text-slate-600")}><span className="opacity-60">Period:</span> {inv.startDate ? `${formatShortDate(inv.startDate, lang)} - ${formatShortDate(inv.endDate, lang)}` : '--'}</p>
-                                         <p className={cn("text-[11px] font-bold", dk ? "text-slate-300" : "text-slate-600")}><span className="opacity-60">{inv.dueDate ? (lang==='de'?'Fällig:':'Due:') : (lang==='de'?'Erstellt:':'Created:')}</span> {inv.dueDate ? formatShortDate(inv.dueDate, lang) : formatShortDate(inv.created_at || new Date().toISOString(), lang)}</p>
-                                         {inv.isPaid && <p className={cn("text-[11px] font-bold text-emerald-500")}><span className="opacity-60">Paid on:</span> {inv.paymentDate ? formatShortDate(inv.paymentDate, lang) : '--'}</p>}
-                                         {inv.note && <p className={cn("text-[11px] font-medium leading-relaxed break-words whitespace-pre-wrap mt-1 pt-1 border-t", dk ? "text-slate-400 border-white/10" : "text-slate-500 border-slate-100")}>{inv.note}</p>}
+                                          <p className={cn("text-[11px] font-bold", dk ? "text-slate-300" : "text-slate-600")}><span className="opacity-60">{lang === 'de' ? 'Zeitraum:' : 'Period:'}</span> {inv.startDate ? `${formatShortDate(inv.startDate, lang)} - ${formatShortDate(inv.endDate, lang)}` : '--'}</p>
+                                          <p className={cn("text-[11px] font-bold", dk ? "text-slate-300" : "text-slate-600")}><span className="opacity-60">{inv.dueDate ? (lang==='de'?'Fällig:':'Due:') : (lang==='de'?'Erstellt:':'Created:')}</span> {inv.dueDate ? formatShortDate(inv.dueDate, lang) : formatShortDate(inv.created_at || new Date().toISOString(), lang)}</p>
+                                          {inv.isPaid && <p className={cn("text-[11px] font-bold text-emerald-500")}><span className="opacity-60">{lang === 'de' ? 'Bezahlt am:' : 'Paid on:'}</span> {inv.paymentDate ? formatShortDate(inv.paymentDate, lang) : '--'}</p>}
+                                          {inv.note && <p className={cn("text-[11px] font-medium leading-relaxed break-words whitespace-pre-wrap mt-1 pt-1 border-t", dk ? "text-slate-400 border-white/10" : "text-slate-500 border-slate-100")}>{inv.note}</p>}
                                        </div>
                                     </div>
-                                    <div className="flex flex-col">
-                                       <div className="flex items-center gap-1.5">
+                                    <div className="flex flex-col flex-1 min-w-0 pr-2">
+                                       <div className="flex items-center gap-1.5 w-full">
                                           <span className={cn("w-2 h-2 rounded-full shrink-0", inv.isPaid ? "bg-emerald-500" : "bg-red-500")} />
-                                          <span className={cn("text-[13px] font-black truncate max-w-[120px]", dk ? "text-slate-200" : "text-slate-800", isActiveSelection && "text-teal-600 dark:text-teal-400")}>
+                                          <span className={cn("text-[11.5px] font-bold truncate", dk ? "text-slate-400" : "text-slate-500", isActiveSelection && "text-teal-600 dark:text-teal-400")}>
                                              <HighlightText text={inv.number || 'Unnamed'} query={searchScope === 'all' || searchScope === 'invoice' ? searchQuery : ''} />
                                           </span>
                                        </div>
