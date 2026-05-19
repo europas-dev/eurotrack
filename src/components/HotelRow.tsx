@@ -1191,7 +1191,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                <button onClick={handleBookmarkToggle} className={cn("p-0.5 rounded transition-colors", isBookmarked ? "text-yellow-500" : "text-slate-400 hover:text-slate-800 dark:hover:text-white")}><Star size={12} className={isBookmarked ? "fill-yellow-500" : ""} /></button>
                <div className="relative group/time">
                   <button onClick={(e) => e.stopPropagation()} className="p-0.5 rounded text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"><Clock size={12} /></button>
-                  <div className={cn("absolute right-full mr-2 top-1/2 -translate-y-1/2 w-max px-2 py-1 text-[9px] font-bold rounded opacity-0 group-hover/time:opacity-100 z-[99999] whitespace-nowrap pointer-events-none shadow-xl border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-700 border-slate-200")}>{formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}</div>
+                  <div className={cn("absolute right-full mr-2 top-1/2 -translate-y-1/2 w-max px-2 py-1 text-[9px] font-bold rounded opacity-0 group-hover/time:opacity-100 z-[99999] whitespace-nowrap pointer-events-none shadow-xl border", dk ? "bg-slate-700 text-white border-white/20" : "bg-white text-slate-800 border-slate-300")}>{formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}</div>
                </div>
                {!viewOnly && (
                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-0.5 rounded text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
@@ -1368,7 +1368,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                            let invBrutto = inv.billingMode === 'total' ? (parseFloat(inv.totalNetto)||0) * (1 + (parseFloat(inv.totalMwst)||0)/100) : (inv.items||[]).reduce((sum:number, it:any) => sum + calcInvoiceItem(it, defaultN).brutto, 0);
 
                            return (
-                              <div key={inv.id} onClick={() => { setSelectedInvoiceId(isActiveSelection ? null : inv.id); setEditingItemId(null); setEditingTotal(false); }} className={cn("group relative flex items-center justify-between p-2 rounded-xl transition-all cursor-pointer border shadow-sm hover:shadow-md", isActiveSelection ? (dk ? "bg-teal-900/30 border-teal-500/50 shadow-md" : "bg-teal-50 border-teal-300 shadow-md") : (dk ? "bg-[#1E293B] border-white/5 hover:border-white/20" : "bg-white border-slate-100 hover:border-slate-300"))}>
+                              <div key={inv.id} onClick={() => { setSelectedInvoiceId(isActiveSelection ? null : inv.id); setEditingItemId(null); setEditingTotal(false); }} className={cn("group relative flex items-center justify-between p-2 rounded-xl transition-all cursor-pointer border shadow-sm hover:shadow-md", isActiveSelection ? (dk ? "bg-teal-900/40 border-teal-500/60 shadow-md" : "bg-teal-50 border-teal-300 shadow-md") : (dk ? "bg-[#242d41] border-white/10 hover:border-white/20" : "bg-white border-slate-200 hover:border-slate-300"))}>
                                  <div className="flex items-center gap-2.5">
                                     <div className={cn("relative flex items-center justify-center group/info cursor-help shrink-0")}>
                                        <div className={cn("w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-colors", dk ? "border-slate-600 text-slate-400" : "border-slate-300 text-slate-400 group-hover/info:border-teal-500 group-hover/info:text-teal-500")}>i</div>
@@ -1383,7 +1383,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                     <div className="flex flex-col flex-1 min-w-0 pr-2">
                                        <div className="flex items-center gap-1.5 w-full">
                                           <span className={cn("w-2 h-2 rounded-full shrink-0", inv.isPaid ? "bg-emerald-500" : "bg-red-500")} />
-                                          <span className={cn("text-[11.5px] font-bold truncate", dk ? "text-slate-400" : "text-slate-500", isActiveSelection && "text-teal-600 dark:text-teal-400")}>
+                                          <span className={cn("text-[11.5px] font-bold truncate", dk ? "text-slate-300" : "text-slate-700", isActiveSelection && "text-teal-600 dark:text-teal-400")}>
                                              <HighlightText text={inv.number || 'Unnamed'} query={searchScope === 'all' || searchScope === 'invoice' ? searchQuery : ''} />
                                           </span>
                                        </div>
