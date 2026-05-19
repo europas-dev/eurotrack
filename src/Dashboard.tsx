@@ -152,44 +152,43 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       const state = channel.presenceState();
       const users = Object.values(state).flat().map((p: any) => p.user);
       
-      // 1. Collect all IDs that have AT LEAST ONE 'invisible' signal. 
-      // This guarantees old/stale connections cannot override your hidden status.
       const ghostIds = new Set(users.filter((u: any) => u.invisible === true || u.is_ghost === true).map((u: any) => u.id));
-      
-      // 2. Map unique users
       const uniqueUsers = Array.from(new Map(users.map((u: any) => [u.id, u])).values());
-      
-      // 3. Forcefully exclude anyone caught in the ghostIds Set
       const filteredUsers = uniqueUsers.filter((u: any) => !ghostIds.has(u.id));
       setActiveUsers(filteredUsers);
     });
 
+    // FIX: Reusable sync function that always grabs the freshest data directly from the profiles table!
+    const syncMyPresence = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && isMounted) {
+         const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+         
+         // Prioritize the database 'full_name' over the auth token
+         const freshName = profile?.full_name || profile?.fullName || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+         const isGhost = profile?.invisible === true || profile?.is_ghost === true;
+
+         await channel.track({ user: { id: user.id, name: freshName, email: user.email, invisible: isGhost } });
+      }
+    };
+
     channel.subscribe(async (status) => {
       if (status === 'SUBSCRIBED' && isMounted) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user && isMounted) {
-          const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
-          
-          // Use maybeSingle() to prevent database errors, and fetch * to guarantee we catch the column
-          const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
-          const isGhost = profile?.invisible === true || profile?.is_ghost === true;
-          
-          await channel.track({ user: { id: user.id, name, email: user.email, invisible: isGhost } });
-        }
+        await syncMyPresence();
       }
     });
 
-    const handleGhostChange = async (e: any) => {
-       const isGhost = e.detail;
-       const { data: { user } } = await supabase.auth.getUser();
-       if (user) {
-          const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
-          await channel.track({ user: { id: user.id, name, email: user.email, invisible: isGhost } });
-       }
-    };
-    window.addEventListener('ghost-mode-changed', handleGhostChange);
+    // We can just call syncMyPresence for any update now!
+    window.addEventListener('ghost-mode-changed', syncMyPresence);
+    window.addEventListener('profile-updated', syncMyPresence);
 
-    return () => { isMounted = false; window.removeEventListener('ghost-mode-changed', handleGhostChange); channel.unsubscribe(); supabase.removeChannel(channel); };
+    return () => { 
+      isMounted = false; 
+      window.removeEventListener('ghost-mode-changed', syncMyPresence); 
+      window.removeEventListener('profile-updated', syncMyPresence); 
+      channel.unsubscribe(); 
+      supabase.removeChannel(channel); 
+    };
   }, []);
 
   // --- DATA FETCHING LOGIC ---
