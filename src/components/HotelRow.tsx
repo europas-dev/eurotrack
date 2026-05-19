@@ -1390,7 +1390,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                     </div>
                                  </div>
                                  <div className="flex items-center gap-3 shrink-0">
-                                    <span className={cn("text-[13px] font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(invBrutto)}</span>
+                                    <span className={cn("text-[11.5px] font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(invBrutto)}</span>
                                     {(!viewOnly && isActiveSelection) && (
                                        <button onClick={(e) => { e.stopPropagation(); setEditingInvoiceId(inv.id); setInvoiceDraft(inv); }} className="p-1.5 bg-black/5 dark:bg-white/5 rounded text-slate-500 hover:text-teal-600 transition-all shrink-0"><Edit3 size={14} /></button>
                                     )}
