@@ -464,9 +464,9 @@ export default function Header({
                       </div>
 
                       <div className="space-y-2">
-                        <Accordion title="FAQ" icon={HelpCircle} dk={dk}><p>{isDe ? 'Antworten auf häufig gestellte Fragen.' : 'Find answers to FAQs here.'}</p></Accordion>
-                        <Accordion title={isDe ? 'Datenschutz' : 'Privacy Policy'} icon={FileText} dk={dk}><p>{isDe ? 'Ihre Daten werden sicher gespeichert.' : 'Data is stored securely.'}</p></Accordion>
-                        <Accordion title={isDe ? 'Über EuroTrack' : 'About EuroTrack'} icon={Info} dk={dk}><p>{isDe ? 'EuroTrack ist ein internes Tool.' : 'EuroTrack is an internal tool.'}</p></Accordion>
+                        <Accordion title="FAQ" icon={HelpCircle} dk={dk}><p>{isDe ? 'Bei Fragen wenden Sie sich bitte an: s.hossain@europasgmbh.de' : 'For any FAQs, please contact: s.hossain@europasgmbh.de'}</p></Accordion>
+                        <Accordion title={isDe ? 'Datenschutz' : 'Privacy Policy'} icon={FileText} dk={dk}><p>{isDe ? 'Die Daten werden sicher im Dashboard gespeichert und anhand von Benutzerdaten entsprechend den verschiedenen Zugriffsebenen authentifiziert. Bitte geben Sie Ihre persönlichen Anmelde- oder Kontodaten nicht an Dritte weiter. ' : 'The data is stored securely in the dashboard and authenticated by user credentials based on different access levels. Please do not share personal log in or account credentials with others. '}</p></Accordion>
+                        <Accordion title={isDe ? 'Über EuroTrack' : 'About EuroTrack'} icon={Info} dk={dk}><p>{isDe ? 'EuroTrack ist ein internes Management-Tool zur Erfassung von Hotels, Mitarbeitern, freien Betten und Kostenübersichten, das in erster Linie für die Europas GmbH entwickelt wurde. ' : 'EuroTrack is internal management tool to track hotels, employees, free beds and cost summary, mainly developed for Europas GmbH. '}</p></Accordion>
                       </div>
                     </>
                   )}
