@@ -313,6 +313,9 @@ export default function Header({
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder={isDe ? 'Suchen...' : 'Search...'}
                 className={cn('w-full h-9 pl-9 pr-9 text-sm outline-none bg-transparent font-bold', dk ? 'text-white placeholder-slate-600' : 'text-slate-900 placeholder-slate-400')}
+                autoComplete="off" 
+                autoCorrect="off" 
+                spellCheck="false"
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery('')} className="absolute right-3">
