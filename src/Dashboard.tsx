@@ -164,12 +164,11 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       if (user && isMounted) {
          const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
          
+         // Prioritize the database 'full_name' over the auth token
          const freshName = profile?.full_name || profile?.fullName || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
          const isGhost = profile?.invisible === true || profile?.is_ghost === true;
-         // Ensure we are grabbing the 'avatar' column here
-         const avatar = profile?.avatar || null;
 
-         await channel.track({ user: { id: user.id, name: freshName, email: user.email, invisible: isGhost, avatar } });
+         await channel.track({ user: { id: user.id, name: freshName, email: user.email, invisible: isGhost } });
       }
     };
 
@@ -840,44 +839,35 @@ finalFiltered.forEach(h => {
            <div className={cn("w-px h-8 mx-6 shrink-0", dk ? "bg-white/10" : "bg-slate-200")} />
 
            {/* 3. Search & Icons (Header Component) */}
-            <div className="flex-1 min-w-0 h-full">
-              <Header 
-                theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} 
-                searchQuery={searchQuery} setSearchQuery={setSearchQuery} 
-                searchScope={searchScope} setSearchScope={setSearchScope} 
-                onSignOut={onSignOut} onPrint={() => setShowStudio(true)}
-                viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} 
-                offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} 
-              >
-                {/* Live Users Display */}
-                {activeUsers.length > 0 && (
-                  <div className={cn("flex items-center gap-2 mr-2 border-r pr-4 isolate relative z-[999999]", dk ? "border-white/10" : "border-slate-200")}>
-                    <span className="text-[9px] font-bold uppercase tracking-widest opacity-50 hidden xl:block">{lang === 'de' ? 'Live:' : 'Live:'}</span>
-                    <div className="flex -space-x-2">
-                      {activeUsers.map((u: any, i: number) => (
-                        <div key={i} className="relative group cursor-pointer">
-                          <div className={cn("w-7 h-7 rounded-full border-2 flex items-center justify-center text-white text-[10px] font-bold shadow-sm z-10 relative overflow-hidden", dk ? "bg-teal-600 border-[#0F172A]" : "bg-teal-600 border-white")}>
-                            {u.avatar && u.avatar.trim() !== '' ? (
-                              <span className="text-[14px] leading-none">
-                                {u.avatar === 'eagle' ? '🦅' : u.avatar}
-                              </span>
-                            ) : (
-                              <span className="text-[10px]">
-                                {u.name?.substring(0, 2).toUpperCase() || '??'}
-                              </span>
-                            )}
-                          </div>
-                          {/* Hover Tooltip */}
-                          <div className="absolute top-full right-0 mt-2 w-max px-3 py-2 bg-slate-800 text-white text-xs rounded-xl opacity-0 group-hover:opacity-100 transition-opacity z-[999999] pointer-events-none shadow-xl">
-                            {u.name} <br/> <span className="text-slate-400 text-[10px]">{u.email}</span>
-                          </div>
+           <div className="flex-1 min-w-0 h-full">
+           <Header 
+               theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} 
+               searchQuery={searchQuery} setSearchQuery={setSearchQuery} 
+               searchScope={searchScope} setSearchScope={setSearchScope} 
+               onSignOut={onSignOut} onPrint={() => setShowStudio(true)}
+               viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} 
+               offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} 
+            >
+              {/* Live Dabei passed as children so it anchors right next to Icons */}
+              {activeUsers.length > 0 && (
+                <div className={cn("flex items-center gap-2 mr-2 border-r pr-4 isolate relative z-[999999]", dk ? "border-white/10" : "border-slate-200")}>
+                  <span className="text-[9px] font-bold uppercase tracking-widest opacity-50 hidden xl:block">{lang === 'de' ? 'Live:' : 'Live:'}</span>
+                  <div className="flex -space-x-2">
+                    {activeUsers.map((u: any, i: number) => (
+                      <div key={i} className="relative group cursor-pointer">
+                        <div className={cn("w-7 h-7 rounded-full border-2 flex items-center justify-center text-white text-[10px] font-bold shadow-sm z-10 relative", dk ? "bg-teal-600 border-[#0F172A]" : "bg-teal-600 border-white")}>{u.name.substring(0, 2).toUpperCase()}</div>
+                        {/* FIX: Handled extreme depth layer layering via z-[999999] explicitly on the popup box */}
+                        <div className="absolute top-full right-0 mt-2 w-max px-3 py-2 bg-slate-800 text-white text-xs rounded-xl opacity-0 group-hover:opacity-100 transition-opacity z-[999999] pointer-events-none shadow-xl">
+                          {u.name} <br/> <span className="text-slate-400 text-[10px]">{u.email}</span>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
-                )}
-              </Header>
-            </div>
+                </div>
+              )}
+            </Header>
+        </div>
+      </div>
 
         {/* BULK ACTIONS & OFFLINE ALERTS */}
         {selectedIds.size > 0 && (
