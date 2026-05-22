@@ -1252,7 +1252,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
             {activeTab === 'billing' && (
               <div className="flex flex-col xl:flex-row bg-white dark:bg-transparent rounded-b-2xl animate-in fade-in">
-                <div className={cn("w-full xl:w-[280px] shrink-0 p-4 flex flex-col gap-3 border-b xl:border-b-0 xl:border-r transition-colors", dk ? "border-white/10 bg-[#0F172A]/80" : "border-slate-200 bg-slate-50")}>
+                <div className={cn("w-full xl:w-[300px] shrink-0 p-5 flex flex-col gap-3 border-b xl:border-b-0 xl:border-r transition-colors", dk ? "border-white/10 bg-[#0F172A]/80" : "border-slate-200 bg-slate-50")}>
                     <div className="flex items-center justify-between mb-2">
                        <label className={labelCls}><Receipt size={14}/> {lang === 'de' ? 'Rechnungen' : 'Invoices'}</label>
                        <div className="flex items-center gap-2">
@@ -1275,7 +1275,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                        </div>
                     </div>
                     
-                    <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[350px] no-scrollbar">
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-2 max-h-[500px] relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
                        {editingInvoiceId && invoiceDraft && !localHotel.invoices.find((i:any) => i.id === editingInvoiceId) && (
                           <div className={cn("group relative flex flex-col gap-2 p-3 rounded-xl transition-all border shadow-md", dk ? "bg-teal-900/30 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
                              <input autoFocus value={invoiceDraft.number} onChange={e => setInvoiceDraft({...invoiceDraft, number: e.target.value})} className="w-full text-[13px] font-black border-none bg-transparent outline-none p-0 focus:ring-0 placeholder:text-slate-400" placeholder="RE-..." />
@@ -1407,7 +1407,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                     </div>
                 </div>
 
-                <div className="flex-1 p-0 flex flex-col min-w-[700px] z-10 border-r border-slate-200 dark:border-white/10">
+                <div className="flex-1 p-0 flex flex-col min-w-[660px] z-10 border-r border-slate-200 dark:border-white/10">
                    <div className={cn("px-5 h-[50px] border-b flex items-center justify-between shrink-0", dk ? "border-white/10" : "border-slate-200", activeInvoice ? (dk ? "bg-[#1E293B]" : "bg-slate-50") : "bg-transparent")}>
                       <div className="flex items-center gap-4 flex-1">
                           {activeInvoice ? (
@@ -1640,7 +1640,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    </div>
                 </div>
 
-                <div className={cn("w-full xl:w-[280px] p-5 flex flex-col shrink-0 rounded-b-2xl xl:rounded-bl-none transition-colors", dk ? "bg-[#0B1224]" : "bg-white", activeInvoice && (dk ? "bg-teal-950/20" : "bg-teal-50/30"))}>
+                <div className={cn("w-full xl:w-[300px] p-5 flex flex-col shrink-0 rounded-b-2xl xl:rounded-bl-none transition-colors", dk ? "bg-[#0B1224]" : "bg-white", activeInvoice && (dk ? "bg-teal-950/20" : "bg-teal-50/30"))}>
                    <div className="flex items-center justify-between gap-2 mb-5">
                       {activeInvoice ? (
                          <span className="text-[14px] font-black text-teal-600 dark:text-teal-400 bg-teal-500/10 px-3 py-1 rounded-md">{activeInvoice.number || 'Draft'}</span>
