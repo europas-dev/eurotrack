@@ -857,7 +857,6 @@ finalFiltered.forEach(h => {
                     {activeUsers.map((u: any, i: number) => (
                       <div key={i} className="relative group cursor-pointer">
                         <div className={cn("w-7 h-7 rounded-full border-2 flex items-center justify-center text-white text-[10px] font-bold shadow-sm z-10 relative overflow-hidden", dk ? "bg-teal-600 border-[#0F172A]" : "bg-teal-600 border-white")}>
-                           {/* Priority: Avatar string first. If it's a known name like 'eagle', show the icon. Otherwise show the raw emoji or initials */}
                            {u.avatar && u.avatar.trim() !== '' ? (
                               <span className="text-[14px] leading-none">
                                 {u.avatar === 'eagle' ? '🦅' : u.avatar}
