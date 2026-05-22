@@ -1459,7 +1459,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       )}
                    </div>
 
-                   <div className="flex-1 overflow-y-auto max-h-[400px] relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
+                   <div className="flex-1 overflow-y-auto max-h-[500px] relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
                       {activeInvoice ? (
                          activeInvoice.billingMode === 'total' ? (
                             <div className="p-4">
