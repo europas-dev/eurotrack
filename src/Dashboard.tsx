@@ -789,7 +789,7 @@ finalFiltered.forEach(h => {
   return (
     <div className={cn('flex h-screen overflow-hidden', dk ? 'bg-[#0F172A]' : 'bg-slate-50')}>
       
-      <div className={cn("flex-1 flex flex-col min-w-0 overflow-hidden relative", isStrictViewer ? "pt-8" : "")}>
+      <div className={cn("flex-1 flex flex-col min-w-0 overflow-hidden relative", isStrictViewer ? "pt-4" : "")}>
         
         {/* MEGA-ROW: APP HEADER + STATS */}
        <div className={cn("flex items-center w-full border-b shrink-0 h-[64px] pl-6 pr-2 transition-colors z-[60] hover:z-[999999] focus-within:z-[999999]", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-200")}>  
