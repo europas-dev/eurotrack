@@ -849,7 +849,7 @@ finalFiltered.forEach(h => {
                 viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} 
                 offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={isOnline} 
               >
-                {/* Live Dabei passed as children */}
+                {/* Live Users Display */}
                 {activeUsers.length > 0 && (
                   <div className={cn("flex items-center gap-2 mr-2 border-r pr-4 isolate relative z-[999999]", dk ? "border-white/10" : "border-slate-200")}>
                     <span className="text-[9px] font-bold uppercase tracking-widest opacity-50 hidden xl:block">{lang === 'de' ? 'Live:' : 'Live:'}</span>
