@@ -871,7 +871,7 @@ finalFiltered.forEach(h => {
 
         {/* BULK ACTIONS & OFFLINE ALERTS */}
         {selectedIds.size > 0 && (
-          <div className={cn("sticky top-0 z-[60] w-full border-b flex items-center justify-between px-8 py-3 animate-in slide-in-from-top duration-300", dk ? "bg-[#1E293B]/95 border-teal-500/30 text-white backdrop-blur-md" : "bg-teal-600 border-teal-700 text-white shadow-lg")}>
+          <div className={cn("sticky top-0 z-[1000] w-full border-b flex items-center justify-between px-8 py-3 animate-in slide-in-from-top duration-300", dk ? "bg-[#1E293B]/95 border-teal-500/30 text-white backdrop-blur-md" : "bg-teal-600 border-teal-700 text-white shadow-lg")}>
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-3">
                 <input type="checkbox" checked={isAllSelected} onChange={toggleSelectAll} className="w-5 h-5 rounded border-white/20 accent-white cursor-pointer" />
@@ -886,7 +886,7 @@ finalFiltered.forEach(h => {
           </div>
         )}
         {(!isOnline || offlineMode) && (
-          <div className="bg-amber-500 border-b border-amber-600 text-white px-6 py-2.5 text-sm font-bold flex items-center justify-center gap-2 z-[60] relative">
+          <div className="bg-amber-500 border-b border-amber-600 text-white px-6 py-2.5 text-sm font-bold flex items-center justify-center gap-2 z-[1000] relative">
             <CloudOff size={16} strokeWidth={2.5} /> {lang === 'de' ? 'Offline Modus Aktiv' : 'Offline Mode Active'}
           </div>
         )}
@@ -908,7 +908,7 @@ finalFiltered.forEach(h => {
             {/* STICKY CONTROL STACK */}
             <div 
               className={cn("sticky top-0 pt-4 pb-3 -mx-8 px-8 mb-4 border-b-2 shadow-sm", dk ? "bg-[#0F172A]/95 border-white/10 backdrop-blur-md" : "bg-slate-50/95 border-slate-300 backdrop-blur-md")}
-              style={{ zIndex: (showYearMenu || showMonthMenu || showFilterMenu || showTimelineMenu || showSortMenu) ? 999999 : 60 }}
+              style={{ zIndex: (showYearMenu || showMonthMenu || showFilterMenu || showTimelineMenu || showSortMenu) ? 999999 : 1000 }}
             ><div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative" style={{ zIndex: 999998 }}>
               <h2 className="text-xl font-black tracking-tight">{displayTitle}</h2>
               
