@@ -166,7 +166,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
          
          const freshName = profile?.full_name || profile?.fullName || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
          const isGhost = profile?.invisible === true || profile?.is_ghost === true;
-         // Grab the avatar/emoji from the profile
+         // Ensure we are grabbing the 'avatar' column here
          const avatar = profile?.avatar || null;
 
          await channel.track({ user: { id: user.id, name: freshName, email: user.email, invisible: isGhost, avatar } });
@@ -857,12 +857,23 @@ finalFiltered.forEach(h => {
                     {activeUsers.map((u: any, i: number) => (
                       <div key={i} className="relative group cursor-pointer">
                         <div className={cn("w-7 h-7 rounded-full border-2 flex items-center justify-center text-white text-[10px] font-bold shadow-sm z-10 relative overflow-hidden", dk ? "bg-teal-600 border-[#0F172A]" : "bg-teal-600 border-white")}>
-                           {u.avatar ? (
-                              <span className="text-[14px] leading-none">{u.avatar}</span>
+                           {/* Priority: Avatar string first. If it's a known name like 'eagle', show the icon. Otherwise show the raw emoji or initials */}
+                           {u.avatar && u.avatar.trim() !== '' ? (
+                              <span className="text-[14px] leading-none">
+                                {u.avatar === 'eagle' ? '🦅' : u.avatar}
+                              </span>
                            ) : (
-                              u.name.substring(0, 2).toUpperCase()
+                              <span className="text-[10px]">
+                                {u.name?.substring(0, 2).toUpperCase() || '??'}
+                              </span>
                            )}
                         </div>
+                        {/* FIX: Handled extreme depth layer layering via z-[999999] explicitly on the popup box */}
+                        <div className="absolute top-full right-0 mt-2 w-max px-3 py-2 bg-slate-800 text-white text-xs rounded-xl opacity-0 group-hover:opacity-100 transition-opacity z-[999999] pointer-events-none shadow-xl">
+                          {u.name} <br/> <span className="text-slate-400 text-[10px]">{u.email}</span>
+                        </div>
+                      </div>
+                    ))}
                         {/* FIX: Handled extreme depth layer layering via z-[999999] explicitly on the popup box */}
                         <div className="absolute top-full right-0 mt-2 w-max px-3 py-2 bg-slate-800 text-white text-xs rounded-xl opacity-0 group-hover:opacity-100 transition-opacity z-[999999] pointer-events-none shadow-xl">
                           {u.name} <br/> <span className="text-slate-400 text-[10px]">{u.email}</span>
