@@ -1,11 +1,25 @@
 // src/MobileDashboard.tsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from './lib/supabase';
-import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday } from './lib/utils';
+import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday, calculateNights, calcInvoiceItem } from './lib/utils';
 import type { AccessLevel } from './lib/supabase';
 import { Home, Search, Star, Plus, X, Filter, SortAsc, Calendar, Loader2, Settings as SettingsIcon, ChevronDown, ChevronUp, Bed, Building, Coins } from 'lucide-react';
 import MobileHotelRow from './components/MobileHotelRow';
-import Header from './components/Header'; // Required to safely mount the Settings Portal!
+import Header from './components/Header';
+
+// --- SYSTEM COMPANIES API ---
+async function getSystemCompanies(): Promise<string[]> {
+  const { data, error } = await supabase.from('global_companies').select('name').order('name');
+  if (error) { console.error("Global Companies Fetch Error:", error); return []; }
+  return (data || []).map(c => c.name);
+}
+async function addSystemCompany(name: string): Promise<void> {
+  const { error } = await supabase.from('global_companies').insert({ name });
+  if (error) console.error("Global Companies Insert Error:", error);
+}
+async function deleteSystemCompany(name: string): Promise<void> {
+  await supabase.from('global_companies').delete().eq('name', name);
+}
 
 interface MobileDashboardProps {
   theme: 'dark' | 'light'; lang: 'de' | 'en';
@@ -20,6 +34,7 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
 
   // --- DATA STATE ---
   const [hotels, setHotels] = useState<any[]>([]);
+  const [systemCompanies, setSystemCompanies] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   
   // --- MOBILE UI STATE ---
@@ -29,13 +44,13 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
   const [showYearMenu, setShowYearMenu] = useState(false);
   const [showMonthMenu, setShowMonthMenu] = useState(false);
   const [showGlobalFinancials, setShowGlobalFinancials] = useState(false);
-  const [yearOffset, setYearOffset] = useState(0); // <-- ADDED FOR 10-YEAR PAGINATION
+  const [yearOffset, setYearOffset] = useState(0);
 
   // --- FILTERS EXACTLY LIKE WEB ---
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchScope, setSearchScope] = useState('all'); // <-- ADDED FOR SEARCH DROPDOWN
+  const [searchScope, setSearchScope] = useState('all');
   
   const [tlType, setTlType] = useState<'all'|'today'|'tomorrow'|'3days'|'7days'|'range'>('all');
   const [tlStart, setTlStart] = useState('');
@@ -67,6 +82,7 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
     setLoading(true);
     async function fetchAllData() {
       try {
+        const companies = await getSystemCompanies();
         const { data, error } = await supabase.from('hotels').select('*, durations(*, room_cards(*, employees(*)), employees(*))').order('created_at', { ascending: false });
         if (error) throw error; 
         const normalized = (data || []).map((h: any) => ({
@@ -79,13 +95,65 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
               }))
             }))
         }));
-        if (isMounted) setHotels(normalized); 
+        if (isMounted) {
+           setSystemCompanies(companies);
+           setHotels(normalized); 
+        }
       } catch (err: any) { console.error("Mobile Load Error:", err); } 
       finally { if (isMounted) setLoading(false); }
     }
     fetchAllData(); 
     return () => { isMounted = false; };
   }, [selectedYear]);
+
+  // --- DERIVED OPTIONS FOR AUTOCOMPLETE ---
+  const allCompanyOptions = useMemo(() => {
+    const localTags = hotels.flatMap(h => h.companyTag || []).filter(Boolean);
+    return Array.from(new Set([...systemCompanies, ...localTags]));
+  }, [hotels, systemCompanies]);
+
+  const uniqueCities = useMemo(() => Array.from(new Set(hotels.map(h => h.city).filter(Boolean))), [hotels]);
+  const uniqueHotelNames = useMemo(() => Array.from(new Set(hotels.map(h => h.name).filter(Boolean))), [hotels]);
+  const uniqueEmployeeNames = useMemo(() => {
+    const names = new Set<string>();
+    hotels.forEach(h => h.durations?.forEach((d:any) => d.roomCards?.forEach((rc:any) => rc.employees?.forEach((e:any) => { if (e.name) names.add(e.name); }))));
+    return Array.from(names);
+  }, [hotels]);
+
+  // --- COMPANY HANDLERS ---
+  const handleAddGlobalCompany = async (name: string) => {
+    try { await addSystemCompany(name); setSystemCompanies(prev => Array.from(new Set([...prev, name]))); } 
+    catch (err) { console.error("Failed to add company globally", err); }
+  };
+
+  const handleRenameGlobalCompany = async (oldName: string, newName: string) => {
+    try {
+      await deleteSystemCompany(oldName);
+      await addSystemCompany(newName);
+      setSystemCompanies(prev => [...prev.filter(c => c !== oldName), newName].sort());
+      setHotels(prevHotels => prevHotels.map(h => {
+        if (h.companyTag?.includes(oldName)) {
+           const newTags = h.companyTag.map((t: string) => t === oldName ? newName : t);
+           return { ...h, companyTag: newTags };
+        }
+        return h;
+      }));
+    } catch (err) { console.error("Failed to rename company", err); }
+  };
+
+  const handleDeleteGlobalCompany = async (name: string) => {
+    try { 
+      await deleteSystemCompany(name); 
+      setSystemCompanies(prev => prev.filter(c => c !== name)); 
+      setHotels(prevHotels => prevHotels.map(h => {
+        if (h.companyTag?.includes(name)) {
+           const newTags = h.companyTag.filter((t: string) => t !== name);
+           return { ...h, companyTag: newTags };
+        }
+        return h;
+      }));
+    } catch (err) { console.error("Failed to delete company", err); }
+  };
 
   // --- EXACT MATH FILTERS FROM WEB ---
   const finalFiltered = useMemo(() => {
