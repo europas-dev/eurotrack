@@ -561,7 +561,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   }, [editingTotal]);
 
   useEffect(() => {
-     if (!isOpen) setLocalMonthFilter('all');
+     if (!isOpen) {
+        setLocalMonthFilter('all');
+        setInvoiceFilter('all');
+        setItemSearchQuery('');
+     }
   }, [isOpen]);
 
   const [isBookmarked, setIsBookmarked] = useState(() => {
@@ -627,21 +631,23 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
      return filtered.filter((inv: any) => inv.id === selectedInvoiceId || inv.id === editingInvoiceId || true);
   }, [localHotel.invoices, invoiceFilter, selectedInvoiceId, editingInvoiceId]);
 
-  const filteredMasterInvoices = useMemo(() => {
-    let filtered = localHotel.invoices || [];
-    if (invoiceFilter === 'paid') filtered = filtered.filter((inv:any) => inv.isPaid);
-    if (invoiceFilter === 'unpaid') filtered = filtered.filter((inv:any) => !inv.isPaid);
-
-    filtered = filtered.filter((inv:any) => {
+  // 1. BASE INVOICES (Only filtered by Time, used for stable Math calculations)
+  const mathInvoices = useMemo(() => {
+     return (localHotel.invoices || []).filter((inv:any) => {
         const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
         if (!dateStr) return false;
         const d = new Date(dateStr);
         if (d.getFullYear() !== (selectedYear || new Date().getFullYear())) return false;
-        if (activeMonthFilter !== 'all') {
-            return d.getMonth() === activeMonthFilter;
-        }
+        if (activeMonthFilter !== 'all' && d.getMonth() !== activeMonthFilter) return false;
         return true;
-    });
+     });
+  }, [localHotel.invoices, selectedYear, activeMonthFilter]);
+
+  // 2. UI INVOICES (Filtered by Search and Paid/Unpaid status for the visual list)
+  const filteredMasterInvoices = useMemo(() => {
+    let filtered = mathInvoices;
+    if (invoiceFilter === 'paid') filtered = filtered.filter((inv:any) => inv.isPaid);
+    if (invoiceFilter === 'unpaid') filtered = filtered.filter((inv:any) => !inv.isPaid);
 
     if (itemSearchQuery.trim()) {
         const lowerQ = itemSearchQuery.toLowerCase();
@@ -684,7 +690,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       tFree += calcDurationFreeBeds(d, today);
     });
 
-    const invoicesToScan = activeInvoice ? [activeInvoice] : filteredMasterInvoices;
+    const invoicesToScan = activeInvoice ? [activeInvoice] : mathInvoices;
 
     invoicesToScan.forEach((inv: any) => {
        let invBrutto = 0;
@@ -906,7 +912,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         </div>
       )}
 
-      <div className={cn('rounded-xl border transition-all duration-200 shadow-sm relative overflow-visible', isSelected ? (dk ? 'bg-teal-500/10 border-teal-500/50' : 'bg-teal-50 border-teal-500/40') : (dk ? 'bg-[#1E293B] border-white/5 hover:border-white/10' : 'bg-white border-slate-200 hover:border-slate-300'))}>  
+      <div className={cn('rounded-xl border transition-all duration-200 shadow-sm relative overflow-visible', 
+          isSelected ? (dk ? 'bg-teal-500/10 border-teal-500/50' : 'bg-teal-50 border-teal-500/40') 
+          : isOpen ? (dk ? 'bg-[#1E293B] border-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'bg-white border-teal-400/60 shadow-[0_0_15px_rgba(20,184,166,0.15)]') 
+          : (dk ? 'bg-[#1E293B] border-white/5 hover:border-white/10' : 'bg-white border-slate-200 hover:border-slate-300'))}>  
         <div className={cn("absolute right-0 top-0 bottom-0 w-[4px] rounded-r-xl transition-colors z-[60]", masterMath.totalUnpaid > 0 ? "bg-red-500" : (masterMath.totalPaid > 0 ? "bg-emerald-500" : "bg-transparent border-l border-slate-200 dark:border-white/10"))} />
 
         <div className={cn('flex items-center cursor-pointer py-1 px-2 pr-2 group', dk ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/70', isOpen && 'border-b', isOpen && (dk ? 'border-white/5 bg-black/20' : 'border-slate-100 bg-slate-50/50'))} onClick={onToggle}>
@@ -970,7 +979,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       {d.startDate && d.endDate ? `${formatChipStr(d.startDate)} - ${formatChipStr(d.endDate)}` : 'New'}
                     </button>
                     {/* NEW: Custom Tooltip that pops UP and avoids the cursor */}
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 pb-2 mb-1 w-max z-[999999] opacity-0 group-hover/dur:opacity-100 transition-opacity pointer-events-none">
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 mt-1 w-max z-[999999] opacity-0 group-hover/dur:opacity-100 transition-opacity pointer-events-none">
                         <div className={cn("px-3 py-1.5 rounded-lg shadow-xl text-center text-[11px] font-black border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-800 border-slate-200")}>
                             {title}
                         </div>
@@ -1065,7 +1074,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                         {isSubstitute ? <CornerDownRight size={10} className={cn("shrink-0", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} /> : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />}
                         <HighlightText text={shortName} query={searchScope === 'all' || searchScope === 'employee' ? searchQuery : ''} />
                       </button>
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 pb-2 mb-1 w-max z-[999999] opacity-0 group-hover/emp:opacity-100 transition-opacity pointer-events-none">
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 mt-1 w-max z-[999999] opacity-0 group-hover/emp:opacity-100 transition-opacity pointer-events-none">
                         {/* Dynamic Background and Text Colors */}
                         <div className={cn("px-3 py-2 rounded-lg shadow-xl text-center border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-900 border-slate-200")}>
                             <p className="text-xs font-bold">{emp.name}</p>
