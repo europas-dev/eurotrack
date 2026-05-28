@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from './lib/supabase';
 import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday } from './lib/utils';
 import type { AccessLevel } from './lib/supabase';
-import { Home, Search, Star, Plus, X, Filter, SortAsc, Calendar, Loader2, Settings as SettingsIcon, ChevronDown, Bed, Building, Coins } from 'lucide-react';
+import { Home, Search, Star, Plus, X, Filter, SortAsc, Calendar, Loader2, Settings as SettingsIcon, ChevronDown, ChevronUp, Bed, Building, Coins } from 'lucide-react';
 import { HotelRow } from './components/HotelRow';
 import Header from './components/Header'; // Required to safely mount the Settings Portal!
 
@@ -29,11 +29,13 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
   const [showYearMenu, setShowYearMenu] = useState(false);
   const [showMonthMenu, setShowMonthMenu] = useState(false);
   const [showGlobalFinancials, setShowGlobalFinancials] = useState(false);
+  const [yearOffset, setYearOffset] = useState(0); // <-- ADDED FOR 10-YEAR PAGINATION
 
   // --- FILTERS EXACTLY LIKE WEB ---
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchScope, setSearchScope] = useState('all'); // <-- ADDED FOR SEARCH DROPDOWN
   
   const [tlType, setTlType] = useState<'all'|'today'|'tomorrow'|'3days'|'7days'|'range'>('all');
   const [tlStart, setTlStart] = useState('');
@@ -147,35 +149,41 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
         </div>
         
         <div className="flex items-center gap-2">
-          {/* EXACT WEB YEAR SELECTOR */}
+          {/* EXACT WEB YEAR SELECTOR (With 10-Year Pagination) */}
           <div className="relative">
             <button onClick={() => { setShowYearMenu(!showYearMenu); setShowMonthMenu(false); }} className={cn("px-2 py-1.5 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-all shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800")}>
               {selectedYear} <ChevronDown size={12} className={dk ? 'text-slate-500' : 'text-slate-400'} />
             </button>
             {showYearMenu && (
-              <div className={cn("absolute right-0 mt-2 p-2 rounded-xl border shadow-xl w-[140px] z-[999999]", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")} onClick={e => e.stopPropagation()}>
+              <div className={cn("absolute right-0 mt-2 p-2 rounded-xl border shadow-xl w-[160px] z-[999999]", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")} onClick={e => e.stopPropagation()}>
+                <button onClick={() => setYearOffset(prev => prev - 10)} className="w-full py-1.5 mb-2 rounded border border-dashed text-xs font-bold text-slate-500 hover:text-teal-500 flex items-center justify-center gap-1">
+                  <ChevronUp size={12}/> 10 {lang === 'de' ? 'Jahre' : 'Years'}
+                </button>
                 <div className="grid grid-cols-2 gap-1">
-                  {[2023, 2024, 2025, 2026, 2027, 2028].map(y => (
-                    <button key={y} onClick={() => { setSelectedYear(y); setShowYearMenu(false); }} className={cn("py-1.5 rounded-md text-[11px] font-bold transition-all", selectedYear === y ? btnActive : btnInactive)}>{y}</button>
+                  {Array.from({ length: 10 }, (_, i) => selectedYear + yearOffset - 4 + i).map(y => (
+                    <button key={y} onClick={() => { setSelectedYear(y); setShowYearMenu(false); setYearOffset(0); }} className={cn("py-2 rounded-lg text-sm font-bold transition-all", selectedYear === y ? btnActive : btnInactive)}>{y}</button>
                   ))}
                 </div>
+                <button onClick={() => setYearOffset(prev => prev + 10)} className="w-full py-1.5 mt-2 rounded border border-dashed text-xs font-bold text-slate-500 hover:text-teal-500 flex items-center justify-center gap-1">
+                  10 {lang === 'de' ? 'Jahre' : 'Years'} <ChevronDown size={12}/>
+                </button>
               </div>
             )}
           </div>
 
-          {/* EXACT WEB MONTH SELECTOR */}
+          {/* EXACT WEB MONTH SELECTOR (Vertical Scroll) */}
           <div className="relative">
             <button onClick={() => { setShowMonthMenu(!showMonthMenu); setShowYearMenu(false); }} className={cn("px-2 py-1.5 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-all shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800")}>
               {selectedMonth === null ? (lang === 'de' ? 'Alle Monate' : 'All Months') : (lang === 'de' ? ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'][selectedMonth] : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][selectedMonth])} <ChevronDown size={12} className={dk ? 'text-slate-500' : 'text-slate-400'} />
             </button>
             {showMonthMenu && (
-              <div className={cn("absolute right-0 mt-2 p-2 rounded-xl border shadow-xl w-[200px] z-[999999]", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")} onClick={e => e.stopPropagation()}>
-                 <button onClick={() => { setSelectedMonth(null); setShowMonthMenu(false); }} className={cn("w-full text-center px-2 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest mb-1 transition-all", selectedMonth === null ? (dk ? "bg-teal-500/20 text-teal-400" : "bg-teal-50 text-teal-600") : (dk ? "bg-white/5 text-slate-300" : "bg-slate-100 text-slate-700"))}>
+              <div className={cn("absolute right-0 mt-2 p-2 rounded-xl border shadow-xl w-[160px] max-h-[300px] overflow-y-auto z-[999999]", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")} onClick={e => e.stopPropagation()}>
+                 <button onClick={() => { setSelectedMonth(null); setShowMonthMenu(false); }} className={cn("w-full text-center px-2 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest mb-1 transition-all", selectedMonth === null ? (dk ? "bg-teal-500/20 text-teal-400" : "bg-teal-50 text-teal-600") : (dk ? "bg-white/5 text-slate-300" : "bg-slate-100 text-slate-700"))}>
                     {lang === 'de' ? 'Alle Monate' : 'All Months'}
                  </button>
-                 <div className="grid grid-cols-3 gap-1">
+                 <div className="flex flex-col gap-1">
                    {(lang === 'de' ? ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'] : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']).map((m, i) => (
-                     <button key={i} onClick={() => { setSelectedMonth(i); setShowMonthMenu(false); }} className={cn("w-full text-center py-2 rounded-lg text-[11px] font-black uppercase transition-all border", selectedMonth === i ? (dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400" : "bg-teal-50 border-teal-200 text-teal-600") : (dk ? "border-transparent bg-transparent text-slate-400" : "border-transparent bg-transparent text-slate-500"))}>{m}</button>
+                     <button key={i} onClick={() => { setSelectedMonth(i); setShowMonthMenu(false); }} className={cn("w-full text-center py-2.5 rounded-lg text-[12px] font-bold transition-all border", selectedMonth === i ? (dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400" : "bg-teal-50 border-teal-200 text-teal-600") : (dk ? "border-transparent bg-transparent text-slate-400" : "border-transparent bg-transparent text-slate-500"))}>{m}</button>
                    ))}
                  </div>
               </div>
@@ -184,31 +192,34 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
         </div>
       </div>
 
-      {/* EXACT WEB STATS HEADER (Sticky across Home AND Search) */}
-      <div className={cn("w-full px-4 py-2 border-b shrink-0 flex items-center justify-between z-[50]", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-200")}>
-         <div className="flex items-center gap-6">
+      {/* EXACT WEB STATS HEADER (Inline Paid/Unpaid) */}
+      <div className={cn("w-full px-4 py-3 border-b shrink-0 flex items-center justify-between z-[50]", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-200")}>
+         <div className="flex items-center gap-5">
            <div className="flex items-center gap-1.5" title={lang === 'de' ? 'Freie Betten' : 'Free Beds'}>
              <Bed size={18} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
-             <span className={cn('text-[16px] font-black', freeBedsTotal > 0 ? 'text-red-500' : 'text-teal-500')}>{freeBedsTotal}</span>
+             <span className={cn('text-[18px] font-black', freeBedsTotal > 0 ? 'text-red-500' : 'text-teal-500')}>{freeBedsTotal}</span>
            </div>
            <div className="flex items-center gap-1.5" title="Hotels">
              <Building size={16} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
-             <span className={cn('text-[16px] font-black', dk ? 'text-white' : 'text-slate-900')}>{finalFiltered.length}</span>
+             <span className={cn('text-[18px] font-black', dk ? 'text-white' : 'text-slate-900')}>{finalFiltered.length}</span>
            </div>
-           <button onClick={() => setShowGlobalFinancials(!showGlobalFinancials)} className="flex items-center gap-1.5 transition-opacity hover:opacity-80">
-              <Coins size={18} className={cn(showGlobalFinancials ? "text-teal-500" : (dk ? "text-slate-500" : "text-slate-400"))} strokeWidth={2.5} />
-              <span className="text-[16px] font-black text-teal-600 dark:text-teal-400">{formatCurrency(totalSpend)}</span>
-           </button>
+           
+           <div className="flex items-center">
+             <button onClick={() => setShowGlobalFinancials(!showGlobalFinancials)} className="flex items-center gap-1.5 transition-opacity hover:opacity-80">
+                <Coins size={18} className={cn(showGlobalFinancials ? "text-teal-500" : (dk ? "text-slate-500" : "text-slate-400"))} strokeWidth={2.5} />
+                <span className="text-[18px] font-black text-teal-600 dark:text-teal-400">{formatCurrency(totalSpend)}</span>
+             </button>
+             
+             {/* Stacking Paid/Unpaid exactly next to it, matching the web */}
+             {showGlobalFinancials && (
+                <div className={cn("flex flex-col pl-3 ml-3 border-l animate-in fade-in slide-in-from-left-2", dk ? "border-white/10" : "border-slate-200")}>
+                   <span className="text-emerald-500 text-[10px] font-bold leading-tight">{lang === 'de' ? 'Bezahlt:' : 'Paid:'} {formatCurrency(totalPaidGlobal)}</span>
+                   <span className="text-red-500 text-[10px] font-bold leading-tight">{lang === 'de' ? 'Offen:' : 'Unpaid:'} {formatCurrency(totalUnpaidGlobal)}</span>
+                </div>
+             )}
+           </div>
          </div>
       </div>
-
-      {/* Click-to-expand Paid/Unpaid */}
-      {showGlobalFinancials && (
-         <div className={cn("flex items-center justify-end gap-4 px-4 py-1.5 shrink-0 text-[11px] font-bold border-b animate-in fade-in slide-in-from-top-1", dk ? "bg-black/20 border-white/5" : "bg-slate-50 border-slate-200")}>
-            <span className="text-emerald-500">{lang === 'de' ? 'Bezahlt: ' : 'Paid: '}{formatCurrency(totalPaidGlobal)}</span>
-            <span className="text-red-500">{lang === 'de' ? 'Offen: ' : 'Unpaid: '}{formatCurrency(totalUnpaidGlobal)}</span>
-         </div>
-      )}
 
       {/* SCROLLING CONTENT AREA */}
       <div className="flex-1 overflow-y-auto pb-24 relative no-scrollbar">
@@ -227,17 +238,33 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
               {/* SEARCH TAB */}
               {activeTab === 'search' && (
                 <div className="space-y-3 p-2 animate-in fade-in">
-                   <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                      <input autoFocus type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={lang === 'de' ? "Suchen..." : "Search..."} className={cn("w-full py-2.5 pl-9 pr-4 rounded-xl font-bold border outline-none text-sm", dk ? "bg-[#1E293B] border-white/10 text-white focus:border-teal-500" : "bg-white border-slate-200 focus:border-teal-500")} />
+                   
+                   {/* EXACT WEB SEARCH BAR WITH SCOPE DROPDOWN */}
+                   <div className={cn("flex items-center rounded-xl border overflow-hidden", dk ? "bg-[#1E293B] border-white/10 focus-within:border-teal-500" : "bg-white border-slate-200 focus-within:border-teal-500")}>
+                      <select value={searchScope} onChange={e => setSearchScope(e.target.value)} className={cn("h-[46px] pl-3 pr-6 text-xs font-bold bg-transparent border-r outline-none appearance-none", dk ? "border-white/10 text-slate-300" : "border-slate-200 text-slate-700")}>
+                        <option value="all">{lang === 'de' ? 'Überall' : 'All Fields'}</option>
+                        <option value="hotel">{lang === 'de' ? 'Hotelname' : 'Hotel Name'}</option>
+                        <option value="city">{lang === 'de' ? 'Stadt' : 'City'}</option>
+                        <option value="company">{lang === 'de' ? 'Firma' : 'Company'}</option>
+                        <option value="employee">{lang === 'de' ? 'Mitarbeiter' : 'Employee'}</option>
+                        <option value="invoice">{lang === 'de' ? 'Rechnung' : 'Invoice No.'}</option>
+                      </select>
+                      <div className="relative flex-1">
+                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                         <input autoFocus type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={lang === 'de' ? "Suchen..." : "Search..."} className={cn("w-full h-[46px] pl-9 pr-4 bg-transparent font-bold outline-none text-sm", dk ? "text-white" : "text-slate-900")} />
+                         {searchQuery && (
+                           <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white"><X size={14}/></button>
+                         )}
+                      </div>
                    </div>
+
                    <button onClick={() => setShowBottomSheet(true)} className={cn("w-full py-2.5 rounded-xl border flex items-center justify-center gap-2 font-bold text-sm", dk ? "bg-white/5 border-white/10 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700")}>
                       <Filter size={14} /> {lang === 'de' ? 'Filter, Sortierung & Zeitraum' : 'Filter, Sort & Timeline'}
                    </button>
                    
                    <div className="pt-2 border-t border-slate-200 dark:border-white/10">
                       {finalFiltered.map((hotel, idx) => (
-                        <HotelRow key={hotel.id} entry={hotel} index={idx} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} />
+                        <HotelRow key={hotel.id} entry={hotel} index={idx} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} />
                       ))}
                    </div>
                 </div>
