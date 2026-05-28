@@ -26,6 +26,8 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
   const [activeTab, setActiveTab] = useState<'home' | 'search' | 'bookmarks'>('home');
   const [showBottomSheet, setShowBottomSheet] = useState(false);
   const [sheetTab, setSheetTab] = useState<'filter' | 'sort' | 'time'>('filter');
+  const [showYearMenu, setShowYearMenu] = useState(false);
+  const [showMonthMenu, setShowMonthMenu] = useState(false);
 
   // --- FILTERS EXACTLY LIKE WEB ---
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
