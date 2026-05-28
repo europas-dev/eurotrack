@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from './lib/supabase';
 import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday } from './lib/utils';
 import type { AccessLevel } from './lib/supabase';
-import { Home, Search, Star, Plus, X, Filter, SortAsc, Calendar, Loader2 } from 'lucide-react';
+import { Home, Search, Star, Plus, X, Filter, SortAsc, Calendar, Loader2, Settings } from 'lucide-react';
 import { HotelRow } from './components/HotelRow';
 import Header from './components/Header'; // Required to safely mount the Settings Portal!
 
