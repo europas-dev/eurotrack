@@ -98,7 +98,7 @@ interface HeaderProps {
   onPrint?: () => void;
   viewOnly?: boolean;
   userRole?: string;
- offlineMode?: boolean;
+  offlineMode?: boolean;
   onToggleOfflineMode?: () => void;
   isOnline?: boolean;
   children?: React.ReactNode;
@@ -110,7 +110,7 @@ export default function Header({
   onSignOut, onPrint,
   viewOnly = false, userRole = 'viewer',
   offlineMode, onToggleOfflineMode, isOnline = true,
-  children // <-- FIX: Pulled children into the function!
+  children
 }: HeaderProps) {
   const dk = theme === 'dark';
   const isDe = lang === 'de';
@@ -119,6 +119,17 @@ export default function Header({
 
   const [showSettings, setShowSettings] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'profile' | 'security' | 'access'>('profile');
+
+  // --- NEW: Mobile Dashboard Event Listener ---
+  useEffect(() => {
+    const handleOpenSettings = () => {
+      setShowSettings(true);
+      setSettingsTab('profile');
+    };
+    window.addEventListener('open-settings', handleOpenSettings);
+    return () => window.removeEventListener('open-settings', handleOpenSettings);
+  }, []);
+  // ------------------------------------------
 
   const [profile, setProfile] = useState<any>(null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -265,7 +276,7 @@ export default function Header({
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold truncate">{c.fullName || 'User'}</p>
         {c.username && <p className="text-[12px] font-semibold text-blue-500">@{c.username}</p>}
-        <p className="text-[11px] truncate opacity-50 opacity-60">f{c.email}</p>
+        <p className="text-[11px] truncate opacity-50 opacity-60">{c.email}</p>
       </div>
       <select 
         onMouseDown={e => e.stopPropagation()} 
@@ -285,7 +296,6 @@ export default function Header({
 
   return (
     <>
-      {/* STRIPPED HEADER WRAPPER for Mega-Row Integration */}
       <div className="flex-1 flex items-center h-full min-w-0">
         <div className="flex-1 relative flex items-center max-w-[400px]">
           <div className={cn('flex items-center rounded-lg border transition-all focus-within:ring-2 focus-within:ring-blue-500/50 w-full',
@@ -473,7 +483,7 @@ export default function Header({
                 </>
               )}
 
-              {/* SECURITY TAB (RESTORING MISSING CONTENT) */}
+              {/* SECURITY TAB */}
               {settingsTab === 'security' && (
                 <div className="space-y-4">
                   {profile?.email && <div className={cn('rounded-xl border p-4', dk ? 'border-white/10 bg-white/2' : 'border-slate-200 bg-slate-50')}><SectionLabel dk={dk}>{isDe ? 'Aktuelle E-Mail' : 'Current Email'}</SectionLabel><div className="flex items-center gap-2"><Mail size={13} className={dk ? 'text-slate-400' : 'text-slate-500'} /><span className={cn('text-sm font-bold', dk ? 'text-white' : 'text-slate-900')}>{profile.email}</span></div></div>}
@@ -506,7 +516,7 @@ export default function Header({
                 </div>
               )}
 
-              {/* ACCESS TAB (RESTORING MISSING CONTENT) */}
+              {/* ACCESS TAB */}
               {settingsTab === 'access' && isAdmin && (
                 <div className="space-y-4">
                   <div>
