@@ -9,7 +9,7 @@ import MobileDashboard from './MobileDashboard'; // <--- NEW IMPORT
 import UserManagement from './components/UserManagement';
 import SuperAdminHome from './components/SuperAdminHome';
 import { cn } from './lib/utils';
-import { LogOut, Clock, RefreshCw } from 'lucide-react';
+import { LogOut, Clock, RefreshCw, Lock } from 'lucide-react';
 
 // --- NEW HOOK: The Traffic Cop ---
 function useMediaQuery(query: string): boolean {
