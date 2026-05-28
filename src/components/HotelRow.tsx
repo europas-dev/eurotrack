@@ -980,7 +980,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                     </button>
                     {/* NEW: Custom Tooltip that pops UP and avoids the cursor */}
                     <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 mt-1 w-max z-[999999] opacity-0 group-hover/dur:opacity-100 transition-opacity pointer-events-none">
-                        <div className={cn("px-3 py-1.5 rounded-lg shadow-xl text-center text-[10px] font-medium border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-800 border-slate-200")}>
+                        <div className={cn("px-3 py-1.5 rounded-lg shadow-xl text-center text-[11px] font-medium border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-800 border-slate-200")}>
                             {title}
                         </div>
                     </div>
@@ -1022,7 +1022,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                         
                                         {/* NEW: Hover Tooltip for inside the dropdown */}
                                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 pb-2 mb-1 w-max z-[999999] opacity-0 group-hover/innerDur:opacity-100 transition-opacity pointer-events-none">
-                                            <div className={cn("px-3 py-1.5 rounded-lg shadow-xl text-center text-[10px] font-medium border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-800 border-slate-200")}>
+                                            <div className={cn("px-3 py-1.5 rounded-lg shadow-xl text-center text-[11px] font-medium border", dk ? "bg-slate-800 text-white border-white/10" : "bg-white text-slate-800 border-slate-200")}>
                                                 {title}
                                             </div>
                                         </div>
