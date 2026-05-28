@@ -4,7 +4,7 @@ import { supabase } from './lib/supabase';
 import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday } from './lib/utils';
 import type { AccessLevel } from './lib/supabase';
 import { Home, Search, Star, Plus, X, Filter, SortAsc, Calendar, Loader2, Settings as SettingsIcon, ChevronDown, ChevronUp, Bed, Building, Coins } from 'lucide-react';
-import { HotelRow } from './components/HotelRow';
+import MobileHotelRow from './components/MobileHotelRow';
 import Header from './components/Header'; // Required to safely mount the Settings Portal!
 
 interface MobileDashboardProps {
@@ -231,7 +231,7 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
               {/* HOME TAB */}
               {activeTab === 'home' && (
                 finalFiltered.length > 0 ? finalFiltered.map((hotel, idx) => (
-                  <HotelRow key={hotel.id} entry={hotel} index={idx} isDarkMode={dk} lang={lang} viewOnly={viewOnly} />
+                  <MobileHotelRow key={hotel.id} entry={hotel} index={idx} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={hId => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} />
                 )) : <div className="text-center py-10 opacity-50 font-bold">{lang === 'de' ? 'Keine Hotels' : 'No Hotels'}</div>
               )}
 
@@ -273,7 +273,7 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
               {/* BOOKMARKS TAB */}
               {activeTab === 'bookmarks' && (
                 finalFiltered.length > 0 ? finalFiltered.map((hotel, idx) => (
-                  <HotelRow key={hotel.id} entry={hotel} index={idx} isDarkMode={dk} lang={lang} viewOnly={viewOnly} />
+                  <MobileHotelRow key={hotel.id} entry={hotel} index={idx} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={hId => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} />
                 )) : (
                   <div className="text-center py-10 opacity-50 font-bold flex flex-col items-center">
                     <Star size={32} className="mb-2 text-slate-400" />
