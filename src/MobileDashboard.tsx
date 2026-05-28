@@ -130,79 +130,109 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
   const btnActive = dk ? 'bg-teal-600 text-white border-transparent' : 'bg-teal-600 text-white shadow-sm';
   const btnInactive = dk ? 'bg-white/5 text-slate-300 border-white/10' : 'bg-white border-slate-200 text-slate-600';
   return (
-    <div className={cn("flex flex-col h-full", dk ? "bg-[#0F172A]" : "bg-slate-50")}>
+    <div className={cn("flex flex-col h-screen overflow-hidden", dk ? "bg-[#0F172A]" : "bg-slate-50")}>
       
       {/* HIDDEN HEADER TO INJECT THE SETTINGS PORTAL EXACTLY AS THE WEB DOES */}
       <div className="hidden">
          <Header theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} searchQuery="" setSearchQuery={()=>{}} searchScope="all" setSearchScope={()=>{}} onSignOut={onSignOut || (()=>{})} viewOnly={isStrictViewer} userRole={accessLevel?.role ?? 'viewer'} offlineMode={offlineMode} onToggleOfflineMode={onToggleOfflineMode} isOnline={true} />
       </div>
 
-      {/* MOBILE TOP BAR */}
-      <div className={cn("px-4 py-3 flex items-center justify-between z-50 shrink-0 border-b", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-200")}>
+      {/* MOBILE TOP BAR (Logo + Exact Web Year/Month Selectors) */}
+      <div className={cn("px-4 py-3 flex items-center justify-between z-[60] shrink-0 border-b", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-200")}>
         <div className="text-xl font-black italic tracking-tight flex items-center gap-1">
            <span className={dk ? "text-white" : "text-slate-900"}>Euro</span><span className="text-yellow-500">Track.</span>
         </div>
+        
         <div className="flex items-center gap-2">
-          <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} className={cn("text-xs font-bold px-2 py-1.5 rounded-lg outline-none", dk ? "bg-white/10 text-white" : "bg-slate-100 text-slate-800")}>
-            {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-          <select value={selectedMonth ?? 'all'} onChange={e => setSelectedMonth(e.target.value === 'all' ? null : Number(e.target.value))} className={cn("text-xs font-bold px-2 py-1.5 rounded-lg outline-none", dk ? "bg-white/10 text-white" : "bg-slate-100 text-slate-800")}>
-            <option value="all">{lang === 'de' ? 'Alle Monate' : 'All Months'}</option>
-            {(lang === 'de' ? ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'] : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']).map((m, i) => <option key={i} value={i}>{m}</option>)}
-          </select>
+          {/* EXACT WEB YEAR SELECTOR */}
+          <div className="relative">
+            <button onClick={() => { setShowYearMenu(!showYearMenu); setShowMonthMenu(false); }} className={cn("px-2 py-1.5 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-all shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800")}>
+              {selectedYear} <ChevronDown size={12} className={dk ? 'text-slate-500' : 'text-slate-400'} />
+            </button>
+            {showYearMenu && (
+              <div className={cn("absolute right-0 mt-2 p-2 rounded-xl border shadow-xl w-[140px] z-[999999]", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")} onClick={e => e.stopPropagation()}>
+                <div className="grid grid-cols-2 gap-1">
+                  {[2023, 2024, 2025, 2026, 2027, 2028].map(y => (
+                    <button key={y} onClick={() => { setSelectedYear(y); setShowYearMenu(false); }} className={cn("py-1.5 rounded-md text-[11px] font-bold transition-all", selectedYear === y ? btnActive : btnInactive)}>{y}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* EXACT WEB MONTH SELECTOR */}
+          <div className="relative">
+            <button onClick={() => { setShowMonthMenu(!showMonthMenu); setShowYearMenu(false); }} className={cn("px-2 py-1.5 rounded-lg border text-[11px] font-bold flex items-center gap-1 transition-all shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800")}>
+              {selectedMonth === null ? (lang === 'de' ? 'Alle Monate' : 'All Months') : (lang === 'de' ? ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'][selectedMonth] : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][selectedMonth])} <ChevronDown size={12} className={dk ? 'text-slate-500' : 'text-slate-400'} />
+            </button>
+            {showMonthMenu && (
+              <div className={cn("absolute right-0 mt-2 p-2 rounded-xl border shadow-xl w-[200px] z-[999999]", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")} onClick={e => e.stopPropagation()}>
+                 <button onClick={() => { setSelectedMonth(null); setShowMonthMenu(false); }} className={cn("w-full text-center px-2 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest mb-1 transition-all", selectedMonth === null ? (dk ? "bg-teal-500/20 text-teal-400" : "bg-teal-50 text-teal-600") : (dk ? "bg-white/5 text-slate-300" : "bg-slate-100 text-slate-700"))}>
+                    {lang === 'de' ? 'Alle Monate' : 'All Months'}
+                 </button>
+                 <div className="grid grid-cols-3 gap-1">
+                   {(lang === 'de' ? ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'] : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']).map((m, i) => (
+                     <button key={i} onClick={() => { setSelectedMonth(i); setShowMonthMenu(false); }} className={cn("w-full text-center py-2 rounded-lg text-[11px] font-black uppercase transition-all border", selectedMonth === i ? (dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400" : "bg-teal-50 border-teal-200 text-teal-600") : (dk ? "border-transparent bg-transparent text-slate-400" : "border-transparent bg-transparent text-slate-500"))}>{m}</button>
+                   ))}
+                 </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* EXACT WEB STATS HEADER (Sticky across Home AND Search) */}
+      <div className={cn("w-full px-4 py-2 border-b shrink-0 flex items-center justify-between z-[50]", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-200")}>
+         <div className="flex items-center gap-6">
+           <div className="flex items-center gap-1.5" title={lang === 'de' ? 'Freie Betten' : 'Free Beds'}>
+             <Bed size={18} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
+             <span className={cn('text-[16px] font-black', freeBedsTotal > 0 ? 'text-red-500' : 'text-teal-500')}>{freeBedsTotal}</span>
+           </div>
+           <div className="flex items-center gap-1.5" title="Hotels">
+             <Building size={16} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
+             <span className={cn('text-[16px] font-black', dk ? 'text-white' : 'text-slate-900')}>{finalFiltered.length}</span>
+           </div>
+           <button onClick={() => setShowGlobalFinancials(!showGlobalFinancials)} className="flex items-center gap-1.5 transition-opacity hover:opacity-80">
+              <Coins size={18} className={cn(showGlobalFinancials ? "text-teal-500" : (dk ? "text-slate-500" : "text-slate-400"))} strokeWidth={2.5} />
+              <span className="text-[16px] font-black text-teal-600 dark:text-teal-400">{formatCurrency(totalSpend)}</span>
+           </button>
+         </div>
+      </div>
+
+      {/* Click-to-expand Paid/Unpaid */}
+      {showGlobalFinancials && (
+         <div className={cn("flex items-center justify-end gap-4 px-4 py-1.5 shrink-0 text-[11px] font-bold border-b animate-in fade-in slide-in-from-top-1", dk ? "bg-black/20 border-white/5" : "bg-slate-50 border-slate-200")}>
+            <span className="text-emerald-500">{lang === 'de' ? 'Bezahlt: ' : 'Paid: '}{formatCurrency(totalPaidGlobal)}</span>
+            <span className="text-red-500">{lang === 'de' ? 'Offen: ' : 'Unpaid: '}{formatCurrency(totalUnpaidGlobal)}</span>
+         </div>
+      )}
 
       {/* SCROLLING CONTENT AREA */}
       <div className="flex-1 overflow-y-auto pb-24 relative no-scrollbar">
          {loading ? (
            <div className="flex items-center justify-center h-full"><Loader2 size={32} className="animate-spin text-teal-500 opacity-50" /></div>
          ) : (
-            <div className="p-4 space-y-4">
+            <div className="p-2 space-y-3">
               
               {/* HOME TAB */}
               {activeTab === 'home' && (
-                <>
-                  {/* HOME PAGE STATS (Copied from Desktop Top Bar) */}
-                  <div className="grid grid-cols-2 gap-3 mb-6">
-                    <div className={cn("col-span-2 p-4 rounded-xl border flex items-center justify-between", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200 shadow-sm")}>
-                       <div>
-                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{lang === 'de' ? 'Gesamtkosten' : 'Total Spend'}</p>
-                         <h2 className="text-2xl font-black text-teal-600 dark:text-teal-400">{formatCurrency(totalSpend)}</h2>
-                       </div>
-                       <div className="text-right">
-                          <p className="text-[10px] font-bold text-emerald-500">{lang === 'de' ? 'Bezahlt' : 'Paid'}: {formatCurrency(totalPaidGlobal)}</p>
-                          <p className="text-[10px] font-bold text-red-500">{lang === 'de' ? 'Offen' : 'Unpaid'}: {formatCurrency(totalUnpaidGlobal)}</p>
-                       </div>
-                    </div>
-                    <div className={cn("p-4 rounded-xl border text-center", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200 shadow-sm")}>
-                       <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{lang === 'de' ? 'Freie Betten' : 'Free Beds'}</p>
-                       <h2 className={cn("text-2xl font-black", freeBedsTotal > 0 ? "text-red-500" : (dk ? "text-teal-500" : "text-teal-600"))}>{freeBedsTotal}</h2>
-                    </div>
-                    <div className={cn("p-4 rounded-xl border text-center", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200 shadow-sm")}>
-                       <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Hotels</p>
-                       <h2 className={cn("text-2xl font-black", dk ? "text-slate-300" : "text-slate-700")}>{finalFiltered.length}</h2>
-                    </div>
-                  </div>
-
-                  {finalFiltered.length > 0 ? finalFiltered.map((hotel, idx) => (
-                    <HotelRow key={hotel.id} entry={hotel} index={idx} isDarkMode={dk} lang={lang} viewOnly={viewOnly} />
-                  )) : <div className="text-center py-10 opacity-50 font-bold">{lang === 'de' ? 'Keine Hotels gefunden' : 'No Hotels found'}</div>}
-                </>
+                finalFiltered.length > 0 ? finalFiltered.map((hotel, idx) => (
+                  <HotelRow key={hotel.id} entry={hotel} index={idx} isDarkMode={dk} lang={lang} viewOnly={viewOnly} />
+                )) : <div className="text-center py-10 opacity-50 font-bold">{lang === 'de' ? 'Keine Hotels' : 'No Hotels'}</div>
               )}
 
               {/* SEARCH TAB */}
               {activeTab === 'search' && (
-                <div className="space-y-4 animate-in fade-in">
+                <div className="space-y-3 p-2 animate-in fade-in">
                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                      <input autoFocus type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={lang === 'de' ? "Suchen..." : "Search..."} className={cn("w-full py-3 pl-10 pr-4 rounded-xl font-bold border outline-none", dk ? "bg-[#1E293B] border-white/10 text-white focus:border-teal-500" : "bg-white border-slate-200 focus:border-teal-500")} />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                      <input autoFocus type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={lang === 'de' ? "Suchen..." : "Search..."} className={cn("w-full py-2.5 pl-9 pr-4 rounded-xl font-bold border outline-none text-sm", dk ? "bg-[#1E293B] border-white/10 text-white focus:border-teal-500" : "bg-white border-slate-200 focus:border-teal-500")} />
                    </div>
-                   <button onClick={() => setShowBottomSheet(true)} className={cn("w-full py-3 rounded-xl border flex items-center justify-center gap-2 font-bold", dk ? "bg-white/5 border-white/10 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700")}>
-                      <Filter size={16} /> {lang === 'de' ? 'Filter, Sortierung & Zeitraum' : 'Filter, Sort & Timeline'}
+                   <button onClick={() => setShowBottomSheet(true)} className={cn("w-full py-2.5 rounded-xl border flex items-center justify-center gap-2 font-bold text-sm", dk ? "bg-white/5 border-white/10 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700")}>
+                      <Filter size={14} /> {lang === 'de' ? 'Filter, Sortierung & Zeitraum' : 'Filter, Sort & Timeline'}
                    </button>
-                   <div className="mt-6 pt-4 border-t border-slate-200 dark:border-white/10">
-                      <p className="text-xs font-bold text-slate-400 mb-3">{finalFiltered.length} {lang === 'de' ? 'Ergebnisse' : 'Results'}</p>
+                   
+                   <div className="pt-2 border-t border-slate-200 dark:border-white/10">
                       {finalFiltered.map((hotel, idx) => (
                         <HotelRow key={hotel.id} entry={hotel} index={idx} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} />
                       ))}
@@ -212,16 +242,14 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
 
               {/* BOOKMARKS TAB */}
               {activeTab === 'bookmarks' && (
-                <div className="space-y-4 animate-in fade-in">
-                   {finalFiltered.length > 0 ? finalFiltered.map((hotel, idx) => (
-                      <HotelRow key={hotel.id} entry={hotel} index={idx} isDarkMode={dk} lang={lang} viewOnly={viewOnly} />
-                   )) : (
-                      <div className="text-center py-10 opacity-50 font-bold flex flex-col items-center">
-                         <Star size={32} className="mb-2 text-slate-400" />
-                         {lang === 'de' ? 'Keine markierten Hotels' : 'No bookmarked hotels'}
-                      </div>
-                   )}
-                </div>
+                finalFiltered.length > 0 ? finalFiltered.map((hotel, idx) => (
+                  <HotelRow key={hotel.id} entry={hotel} index={idx} isDarkMode={dk} lang={lang} viewOnly={viewOnly} />
+                )) : (
+                  <div className="text-center py-10 opacity-50 font-bold flex flex-col items-center">
+                    <Star size={32} className="mb-2 text-slate-400" />
+                    {lang === 'de' ? 'Keine markierten Hotels' : 'No bookmarked hotels'}
+                  </div>
+                )
               )}
             </div>
          )}
@@ -247,55 +275,70 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
             </button>
          ))}
          
-         {/* THE SETTINGS BUTTON: Dispatches the event to the hidden Header.tsx */}
          <button onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))} className={cn("flex flex-col items-center justify-center w-16 gap-1 transition-all text-slate-400 hover:text-slate-500")}>
              <SettingsIcon size={20} strokeWidth={2} />
-             <span className="text-[9px] font-bold">{lang === 'de' ? 'Profil' : 'Settings'}</span>
+             <span className="text-[9px] font-bold">{lang === 'de' ? 'Einstellungen' : 'Settings'}</span>
          </button>
       </div>
 
       {/* TABBED BOTTOM SHEET FOR FILTERS (Exact Match to Web) */}
       {showBottomSheet && (
         <div className="absolute inset-0 z-[99999] flex flex-col justify-end bg-black/60 backdrop-blur-sm pointer-events-auto" onClick={() => setShowBottomSheet(false)}>
-           <div className={cn("w-full h-[70vh] rounded-t-3xl flex flex-col border-t shadow-2xl", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")} onClick={e => e.stopPropagation()} style={{ animation: 'slideUp 0.3s ease-out' }}>
+           <div className={cn("w-full h-[75vh] rounded-t-3xl flex flex-col border-t shadow-2xl", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")} onClick={e => e.stopPropagation()} style={{ animation: 'slideUp 0.2s ease-out' }}>
               
-              <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-white/10 shrink-0">
+              <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-white/10 shrink-0">
                  <h3 className="text-lg font-black">{lang === 'de' ? 'Ansicht anpassen' : 'View Options'}</h3>
-                 <button onClick={() => setShowBottomSheet(false)} className="p-2 bg-slate-100 dark:bg-white/5 rounded-full"><X size={18}/></button>
+                 <button onClick={() => setShowBottomSheet(false)} className="p-1.5 bg-slate-100 dark:bg-white/5 rounded-full"><X size={16}/></button>
               </div>
               
               <div className="flex p-2 bg-slate-50 dark:bg-[#0F172A] shrink-0 border-b border-slate-200 dark:border-white/10">
-                 {[ { id: 'filter', icon: Filter, l: 'Filter' }, { id: 'sort', icon: SortAsc, l: 'Sort' }, { id: 'time', icon: Calendar, l: 'Zeit' } ].map(t => (
-                    <button key={t.id} onClick={() => setSheetTab(t.id as any)} className={cn("flex-1 py-2 flex items-center justify-center gap-2 text-xs font-bold rounded-lg transition-all", sheetTab === t.id ? (dk ? "bg-teal-500/20 text-teal-400" : "bg-white shadow text-teal-700") : "text-slate-500")}>
+                 {[ { id: 'filter', icon: Filter, l: 'Filter' }, { id: 'sort', icon: SortAsc, l: lang === 'de' ? 'Sortieren' : 'Sort' }, { id: 'time', icon: Calendar, l: lang === 'de' ? 'Zeitraum' : 'Timeline' } ].map(t => (
+                    <button key={t.id} onClick={() => setSheetTab(t.id as any)} className={cn("flex-1 py-1.5 flex items-center justify-center gap-1.5 text-xs font-bold rounded-lg transition-all", sheetTab === t.id ? (dk ? "bg-teal-500/20 text-teal-400" : "bg-white shadow text-teal-700") : "text-slate-500")}>
                        <t.icon size={14}/> {t.l}
                     </button>
                  ))}
               </div>
 
-              <div className="flex-1 overflow-y-auto p-5 space-y-6">
+              <div className="flex-1 overflow-y-auto p-4 space-y-6">
                  {sheetTab === 'filter' && (
-                    <div className="space-y-5">
+                    <div className="space-y-4">
                        <div>
-                         <p className="text-xs font-black text-slate-400 uppercase mb-2">Zahlungsstatus</p>
-                         <div className="grid grid-cols-3 gap-2">
-                           {[{id:'all', l:'Alle'}, {id:'paid', l:'Bezahlt'}, {id:'unpaid', l:'Offen'}].map(p => (
-                             <button key={p.id} onClick={() => setFilterPaid(p.id as any)} className={cn("py-2.5 rounded-xl border text-sm font-bold transition-all", filterPaid === p.id ? btnActive : btnInactive)}>{p.l}</button>
-                           ))}
-                         </div>
-                       </div>
-                       <div>
-                         <p className="text-xs font-black text-slate-400 uppercase mb-2">Fälligkeit</p>
+                         <p className="text-xs font-black text-slate-400 uppercase mb-2">{lang === 'de' ? 'Verfügbare freie Betten' : 'Free Beds Availability'}</p>
                          <div className="grid grid-cols-2 gap-2">
-                           {[{id:'all', l:'Alle'}, {id:'today', l:'Heute'}, {id:'3days', l:'In 3 Tagen'}, {id:'5days', l:'In 5 Tagen'}].map(p => (
-                             <button key={p.id} onClick={() => setFilterDue(p.id as any)} className={cn("py-2.5 rounded-xl border text-sm font-bold transition-all", filterDue === p.id ? btnActive : btnInactive)}>{p.l}</button>
+                           {[ { id: 'today', lEn: 'Today', lDe: 'Heute' }, { id: 'tomorrow', lEn: 'Tomorrow', lDe: 'Morgen' }, { id: '3days', lEn: 'in 3 days', lDe: 'in 3 Tagen' }, { id: '7days', lEn: 'in 7 days', lDe: 'in 7 Tagen' } ].map(f => (
+                             <button key={f.id} onClick={() => setFbType(f.id as any)} className={cn("py-2 rounded-lg text-xs font-bold transition-all border", fbType === f.id ? btnActive : btnInactive)}>{lang === 'de' ? f.lDe : f.lEn}</button>
                            ))}
                          </div>
                        </div>
                        <div>
-                         <p className="text-xs font-black text-slate-400 uppercase mb-2">Kaution</p>
+                         <p className="text-xs font-black text-slate-400 uppercase mb-2">{lang === 'de' ? 'Zahlung' : 'Payment'}</p>
                          <div className="grid grid-cols-3 gap-2">
-                           {[{id:'all', l:'Alle'}, {id:'yes', l:'Ja'}, {id:'no', l:'Nein'}].map(p => (
-                             <button key={p.id} onClick={() => setFilterDeposit(p.id as any)} className={cn("py-2.5 rounded-xl border text-sm font-bold transition-all", filterDeposit === p.id ? btnActive : btnInactive)}>{p.l}</button>
+                           {[{id:'all', lEn:'All', lDe:'Alle'}, {id:'paid', lEn:'Paid', lDe:'Bezahlt'}, {id:'unpaid', lEn:'Unpaid', lDe:'Unbezahlt'}].map(p => (
+                             <button key={p.id} onClick={() => setFilterPaid(p.id as any)} className={cn("py-2 rounded-lg border text-xs font-bold transition-all", filterPaid === p.id ? btnActive : btnInactive)}>{lang === 'de' ? p.lDe : p.lEn}</button>
+                           ))}
+                         </div>
+                       </div>
+                       <div>
+                         <p className="text-xs font-black text-slate-400 uppercase mb-2">{lang === 'de' ? 'Fälligkeit' : 'Payment Due'}</p>
+                         <div className="grid grid-cols-2 gap-2">
+                           {[{id:'all', lEn:'All', lDe:'Alle'}, {id:'today', lEn:'Today', lDe:'Heute'}, {id:'3days', lEn:'In 3 Days', lDe:'In 3 Tagen'}, {id:'5days', lEn:'In 5 Days', lDe:'In 5 Tagen'}].map(p => (
+                             <button key={p.id} onClick={() => setFilterDue(p.id as any)} className={cn("py-2 rounded-lg border text-xs font-bold transition-all", filterDue === p.id ? btnActive : btnInactive)}>{lang === 'de' ? p.lDe : p.lEn}</button>
+                           ))}
+                         </div>
+                       </div>
+                       <div>
+                         <p className="text-xs font-black text-slate-400 uppercase mb-2">{lang === 'de' ? 'Kaution' : 'Deposit'}</p>
+                         <div className="grid grid-cols-3 gap-2">
+                           {[{id:'all', lEn:'All', lDe:'Alle'}, {id:'yes', lEn:'Yes', lDe:'Ja'}, {id:'no', lEn:'No', lDe:'Nein'}].map(p => (
+                             <button key={p.id} onClick={() => setFilterDeposit(p.id as any)} className={cn("py-2 rounded-lg border text-xs font-bold transition-all", filterDeposit === p.id ? btnActive : btnInactive)}>{lang === 'de' ? p.lDe : p.lEn}</button>
+                           ))}
+                         </div>
+                       </div>
+                       <div>
+                         <p className="text-xs font-black text-slate-400 uppercase mb-2">{lang === 'de' ? 'Gruppieren nach' : 'Group By'}</p>
+                         <div className="grid grid-cols-2 gap-2">
+                           {[{id:'none', lEn:'None', lDe:'Keine'}, {id:'hotel', lEn:'Hotel', lDe:'Hotel'}, {id:'company', lEn:'Company', lDe:'Firma'}, {id:'city', lEn:'City', lDe:'Stadt'}].map(p => (
+                             <button key={p.id} onClick={() => setGroupBy(p.id as any)} className={cn("py-2 rounded-lg border text-xs font-bold transition-all", groupBy === p.id ? btnActive : btnInactive)}>{lang === 'de' ? p.lDe : p.lEn}</button>
                            ))}
                          </div>
                        </div>
@@ -303,50 +346,62 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
                  )}
 
                  {sheetTab === 'sort' && (
-                    <>
+                    <div className="space-y-4">
+                       <p className="text-xs font-black text-slate-400 uppercase">{lang === 'de' ? 'Sortieren nach' : 'Sort By'}</p>
                        <div className="grid grid-cols-2 gap-2">
-                         {[ { id: 'name', l: 'Name' }, { id: 'cost', l: 'Kosten' }, { id: 'bed_price', l: 'Preis/Bett' }, { id: 'free_beds', l: 'Freie Betten' }, { id: 'payment_due', l: 'Fälligkeit' }, { id: 'total_paid', l: 'Total Bezahlt' }, { id: 'created_at', l: 'Neueste' }, { id: 'updated_at', l: 'Zuletzt Aktualisiert' } ].map(s => (
-                           <button key={s.id} onClick={() => setSortBy(s.id as any)} className={cn("py-3 rounded-xl border text-sm font-bold transition-all", sortBy === s.id ? btnActive : btnInactive)}>{s.l}</button>
+                         {[ { id: 'name', lEn: 'Hotel Name', lDe: 'Hotelname' }, { id: 'cost', lEn: 'Total Cost', lDe: 'Gesamtkosten' }, { id: 'bed_price', lEn: 'Price/Bed', lDe: 'Preis/Bett' }, { id: 'free_beds', lEn: 'Free Beds', lDe: 'Freie Betten' }, { id: 'payment_due', lEn: 'Payment Due', lDe: 'Fälligkeit' }, { id: 'total_paid', lEn: 'Total Paid', lDe: 'Total Bezahlt' }, { id: 'created_at', lEn: 'Last Added', lDe: 'Zuletzt Hinzugefügt' }, { id: 'updated_at', lEn: 'Last Updated', lDe: 'Zuletzt Aktualisiert' } ].map(s => (
+                           <button key={s.id} onClick={() => setSortBy(s.id as any)} className={cn("py-2.5 rounded-lg border text-xs font-bold transition-all", sortBy === s.id ? btnActive : btnInactive)}>{lang === 'de' ? s.lDe : s.lEn}</button>
                          ))}
                        </div>
-                       <div className="flex rounded-xl border overflow-hidden mt-4">
-                         <button onClick={() => setSortDir('asc')} className={cn("flex-1 py-3 font-bold text-sm transition-all", sortDir === 'asc' ? (dk ? "bg-white/10" : "bg-slate-200") : dk ? "bg-transparent text-slate-400" : "bg-white text-slate-500")}>Aufsteigend</button>
-                         <button onClick={() => setSortDir('desc')} className={cn("flex-1 py-3 font-bold text-sm transition-all border-l", sortDir === 'desc' ? (dk ? "bg-white/10 border-transparent" : "bg-slate-200 border-transparent") : dk ? "bg-transparent text-slate-400 border-white/10" : "bg-white text-slate-500 border-slate-200")}>Absteigend</button>
+                       
+                       <p className="text-xs font-black text-slate-400 uppercase mt-4">{lang === 'de' ? 'Sortierreihenfolge' : 'Sort Direction'}</p>
+                       <div className="grid grid-cols-2 gap-2">
+                         <button onClick={() => setSortDir('asc')} className={cn("py-2 px-3 rounded-lg border text-left transition-all", sortDir === 'asc' ? btnActive : btnInactive)}>
+                           <span className="block text-xs font-bold">{lang === 'de' ? 'Aufsteigend' : 'Ascending'}</span>
+                           <span className="block text-[9px] mt-0.5 opacity-60">{lang === 'de' ? 'Low to High, A-Z' : 'Low to High, A-Z'}</span>
+                         </button>
+                         <button onClick={() => setSortDir('desc')} className={cn("py-2 px-3 rounded-lg border text-left transition-all", sortDir === 'desc' ? btnActive : btnInactive)}>
+                           <span className="block text-xs font-bold">{lang === 'de' ? 'Absteigend' : 'Descending'}</span>
+                           <span className="block text-[9px] mt-0.5 opacity-60">{lang === 'de' ? 'High to Low, Z-A' : 'High to Low, Z-A'}</span>
+                         </button>
                        </div>
-                    </>
+                    </div>
                  )}
 
                  {sheetTab === 'time' && (
-                    <div className="space-y-5">
-                       <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-4">
+                       <div className="grid grid-cols-4 gap-2">
                           {[ { id: 'today', lEn: 'Today', lDe: 'Heute', off: 0 }, { id: 'tomorrow', lEn: 'Tomorrow', lDe: 'Morgen', off: 1 }, { id: '3days', lEn: '3 Days', lDe: '3 Tage', off: 3 }, { id: '7days', lEn: '7 Days', lDe: '7 Tage', off: 7 } ].map(t => (
-                            <button key={t.id} onClick={() => { const s = new Date(); if (t.off > 0 && t.id !== '3days' && t.id !== '7days') s.setDate(s.getDate() + t.off); const e = new Date(); e.setDate(e.getDate() + t.off); setTlStart(s.toISOString().split('T')[0]); setTlEnd(e.toISOString().split('T')[0]); setTlType(t.id as any); }} className={cn("py-2.5 rounded-xl border text-sm font-bold transition-all", tlType === t.id ? btnActive : btnInactive)}>
+                            <button key={t.id} onClick={() => { const s = new Date(); if (t.off > 0 && t.id !== '3days' && t.id !== '7days') s.setDate(s.getDate() + t.off); const e = new Date(); e.setDate(e.getDate() + t.off); setTlStart(s.toISOString().split('T')[0]); setTlEnd(e.toISOString().split('T')[0]); setTlType(t.id as any); }} className={cn("py-2 rounded-lg border text-[10px] font-bold transition-all", tlType === t.id ? btnActive : btnInactive)}>
                               {lang === 'de' ? t.lDe : t.lEn}
                             </button>
                           ))}
                        </div>
-                       <div className="flex items-center gap-3">
-                           <input type="date" value={tlStart} onChange={e => {setTlStart(e.target.value); setTlType('range');}} className={cn("flex-1 px-3 py-2 rounded-lg border text-sm font-bold outline-none", dk ? "bg-black/40 border-white/10 text-white" : "bg-white border-slate-200")} />
+                       <div className="flex items-center gap-2">
+                           <input type="date" value={tlStart} onChange={e => {setTlStart(e.target.value); setTlType('range');}} className={cn("flex-1 px-2 py-2 rounded-lg border text-xs font-bold outline-none", dk ? "bg-black/40 border-white/10 text-white" : "bg-white border-slate-200")} />
                            <span className="text-slate-400">➔</span>
-                           <input type="date" min={tlStart} value={tlEnd} onChange={e => {if(tlStart && e.target.value < tlStart) return; setTlEnd(e.target.value); setTlType('range');}} className={cn("flex-1 px-3 py-2 rounded-lg border text-sm font-bold outline-none", dk ? "bg-black/40 border-white/10 text-white" : "bg-white border-slate-200")} />
+                           <input type="date" min={tlStart} value={tlEnd} onChange={e => {if(tlStart && e.target.value < tlStart) return; setTlEnd(e.target.value); setTlType('range');}} className={cn("flex-1 px-2 py-2 rounded-lg border text-xs font-bold outline-none", dk ? "bg-black/40 border-white/10 text-white" : "bg-white border-slate-200")} />
                        </div>
-                       <button onClick={() => {setTlType('all'); setTlStart(''); setTlEnd('');}} className={cn("w-full py-2.5 rounded-lg border flex items-center justify-center gap-2 text-sm font-bold", dk ? "border-red-500/30 text-red-400 bg-red-500/10" : "border-red-200 text-red-600 bg-red-50")}>
-                          Zeitraum zurücksetzen
+                       <p className="text-[10px] text-slate-500 mb-4">{lang === 'de' ? 'Blendet alle Hotels ohne Buchungen im gewählten Zeitraum aus.' : 'Hides any hotel that has zero bookings/durations overlapping your chosen range.'}</p>
+                       <button onClick={() => {setTlType('all'); setTlStart(''); setTlEnd('');}} className={cn("w-full py-2 rounded-lg border flex items-center justify-center gap-2 text-xs font-bold", dk ? "border-red-500/30 text-red-400 bg-red-500/10" : "border-red-200 text-red-600 bg-red-50")}>
+                          {lang === 'de' ? 'Zeitraum zurücksetzen' : 'Clear Timeline'}
                        </button>
                     </div>
                  )}
               </div>
               
-              <div className="p-4 border-t shrink-0 dark:border-white/10 border-slate-200 bg-slate-50 dark:bg-[#0F172A]">
-                 <button onClick={() => setShowBottomSheet(false)} className="w-full py-4 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-xl text-lg shadow-lg">
-                    {lang === 'de' ? 'Ergebnisse Anzeigen' : 'Show Results'}
+              <div className="p-3 border-t flex justify-between items-center dark:border-white/10 border-slate-200 bg-slate-50 dark:bg-[#0F172A] shrink-0">
+                 <button onClick={() => { setTlType('all'); setFbType('all'); setFilterPaid('all'); setFilterDue('all'); setFilterDeposit('all'); setGroupBy('none'); setSortBy('created_at'); setSortDir('desc'); setShowBookmarks(false); }} className="text-teal-600 dark:text-teal-400 text-xs font-bold px-3 py-2">
+                   {lang === 'de' ? 'Alle Filter löschen' : 'Clear All filters'}
+                 </button>
+                 <button onClick={() => setShowBottomSheet(false)} className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-xl text-sm shadow-md">
+                    {lang === 'de' ? 'Filter anwenden' : 'Apply Filters'}
                  </button>
               </div>
            </div>
         </div>
       )}
       
-      <style>{`@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }`}</style>
     </div>
   );
 }
