@@ -1,10 +1,10 @@
 // src/MobileDashboard.tsx
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from './lib/supabase';
-import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday, calculateNights, calcInvoiceItem } from './lib/utils';
+import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday } from './lib/utils';
 import type { AccessLevel } from './lib/supabase';
-import { Home, Search, Settings as SettingsIcon, PieChart, Plus, ChevronDown, Check, X, Filter, SortAsc, Calendar, Lock, LogOut, Sun, Moon, WifiOff, Wifi, Upload, Loader2 } from 'lucide-react';
-import { HotelRow } from './components/HotelRow'; // We will replace this with MobileHotelRow in Step 2!
+import { Home, Search, Settings as SettingsIcon, PieChart, Plus, X, Filter, SortAsc, Calendar, LogOut, Moon, Globe, WifiOff, Loader2 } from 'lucide-react';
+import { HotelRow } from './components/HotelRow';
 
 interface MobileDashboardProps {
   theme: 'dark' | 'light'; lang: 'de' | 'en';
@@ -17,25 +17,24 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
   const dk = theme === 'dark';
   const isStrictViewer = viewOnly || accessLevel?.role === 'viewer' || accessLevel?.role === 'pending';
 
-  // --- EXACT SAME DATA STATE AS DESKTOP ---
+  // --- DATA STATE ---
   const [hotels, setHotels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // --- MOBILE UI STATE ---
   const [activeTab, setActiveTab] = useState<'home' | 'search' | 'finances' | 'settings'>('home');
   const [showBottomSheet, setShowBottomSheet] = useState(false);
-  const [sheetTab, setSheetTab] = useState<'timeline' | 'filter' | 'sort'>('filter');
+  const [sheetTab, setSheetTab] = useState<'filter' | 'sort' | 'time'>('filter');
 
+  // --- FILTERS ---
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // FILTER STATE
-  const [tlType, setTlType] = useState<'all'|'today'|'tomorrow'|'3days'|'7days'>('all');
   const [filterPaid, setFilterPaid] = useState<'all' | 'paid' | 'unpaid'>('all');
-  const [filterDue, setFilterDue] = useState<'all' | 'today' | '3days' | '5days'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'cost' | 'bed_price' | 'free_beds' | 'created_at'>('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
-  // --- EXACT SAME DATA FETCHING ---
+  // --- DATA FETCHING (Exact copy from Desktop) ---
   useEffect(() => { 
     let isMounted = true;
     setLoading(true);
@@ -61,16 +60,15 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
     return () => { isMounted = false; };
   }, [selectedYear]);
 
-  // --- EXACT SAME FILTER MATH ---
+  // --- FILTER MATH (Exact copy from Desktop) ---
   const finalFiltered = useMemo(() => {
     return hotels.filter(h => {
-      // 1. Year logic
       const durationInYear = (h.durations || []).some((d: any) => d.startDate && new Date(d.startDate).getFullYear() <= selectedYear && new Date(d.endDate).getFullYear() >= selectedYear);
       const invoiceInYear = (h.invoices || []).some((inv: any) => { const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString()); return dateStr && new Date(dateStr).getFullYear() === selectedYear; });
       if (!durationInYear && !invoiceInYear && h.year !== selectedYear) return false;
 
-      // 2. Search logic (Applied instantly on Search Tab)
-      if (searchQuery) {
+      // Only apply text search if we are actually on the search tab
+      if (searchQuery && activeTab === 'search') {
           const q = searchQuery.toLowerCase();
           const matchAll = hotelMatchesSearch(h, searchQuery, 'all');
           const deepInvoiceMatch = h.rechnungNr?.toLowerCase().includes(q) || (h.invoices || []).some((inv: any) => inv.number?.toLowerCase().includes(q));
@@ -78,47 +76,43 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
           if (!matchAll && !deepInvoiceMatch && !deepEmployeeMatch) return false;
       }
 
-      // 3. Payment logic
       if (filterPaid === 'paid' && !h.isPaid) return false;
       if (filterPaid === 'unpaid' && h.isPaid) return false;
 
       return true;
     }).sort((a, b) => {
       let va: any; let vb: any;
-      if (sortBy === 'cost') { va = calcHotelTotalCost(a, selectedMonth, selectedYear); vb = calcHotelTotalCost(b, selectedMonth, selectedYear); }
+      if (sortBy === 'cost') { va = calcHotelTotalCost(a, selectedMonth !== null ? selectedMonth : null, selectedYear); vb = calcHotelTotalCost(b, selectedMonth !== null ? selectedMonth : null, selectedYear); }
       else if (sortBy === 'free_beds') { va = calcHotelFreeBedsToday(a); vb = calcHotelFreeBedsToday(b); }
       else if (sortBy === 'created_at') { va = new Date(a.created_at).getTime(); vb = new Date(b.created_at).getTime(); }
       else { va = a.name?.toLowerCase() || ''; vb = b.name?.toLowerCase() || ''; }
       return (va < vb ? -1 : va > vb ? 1 : 0) * (sortDir === 'asc' ? 1 : -1);
     });
-  }, [hotels, searchQuery, sortBy, sortDir, filterPaid, selectedMonth, selectedYear]);
+  }, [hotels, searchQuery, activeTab, sortBy, sortDir, filterPaid, selectedMonth, selectedYear]);
 
-  // Global Math for Finances Tab
+  // --- GLOBAL FINANCES ---
   let totalSpend = 0; let totalPaidGlobal = 0; let totalUnpaidGlobal = 0;
   finalFiltered.forEach(h => {
-     let hotelTotal = calcHotelTotalCost(h, selectedMonth, selectedYear);
+     let hotelTotal = calcHotelTotalCost(h, selectedMonth !== null ? selectedMonth : null, selectedYear);
      totalSpend += hotelTotal;
      if (h.isPaid) totalPaidGlobal += hotelTotal; else totalUnpaidGlobal += hotelTotal;
   });
 
   const btnActive = dk ? 'bg-teal-600 text-white border-transparent' : 'bg-teal-600 text-white shadow-sm';
   const btnInactive = dk ? 'bg-white/5 text-slate-300 border-white/10' : 'bg-white border-slate-200 text-slate-600';
-
   return (
-    <div className={cn("flex flex-col h-full", dk ? "bg-[#0F172A]" : "bg-slate-50")}>
+    <div className={cn("flex flex-col h-screen overflow-hidden", dk ? "bg-[#0F172A]" : "bg-slate-50")}>
       
       {/* MOBILE TOP BAR */}
       <div className={cn("px-4 py-3 flex items-center justify-between z-50 shrink-0 border-b", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-200")}>
         <div className="text-xl font-black italic tracking-tight flex items-center gap-1">
            <span className={dk ? "text-white" : "text-slate-900"}>Euro</span><span className="text-yellow-500">Track.</span>
         </div>
-        {activeTab === 'home' && (
-          <div className="flex items-center gap-2">
-            <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} className={cn("text-xs font-bold p-1.5 rounded-lg outline-none", dk ? "bg-white/10 text-white" : "bg-slate-100 text-slate-800")}>
-              {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))} className={cn("text-xs font-bold p-1.5 rounded-lg outline-none", dk ? "bg-white/10 text-white" : "bg-slate-100 text-slate-800")}>
+            {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
       </div>
 
       {/* SCROLLING CONTENT AREA */}
@@ -128,22 +122,22 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
          ) : (
             <div className="p-4 space-y-4">
               
-              {/* HOME TAB: Just the list of cards */}
+              {/* HOME TAB: List of cards */}
               {activeTab === 'home' && (
                 finalFiltered.length > 0 ? finalFiltered.map((hotel, idx) => (
                   <HotelRow key={hotel.id} entry={hotel} index={idx} isDarkMode={dk} lang={lang} viewOnly={viewOnly} />
-                )) : <div className="text-center py-10 opacity-50 font-bold">{lang === 'de' ? 'Keine Hotels' : 'No Hotels'}</div>
+                )) : <div className="text-center py-10 opacity-50 font-bold">{lang === 'de' ? 'Keine Hotels gefunden' : 'No Hotels found'}</div>
               )}
 
-              {/* SEARCH & FILTER TAB */}
+              {/* SEARCH TAB: Instant Filter */}
               {activeTab === 'search' && (
-                <div className="space-y-4">
+                <div className="space-y-4 animate-in fade-in">
                    <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                       <input autoFocus type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={lang === 'de' ? "Suchen..." : "Search..."} className={cn("w-full py-3 pl-10 pr-4 rounded-xl font-bold border outline-none", dk ? "bg-[#1E293B] border-white/10 text-white focus:border-teal-500" : "bg-white border-slate-200 focus:border-teal-500")} />
                    </div>
                    <button onClick={() => setShowBottomSheet(true)} className={cn("w-full py-3 rounded-xl border flex items-center justify-center gap-2 font-bold", dk ? "bg-white/5 border-white/10 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-700")}>
-                      <Filter size={16} /> {lang === 'de' ? 'Filter & Sortierung' : 'Filter & Sort'}
+                      <Filter size={16} /> {lang === 'de' ? 'Filter & Sortierung anpassen' : 'Adjust Filter & Sort'}
                    </button>
                    
                    <div className="mt-6 pt-4 border-t border-slate-200 dark:border-white/10">
@@ -157,7 +151,7 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
 
               {/* FINANCES TAB */}
               {activeTab === 'finances' && (
-                <div className="space-y-4">
+                <div className="space-y-4 animate-in fade-in">
                    <div className={cn("p-5 rounded-2xl border shadow-sm", dk ? "bg-teal-900/20 border-teal-500/30" : "bg-teal-50 border-teal-200")}>
                       <p className="text-xs font-black text-slate-500 uppercase tracking-widest">{lang === 'de' ? 'Gesamtkosten' : 'Total Spend'}</p>
                       <h2 className="text-4xl font-black text-teal-600 dark:text-teal-400 my-2">{formatCurrency(totalSpend)}</h2>
@@ -177,7 +171,7 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
 
               {/* SETTINGS TAB */}
               {activeTab === 'settings' && (
-                <div className="space-y-4">
+                <div className="space-y-4 animate-in fade-in">
                    <div className={cn("rounded-2xl border overflow-hidden", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
                       <button onClick={toggleTheme} className="w-full flex items-center justify-between p-4 border-b border-slate-100 dark:border-white/5 font-bold">
                          <span className="flex items-center gap-3"><Moon size={18} className="text-slate-400" /> {lang === 'de' ? 'Dark Mode' : 'Dark Mode'}</span>
@@ -191,8 +185,8 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
                       </button>
                       <button onClick={onToggleOfflineMode} className="w-full flex items-center justify-between p-4 font-bold">
                          <span className="flex items-center gap-3"><WifiOff size={18} className="text-slate-400" /> Offline Mode</span>
-                         <div className={cn("w-10 h-6 rounded-full transition-colors relative", (!isOnline || offlineMode) ? "bg-amber-500" : "bg-slate-300")}>
-                            <div className={cn("absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform", (!isOnline || offlineMode) ? "translate-x-4" : "")} />
+                         <div className={cn("w-10 h-6 rounded-full transition-colors relative", (!navigator.onLine || offlineMode) ? "bg-amber-500" : "bg-slate-300")}>
+                            <div className={cn("absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform", (!navigator.onLine || offlineMode) ? "translate-x-4" : "")} />
                          </div>
                       </button>
                    </div>
@@ -205,7 +199,7 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
          )}
       </div>
 
-      {/* FLOATING ACTION BUTTON (Only on Home) */}
+      {/* FLOATING ACTION BUTTON (Home Only) */}
       {activeTab === 'home' && !isStrictViewer && (
          <button className="absolute bottom-20 right-4 w-14 h-14 bg-teal-600 text-white rounded-full shadow-2xl flex items-center justify-center active:scale-95 transition-transform z-40">
             <Plus size={24} strokeWidth={3} />
@@ -230,13 +224,13 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
       {/* TABBED BOTTOM SHEET FOR FILTERS */}
       {showBottomSheet && (
         <div className="absolute inset-0 z-[99999] flex flex-col justify-end bg-black/60 backdrop-blur-sm pointer-events-auto" onClick={() => setShowBottomSheet(false)}>
-           <div className={cn("w-full h-[70vh] rounded-t-3xl flex flex-col border-t shadow-2xl", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")} onClick={e => e.stopPropagation()} style={{ animation: 'slideUp 0.3s ease-out' }}>
+           <div className={cn("w-full h-[60vh] rounded-t-3xl flex flex-col border-t shadow-2xl", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")} onClick={e => e.stopPropagation()} style={{ animation: 'slideUp 0.3s ease-out' }}>
+              
               <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-white/10 shrink-0">
                  <h3 className="text-lg font-black">{lang === 'de' ? 'Ansicht anpassen' : 'View Options'}</h3>
                  <button onClick={() => setShowBottomSheet(false)} className="p-2 bg-slate-100 dark:bg-white/5 rounded-full"><X size={18}/></button>
               </div>
               
-              {/* Sheet Tabs */}
               <div className="flex p-2 bg-slate-50 dark:bg-[#0F172A] shrink-0">
                  {[ { id: 'filter', icon: Filter, l: 'Filter' }, { id: 'sort', icon: SortAsc, l: 'Sort' }, { id: 'time', icon: Calendar, l: 'Zeit' } ].map(t => (
                     <button key={t.id} onClick={() => setSheetTab(t.id as any)} className={cn("flex-1 py-2 flex items-center justify-center gap-2 text-xs font-bold rounded-lg transition-all", sheetTab === t.id ? (dk ? "bg-teal-500/20 text-teal-400" : "bg-white shadow text-teal-700") : "text-slate-500")}>
@@ -245,32 +239,34 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
                  ))}
               </div>
 
-              {/* Sheet Content */}
               <div className="flex-1 overflow-y-auto p-5 space-y-6">
                  {sheetTab === 'filter' && (
-                    <>
-                       <div>
-                         <p className="text-xs font-black text-slate-400 uppercase mb-2">Zahlungsstatus</p>
-                         <div className="grid grid-cols-3 gap-2">
-                           {[{id:'all', l:'Alle'}, {id:'paid', l:'Bezahlt'}, {id:'unpaid', l:'Offen'}].map(p => (
-                             <button key={p.id} onClick={() => setFilterPaid(p.id as any)} className={cn("py-2.5 rounded-xl border text-sm font-bold", filterPaid === p.id ? btnActive : btnInactive)}>{p.l}</button>
-                           ))}
-                         </div>
-                       </div>
-                    </>
+                    <div>
+                      <p className="text-xs font-black text-slate-400 uppercase mb-2">Zahlungsstatus</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[{id:'all', l:'Alle'}, {id:'paid', l:'Bezahlt'}, {id:'unpaid', l:'Offen'}].map(p => (
+                          <button key={p.id} onClick={() => setFilterPaid(p.id as any)} className={cn("py-2.5 rounded-xl border text-sm font-bold transition-all", filterPaid === p.id ? btnActive : btnInactive)}>{p.l}</button>
+                        ))}
+                      </div>
+                    </div>
                  )}
                  {sheetTab === 'sort' && (
                     <>
                        <div className="grid grid-cols-2 gap-2">
                          {[ { id: 'name', l: 'Name' }, { id: 'cost', l: 'Kosten' }, { id: 'free_beds', l: 'Freie Betten' }, { id: 'created_at', l: 'Neueste' } ].map(s => (
-                           <button key={s.id} onClick={() => setSortBy(s.id as any)} className={cn("py-3 rounded-xl border text-sm font-bold", sortBy === s.id ? btnActive : btnInactive)}>{s.l}</button>
+                           <button key={s.id} onClick={() => setSortBy(s.id as any)} className={cn("py-3 rounded-xl border text-sm font-bold transition-all", sortBy === s.id ? btnActive : btnInactive)}>{s.l}</button>
                          ))}
                        </div>
                        <div className="flex rounded-xl border overflow-hidden mt-4">
-                         <button onClick={() => setSortDir('asc')} className={cn("flex-1 py-3 font-bold text-sm", sortDir === 'asc' ? "bg-slate-200 dark:bg-white/10" : "")}>Aufsteigend</button>
-                         <button onClick={() => setSortDir('desc')} className={cn("flex-1 py-3 font-bold text-sm", sortDir === 'desc' ? "bg-slate-200 dark:bg-white/10" : "")}>Absteigend</button>
+                         <button onClick={() => setSortDir('asc')} className={cn("flex-1 py-3 font-bold text-sm transition-all", sortDir === 'asc' ? (dk ? "bg-white/10" : "bg-slate-200") : dk ? "bg-transparent text-slate-400" : "bg-white text-slate-500")}>Aufsteigend</button>
+                         <button onClick={() => setSortDir('desc')} className={cn("flex-1 py-3 font-bold text-sm transition-all border-l", sortDir === 'desc' ? (dk ? "bg-white/10 border-transparent" : "bg-slate-200 border-transparent") : dk ? "bg-transparent text-slate-400 border-white/10" : "bg-white text-slate-500 border-slate-200")}>Absteigend</button>
                        </div>
                     </>
+                 )}
+                 {sheetTab === 'time' && (
+                    <div className="text-center py-6 text-slate-400 font-bold italic">
+                       {lang === 'de' ? 'Weitere Filter in Entwicklung...' : 'More filters coming soon...'}
+                    </div>
                  )}
               </div>
               
