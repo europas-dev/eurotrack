@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday, calculateNights, calcInvoiceItem } from './lib/utils';
 import type { AccessLevel } from './lib/supabase';
-import { Home, Search, Settings as SettingsIcon, PieChart, Plus, ChevronDown, Check, X, Filter, SortAsc, Calendar, Lock, LogOut, Sun, Moon, WifiOff, Wifi, Upload } from 'lucide-react';
+import { Home, Search, Settings as SettingsIcon, PieChart, Plus, ChevronDown, Check, X, Filter, SortAsc, Calendar, Lock, LogOut, Sun, Moon, WifiOff, Wifi, Upload, Loader2 } from 'lucide-react';
 import { HotelRow } from './components/HotelRow'; // We will replace this with MobileHotelRow in Step 2!
 
 interface MobileDashboardProps {
