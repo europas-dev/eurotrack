@@ -73,6 +73,125 @@ export function getTranslation(dict: any[], id: string, lang: string) {
   return item ? (lang === 'de' ? item.de : item.en) : id;
 }
 
+export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onDelete, viewOnly, dk, lang, defaultNights = 1, defaultStart, defaultEnd }: any) {
+  const [draft, setDraft] = useState(item);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const editRef = useRef<HTMLDivElement>(null);
+  const [calOpen, setCalOpen] = useState(false);
+  const [showDiscount, setShowDiscount] = useState(parseFloat(item.discountValue || 0) > 0);
+  
+  const inputClass = cn('px-1.5 py-1 rounded text-[11px] font-bold outline-none border transition-all h-[28px]', dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-teal-500' : 'bg-white border-slate-200 text-slate-900 focus:border-teal-500');
+
+  useEffect(() => { if (isEditing) setDraft(item); }, [isEditing, item]);
+
+  const currentItem = isEditing ? draft : item;
+  const { finalNetto, mwst, brutto } = calcInvoiceItem(currentItem, defaultNights);
+  const hasNettoInput = currentItem.netto != null && currentItem.netto !== '';
+  const hasBruttoInput = currentItem.brutto != null && currentItem.brutto !== '';
+  const isPerBedAllowed = currentItem.type === 'room' || currentItem.type === 'energy' || currentItem.type === 'tax';
+  const needsNote = currentItem.type === 'base' || currentItem.type === 'extra';
+  const activeNights = currentItem.nights || defaultNights;
+
+  const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    e.target.style.height = '28px'; e.target.style.height = `${e.target.scrollHeight}px`; setDraft({ ...draft, note: e.target.value });
+  };
+
+  if (isEditing && !viewOnly) {
+    return (
+      <div ref={editRef} className={cn("flex flex-col p-2 border-b transition-all w-full relative z-20 shadow-xl gap-2", dk ? "bg-teal-900/20 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
+        <div className="flex gap-2 w-full">
+            <select value={draft.type || 'room'} onChange={e => { const newType = e.target.value; setDraft({ ...draft, type: newType, method: (newType === 'base' || newType === 'extra') ? 'total' : draft.method }); }} className={cn(inputClass, "flex-1")}>
+              {COST_TYPES.map(o => <option key={o.id} value={o.id}>{lang === 'de' ? o.de : o.en}</option>)}
+            </select>
+            <select disabled={!isPerBedAllowed} value={!isPerBedAllowed ? 'total' : (draft.method || 'total')} onChange={e => setDraft({ ...draft, method: e.target.value })} className={cn(inputClass, "flex-1 disabled:opacity-50")}>
+                 {COST_METHODS.map(m => <option key={m.id} value={m.id}>{lang === 'de' ? m.de : m.en}</option>)}
+            </select>
+        </div>
+
+        {draft.method === 'per_bed' && isPerBedAllowed && (
+           <div className="flex items-center justify-between gap-1 w-full">
+              <div className="flex items-center gap-1">
+                 <input type="number" value={draft.beds ?? 1} onChange={e => setDraft({ ...draft, beds: e.target.value })} className={cn(inputClass, "w-[40px] text-center px-0")} placeholder="1" />
+                 <span className="text-[10px] font-bold text-slate-400">Betten</span>
+              </div>
+              <span className="text-[12px] text-slate-400 font-black">×</span>
+              <div className={cn("flex items-center rounded border h-[28px] px-2 cursor-pointer", dk ? "bg-black/20 border-white/10 text-white" : "bg-white border-slate-200 text-slate-700")} onClick={() => setCalOpen(!calOpen)}>
+                 <span className="text-[11px] font-bold mr-1">{activeNights}N</span>
+                 <Calendar size={10}/>
+              </div>
+           </div>
+        )}
+
+        {calOpen && draft.method === 'per_bed' && (
+            <div className={cn("p-2 rounded-lg border shadow-xl flex flex-col gap-2 w-full", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+               <div className="flex items-center gap-2">
+                  <NativeDatePicker dk={dk} value={draft.startDate || defaultStart || ''} onChange={(s: string) => setDraft({ ...draft, startDate: s, nights: calculateNights(s, draft.endDate || defaultEnd || s) })} className="w-full h-[30px]" />
+                  <span className="text-slate-400">-</span>
+                  <NativeDatePicker dk={dk} min={draft.startDate || defaultStart} value={draft.endDate || defaultEnd || ''} onChange={(end: string) => setDraft({ ...draft, endDate: end, nights: calculateNights(draft.startDate || defaultStart || end, end) })} className="w-full h-[30px]" />
+               </div>
+               <button onClick={() => setCalOpen(false)} className="py-1.5 bg-teal-500 text-white text-[11px] font-bold rounded">OK</button>
+            </div>
+        )}
+
+        <div className="flex items-center gap-2 w-full relative">
+           <div className="relative flex-1">
+             <input type="number" disabled={hasBruttoInput} placeholder="Netto" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 text-right pr-6")} />
+             {(!showDiscount && !hasBruttoInput) && <button onClick={() => { setShowDiscount(true); if(!draft.discountType) setDraft({...draft, discountType: 'fixed'}); }} className="absolute right-1 top-[3px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
+           </div>
+           <MwstInput value={draft.mwst} onChange={(v:any) => setDraft({ ...draft, mwst: v })} isDarkMode={dk} disabled={false} />
+           <input type="number" disabled={hasNettoInput} placeholder={hasNettoInput ? formatCurrency(brutto) : "Brutto"} value={draft.brutto ?? ''} onChange={e => setDraft({ ...draft, brutto: e.target.value, netto: null })} className={cn(inputClass, "flex-1 text-right disabled:opacity-100 disabled:bg-transparent disabled:border-transparent font-black")} />
+        </div>
+
+        {showDiscount && !hasBruttoInput && (
+           <div className="flex items-center w-full mt-1">
+              <input type="number" value={draft.discountValue ?? ''} onChange={e => setDraft({ ...draft, discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 flex-1 px-1.5 text-right placeholder:text-[10px]")} placeholder="Rabatt" />
+              <button onClick={() => setDraft({ ...draft, discountType: draft.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[30px] h-[28px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 text-white" : "bg-slate-200 text-slate-700")}>{draft.discountType === 'percentage' ? '%' : '€'}</button>
+              <button onClick={() => { setShowDiscount(false); setDraft({ ...draft, discountValue: null }); }} className={cn("w-[30px] h-[28px] rounded-r border-y border-r flex items-center justify-center text-slate-400 hover:text-red-500", dk ? "bg-black/20" : "bg-white")}><X size={14}/></button>
+           </div>
+        )}
+
+        {needsNote && <textarea rows={1} value={draft.note || ''} onChange={handleNoteChange} className={cn(inputClass, "w-full text-[11px] font-medium resize-none min-h-[28px] mt-1")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />}
+
+        <div className="flex justify-end gap-1.5 mt-1">
+           <button onClick={onCancel} className={cn("px-3 py-1.5 rounded text-xs font-bold border transition-all", dk ? "border-white/10 text-slate-300" : "border-slate-200 text-slate-600")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
+           <button onClick={() => onSave(draft)} className="px-4 py-1.5 rounded text-xs font-bold text-white bg-teal-500 hover:bg-teal-600 flex items-center gap-1"><Check size={12}/> {lang === 'de' ? 'Speichern' : 'Save'}</button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={cn("flex items-start px-2 py-2 border-b last:border-b-0 transition-colors group relative gap-2", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
+       {confirmDelete ? (
+           <div className={cn("absolute inset-0 flex items-center gap-2 p-2 z-10", dk ? "bg-slate-800" : "bg-white")}>
+              <span className="text-[11px] font-black text-red-500 flex-1">{lang === 'de' ? 'Löschen?' : 'Delete?'}</span>
+              <button onClick={() => setConfirmDelete(false)} className={cn("px-2 py-1 rounded text-[10px] font-bold", dk ? "bg-slate-700 text-slate-300" : "bg-slate-100 text-slate-600")}>Abbrechen</button>
+              <button onClick={onDelete} className="px-2 py-1 text-white bg-red-500 rounded text-[10px] font-bold">Löschen</button>
+           </div>
+       ) : (
+          <>
+             <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                <div className={cn("text-[11px] font-black leading-tight truncate", dk ? "text-slate-200" : "text-slate-800")}>
+                   {getTranslation(COST_TYPES, currentItem.type || 'room', lang)}
+                   {currentItem.method === 'per_bed' && <span className="text-[9px] font-bold text-slate-500 ml-1">({activeNights}N, {currentItem.beds||1}B)</span>}
+                </div>
+                {currentItem.note && <span className="text-[9px] font-medium text-slate-500 italic truncate">{currentItem.note}</span>}
+             </div>
+             <div className="w-[50px] shrink-0 text-right"><span className={cn("text-[10px] font-bold", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(parseFloat(currentItem.netto)||0)}</span></div>
+             <div className="w-[30px] shrink-0 text-center"><span className={cn("text-[10px] font-bold", dk ? "text-slate-400" : "text-slate-500")}>{currentItem.mwst ?? 7}%</span></div>
+             <div className="w-[60px] shrink-0 text-right"><span className={cn("text-[11px] font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(brutto)}</span></div>
+             
+             {/* Invisible hover area that slides in the edit/trash icons */}
+             <div className="absolute right-0 top-0 bottom-0 bg-gradient-to-l from-white dark:from-[#1E293B] via-white/90 dark:via-[#1E293B]/90 to-transparent w-24 flex items-center justify-end px-2 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity">
+                {!viewOnly && <button onClick={onEdit} className="p-1.5 rounded text-slate-400 hover:text-teal-500 transition-colors"><Edit3 size={14}/></button>}
+                {!viewOnly && <button onClick={() => setConfirmDelete(true)} className="p-1.5 rounded text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={14}/></button>}
+             </div>
+          </>
+       )}
+    </div>
+  )
+}
+
 function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, className, textClass, searchQuery, disabled }: any) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value || '');
@@ -81,8 +200,7 @@ function SeamlessInput({ value, options, isDarkMode, onChange, placeholder, clas
   useEffect(() => { setDraft(value || ''); }, [value]);
   useEffect(() => {
     function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) { setEditing(false); setShowOptions(false); setDraft(value || ''); } }
-    document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
+    document.addEventListener('mousedown', handle); return () => document.removeEventListener('mousedown', handle);
   }, [value]);
   const filtered = draft.trim().length > 0 ? (options || []).filter((o: string) => o.toLowerCase().includes(draft.toLowerCase()) && o.toLowerCase() !== draft.toLowerCase()).slice(0, 5) : [];
   if (!editing || disabled) {
@@ -178,7 +296,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
       setLocalMemory(prev => prev.filter(m => m !== opt));
       setConfirmDeleteOpt(null);
   };
-  
+
   const safeOptions = Array.isArray(options) ? options : [];
   const safeSelected = Array.isArray(selected) ? selected : (typeof selected === 'string' && selected ? [selected] : []);
   const combinedOptions = Array.from(new Set([...safeOptions, ...localMemory]));
@@ -198,7 +316,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
         )) : <span className={cn("text-[9px] font-bold border border-dashed px-2 py-0.5 rounded transition-colors w-max", isDarkMode ? "text-slate-500 border-white/20 hover:text-teal-400" : "text-slate-400 border-slate-300 hover:text-teal-600")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
       </div>
       {open && !disabled && (
-        <div className={cn('absolute top-full mt-1 right-0 z-[200] rounded-xl border shadow-xl min-w-[200px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200 w-[240px]', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')} onClick={e => e.stopPropagation()}>
+        <div className={cn('absolute top-full mt-1 right-0 z-[200] rounded-xl border shadow-xl min-w-[200px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')} onClick={e => e.stopPropagation()}>
           <div className={cn("flex items-center px-2 py-2 border-b", isDarkMode ? "border-white/10 bg-[#1E293B]" : "border-slate-100 bg-slate-50")}>
             <Search size={12} className={isDarkMode ? "text-slate-400" : "text-slate-500"} />
             <input autoFocus autoComplete="new-password" spellCheck="false" name={Math.random().toString()} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAddNew(); }} placeholder={lang === 'de' ? "Suchen..." : "Search..."} className={cn("ml-2 bg-transparent text-[11px] font-bold outline-none w-full", isDarkMode ? "text-white placeholder:text-slate-500" : "text-slate-900 placeholder:text-slate-400")} />
@@ -235,104 +353,6 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
   );
 }
 
-// Mobile Micro-Table Invoice Line Item
-export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onDelete, viewOnly, dk, lang, defaultNights = 1, defaultStart, defaultEnd }: any) {
-  const [draft, setDraft] = useState(item);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const editRef = useRef<HTMLDivElement>(null);
-  const [calOpen, setCalOpen] = useState(false);
-  const [showDiscount, setShowDiscount] = useState(parseFloat(item.discountValue || 0) > 0);
-  
-  const inputClass = cn('px-1.5 py-1 rounded text-[11px] font-bold outline-none border transition-all h-[28px]', dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-teal-500' : 'bg-white border-slate-200 text-slate-900 focus:border-teal-500');
-
-  useEffect(() => { if (isEditing) setDraft(item); }, [isEditing, item]);
-
-  const currentItem = isEditing ? draft : item;
-  const { finalNetto, mwst, brutto } = calcInvoiceItem(currentItem, defaultNights);
-  const activeNights = currentItem.nights || defaultNights;
-
-  if (isEditing && !viewOnly) {
-    return (
-      <div ref={editRef} className={cn("flex flex-col p-2 border-b transition-all w-full relative z-20 shadow-xl gap-2", dk ? "bg-teal-900/20 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
-        <div className="flex gap-2 w-full">
-            <select value={draft.type || 'room'} onChange={e => setDraft({ ...draft, type: e.target.value })} className={cn(inputClass, "flex-1")}>
-              {COST_TYPES.map(o => <option key={o.id} value={o.id}>{lang === 'de' ? o.de : o.en}</option>)}
-            </select>
-            <select disabled={currentItem.type !== 'room' && currentItem.type !== 'energy' && currentItem.type !== 'tax'} value={draft.method || 'total'} onChange={e => setDraft({ ...draft, method: e.target.value })} className={cn(inputClass, "flex-1")}>
-                 {COST_METHODS.map(m => <option key={m.id} value={m.id}>{lang === 'de' ? m.de : m.en}</option>)}
-            </select>
-        </div>
-
-        {draft.method === 'per_bed' && (
-           <div className="flex items-center justify-between gap-1 w-full">
-              <div className="flex items-center gap-1">
-                 <input type="number" value={draft.beds ?? 1} onChange={e => setDraft({ ...draft, beds: e.target.value })} className={cn(inputClass, "w-[40px] text-center px-0")} placeholder="1" />
-                 <span className="text-[10px] font-bold text-slate-400">Betten</span>
-              </div>
-              <span className="text-[12px] text-slate-400 font-black">×</span>
-              <div className={cn("flex items-center rounded border h-[28px] px-2 cursor-pointer", dk ? "bg-black/20 border-white/10 text-white" : "bg-white border-slate-200 text-slate-700")} onClick={() => setCalOpen(!calOpen)}>
-                 <span className="text-[11px] font-bold mr-1">{activeNights}N</span>
-                 <Calendar size={10}/>
-              </div>
-           </div>
-        )}
-
-        {calOpen && draft.method === 'per_bed' && (
-            <div className={cn("p-2 rounded-lg border shadow-xl flex flex-col gap-2 w-full", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
-               <div className="flex items-center gap-2">
-                  <NativeDatePicker dk={dk} value={draft.startDate || defaultStart || ''} onChange={(s: string) => setDraft({ ...draft, startDate: s, nights: calculateNights(s, draft.endDate || defaultEnd || s) })} className="w-full h-[30px]" />
-                  <span className="text-slate-400">-</span>
-                  <NativeDatePicker dk={dk} min={draft.startDate || defaultStart} value={draft.endDate || defaultEnd || ''} onChange={(end: string) => setDraft({ ...draft, endDate: end, nights: calculateNights(draft.startDate || defaultStart || end, end) })} className="w-full h-[30px]" />
-               </div>
-               <button onClick={() => setCalOpen(false)} className="py-1.5 bg-teal-500 text-white text-[11px] font-bold rounded">OK</button>
-            </div>
-        )}
-
-        <div className="flex items-center gap-2 w-full">
-           <input type="number" placeholder="Netto" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-[70px] text-right")} />
-           <MwstInput value={draft.mwst} onChange={(v:any) => setDraft({ ...draft, mwst: v })} isDarkMode={dk} disabled={false} />
-           <input type="number" placeholder="Brutto" value={draft.brutto ?? ''} onChange={e => setDraft({ ...draft, brutto: e.target.value, netto: null })} className={cn(inputClass, "flex-1 text-right")} />
-        </div>
-
-        <div className="flex justify-end gap-1.5 mt-1">
-           <button onClick={onCancel} className={cn("px-3 py-1.5 rounded text-xs font-bold border transition-all", dk ? "border-white/10 text-slate-300 hover:bg-white/10" : "border-slate-200 text-slate-600 hover:bg-slate-100")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
-           <button onClick={() => onSave(draft)} className="px-4 py-1.5 rounded text-xs font-bold text-white bg-teal-500 hover:bg-teal-600 transition-all flex items-center gap-1"><Check size={12}/> {lang === 'de' ? 'Speichern' : 'Save'}</button>
-        </div>
-      </div>
-    )
-  }
-
-  // Micro-Table Read View
-  return (
-    <div className={cn("flex items-start px-2 py-2 border-b last:border-b-0 transition-colors group relative gap-2", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
-       {confirmDelete ? (
-           <div className={cn("absolute inset-0 flex items-center gap-2 p-2 z-10", dk ? "bg-slate-800" : "bg-white")}>
-              <span className="text-[11px] font-black text-red-500 flex-1">{lang === 'de' ? 'Löschen?' : 'Delete?'}</span>
-              <button onClick={() => setConfirmDelete(false)} className={cn("px-2 py-1 rounded text-[10px] font-bold", dk ? "bg-slate-700 text-slate-300" : "bg-slate-100 text-slate-600")}>Abbrechen</button>
-              <button onClick={onDelete} className="px-2 py-1 text-white bg-red-500 rounded text-[10px] font-bold">Löschen</button>
-           </div>
-       ) : (
-          <>
-             <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                <div className={cn("text-[11px] font-black leading-tight truncate", dk ? "text-slate-200" : "text-slate-800")}>
-                   {getTranslation(COST_TYPES, currentItem.type || 'room', lang)}
-                   {currentItem.method === 'per_bed' && <span className="text-[9px] font-bold text-slate-500 ml-1">({activeNights}N, {currentItem.beds||1}B)</span>}
-                </div>
-                {currentItem.note && <span className="text-[9px] font-medium text-slate-500 italic truncate">{currentItem.note}</span>}
-             </div>
-             <div className="w-[50px] shrink-0 text-right"><span className={cn("text-[10px] font-bold", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(parseFloat(currentItem.netto)||0)}</span></div>
-             <div className="w-[30px] shrink-0 text-center"><span className={cn("text-[10px] font-bold", dk ? "text-slate-400" : "text-slate-500")}>{currentItem.mwst ?? 7}%</span></div>
-             <div className="w-[60px] shrink-0 text-right"><span className={cn("text-[11px] font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(brutto)}</span></div>
-             <div className="absolute right-0 top-0 bottom-0 bg-gradient-to-l from-white dark:from-[#1E293B] via-white/90 dark:via-[#1E293B]/90 to-transparent w-24 flex items-center justify-end px-2 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity">
-                {!viewOnly && <button onClick={onEdit} className="p-1.5 rounded text-slate-400 hover:text-teal-500 transition-colors"><Edit3 size={14}/></button>}
-                {!viewOnly && <button onClick={() => setConfirmDelete(true)} className="p-1.5 rounded text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={14}/></button>}
-             </div>
-          </>
-       )}
-    </div>
-  )
-}
-// THE MAIN MOBILE COMPONENT (Explicitly exported as MobileHotelRow)
 export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onRenameCompanyOption, onAddOption, viewOnly, activeSort = 'created_at', activeFilterDue, activeFilterDeposit }: any) {
   const [activeTab, setActiveTab] = useState<'bookings'|'billing'|'info'>('bookings');
   
@@ -343,10 +363,12 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingTotal, setEditingTotal] = useState(false);
   const [totalDraft, setTotalDraft] = useState<any>(null);
+  const totalRef = useRef<HTMLDivElement>(null);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [invoiceDraft, setInvoiceDraft] = useState<any>(null);
   const [activeDurationTab, setActiveDurationTab] = useState(0);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [creatingDuration, setCreatingDuration] = useState(false);
 
   // Parse bookmarks locally
   const [isBookmarked, setIsBookmarked] = useState(() => {
@@ -380,8 +402,7 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
     (localHotel.invoices || []).forEach((inv: any) => {
        let invBrutto = 0;
        if (inv.billingMode === 'total') {
-          const n = parseFloat(inv.totalNetto) || 0;
-          const m = parseFloat(inv.totalMwst) || 0;
+          const n = parseFloat(inv.totalNetto) || 0; const m = parseFloat(inv.totalMwst) || 0;
           const b = n * (1 + m/100);
           finalNetto += n; finalBrutto += b; invBrutto += b;
           if (n > 0 && m !== null) buckets[m] = (buckets[m] || 0) + (n * (m/100));
@@ -419,9 +440,7 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
     return { 
       freeBeds: tFree, totalBeds: tBeds, employees: allEmps, 
       displayNetto: finalNetto, displayBrutto: finalBrutto, buckets, 
-      activeNetto, activeBrutto, activeBuckets,
-      totalPaid, totalUnpaid, nearestDueDate,
-      isMasterActive: false
+      activeNetto, activeBrutto, activeBuckets, totalPaid, totalUnpaid, nearestDueDate
     };
   }, [localHotel, selectedInvoiceId]);
 
@@ -450,6 +469,13 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
         if ('name' in next) dbPayload.name = next.name;
         if ('city' in next) dbPayload.city = next.city;
         if ('companyTag' in next) dbPayload.company_tag = next.companyTag;
+        if ('address' in next) dbPayload.address = next.address;
+        if ('contactPerson' in next) dbPayload.contactperson = next.contactPerson;
+        if ('phone' in next) dbPayload.phone = next.phone;
+        if ('email' in next) dbPayload.email = next.email;
+        if ('website' in next) dbPayload.weblink = next.website;
+        if ('country' in next) dbPayload.country = next.country;
+        if ('notes' in next) dbPayload.notes = next.notes;
         if ('invoices' in next) dbPayload.invoices = next.invoices;
         await updateHotel(localHotel.id, dbPayload);
         onUpdate(localHotel.id, next);
@@ -472,6 +498,8 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
   };
 
   const activeInvoice = localHotel.invoices?.find((i:any) => i.id === selectedInvoiceId);
+  const labelCls = cn('flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1', dk && 'text-slate-400');
+  const inputCls = cn('w-full px-2 py-1.5 rounded-lg text-xs font-bold outline-none border transition-all h-[32px]', dk ? 'bg-black/20 border-white/10 text-white placeholder-slate-600 focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-teal-500', viewOnly && "opacity-60 cursor-default");
 
   return (
     <div className={cn('w-full rounded-2xl border mb-3 transition-all duration-200 shadow-sm relative overflow-hidden', 
@@ -480,128 +508,129 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
     >
       <div className={cn("absolute top-0 bottom-0 left-0 w-1.5 transition-colors z-[60]", masterMath.totalUnpaid > 0 ? "bg-red-500" : (masterMath.totalPaid > 0 ? "bg-emerald-500" : "bg-transparent border-r border-slate-200 dark:border-white/10"))} />
 
-      {/* MOBILE COLLAPSED VIEW */}
-      <div className="p-3 pl-4 flex flex-col cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
-         
-         {/* Row 1: Name and Star */}
-         <div className="flex justify-between items-start w-full">
-            <div className="flex-1 min-w-0 pr-2">
-               <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-lg font-black leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} />
-            </div>
-            <button onClick={toggleBookmark} className={cn("p-1.5 rounded-full transition-colors shrink-0", isBookmarked ? "text-yellow-500 bg-yellow-500/10" : "text-slate-400 bg-slate-100 dark:bg-white/5 dark:hover:text-white")}>
-               <Star size={16} className={isBookmarked ? "fill-yellow-500" : ""} />
-            </button>
-         </div>
-
-         {/* Row 2: City and Company Tag */}
-         <div className="flex justify-between items-center w-full mt-0.5">
-            <div className="flex items-center gap-1.5 flex-1 min-w-0 pr-2">
-               <MapPin size={10} className={dk ? "text-slate-500" : "text-slate-400"} /> 
-               <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} textClass={cn("text-[10px] font-bold uppercase tracking-widest", dk ? "text-slate-400" : "text-slate-500")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
-            </div>
-            <div className="shrink-0 w-max text-right" onClick={e => e.stopPropagation()}>
-               <CompanyMultiSelect disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onRenameOption={onRenameCompanyOption} onAddOption={onAddOption} searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} />
-            </div>
-         </div>
-
-         {/* Row 3: Horizontal Metrics Block */}
-         <div className={cn("flex items-center justify-between p-2.5 rounded-xl border mt-3", dk ? "bg-black/20 border-white/5" : "bg-slate-50 border-slate-100")}>
-             <div className="flex items-center gap-4">
-                 <div className="flex items-center gap-1.5">
-                     <Bed size={14} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={3} />
-                     <span className={cn('text-[13px] font-black', masterMath.freeBeds > 0 ? 'text-red-500' : dk ? 'text-teal-500' : 'text-teal-600')}>{masterMath.freeBeds}</span>
-                 </div>
-                 <div className="w-px h-4 bg-slate-200 dark:bg-white/10" />
-                 <div className="flex items-center gap-1.5">
-                     <Users size={14} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={3} />
-                     <span className={cn('text-[13px] font-black', dk ? 'text-slate-300' : 'text-slate-700')}>{masterMath.totalBeds}</span>
-                 </div>
+      <div className="flex">
+          {/* LEFT: Content */}
+          <div className="flex-1 p-3 pl-4 flex flex-col cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+             
+             {/* Row 1 & 2: Name, Company, City */}
+             <div className="flex items-center justify-between w-full mb-1">
+                <div className="flex-1 min-w-0 pr-2">
+                   <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-lg font-black leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} />
+                </div>
+                <div className="shrink-0 w-max text-right" onClick={e => e.stopPropagation()}>
+                   <CompanyMultiSelect disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onRenameOption={onRenameCompanyOption} onAddOption={onAddOption} searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} />
+                </div>
              </div>
              
-             <div className="flex flex-col items-end">
-                <span className={cn('font-black text-[15px]', dk ? 'text-white' : 'text-slate-900')}>
-                   {formatCurrency(masterMath.displayBrutto)}
-                </span>
-                {masterMath.nearestDueDate && (activeSort === 'payment_due' || (activeFilterDue && activeFilterDue !== 'all')) && (
-                   <span className="text-[8px] font-bold text-red-500 uppercase tracking-wider">
-                      {lang === 'de' ? 'Fällig: ' : 'Due: '} {formatShortDate(masterMath.nearestDueDate)}
-                   </span>
-                )}
+             <div className="flex items-center gap-1.5 mb-2 flex-1 min-w-0 pr-2">
+                <MapPin size={10} className={dk ? "text-slate-500" : "text-slate-400"} /> 
+                <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} textClass={cn("text-[10px] font-bold uppercase tracking-widest", dk ? "text-slate-400" : "text-slate-500")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
              </div>
-         </div>
 
-         {/* Row 4: 4-COLUMN DURATIONS GRID (Max 8) */}
-         {sortedDurations.length > 0 && (
-            <div className="grid grid-cols-4 gap-1.5 mt-3">
-               {sortedDurations.slice(0, 8).map((d: any, i: number) => {
-                   const formatChipStr = (iso: string) => {
-                       if (!iso) return '';
-                       const date = new Date(iso);
-                       const locale = lang === 'de' ? 'de-DE' : 'en-GB';
-                       return `${date.getDate().toString().padStart(2, '0')} ${date.toLocaleString(locale, { month: 'short' }).replace('.', '')}`;
-                   };
-                   return (
-                      <button key={i} onClick={(e) => { e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); setActiveDurationTab(i); }} className={cn("px-1 py-1 rounded text-[9px] font-bold border text-center truncate", dk ? "bg-slate-800 border-white/10 text-slate-300 hover:bg-slate-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50")}>
-                         {d.startDate && d.endDate ? `${formatChipStr(d.startDate)} - ${formatChipStr(d.endDate)}` : 'New'}
-                      </button>
-                   )
-               })}
-               {sortedDurations.length > 8 && (
-                   <button onClick={(e) => { e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); }} className={cn("px-1 py-1 rounded text-[9px] font-bold border text-center", dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400" : "bg-teal-50 border-teal-200 text-teal-700")}>
-                      +{sortedDurations.length - 8}
-                   </button>
-               )}
-            </div>
-         )}
-         
-         {/* Row 4.5: 5-COLUMN EMPLOYEES GRID (Max 10) */}
-         {sortedEmployees.length > 0 && (
-            <div className="grid grid-cols-5 gap-1.5 mt-2">
-               {sortedEmployees.slice(0, 10).map((emp: any, i: number) => {
-                  const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
-                  const borderCls = status === 'active' ? (dk ? "border-emerald-500/50" : "border-emerald-600") : status === 'upcoming' ? (dk ? "border-blue-500/50" : "border-blue-600") : status === 'ending-soon' ? (dk ? "border-red-500/50" : "border-red-600") : (dk ? "border-slate-500/40" : "border-slate-400");
-                  const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
-                  const parentDur = localHotel.durations.find((d:any) => (d.roomCards||[]).some((rc:any) => (rc.employees||[]).some((e:any) => e.id === emp.id)));
-                  const isPartial = parentDur && (emp.checkIn > parentDur.startDate || emp.checkOut < parentDur.endDate);
-                  const shortName = emp.name ? emp.name.trim().split(' ').pop() : '_ _ _';
+             {/* Row 3: Horizontal Metrics Block */}
+             <div className={cn("flex items-center justify-between p-2 rounded-xl border mb-3", dk ? "bg-black/20 border-white/5" : "bg-slate-50 border-slate-100")}>
+                 <div className="flex items-center gap-3 pl-1">
+                     <div className="flex items-center gap-1.5">
+                         <Bed size={16} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
+                         <span className={cn('text-[17px] font-black leading-none', masterMath.freeBeds > 0 ? 'text-red-500' : dk ? 'text-teal-500' : 'text-teal-600')}>{masterMath.freeBeds}</span>
+                     </div>
+                     <div className="w-px h-5 bg-slate-200 dark:bg-white/10" />
+                     <div className="flex items-center gap-1.5">
+                         <Users size={16} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
+                         <span className={cn('text-[17px] font-black leading-none', dk ? 'text-slate-300' : 'text-slate-700')}>{masterMath.totalBeds}</span>
+                     </div>
+                 </div>
+                 
+                 <div className="flex flex-col items-end pr-1">
+                    <span className={cn('font-black text-[17px] leading-none', dk ? 'text-white' : 'text-slate-900')}>
+                       {formatCurrency(masterMath.displayBrutto)}
+                    </span>
+                    {masterMath.nearestDueDate && (activeSort === 'payment_due' || (activeFilterDue && activeFilterDue !== 'all')) && (
+                       <span className="text-[8px] font-bold text-red-500 uppercase tracking-wider mt-1">
+                          {lang === 'de' ? 'Fällig: ' : 'Due: '} {formatShortDate(masterMath.nearestDueDate)}
+                       </span>
+                    )}
+                 </div>
+             </div>
 
-                  return (
-                     <button key={i} onClick={(e) => { 
-                         e.stopPropagation(); 
-                         setIsOpen(true); 
-                         setActiveTab('bookings'); 
-                         const tIdx = localHotel.durations.findIndex((dur:any) => (dur.roomCards||[]).some((rc:any) => (rc.employees||[]).some((ex:any) => ex.id === emp.id)));
-                         setActiveDurationTab(tIdx >= 0 ? tIdx : 0);
-                         setTimeout(() => window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id })), 300);
-                     }} className={cn("px-1 py-1 rounded-full text-[8.5px] font-bold flex items-center justify-center gap-1 border truncate transition-all", borderCls, isPartial ? "border-dashed" : "border-solid", dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-800")}>
-                        <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
-                        <span className="truncate"><HighlightText text={shortName} query={searchScope === 'all' || searchScope === 'employee' ? searchQuery : ''} /></span>
-                     </button>
-                  )
-               })}
-               {sortedEmployees.length > 10 && (
-                   <button onClick={(e) => { e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); }} className={cn("px-1 py-1 rounded-full text-[8.5px] font-bold border text-center transition-all", dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400" : "bg-teal-50 border-teal-200 text-teal-700")}>
-                      +{sortedEmployees.length - 10}
-                   </button>
-               )}
-            </div>
-         )}
+             {/* Row 4: 4-COLUMN DURATIONS GRID (Max 8) */}
+             {sortedDurations.length > 0 && (
+                <div className="grid grid-cols-4 gap-1.5 mb-2">
+                   {sortedDurations.slice(0, 8).map((d: any, i: number) => {
+                       const formatChipStr = (iso: string) => {
+                           if (!iso) return '';
+                           const date = new Date(iso);
+                           return `${date.getDate().toString().padStart(2, '0')} ${date.toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB', { month: 'short' }).replace('.', '')}`;
+                       };
+                       return (
+                          <button key={i} onClick={(e) => { e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); setActiveDurationTab(i); }} className={cn("px-1 py-1 rounded text-[9px] font-bold border text-center truncate transition-colors", dk ? "bg-slate-800 border-white/10 text-slate-300 hover:bg-slate-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50")}>
+                             {d.startDate && d.endDate ? `${formatChipStr(d.startDate)} - ${formatChipStr(d.endDate)}` : 'New'}
+                          </button>
+                       )
+                   })}
+                   {sortedDurations.length > 8 && (
+                       <button onClick={(e) => { e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); }} className={cn("px-1 py-1 rounded text-[9px] font-bold border text-center", dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400" : "bg-teal-50 border-teal-200 text-teal-700")}>
+                          +{sortedDurations.length - 8}
+                       </button>
+                   )}
+                </div>
+             )}
+             
+             {/* Row 4.5: 5-COLUMN EMPLOYEES GRID (Max 10) */}
+             {sortedEmployees.length > 0 && (
+                <div className="grid grid-cols-5 gap-1.5 mb-1">
+                   {sortedEmployees.slice(0, 10).map((emp: any, i: number) => {
+                      const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
+                      const borderCls = status === 'active' ? (dk ? "border-emerald-500/50" : "border-emerald-600") : status === 'upcoming' ? (dk ? "border-blue-500/50" : "border-blue-600") : status === 'ending-soon' ? (dk ? "border-red-500/50" : "border-red-600") : (dk ? "border-slate-500/40" : "border-slate-400");
+                      const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
+                      const parentDur = localHotel.durations.find((d:any) => (d.roomCards||[]).some((rc:any) => (rc.employees||[]).some((e:any) => e.id === emp.id)));
+                      const isPartial = parentDur && (emp.checkIn > parentDur.startDate || emp.checkOut < parentDur.endDate);
+                      const shortName = emp.name ? emp.name.trim().split(' ').pop() : '_ _ _';
 
-         {/* Row 5: FOOTER ACTIONS */}
-         <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-white/10">
-            <div className="flex items-center gap-2 text-slate-400 text-[10px] font-bold">
-               <Clock size={12}/> <span className="truncate max-w-[100px]">{formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}</span>
-            </div>
-            <div className="flex items-center gap-3">
-               {!viewOnly && (
-                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="text-slate-400 hover:text-red-500 transition-colors p-1"><Trash2 size={12} /></button>
-               )}
-               <div className={cn("flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-teal-600 transition-colors", dk && "text-teal-500")}>
-                  {isOpen ? (lang === 'de' ? 'Schließen' : 'Close') : (lang === 'de' ? 'Details öffnen' : 'Open Details')}
-                  {isOpen ? <ChevronUp size={12}/> : <ChevronDown size={12}/>} 
-               </div>
-            </div>
-         </div>
+                      return (
+                         <button key={i} onClick={(e) => { 
+                             e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); 
+                             const tIdx = localHotel.durations.findIndex((dur:any) => (dur.roomCards||[]).some((rc:any) => (rc.employees||[]).some((ex:any) => ex.id === emp.id)));
+                             setActiveDurationTab(tIdx >= 0 ? tIdx : 0);
+                             setTimeout(() => window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id })), 300);
+                         }} className={cn("px-1 py-1 rounded-full text-[8px] font-bold flex items-center justify-center gap-1 border truncate transition-all", borderCls, isPartial ? "border-dashed" : "border-solid", dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-800")}>
+                            <span className={cn("w-1 h-1 rounded-full shrink-0", dotColor)} />
+                            <span className="truncate"><HighlightText text={shortName} query={searchScope === 'all' || searchScope === 'employee' ? searchQuery : ''} /></span>
+                         </button>
+                      )
+                   })}
+                   {sortedEmployees.length > 10 && (
+                       <button onClick={(e) => { e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); }} className={cn("px-1 py-1 rounded-full text-[8px] font-bold border text-center transition-all", dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400" : "bg-teal-50 border-teal-200 text-teal-700")}>
+                          +{sortedEmployees.length - 10}
+                       </button>
+                   )}
+                </div>
+             )}
+
+             {/* EXPAND TOGGLE */}
+             <div className={cn("w-full mt-2 pt-2 border-t flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-colors", dk ? "border-white/5 text-slate-400" : "border-slate-100 text-slate-500")}>
+                {isOpen ? <ChevronUp size={14} className="text-teal-500"/> : <ChevronDown size={14} className="text-teal-500"/>} 
+                {isOpen ? (lang === 'de' ? 'Schließen' : 'Close') : (lang === 'de' ? 'Details öffnen' : 'Open Details')}
+             </div>
+          </div>
+
+          {/* RIGHT SIDEBAR (Vertical Actions) */}
+          <div className={cn("w-10 shrink-0 border-l flex flex-col items-center justify-between py-3", dk ? "border-white/10 bg-black/20" : "border-slate-200 bg-slate-50")}>
+             <button onClick={toggleBookmark} className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
+                <Star size={18} className={isBookmarked ? "fill-yellow-500 text-yellow-500" : (dk ? "text-slate-500" : "text-slate-400")} />
+             </button>
+             
+             <div className="relative group/time flex items-center justify-center">
+                <Clock size={16} className={dk ? "text-slate-500" : "text-slate-400"} />
+                <div className={cn("absolute right-full mr-2 top-1/2 -translate-y-1/2 w-max px-2 py-1 text-[9px] font-bold rounded opacity-0 group-hover/time:opacity-100 z-[99999] whitespace-nowrap pointer-events-none shadow-xl border", dk ? "bg-slate-700 text-white border-white/20" : "bg-white text-slate-800 border-slate-300")}>{formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}</div>
+             </div>
+
+             {!viewOnly && (
+                <button onClick={() => setConfirmDelete(true)} className={cn("p-1.5 rounded-lg transition-colors hover:bg-red-50 dark:hover:bg-red-500/10", dk ? "text-slate-500 hover:text-red-500" : "text-slate-400 hover:text-red-500")}>
+                   <Trash2 size={16} />
+                </button>
+             )}
+          </div>
       </div>
 
       {/* MOBILE EXPANDED VIEW */}
@@ -610,59 +639,59 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
             
             {/* Mobile Tabs */}
             <div className="flex items-center px-2 pt-2 border-b border-slate-200 dark:border-white/10">
-               <button onClick={() => setActiveTab('bookings')} className={cn("flex-1 py-3 text-xs font-bold transition-all border-b-2 text-center", activeTab === 'bookings' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-slate-500")}>{lang === 'de' ? 'Buchungen' : 'Bookings'}</button>
-               <button onClick={() => setActiveTab('billing')} className={cn("flex-1 py-3 text-xs font-bold transition-all border-b-2 text-center", activeTab === 'billing' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-slate-500")}>{lang === 'de' ? 'Rechnungen' : 'Billing'}</button>
-               <button onClick={() => setActiveTab('info')} className={cn("flex-1 py-3 text-xs font-bold transition-all border-b-2 text-center", activeTab === 'info' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-slate-500")}>{lang === 'de' ? 'Info' : 'Info'}</button>
+               <button onClick={() => setActiveTab('bookings')} className={cn("flex-1 py-3 text-[11px] font-bold transition-all border-b-2 text-center", activeTab === 'bookings' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-slate-500")}>{lang === 'de' ? 'Buchungen' : 'Bookings'}</button>
+               <button onClick={() => setActiveTab('billing')} className={cn("flex-1 py-3 text-[11px] font-bold transition-all border-b-2 text-center", activeTab === 'billing' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-slate-500")}>{lang === 'de' ? 'Rechnungen' : 'Billing'}</button>
+               <button onClick={() => setActiveTab('info')} className={cn("flex-1 py-3 text-[11px] font-bold transition-all border-b-2 text-center", activeTab === 'info' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-slate-500")}>{lang === 'de' ? 'Info' : 'Info'}</button>
             </div>
 
-            {/* TAB: INFO (2-COLUMN GRID) */}
+            {/* TAB: INFO (2-COLUMN GRID - Tight Layout) */}
             {activeTab === 'info' && (
-               <div className="p-4 animate-in fade-in flex flex-col gap-3">
-                  <div className="grid grid-cols-2 gap-3">
+               <div className="p-3 animate-in fade-in flex flex-col gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                      <div className="flex flex-col">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1"><MapPin size={10} className="inline mr-1"/>{lang === 'de' ? 'Adresse' : 'Address'}</label>
-                        <input disabled={viewOnly} value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} className={cn("w-full px-2 py-1.5 rounded-lg text-xs font-bold outline-none border transition-all h-[34px]", dk ? "bg-black/20 border-white/10 text-white focus:border-teal-500" : "bg-white border-slate-200 text-slate-900 focus:border-teal-500")} placeholder="..." />
+                        <label className={labelCls}><MapPin size={10}/> {lang === 'de' ? 'Adresse' : 'Address'}</label>
+                        <input disabled={viewOnly} value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} className={inputCls} placeholder="..." />
                      </div>
                      <div className="flex flex-col">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1"><User size={10} className="inline mr-1"/>{lang === 'de' ? 'Kontakt' : 'Contact'}</label>
-                        <input disabled={viewOnly} value={localHotel.contactPerson || ''} onChange={e => patchHotel({ contactPerson: e.target.value })} className={cn("w-full px-2 py-1.5 rounded-lg text-xs font-bold outline-none border transition-all h-[34px]", dk ? "bg-black/20 border-white/10 text-white focus:border-teal-500" : "bg-white border-slate-200 text-slate-900 focus:border-teal-500")} placeholder="..." />
+                        <label className={labelCls}><User size={10}/> {lang === 'de' ? 'Kontakt' : 'Contact'}</label>
+                        <input disabled={viewOnly} value={localHotel.contactPerson || ''} onChange={e => patchHotel({ contactPerson: e.target.value })} className={inputCls} placeholder="..." />
                      </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2">
                      <div className="flex flex-col">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1"><Phone size={10} className="inline mr-1"/>{lang === 'de' ? 'Telefon' : 'Phone'}</label>
-                        <div className={cn("flex items-center rounded-lg border h-[34px] overflow-hidden", dk ? "bg-black/20 border-white/10 focus-within:border-teal-500" : "bg-white border-slate-200 focus-within:border-teal-500")}>
+                        <label className={labelCls}><Phone size={10}/> {lang === 'de' ? 'Telefon' : 'Phone'}</label>
+                        <div className={cn("flex items-center rounded-lg border h-[32px] overflow-hidden", dk ? "bg-black/20 border-white/10 focus-within:border-teal-500" : "bg-white border-slate-200 focus-within:border-teal-500")}>
                            <span className={cn("px-2 text-[10px] font-bold border-r h-full flex items-center opacity-60", dk ? "border-white/10 text-slate-300" : "border-slate-200 text-slate-600")}>{getCountryCode(localHotel.country || 'Germany')}</span>
-                           <input disabled={viewOnly} value={localHotel.phone || ''} onChange={e => patchHotel({ phone: e.target.value })} className="w-full px-2 text-xs font-bold outline-none bg-transparent" placeholder="..." />
+                           <input disabled={viewOnly} value={localHotel.phone || ''} onChange={e => patchHotel({ phone: e.target.value })} className="w-full px-2 text-[11px] font-bold outline-none bg-transparent" placeholder="..." />
                         </div>
                      </div>
                      <div className="flex flex-col">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1"><Mail size={10} className="inline mr-1"/>Email</label>
+                        <label className={labelCls}><Mail size={10}/> Email</label>
                         <div className="relative flex items-center group">
-                           <input disabled={viewOnly} value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })} className={cn("w-full px-2 py-1.5 rounded-lg text-xs font-bold outline-none border transition-all h-[34px] pr-8", dk ? "bg-black/20 border-white/10 text-white focus:border-teal-500" : "bg-white border-slate-200 text-slate-900 focus:border-teal-500")} placeholder="..." />
+                           <input disabled={viewOnly} value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })} className={cn(inputCls, "pr-7")} placeholder="..." />
                            {localHotel.email && <a href={`mailto:${localHotel.email}`} className="absolute right-1 p-1 bg-teal-600 text-white rounded"><Mail size={10} /></a>}
                         </div>
                      </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2">
                      <div className="flex flex-col">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1"><Globe size={10} className="inline mr-1"/>{lang === 'de' ? 'Webseite' : 'Website'}</label>
+                        <label className={labelCls}><Globe size={10}/> {lang === 'de' ? 'Webseite' : 'Website'}</label>
                         <div className="relative flex items-center group">
-                           <input disabled={viewOnly} value={localHotel.website || ''} onChange={e => patchHotel({ website: e.target.value })} className={cn("w-full px-2 py-1.5 rounded-lg text-xs font-bold outline-none border transition-all h-[34px] pr-8", dk ? "bg-black/20 border-white/10 text-white focus:border-teal-500" : "bg-white border-slate-200 text-slate-900 focus:border-teal-500")} placeholder="..." />
+                           <input disabled={viewOnly} value={localHotel.website || ''} onChange={e => patchHotel({ website: e.target.value })} className={cn(inputCls, "pr-7")} placeholder="..." />
                            {localHotel.website && <a href={localHotel.website.startsWith('http') ? localHotel.website : `https://${localHotel.website}`} target="_blank" rel="noreferrer" className="absolute right-1 p-1 bg-teal-600 text-white rounded"><ExternalLink size={10} /></a>}
                         </div>
                      </div>
                      <div className="flex flex-col">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1"><Building size={10} className="inline mr-1"/>{lang === 'de' ? 'Land' : 'Country'}</label>
-                        <ModernDropdown disabled={viewOnly} value={localHotel.country || 'Germany'} options={getCountryOptions()} onChange={(v:string) => patchHotel({ country: v })} isDarkMode={dk} lang={lang} />
+                        <label className={labelCls}><Building size={10}/> {lang === 'de' ? 'Land' : 'Country'}</label>
+                        <ModernDropdown disabled={viewOnly} value={localHotel.country || 'Germany'} options={getCountryOptions()} onChange={(v:string) => patchHotel({ country: v })} isDarkMode={dk} lang={lang} onOpenChange={setIsDropdownActive} />
                      </div>
                   </div>
 
                   <div className="flex flex-col">
-                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1"><StickyNote size={10} className="inline mr-1"/>{lang === 'de' ? 'Notiz' : 'Note'}</label>
-                     <textarea disabled={viewOnly} value={localHotel.notes || ''} onChange={e => patchHotel({ notes: e.target.value })} className={cn("w-full px-2 py-2 rounded-lg text-xs font-medium outline-none border transition-all min-h-[60px] resize-y", dk ? "bg-black/20 border-white/10 text-white focus:border-teal-500 placeholder-slate-600" : "bg-white border-slate-200 text-slate-900 focus:border-teal-500 placeholder-slate-400")} placeholder={lang === 'de' ? "Private Notizen hier eintragen..." : "Write private notes here..."} />
+                     <label className={labelCls}><StickyNote size={10}/> {lang === 'de' ? 'Notiz' : 'Note'}</label>
+                     <textarea disabled={viewOnly} value={localHotel.notes || ''} onChange={e => patchHotel({ notes: e.target.value })} className={cn("w-full px-2 py-2 rounded-lg text-xs font-medium outline-none border transition-all min-h-[50px] resize-y", dk ? "bg-black/20 border-white/10 text-white focus:border-teal-500 placeholder-slate-600" : "bg-white border-slate-200 text-slate-900 focus:border-teal-500 placeholder-slate-400")} placeholder={lang === 'de' ? "Private Notizen hier eintragen..." : "Write private notes here..."} />
                   </div>
                </div>
             )}
@@ -674,7 +703,7 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                      {(localHotel.durations || []).map((d: any, i: number) => {
                         const isActive = activeDurationTab === i;
                         return (
-                           <button key={d.id || i} onClick={() => setActiveDurationTab(i)} className={cn('px-4 py-2 text-xs font-bold transition-all border rounded-xl whitespace-nowrap shrink-0', isActive ? (dk ? 'bg-teal-500/20 text-teal-400 border-teal-500/30' : 'bg-teal-50 text-teal-700 border-teal-200') : (dk ? 'bg-black/20 text-slate-400 border-white/5' : 'bg-slate-100 text-slate-500 border-slate-200'))}>
+                           <button key={d.id || i} onClick={() => setActiveDurationTab(i)} className={cn('px-4 py-2 text-[11px] font-bold transition-all border rounded-xl whitespace-nowrap shrink-0', isActive ? (dk ? 'bg-teal-500/20 text-teal-400 border-teal-500/30' : 'bg-teal-50 text-teal-700 border-teal-200') : (dk ? 'bg-black/20 text-slate-400 border-white/5' : 'bg-slate-100 text-slate-500 border-slate-200'))}>
                               {getDurationTabLabel(d, lang)}
                            </button>
                         );
@@ -685,7 +714,7 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                            const created = await createDuration({ hotelId: localHotel.id });
                            const next = { ...localHotel, durations: [...localHotel.durations, { ...created, roomCards: [] }] };
                            patchHotel({ durations: next.durations }); setActiveDurationTab(next.durations.length - 1); setCreatingDuration(false);
-                        }} className={cn("px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all border border-dashed shrink-0", dk ? "border-white/20 text-slate-400 bg-white/5" : "border-slate-300 text-slate-500 bg-white")}>
+                        }} className={cn("px-4 py-2 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-all border border-dashed shrink-0", dk ? "border-white/20 text-slate-400 bg-white/5" : "border-slate-300 text-slate-500 bg-white")}>
                            {creatingDuration ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} strokeWidth={3} />} {lang === 'de' ? 'Neu' : 'New'}
                         </button>
                      )}
@@ -721,26 +750,26 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                      </div>
                      <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
                         {filteredMasterInvoices.length === 0 && !editingInvoiceId ? (
-                           <span className="text-xs text-slate-400 italic py-2">{lang === 'de' ? 'Keine Rechnungen' : 'No invoices'}</span>
+                           <span className="text-[11px] text-slate-400 italic py-2">{lang === 'de' ? 'Keine Rechnungen' : 'No invoices'}</span>
                         ) : (
                            filteredMasterInvoices.map((inv: any) => {
                               const isActive = selectedInvoiceId === inv.id;
                               const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
                               let invBrutto = inv.billingMode === 'total' ? (parseFloat(inv.totalNetto)||0) * (1 + (parseFloat(inv.totalMwst)||0)/100) : (inv.items||[]).reduce((sum:number, it:any) => sum + calcInvoiceItem(it, defaultN).brutto, 0);
                               return (
-                                 <button key={inv.id} onClick={() => { setSelectedInvoiceId(isActive ? null : inv.id); setEditingItemId(null); setEditingTotal(false); }} className={cn("flex flex-col p-2.5 rounded-xl border text-left shrink-0 min-w-[140px] transition-all", isActive ? (dk ? "bg-teal-900/40 border-teal-500/60 shadow-md" : "bg-teal-50 border-teal-400 shadow-md") : (dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"))}>
+                                 <button key={inv.id} onClick={() => { setSelectedInvoiceId(isActive ? null : inv.id); setEditingItemId(null); setEditingTotal(false); }} className={cn("flex flex-col p-2.5 rounded-xl border text-left shrink-0 min-w-[130px] transition-all", isActive ? (dk ? "bg-teal-900/40 border-teal-500/60 shadow-md" : "bg-teal-50 border-teal-400 shadow-md") : (dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200"))}>
                                     <div className="flex items-center gap-1.5 mb-1">
                                        <span className={cn("w-2 h-2 rounded-full shrink-0", inv.isPaid ? "bg-emerald-500" : "bg-red-500")} />
-                                       <span className={cn("text-xs font-black truncate", dk ? "text-white" : "text-slate-900")}>{inv.number || 'Unnamed'}</span>
+                                       <span className={cn("text-[11px] font-black truncate", dk ? "text-white" : "text-slate-900")}>{inv.number || 'Unnamed'}</span>
                                     </div>
-                                    <span className={cn("text-xs font-bold", isActive ? "text-teal-600 dark:text-teal-400" : (dk ? "text-slate-400" : "text-slate-500"))}>{formatCurrency(invBrutto)}</span>
+                                    <span className={cn("text-[11px] font-bold", isActive ? "text-teal-600 dark:text-teal-400" : (dk ? "text-slate-400" : "text-slate-500"))}>{formatCurrency(invBrutto)}</span>
                                  </button>
                               )
                            })
                         )}
                         {editingInvoiceId && invoiceDraft && !localHotel.invoices.find((i:any) => i.id === editingInvoiceId) && (
-                           <div className={cn("flex flex-col p-2.5 rounded-xl border shrink-0 min-w-[140px] border-teal-500 border-dashed bg-teal-500/10")}>
-                              <span className="text-xs font-black text-teal-600 dark:text-teal-400">{lang === 'de' ? 'Neue Rechnung' : 'New Invoice'}</span>
+                           <div className={cn("flex flex-col p-2.5 rounded-xl border shrink-0 min-w-[130px] border-teal-500 border-dashed bg-teal-500/10")}>
+                              <span className="text-[11px] font-black text-teal-600 dark:text-teal-400">{lang === 'de' ? 'Neue Rechnung' : 'New Invoice'}</span>
                            </div>
                         )}
                      </div>
@@ -748,61 +777,61 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
 
                   <div className="p-3 flex flex-col flex-1 pb-4">
                      {editingInvoiceId && invoiceDraft ? (
-                        <div className={cn("flex flex-col gap-3 p-4 rounded-2xl border shadow-lg animate-in fade-in slide-in-from-top-2", dk ? "bg-[#1E293B] border-teal-500/30" : "bg-white border-teal-300")}>
+                        <div className={cn("flex flex-col gap-3 p-3 rounded-2xl border shadow-lg animate-in fade-in slide-in-from-top-2", dk ? "bg-[#1E293B] border-teal-500/30" : "bg-white border-teal-300")}>
                            <input autoFocus value={invoiceDraft.number} onChange={e => setInvoiceDraft({...invoiceDraft, number: e.target.value})} className="w-full text-lg font-black border-b-2 bg-transparent outline-none py-1 border-teal-500 focus:ring-0 placeholder:text-slate-400" placeholder="RE-..." />
-                           <div className="grid grid-cols-2 gap-3 mt-2">
+                           <div className="grid grid-cols-2 gap-2 mt-2">
                               <div className="flex flex-col gap-1">
-                                 <label className="text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1"><Calendar size={12}/> {lang === 'de' ? 'Start' : 'Start'}</label>
-                                 <NativeDatePicker dk={dk} value={invoiceDraft.startDate || ''} onChange={(s: string) => setInvoiceDraft({...invoiceDraft, startDate: s})} className="w-full h-[38px]" />
+                                 <label className="text-[9px] uppercase font-bold text-slate-500 flex items-center gap-1"><Calendar size={10}/> Start</label>
+                                 <NativeDatePicker dk={dk} value={invoiceDraft.startDate || ''} onChange={(s: string) => setInvoiceDraft({...invoiceDraft, startDate: s})} className="w-full h-[32px]" />
                               </div>
                               <div className="flex flex-col gap-1">
-                                 <label className="text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1"><Calendar size={12}/> {lang === 'de' ? 'Ende' : 'End'}</label>
-                                 <NativeDatePicker dk={dk} disabled={!invoiceDraft.startDate} min={invoiceDraft.startDate} value={invoiceDraft.endDate || ''} onChange={(end: string) => setInvoiceDraft({...invoiceDraft, endDate: end})} className="w-full h-[38px]" />
+                                 <label className="text-[9px] uppercase font-bold text-slate-500 flex items-center gap-1"><Calendar size={10}/> Ende</label>
+                                 <NativeDatePicker dk={dk} disabled={!invoiceDraft.startDate} min={invoiceDraft.startDate} value={invoiceDraft.endDate || ''} onChange={(end: string) => setInvoiceDraft({...invoiceDraft, endDate: end})} className="w-full h-[32px]" />
                               </div>
                            </div>
                            <div className="flex flex-col gap-1 mt-1">
-                              <label className="text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1"><Calendar size={12}/> {lang === 'de' ? 'Fällig am:' : 'Payment Due:'}</label>
-                              <NativeDatePicker dk={dk} value={invoiceDraft.dueDate || ''} onChange={(due: string) => setInvoiceDraft({...invoiceDraft, dueDate: due})} className="w-full h-[38px]" />
+                              <label className="text-[9px] uppercase font-bold text-slate-500 flex items-center gap-1"><Calendar size={10}/> {lang === 'de' ? 'Fällig am:' : 'Payment Due:'}</label>
+                              <NativeDatePicker dk={dk} value={invoiceDraft.dueDate || ''} onChange={(due: string) => setInvoiceDraft({...invoiceDraft, dueDate: due})} className="w-full h-[32px]" />
                            </div>
-                           <div className="flex items-center justify-between p-3 mt-1 rounded-xl bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10">
-                              <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{lang === 'de' ? 'Status' : 'Status'}</span>
-                              <button onClick={() => setInvoiceDraft({...invoiceDraft, isPaid: !invoiceDraft.isPaid})} className={cn("px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-colors", invoiceDraft.isPaid ? "bg-emerald-500 text-white shadow-sm" : "bg-slate-200 dark:bg-white/10 text-slate-500 dark:text-slate-400")}>
+                           <div className="flex items-center justify-between p-2 mt-1 rounded-xl bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10">
+                              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">{lang === 'de' ? 'Status' : 'Status'}</span>
+                              <button onClick={() => setInvoiceDraft({...invoiceDraft, isPaid: !invoiceDraft.isPaid})} className={cn("px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors", invoiceDraft.isPaid ? "bg-emerald-500 text-white shadow-sm" : "bg-slate-200 dark:bg-white/10 text-slate-500 dark:text-slate-400")}>
                                  {invoiceDraft.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid')}
                               </button>
                            </div>
                            {invoiceDraft.isPaid && (
                               <div className="flex flex-col gap-1 animate-in fade-in slide-in-from-top-1">
-                                 <label className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><Calendar size={12}/> {lang === 'de' ? 'Bezahlt am:' : 'Paid On:'}</label>
-                                 <NativeDatePicker dk={dk} value={invoiceDraft.paymentDate || ''} onChange={(pd: string) => setInvoiceDraft({...invoiceDraft, paymentDate: pd})} className="w-full h-[38px] [&>div]:border-emerald-500 [&>div]:text-emerald-600 dark:[&>div]:text-emerald-400" />
+                                 <label className="text-[9px] uppercase font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><Calendar size={10}/> {lang === 'de' ? 'Bezahlt am:' : 'Paid On:'}</label>
+                                 <NativeDatePicker dk={dk} value={invoiceDraft.paymentDate || ''} onChange={(pd: string) => setInvoiceDraft({...invoiceDraft, paymentDate: pd})} className="w-full h-[32px] [&>div]:border-emerald-500 [&>div]:text-emerald-600 dark:[&>div]:text-emerald-400" />
                               </div>
                            )}
-                           <textarea value={invoiceDraft.note || ''} onChange={e => setInvoiceDraft({...invoiceDraft, note: e.target.value})} className={cn("w-full px-2 py-2 rounded-lg text-xs font-bold outline-none border transition-all resize-y min-h-[80px]", dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-teal-500' : 'bg-white border-slate-200 text-slate-900 focus:border-teal-500')} placeholder={lang === 'de' ? "Notiz hinzufügen..." : "Add note..."} />
-                           <div className="flex items-center justify-between mt-2 pt-3 border-t border-slate-200 dark:border-white/10">
-                              <button onClick={(e) => { e.stopPropagation(); if (window.confirm('Discard draft?')) { setEditingInvoiceId(null); setInvoiceDraft(null); if (!localHotel.invoices.find((i:any) => i.id === editingInvoiceId)) setSelectedInvoiceId(null); } }} className="p-3 text-slate-400 hover:text-red-500 rounded-lg bg-slate-100 dark:bg-white/5"><Trash2 size={16} /></button>
+                           <textarea value={invoiceDraft.note || ''} onChange={e => setInvoiceDraft({...invoiceDraft, note: e.target.value})} className={cn(inputCls, "h-[60px] resize-none")} placeholder={lang === 'de' ? "Notiz hinzufügen..." : "Add note..."} />
+                           <div className="flex items-center justify-between mt-1 pt-2 border-t border-slate-200 dark:border-white/10">
+                              <button onClick={(e) => { e.stopPropagation(); if (window.confirm('Discard draft?')) { setEditingInvoiceId(null); setInvoiceDraft(null); if (!localHotel.invoices.find((i:any) => i.id === editingInvoiceId)) setSelectedInvoiceId(null); } }} className="p-2 text-slate-400 hover:text-red-500 rounded-lg bg-slate-100 dark:bg-white/5"><Trash2 size={14} /></button>
                               <button disabled={!invoiceDraft.number || !invoiceDraft.startDate || !invoiceDraft.endDate || (invoiceDraft.isPaid && !invoiceDraft.paymentDate)} onClick={(e) => { 
                                  e.stopPropagation(); 
                                  const isNew = !localHotel.invoices.find((i:any) => i.id === editingInvoiceId);
                                  patchHotel({ invoices: isNew ? [invoiceDraft, ...localHotel.invoices] : localHotel.invoices.map((i:any) => i.id === editingInvoiceId ? invoiceDraft : i) }); 
                                  setSelectedInvoiceId(invoiceDraft.id); setEditingInvoiceId(null); setInvoiceDraft(null); 
-                              }} className="px-6 py-3 text-white bg-teal-500 hover:bg-teal-600 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:text-slate-500 rounded-lg transition-all font-black flex items-center gap-2"><Check size={16} strokeWidth={3} /> {lang === 'de' ? 'Speichern' : 'Save'}</button>
+                              }} className="px-4 py-2 text-white bg-teal-500 hover:bg-teal-600 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:text-slate-500 rounded-lg transition-all font-black flex items-center gap-1.5 text-[11px]"><Check size={14} strokeWidth={3} /> {lang === 'de' ? 'Speichern' : 'Save'}</button>
                            </div>
                         </div>
                      ) : activeInvoice ? (
                         <div className="flex flex-col h-full flex-1">
                            <div className="flex justify-between items-start mb-3">
                               <div>
-                                 <h4 className={cn("text-[15px] font-black leading-tight", dk ? "text-white" : "text-slate-900")}>{activeInvoice.number}</h4>
-                                 <p className="text-[10px] font-bold text-slate-500 mt-0.5">{activeInvoice.startDate ? formatShortDate(activeInvoice.startDate, lang) : '--'} - {activeInvoice.endDate ? formatShortDate(activeInvoice.endDate, lang) : '--'} ({calculateNights(activeInvoice.startDate, activeInvoice.endDate)}N)</p>
+                                 <h4 className={cn("text-[14px] font-black leading-tight", dk ? "text-white" : "text-slate-900")}>{activeInvoice.number}</h4>
+                                 <p className="text-[9px] font-bold text-slate-500 mt-0.5">{activeInvoice.startDate ? formatShortDate(activeInvoice.startDate, lang) : '--'} - {activeInvoice.endDate ? formatShortDate(activeInvoice.endDate, lang) : '--'} ({calculateNights(activeInvoice.startDate, activeInvoice.endDate)}N)</p>
                               </div>
                               {!viewOnly && (
-                                 <button onClick={() => { setEditingInvoiceId(activeInvoice.id); setInvoiceDraft(activeInvoice); }} className="p-1.5 bg-black/5 dark:bg-white/5 rounded-md text-slate-500 hover:text-teal-600 transition-all"><Edit3 size={14} /></button>
+                                 <button onClick={() => { setEditingInvoiceId(activeInvoice.id); setInvoiceDraft(activeInvoice); }} className="p-1.5 bg-black/5 dark:bg-white/5 rounded-md text-slate-500 hover:text-teal-600 transition-all"><Edit3 size={12} /></button>
                               )}
                            </div>
                            
                            {!viewOnly && (
-                              <div className={cn("flex items-center p-1 rounded-lg border mb-3", dk ? "bg-black/40 border-white/10" : "bg-slate-100 border-slate-200")}>
-                                 <button disabled={activeInvoice.items?.length > 0} onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, billingMode: 'total'} : i) }); setEditingTotal(false); setEditingItemId(null); }} className={cn("flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all", activeInvoice.billingMode === 'total' ? (dk ? "bg-teal-500 text-white" : "bg-white shadow-sm text-teal-700") : "text-slate-400 disabled:opacity-30")}>💰 {lang === 'de' ? 'Gesamt' : 'Total'}</button>
-                                 <button disabled={activeInvoice.totalNetto || activeInvoice.totalBrutto} onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, billingMode: 'detailed'} : i) }); setEditingTotal(false); }} className={cn("flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all", activeInvoice.billingMode !== 'total' ? (dk ? "bg-teal-500 text-white" : "bg-white shadow-sm text-teal-700") : "text-slate-400 disabled:opacity-30")}>📝 {lang === 'de' ? 'Detailliert' : 'Detailed'}</button>
+                              <div className={cn("flex items-center p-1 rounded-lg border mb-2", dk ? "bg-black/40 border-white/10" : "bg-slate-100 border-slate-200")}>
+                                 <button disabled={activeInvoice.items?.length > 0} onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, billingMode: 'total'} : i) }); setEditingTotal(false); setEditingItemId(null); }} className={cn("flex-1 py-1 text-[10px] font-bold rounded-md transition-all", activeInvoice.billingMode === 'total' ? (dk ? "bg-teal-500 text-white" : "bg-white shadow-sm text-teal-700") : "text-slate-400 disabled:opacity-30")}>💰 {lang === 'de' ? 'Gesamt' : 'Total'}</button>
+                                 <button disabled={activeInvoice.totalNetto || activeInvoice.totalBrutto} onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, billingMode: 'detailed'} : i) }); setEditingTotal(false); }} className={cn("flex-1 py-1 text-[10px] font-bold rounded-md transition-all", activeInvoice.billingMode !== 'total' ? (dk ? "bg-teal-500 text-white" : "bg-white shadow-sm text-teal-700") : "text-slate-400 disabled:opacity-30")}>📝 {lang === 'de' ? 'Detailliert' : 'Detailed'}</button>
                               </div>
                            )}
 
@@ -815,48 +844,48 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                                        setEditingTotal(true);
                                     }} className="self-end mb-2 p-1.5 bg-slate-100 dark:bg-white/10 rounded-md text-slate-500 hover:text-teal-600 transition-colors"><Edit3 size={12}/></button>
                                  )}
-                                 <div className="flex flex-col gap-3">
+                                 <div className="flex flex-col gap-2">
                                     <div className="flex flex-col gap-1">
                                        <label className="text-[9px] font-bold text-slate-500 uppercase">Netto</label>
                                        <div className="relative">
-                                          <input disabled={viewOnly || !editingTotal || (editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto)} type="number" value={editingTotal ? (totalDraft?.totalNetto ?? '') : (activeInvoice.totalNetto ?? '')} onChange={e => setTotalDraft({...totalDraft, totalNetto: e.target.value, totalBrutto: null})} className={cn("w-full px-2 py-1.5 rounded-lg text-sm font-bold outline-none border transition-all h-[34px]", dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900', "disabled:opacity-50 text-right text-lg")} placeholder="0.00" />
+                                          <input disabled={viewOnly || !editingTotal || (editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto)} type="number" value={editingTotal ? (totalDraft?.totalNetto ?? '') : (activeInvoice.totalNetto ?? '')} onChange={e => setTotalDraft({...totalDraft, totalNetto: e.target.value, totalBrutto: null})} className={cn(inputCls, "w-full disabled:opacity-50 text-right text-sm")} placeholder="0.00" />
                                           {(!showTotalDiscount && !(editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto) && editingTotal && !viewOnly) && <button onClick={() => { setShowTotalDiscount(true); if(!totalDraft?.discountType) setTotalDraft({...totalDraft, discountType: 'fixed'}); }} className="absolute left-1 top-1/2 -translate-y-1/2 p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5"><Ticket size={12}/></button>}
                                        </div>
                                     </div>
                                     {showTotalDiscount && !(editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto) && (
                                        <div className="flex items-center w-full animate-in fade-in">
-                                          <input disabled={!editingTotal} type="number" value={editingTotal ? (totalDraft?.discountValue ?? '') : (activeInvoice.discountValue ?? '')} onChange={e => setTotalDraft({...totalDraft, discountValue: e.target.value})} className={cn("w-full px-2 py-1.5 rounded-lg text-xs font-bold outline-none border transition-all h-[34px]", dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900', "rounded-r-none border-r-0 flex-1 px-2 text-right text-xs")} placeholder="Rabatt" />
-                                          <button disabled={!editingTotal} onClick={() => setTotalDraft({...totalDraft, discountType: totalDraft?.discountType === 'percentage' ? 'fixed' : 'percentage'})} className={cn("w-[40px] h-[34px] border-y border-r text-xs font-bold transition-colors disabled:opacity-50", dk ? "bg-white/10 text-white border-white/10" : "bg-slate-200 text-slate-700 border-slate-200")}>{editingTotal ? (totalDraft?.discountType === 'percentage' ? '%' : '€') : (activeInvoice.discountType === 'percentage' ? '%' : '€')}</button>
-                                          {editingTotal && <button onClick={() => { setShowTotalDiscount(false); setTotalDraft({...totalDraft, discountValue: null}); }} className={cn("w-[30px] h-[34px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>}
+                                          <input disabled={!editingTotal} type="number" value={editingTotal ? (totalDraft?.discountValue ?? '') : (activeInvoice.discountValue ?? '')} onChange={e => setTotalDraft({...totalDraft, discountValue: e.target.value})} className={cn(inputCls, "rounded-r-none border-r-0 flex-1 px-2 text-right text-xs")} placeholder="Rabatt" />
+                                          <button disabled={!editingTotal} onClick={() => setTotalDraft({...totalDraft, discountType: totalDraft?.discountType === 'percentage' ? 'fixed' : 'percentage'})} className={cn("w-[40px] h-[32px] border-y border-r text-xs font-bold transition-colors disabled:opacity-50", dk ? "bg-white/10 text-white border-white/10" : "bg-slate-200 text-slate-700 border-slate-200")}>{editingTotal ? (totalDraft?.discountType === 'percentage' ? '%' : '€') : (activeInvoice.discountType === 'percentage' ? '%' : '€')}</button>
+                                          {editingTotal && <button onClick={() => { setShowTotalDiscount(false); setTotalDraft({...totalDraft, discountValue: null}); }} className={cn("w-[30px] h-[32px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>}
                                        </div>
                                     )}
                                     <div className="flex items-center gap-2">
-                                       <div className="w-[80px] flex flex-col gap-1 shrink-0">
+                                       <div className="w-[60px] flex flex-col gap-1 shrink-0">
                                           <label className="text-[9px] font-bold text-slate-500 uppercase">MwSt</label>
                                           {editingTotal && !viewOnly ? (
                                              <MwstInput value={totalDraft?.totalMwst} onChange={(v:any) => setTotalDraft({...totalDraft, totalMwst: v})} isDarkMode={dk} />
                                           ) : (
-                                             <div className={cn("w-full px-2 py-1.5 rounded-lg text-sm font-bold outline-none border transition-all h-[34px]", dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900', "text-center opacity-50 text-xs px-1")}>{activeInvoice.totalMwst || 7}%</div>
+                                             <div className={cn(inputCls, "text-center opacity-50 text-xs px-1")}>{activeInvoice.totalMwst || 7}%</div>
                                           )}
                                        </div>
                                        <div className="flex-1 flex flex-col gap-1">
                                           <label className="text-[9px] font-bold text-slate-500 uppercase">Brutto</label>
-                                          <input disabled={viewOnly || !editingTotal || (editingTotal ? totalDraft?.totalNetto : activeInvoice.totalNetto)} type="number" value={editingTotal ? (totalDraft?.totalBrutto ?? '') : (activeInvoice.totalBrutto ?? '')} onChange={e => setTotalDraft({...totalDraft, totalBrutto: e.target.value, totalNetto: null})} className={cn("w-full px-2 py-1.5 rounded-lg text-sm font-bold outline-none border transition-all h-[34px]", dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900', "w-full disabled:opacity-100 disabled:bg-transparent disabled:border-transparent font-black text-[15px] text-right placeholder-slate-900 dark:placeholder-white")} placeholder={(editingTotal ? totalDraft?.totalNetto : activeInvoice.totalNetto) ? formatCurrency(parseFloat((editingTotal ? totalDraft?.totalNetto : activeInvoice.totalNetto)) * (1 + (parseFloat((editingTotal ? totalDraft?.totalMwst : activeInvoice.totalMwst))||0)/100)) : "0.00"} />
+                                          <input disabled={viewOnly || !editingTotal || (editingTotal ? totalDraft?.totalNetto : activeInvoice.totalNetto)} type="number" value={editingTotal ? (totalDraft?.totalBrutto ?? '') : (activeInvoice.totalBrutto ?? '')} onChange={e => setTotalDraft({...totalDraft, totalBrutto: e.target.value, totalNetto: null})} className={cn(inputCls, "w-full disabled:opacity-100 disabled:bg-transparent disabled:border-transparent font-black text-[13px] text-right placeholder-slate-900 dark:placeholder-white")} placeholder={(editingTotal ? totalDraft?.totalNetto : activeInvoice.totalNetto) ? formatCurrency(parseFloat((editingTotal ? totalDraft?.totalNetto : activeInvoice.totalNetto)) * (1 + (parseFloat((editingTotal ? totalDraft?.totalMwst : activeInvoice.totalMwst))||0)/100)) : "0.00"} />
                                        </div>
                                     </div>
                                     {editingTotal && (
                                        <>
-                                          <textarea disabled={!editingTotal} rows={1} value={editingTotal ? (totalDraft?.note || '') : (activeInvoice.note || '')} onChange={e => {e.target.style.height='34px'; e.target.style.height=`${e.target.scrollHeight}px`; setTotalDraft({...totalDraft, note: e.target.value})}} className={cn("w-full px-2 py-1.5 rounded-lg text-xs font-medium outline-none border transition-all h-[34px]", dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900', "w-full text-xs font-medium resize-none min-h-[34px]")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />
-                                          <div className="flex items-center justify-end gap-2 mt-1 pt-3 border-t dark:border-teal-500/30 border-teal-200">
-                                             <button onClick={() => setEditingTotal(false)} className={cn("px-3 py-1.5 rounded-lg text-xs font-bold border", dk ? "border-white/10 text-slate-300" : "border-slate-200 text-slate-600")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
-                                             <button onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, ...totalDraft} : i) }); setEditingTotal(false); }} className="px-4 py-1.5 rounded-lg text-xs font-bold text-white bg-teal-500 shadow-md">{lang === 'de' ? 'Speichern' : 'Save'}</button>
+                                          <textarea disabled={!editingTotal} rows={1} value={editingTotal ? (totalDraft?.note || '') : (activeInvoice.note || '')} onChange={e => {e.target.style.height='32px'; e.target.style.height=`${e.target.scrollHeight}px`; setTotalDraft({...totalDraft, note: e.target.value})}} className={cn(inputCls, "w-full text-xs font-medium resize-none min-h-[32px]")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />
+                                          <div className="flex items-center justify-end gap-2 mt-1 pt-2 border-t dark:border-teal-500/30 border-teal-200">
+                                             <button onClick={() => setEditingTotal(false)} className={cn("px-3 py-1.5 rounded text-xs font-bold border", dk ? "border-white/10 text-slate-300" : "border-slate-200 text-slate-600")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
+                                             <button onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, ...totalDraft} : i) }); setEditingTotal(false); }} className="px-4 py-1.5 rounded text-xs font-bold text-white bg-teal-500 shadow-sm">{lang === 'de' ? 'Speichern' : 'Save'}</button>
                                           </div>
                                        </>
                                     )}
                                  </div>
                               </div>
                            ) : (
-                              <div className="flex flex-col flex-1 pb-1">
+                              <div className="flex flex-col flex-1 pb-2">
                                  <div className={cn("flex items-center py-1.5 border-b mb-1", dk ? "border-white/10" : "border-slate-200")}>
                                     <div className="flex-1 min-w-0 text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">{lang === 'de' ? 'Beschreibung' : 'Desc'}</div>
                                     <div className="w-[50px] shrink-0 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Netto</div>
@@ -864,7 +893,7 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                                     <div className="w-[60px] shrink-0 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right pr-1">Brutto</div>
                                  </div>
                                  
-                                 {(activeInvoice.items || []).length === 0 && <p className="text-xs font-bold text-slate-400 italic text-center py-6">{lang === 'de' ? 'Keine Posten vorhanden.' : 'No line items.'}</p>}
+                                 {(activeInvoice.items || []).length === 0 && <p className="text-[11px] font-bold text-slate-400 italic text-center py-4">{lang === 'de' ? 'Keine Posten vorhanden.' : 'No line items.'}</p>}
                                  
                                  {(activeInvoice.items || []).map((item: any) => {
                                     const isEditing = editingItemId === item.id;
@@ -881,53 +910,39 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                                        const newId = Math.random().toString();
                                        patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: [...(i.items||[]), { id: newId, type: 'room', method: 'per_bed', netto: null, mwst: 7, brutto: null }]} : i) });
                                        setEditingItemId(newId);
-                                    }} className={cn("w-full py-2.5 mt-3 rounded-lg border border-dashed text-xs font-black uppercase tracking-widest transition-all", dk ? "border-white/20 text-slate-400 bg-white/5 hover:bg-white/10" : "border-slate-300 text-slate-500 bg-white hover:bg-slate-50")}>+ {lang === 'de' ? 'Posten' : 'Item'}</button>
+                                    }} className={cn("w-full py-2 mt-2 rounded border border-dashed text-[10px] font-black uppercase tracking-widest transition-all", dk ? "border-white/20 text-slate-400 hover:bg-white/10" : "border-slate-300 text-slate-500 hover:bg-slate-50")}>+ {lang === 'de' ? 'Posten' : 'Item'}</button>
                                  )}
                               </div>
                            )}
 
-                           {/* BOTTOM MASTER SUMMARY PINNED */}
-                           <div className={cn("mt-4 flex flex-col p-3 rounded-xl border shadow-[0_-10px_20px_rgba(0,0,0,0.05)]", dk ? "bg-[#0F172A] border-white/10" : "bg-slate-50 border-slate-200")}>
-                              <div className="flex justify-between items-center mb-2">
-                                 <span className={cn("text-[11px] font-bold uppercase", dk ? "text-slate-400" : "text-slate-500")}>Total Netto</span>
-                                 <span className={cn("font-bold text-xs", dk ? "text-slate-200" : "text-slate-700")}>{formatCurrency(masterMath.activeNetto)}</span>
+                           {/* BOTTOM MASTER SUMMARY PINNED (TIGHT) */}
+                           <div className={cn("mt-auto sticky bottom-0 z-40 flex flex-col p-3 rounded-t-xl border-t border-l border-r shadow-[0_-10px_20px_rgba(0,0,0,0.1)]", dk ? "bg-[#0B1224] border-white/10" : "bg-slate-50 border-slate-200")}>
+                              <div className="flex justify-between items-center mb-1.5">
+                                 <span className={cn("text-[10px] font-bold uppercase", dk ? "text-slate-400" : "text-slate-500")}>Total Netto</span>
+                                 <span className={cn("font-bold text-[11px]", dk ? "text-slate-200" : "text-slate-700")}>{formatCurrency(masterMath.activeNetto)}</span>
                               </div>
                               {Object.entries(masterMath.activeBuckets).map(([percent, amount]: any) => (
-                                 <div key={percent} className="flex justify-between items-center mb-1 text-[10px]">
+                                 <div key={percent} className="flex justify-between items-center mb-1 text-[9px]">
                                     <span className={dk ? "text-slate-500" : "text-slate-400"}>MwSt ({percent}%)</span>
                                     <span className={dk ? "text-slate-400" : "text-slate-500"}>{formatCurrency(amount)}</span>
                                  </div>
                               ))}
-                              <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-200 dark:border-white/10">
-                                 <span className={cn("text-xs font-black", dk ? "text-teal-400" : "text-teal-600")}>Total Brutto</span>
-                                 <span className={cn("font-black text-sm", dk ? "text-white" : "text-slate-900")}>{formatCurrency(masterMath.activeBrutto)}</span>
+                              <div className="flex justify-between items-center mt-1 pt-1.5 border-t border-slate-200 dark:border-white/10">
+                                 <span className={cn("text-[11px] font-black", dk ? "text-teal-400" : "text-teal-600")}>Total Brutto</span>
+                                 <span className={cn("font-black text-[13px]", dk ? "text-white" : "text-slate-900")}>{formatCurrency(masterMath.activeBrutto)}</span>
                               </div>
                            </div>
                         </div>
                      ) : (
-                        <div className="flex flex-col items-center justify-center py-10 text-center opacity-50">
-                           <Receipt size={32} className="mb-2 text-slate-400" />
-                           <p className="text-xs font-bold">{lang === 'de' ? 'Wählen Sie eine Rechnung oben aus' : 'Select an invoice above'}</p>
+                        <div className="flex flex-col items-center justify-center py-8 text-center opacity-50">
+                           <Receipt size={24} className="mb-2 text-slate-400" />
+                           <p className="text-[11px] font-bold">{lang === 'de' ? 'Wählen Sie eine Rechnung oben aus' : 'Select an invoice above'}</p>
                         </div>
                      )}
                   </div>
                </div>
             )}
          </div>
-      )}
-
-      {confirmDelete && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 pointer-events-auto">
-          <div className={cn('w-full max-w-md rounded-3xl border p-6 shadow-2xl animate-in zoom-in-95', dk ? 'bg-[#1E293B] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200')}>
-            <h3 className="text-xl font-black mb-2">{lang === 'de' ? 'Hotel löschen?' : 'Delete hotel?'}</h3>
-            <p className="text-xs font-bold text-slate-500 mb-6">{lang === 'de' ? 'Diese Aktion kann nicht rückgängig gemacht werden.' : 'This action cannot be undone.'}</p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setConfirmDelete(false)} className={cn("px-4 py-2 text-xs font-bold rounded-xl border transition-all", dk ? "border-white/10 hover:bg-white/10 text-white" : "border-slate-200 hover:bg-slate-100 text-slate-700")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
-              <button onClick={async () => { await deleteHotel(localHotel.id); onDelete(localHotel.id); setConfirmDelete(false); }} className="px-4 py-2 text-xs font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all shadow-md">{lang === 'de' ? 'Löschen' : 'Delete'}</button>
-            </div>
-          </div>
-        </div>,
-        document.body
       )}
     </div>
   );
