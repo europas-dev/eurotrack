@@ -525,19 +525,16 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
       <div className={cn("absolute top-0 bottom-0 left-0 w-1.5 transition-colors z-[60]", masterMath.totalUnpaid > 0 ? "bg-red-500" : (masterMath.totalPaid > 0 ? "bg-emerald-500" : "bg-transparent border-r border-slate-200 dark:border-white/10"))} />
 
       {/* FULL WIDTH CARD CONTENT (NO SIDEBAR) */}
-      <div className="p-3 pl-4 flex flex-col w-full cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+      <div className="p-3 pl-4 flex flex-col w-full relative">
          
          {/* Row 1: Name and Horizontal Icons */}
-         <div className="flex items-start justify-between w-full mb-1">
+         <div className="flex items-start justify-between w-full">
+            {/* LEFT: Hotel Name */}
             <div className="flex-1 min-w-0 pr-2 pt-0.5">
-               <SeamlessInput 
-                  disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} 
-                  onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} 
-                  textClass={cn('text-base font-bold leading-tight', dk ? 'text-white' : 'text-slate-900')} 
-                  searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} 
-               />
+               <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-base font-bold leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} />
             </div>
-            {/* RIGHT ALIGNED ICONS: Trash -> Clock -> Star */}
+
+            {/* RIGHT: Horizontal Actions [Trash] [Clock] [Star] */}
             <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                {!viewOnly && (
                   <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className={cn("p-1.5 rounded-lg transition-colors", dk ? "text-slate-500 hover:text-red-500 hover:bg-red-500/10" : "text-slate-400 hover:text-red-500 hover:bg-red-50")}>
@@ -556,14 +553,14 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
             </div>
          </div>
 
-         {/* Row 2: City and Company Tag (Flexible Width) */}
-         <div className="flex justify-between items-center w-full mt-0.5 mb-3">
+         {/* Row 2: City and Company Tag */}
+         <div className="flex justify-between items-center w-full mb-2 mt-0.5">
             <div className="flex items-center gap-1.5 flex-1 min-w-0 pr-2">
                <MapPin size={10} className={dk ? "text-slate-500" : "text-slate-400"} /> 
                <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} textClass={cn("text-[10px] font-bold uppercase tracking-widest truncate", dk ? "text-slate-400" : "text-slate-500")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
             </div>
-            {/* max-w-[160px] allows long text to flex further left before truncating */}
-            <div className="shrink-0 max-w-[160px] truncate text-right" onClick={e => e.stopPropagation()}>
+            {/* FIX: max-w changed to 65% so long names flex gracefully left */}
+            <div className="shrink-0 w-max max-w-[65%]" onClick={e => e.stopPropagation()}>
                <CompanyMultiSelect disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onRenameOption={onRenameCompanyOption} onAddOption={onAddOption} searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} onOpenChange={setIsDropdownActive} />
             </div>
          </div>
@@ -582,23 +579,27 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                  </div>
              </div>
              
+           
              {/* THE FIX: Clickable wrapper for the total cost */}
              <div 
-                className="flex flex-col items-end cursor-pointer" 
+                className="flex flex-col items-end pr-1 cursor-pointer" 
                 onClick={(e) => { e.stopPropagation(); setShowPaidSplit(!showPaidSplit); }}
              >
-                {/* Shows split if clicked OR if global Due filter is active */}
-                {showPaidSplit || (activeFilterDue && activeFilterDue !== 'all') ? (
-                   <div className="flex flex-col items-end gap-1 animate-in fade-in">
-                      <span className="text-[11px] font-bold text-emerald-500 leading-none">{lang === 'de' ? 'Bezahlt:' : 'Paid:'} {formatCurrency(masterMath.totalPaid)}</span>
-                      <span className="text-[11px] font-bold text-red-500 leading-none">{lang === 'de' ? 'Offen:' : 'Unpaid:'} {formatCurrency(masterMath.totalUnpaid)}</span>
-                   </div>
-                ) : (
-                   <span className={cn('font-black text-[15px] leading-none animate-in fade-in', dk ? 'text-white' : 'text-slate-900')}>
-                      {formatCurrency(masterMath.displayBrutto)}
-                   </span>
-                )}
+                {/* 1. Total Brutto is ALWAYS visible */}
+                <span className={cn('font-black text-[15px] leading-none', dk ? 'text-white' : 'text-slate-900')}>
+                   {formatCurrency(masterMath.displayBrutto)}
+                </span>
                 
+                {/* 2. HORIZONTAL SPLIT slides down under the total */}
+                {(showPaidSplit || (activeFilterDue && activeFilterDue !== 'all')) && (
+                   <div className="flex items-center gap-1.5 mt-1.5 animate-in fade-in slide-in-from-top-1">
+                      <span className="text-[10px] font-bold text-emerald-500 leading-none">{formatCurrency(masterMath.totalPaid)}</span>
+                      <span className="text-[10px] text-slate-300 dark:text-slate-600 leading-none">|</span>
+                      <span className="text-[10px] font-bold text-red-500 leading-none">{formatCurrency(masterMath.totalUnpaid)}</span>
+                   </div>
+                )}
+
+                {/* 3. Due Date */}
                 {masterMath.nearestDueDate && (activeSort === 'payment_due' || (activeFilterDue && activeFilterDue !== 'all')) && (
                    <span className="text-[8px] font-bold text-red-500 uppercase tracking-wider mt-1.5">
                       {lang === 'de' ? 'Fällig: ' : 'Due: '} {formatShortDate(masterMath.nearestDueDate)}
@@ -669,7 +670,7 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
          )}
 
          {/* EXPAND TOGGLE */}
-         <div className={cn("w-full mt-3 pt-3 border-t flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-colors", dk ? "border-white/5 text-slate-400" : "border-slate-100 text-slate-500")}>
+         <div onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className={cn("w-full mt-1 pt-2 border-t flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer", dk ? "border-white/5 text-slate-400 hover:text-white" : "border-slate-100 text-slate-500 hover:text-slate-900")}>
             {isOpen ? <ChevronUp size={14} className="text-teal-500"/> : <ChevronDown size={14} className="text-teal-500"/>} 
             {isOpen ? (lang === 'de' ? 'Schließen' : 'Close') : (lang === 'de' ? 'Details öffnen' : 'Open Details')}
          </div>
