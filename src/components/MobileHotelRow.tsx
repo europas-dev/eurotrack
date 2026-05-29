@@ -357,6 +357,7 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
   const [showPaidSplit, setShowPaidSplit] = useState(false);
   const [showAllDurs, setShowAllDurs] = useState(false);
   const [showAllEmps, setShowAllEmps] = useState(false);
+  const [localMonthFilter, setLocalMonthFilter] = useState<number | 'all'>('all');
 
   const [isBookmarked, setIsBookmarked] = useState(() => {
     try { return JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]').includes(entry.id); } catch { return false; }
@@ -766,24 +767,69 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                </div>
             )}
 
-            {activeTab === 'billing' && (
-               <div className="flex flex-col animate-in fade-in">
-                  <div className={cn("p-4 border-b flex flex-col gap-3 shrink-0", dk ? "border-white/5" : "border-slate-200")}>
-                     <div className="flex items-center justify-between">
-                        <label className={cn("flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest", dk ? "text-slate-400" : "text-slate-500")}><Receipt size={14}/> {lang === 'de' ? 'Rechnungen' : 'Invoices'}</label>
-                        {!viewOnly && (
-                           <button onClick={() => {
-                              const newId = Math.random().toString();
-                              const newDraft = { id: newId, number: '', note: '', isPaid: false, billingMode: 'detailed', items: [], startDate: null, endDate: null, dueDate: null, paymentDate: null };
-                              setInvoiceDraft(newDraft); setEditingInvoiceId(newId); setSelectedInvoiceId(newId);
-                           }} className="p-1.5 rounded-lg text-white bg-teal-500 hover:bg-teal-600 transition-all shadow-sm"><Plus size={14} strokeWidth={3} /></button>
-                        )}
-                     </div>
-                     <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-                        {filteredMasterInvoices.length === 0 && !editingInvoiceId ? (
-                           <span className="text-[11px] text-slate-400 italic py-2">{lang === 'de' ? 'Keine Rechnungen' : 'No invoices'}</span>
-                        ) : (
-                           filteredMasterInvoices.map((inv: any) => {
+            {/* TAB: BILLING (Enhanced Architecture) */}
+            {activeTab === 'billing' && (() => {
+               // Calculate metrics specifically for the billing header
+               const totalInvs = (localHotel.invoices || []).length;
+               const paidInvs = (localHotel.invoices || []).filter((i:any) => i.isPaid).length;
+               const unpaidInvs = totalInvs - paidInvs;
+               const monthNames = lang === 'de' ? ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'] : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+               
+               // Apply the local month filter on top of the search/status filters
+               const finalDisplayedInvoices = filteredMasterInvoices.filter((inv: any) => {
+                   if (localMonthFilter === 'all') return true;
+                   const d = new Date(inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at));
+                   return d.getMonth() === localMonthFilter;
+               });
+
+               return (
+                  <div className="flex flex-col animate-in fade-in">
+                     {/* 1. THE SINGLE-LINE HEADER & SCROLL LIST */}
+                     <div className={cn("p-3 border-b flex flex-col gap-3 shrink-0", dk ? "border-white/5" : "border-slate-200")}>
+                        <div className="flex items-center justify-between w-full">
+                           <div className="flex items-center gap-2">
+                              <label className={cn("flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest", dk ? "text-slate-400" : "text-slate-500")}><Receipt size={14}/> {lang === 'de' ? 'Rechnungen' : 'Invoices'}</label>
+                              
+                              {/* Compact Filter Pills */}
+                              {totalInvs > 0 && (
+                                 <div className={cn("flex items-center rounded border shadow-sm overflow-hidden", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
+                                    <button onClick={() => setInvoiceFilter('all')} className={cn("flex items-center gap-1 px-1.5 py-1 text-[9px] font-black transition-colors", invoiceFilter === 'all' ? (dk ? "bg-white/10 text-white" : "bg-slate-100 text-slate-800") : "text-slate-400 hover:text-slate-600")}><FileText size={10} className={invoiceFilter === 'all' ? "opacity-100" : "opacity-60"} /> {totalInvs}</button>
+                                    <div className={cn("w-px h-3", dk ? "bg-white/10" : "bg-slate-200")} />
+                                    <button onClick={() => setInvoiceFilter('paid')} className={cn("flex items-center gap-0.5 px-1.5 py-1 text-[9px] font-black transition-colors", invoiceFilter === 'paid' ? (dk ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600") : "text-slate-400 hover:text-emerald-500")}><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {paidInvs}</button>
+                                    <div className={cn("w-px h-3", dk ? "bg-white/10" : "bg-slate-200")} />
+                                    <button onClick={() => setInvoiceFilter('unpaid')} className={cn("flex items-center gap-0.5 px-1.5 py-1 text-[9px] font-black transition-colors", invoiceFilter === 'unpaid' ? (dk ? "bg-red-500/10 text-red-400" : "bg-red-50 text-red-600") : "text-slate-400 hover:text-red-500")}><span className="w-1.5 h-1.5 rounded-full bg-red-500" /> {unpaidInvs}</button>
+                                 </div>
+                              )}
+                           </div>
+
+                           {/* Compact Native Select for Month */}
+                           <select value={localMonthFilter} onChange={(e) => setLocalMonthFilter(e.target.value === 'all' ? 'all' : parseInt(e.target.value))} className={cn("px-1.5 py-1 text-[10px] font-bold rounded border outline-none appearance-none cursor-pointer", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-700")}>
+                              <option value="all">{lang === 'de' ? 'Alle Monate' : 'All Months'}</option>
+                              {monthNames.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                           </select>
+                        </div>
+
+                        {/* Horizontal Invoice Chips */}
+                        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                           {!viewOnly && (
+                              <button onClick={() => {
+                                 const newId = Math.random().toString();
+                                 const newDraft = { id: newId, number: '', note: '', isPaid: false, billingMode: 'detailed', items: [], startDate: null, endDate: null, dueDate: null, paymentDate: null };
+                                 setInvoiceDraft(newDraft); setEditingInvoiceId(newId); setSelectedInvoiceId(newId);
+                              }} className="px-3 py-1.5 rounded-xl border border-dashed border-teal-500/40 text-teal-600 dark:text-teal-400 bg-teal-500/5 hover:bg-teal-500/20 transition-all shrink-0 flex items-center justify-center"><Plus size={16} strokeWidth={3} /></button>
+                           )}
+                           
+                           {finalDisplayedInvoices.length === 0 && !editingInvoiceId && (
+                              <span className="text-[11px] text-slate-400 italic py-2 px-2">{lang === 'de' ? 'Keine Rechnungen' : 'No invoices'}</span>
+                           )}
+
+                           {editingInvoiceId && invoiceDraft && !localHotel.invoices.find((i:any) => i.id === editingInvoiceId) && (
+                              <div className={cn("flex flex-col p-2.5 rounded-xl border shrink-0 min-w-[130px] border-teal-500 border-dashed bg-teal-500/10")}>
+                                 <span className="text-[11px] font-black text-teal-600 dark:text-teal-400">{lang === 'de' ? 'Neue Rechnung' : 'New Invoice'}</span>
+                              </div>
+                           )}
+
+                           {finalDisplayedInvoices.map((inv: any) => {
                               const isActive = selectedInvoiceId === inv.id;
                               const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
                               let invBrutto = inv.billingMode === 'total' ? (parseFloat(inv.totalNetto)||0) * (1 + (parseFloat(inv.totalMwst)||0)/100) : (inv.items||[]).reduce((sum:number, it:any) => sum + calcInvoiceItem(it, defaultN).brutto, 0);
@@ -796,185 +842,237 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                                     <span className={cn("text-[11px] font-bold", isActive ? "text-teal-600 dark:text-teal-400" : (dk ? "text-slate-400" : "text-slate-500"))}>{formatCurrency(invBrutto)}</span>
                                  </button>
                               )
-                           })
-                        )}
-                        {editingInvoiceId && invoiceDraft && !localHotel.invoices.find((i:any) => i.id === editingInvoiceId) && (
-                           <div className={cn("flex flex-col p-2.5 rounded-xl border shrink-0 min-w-[130px] border-teal-500 border-dashed bg-teal-500/10")}>
-                              <span className="text-[11px] font-black text-teal-600 dark:text-teal-400">{lang === 'de' ? 'Neue Rechnung' : 'New Invoice'}</span>
+                           })}
+                        </div>
+                     </div>
+
+                     <div className="flex flex-col flex-1 pb-4 bg-slate-50/30 dark:bg-[#0B1224]/50">
+                        {editingInvoiceId && invoiceDraft ? (
+                           // --- DRAFT EDITOR ---
+                           <div className={cn("flex flex-col gap-3 p-4 m-3 rounded-2xl border shadow-lg animate-in fade-in slide-in-from-top-2", dk ? "bg-[#1E293B] border-teal-500/30" : "bg-white border-teal-300")}>
+                              <input autoFocus value={invoiceDraft.number} onChange={e => setInvoiceDraft({...invoiceDraft, number: e.target.value})} className="w-full text-lg font-black border-b-2 bg-transparent outline-none py-1 border-teal-500 focus:ring-0 placeholder:text-slate-400" placeholder="RE-..." />
+                              <div className="grid grid-cols-2 gap-2 mt-2">
+                                 <div className="flex flex-col gap-1">
+                                    <label className="text-[9px] uppercase font-bold text-slate-500 flex items-center gap-1"><Calendar size={10}/> Start</label>
+                                    <NativeDatePicker dk={dk} value={invoiceDraft.startDate || ''} onChange={(s: string) => setInvoiceDraft({...invoiceDraft, startDate: s})} className="w-full h-[32px]" />
+                                 </div>
+                                 <div className="flex flex-col gap-1">
+                                    <label className="text-[9px] uppercase font-bold text-slate-500 flex items-center gap-1"><Calendar size={10}/> Ende</label>
+                                    <NativeDatePicker dk={dk} disabled={!invoiceDraft.startDate} min={invoiceDraft.startDate} value={invoiceDraft.endDate || ''} onChange={(end: string) => setInvoiceDraft({...invoiceDraft, endDate: end})} className="w-full h-[32px]" />
+                                 </div>
+                              </div>
+                              <div className="flex flex-col gap-1 mt-1">
+                                 <label className="text-[9px] uppercase font-bold text-slate-500 flex items-center gap-1"><Calendar size={10}/> {lang === 'de' ? 'Fällig am:' : 'Payment Due:'}</label>
+                                 <NativeDatePicker dk={dk} value={invoiceDraft.dueDate || ''} onChange={(due: string) => setInvoiceDraft({...invoiceDraft, dueDate: due})} className="w-full h-[32px]" />
+                              </div>
+                              <div className="flex items-center justify-between p-2 mt-1 rounded-xl bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10">
+                                 <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">{lang === 'de' ? 'Status' : 'Status'}</span>
+                                 <button onClick={() => setInvoiceDraft({...invoiceDraft, isPaid: !invoiceDraft.isPaid})} className={cn("px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors", invoiceDraft.isPaid ? "bg-emerald-500 text-white shadow-sm" : "bg-slate-200 dark:bg-white/10 text-slate-500 dark:text-slate-400")}>
+                                    {invoiceDraft.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid')}
+                                 </button>
+                              </div>
+                              {invoiceDraft.isPaid && (
+                                 <div className="flex flex-col gap-1 animate-in fade-in slide-in-from-top-1">
+                                    <label className="text-[9px] uppercase font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><Calendar size={10}/> {lang === 'de' ? 'Bezahlt am:' : 'Paid On:'}</label>
+                                    <NativeDatePicker dk={dk} value={invoiceDraft.paymentDate || ''} onChange={(pd: string) => setInvoiceDraft({...invoiceDraft, paymentDate: pd})} className="w-full h-[32px] [&>div]:border-emerald-500 [&>div]:text-emerald-600 dark:[&>div]:text-emerald-400" />
+                                 </div>
+                              )}
+                              <textarea value={invoiceDraft.note || ''} onChange={e => setInvoiceDraft({...invoiceDraft, note: e.target.value})} className={cn(inputCls, "h-[60px] resize-none")} placeholder={lang === 'de' ? "Notiz hinzufügen..." : "Add note..."} />
+                              <div className="flex items-center justify-between mt-1 pt-2 border-t border-slate-200 dark:border-white/10">
+                                 <button onClick={(e) => { e.stopPropagation(); if (window.confirm('Discard draft?')) { setEditingInvoiceId(null); setInvoiceDraft(null); if (!localHotel.invoices.find((i:any) => i.id === editingInvoiceId)) setSelectedInvoiceId(null); } }} className="p-2 text-slate-400 hover:text-red-500 rounded-lg bg-slate-100 dark:bg-white/5"><Trash2 size={14} /></button>
+                                 <button disabled={!invoiceDraft.number || !invoiceDraft.startDate || !invoiceDraft.endDate || (invoiceDraft.isPaid && !invoiceDraft.paymentDate)} onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    const isNew = !localHotel.invoices.find((i:any) => i.id === editingInvoiceId);
+                                    patchHotel({ invoices: isNew ? [invoiceDraft, ...localHotel.invoices] : localHotel.invoices.map((i:any) => i.id === editingInvoiceId ? invoiceDraft : i) }); 
+                                    setSelectedInvoiceId(invoiceDraft.id); setEditingInvoiceId(null); setInvoiceDraft(null); 
+                                 }} className="px-4 py-2 text-white bg-teal-500 hover:bg-teal-600 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:text-slate-500 rounded-lg transition-all font-black flex items-center gap-1.5 text-[11px]"><Check size={14} strokeWidth={3} /> {lang === 'de' ? 'Speichern' : 'Save'}</button>
+                              </div>
+                           </div>
+                        ) : activeInvoice ? (
+                           // --- ACTIVE INVOICE DETAILS ---
+                           <div className="flex flex-col h-full flex-1 p-3 animate-in fade-in">
+                              
+                              {/* ENHANCED INVOICE HEADER */}
+                              <div className="flex items-start justify-between mb-4 border-b border-slate-200 dark:border-white/10 pb-3">
+                                 <div className="flex flex-col gap-1.5">
+                                    <div className="flex items-center gap-2">
+                                       <h4 className={cn("text-[16px] font-black leading-none tracking-tight", dk ? "text-white" : "text-slate-900")}>{activeInvoice.number}</h4>
+                                       <span className={cn("px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border", activeInvoice.isPaid ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" : "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20")}>
+                                          {activeInvoice.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid')}
+                                       </span>
+                                    </div>
+                                    <p className="text-[10px] font-bold text-slate-500 mt-1">
+                                       {activeInvoice.startDate ? formatShortDate(activeInvoice.startDate, lang) : '--'} - {activeInvoice.endDate ? formatShortDate(activeInvoice.endDate, lang) : '--'} ({calculateNights(activeInvoice.startDate, activeInvoice.endDate)}N)
+                                    </p>
+                                    <p className={cn("text-[10px] font-bold mt-0.5", activeInvoice.isPaid ? "text-emerald-500" : "text-red-500")}>
+                                       {activeInvoice.isPaid 
+                                          ? `${lang === 'de' ? 'Bezahlt am:' : 'Paid on:'} ${activeInvoice.paymentDate ? formatShortDate(activeInvoice.paymentDate, lang) : '--'}`
+                                          : `${lang === 'de' ? 'Fällig:' : 'Due:'} ${activeInvoice.dueDate ? formatShortDate(activeInvoice.dueDate, lang) : '--'}`
+                                       }
+                                    </p>
+                                 </div>
+                                 {!viewOnly && (
+                                    <button onClick={() => { setEditingInvoiceId(activeInvoice.id); setInvoiceDraft(activeInvoice); }} className="p-1.5 bg-black/5 dark:bg-white/5 rounded-md text-slate-500 hover:text-teal-600 transition-all"><Edit3 size={14} /></button>
+                                 )}
+                              </div>
+                              
+                              {!viewOnly && (
+                                 <div className={cn("flex items-center p-1 rounded-lg border mb-2", dk ? "bg-black/40 border-white/10" : "bg-slate-100 border-slate-200")}>
+                                    <button disabled={activeInvoice.items?.length > 0} onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, billingMode: 'total'} : i) }); setEditingTotal(false); setEditingItemId(null); }} className={cn("flex-1 py-1 text-[10px] font-bold rounded-md transition-all", activeInvoice.billingMode === 'total' ? (dk ? "bg-teal-500 text-white" : "bg-white shadow-sm text-teal-700") : "text-slate-400 disabled:opacity-30")}>💰 {lang === 'de' ? 'Gesamt' : 'Total'}</button>
+                                    <button disabled={activeInvoice.totalNetto || activeInvoice.totalBrutto} onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, billingMode: 'detailed'} : i) }); setEditingTotal(false); }} className={cn("flex-1 py-1 text-[10px] font-bold rounded-md transition-all", activeInvoice.billingMode !== 'total' ? (dk ? "bg-teal-500 text-white" : "bg-white shadow-sm text-teal-700") : "text-slate-400 disabled:opacity-30")}>📝 {lang === 'de' ? 'Detailliert' : 'Detailed'}</button>
+                                 </div>
+                              )}
+
+                              {activeInvoice.billingMode === 'total' ? (
+                                 <div ref={totalRef} className={cn("flex flex-col p-3 rounded-xl border shadow-sm animate-in fade-in flex-1", dk ? "bg-[#1E293B] border-slate-800" : "bg-white border-slate-200", editingTotal && (dk ? "border-teal-500/50 shadow-xl bg-teal-900/20" : "border-teal-300 shadow-xl bg-teal-50"))}>
+                                    {!viewOnly && !editingTotal && (
+                                       <button onClick={() => {
+                                          setTotalDraft({ totalNetto: activeInvoice.totalNetto, totalBrutto: activeInvoice.totalBrutto, totalMwst: activeInvoice.totalMwst, discountValue: activeInvoice.discountValue, discountType: activeInvoice.discountType || 'fixed', note: activeInvoice.note });
+                                          setShowTotalDiscount(parseFloat(activeInvoice.discountValue || 0) > 0);
+                                          setEditingTotal(true);
+                                       }} className="self-end mb-2 p-1.5 bg-slate-100 dark:bg-white/10 rounded-md text-slate-500 hover:text-teal-600 transition-colors"><Edit3 size={12}/></button>
+                                    )}
+                                    <div className="flex flex-col gap-2">
+                                       <div className="flex flex-col gap-1">
+                                          <label className="text-[9px] font-bold text-slate-500 uppercase">Netto</label>
+                                          <div className="relative">
+                                             <input disabled={viewOnly || !editingTotal || (editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto)} type="number" value={editingTotal ? (totalDraft?.totalNetto ?? '') : (activeInvoice.totalNetto ?? '')} onChange={e => setTotalDraft({...totalDraft, totalNetto: e.target.value, totalBrutto: null})} className={cn(inputCls, "w-full disabled:opacity-50 text-right text-sm")} placeholder="0.00" />
+                                             {(!showTotalDiscount && !(editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto) && editingTotal && !viewOnly) && <button onClick={() => { setShowTotalDiscount(true); if(!totalDraft?.discountType) setTotalDraft({...totalDraft, discountType: 'fixed'}); }} className="absolute left-1 top-1/2 -translate-y-1/2 p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5"><Ticket size={12}/></button>}
+                                          </div>
+                                       </div>
+                                       {showTotalDiscount && !(editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto) && (
+                                          <div className="flex items-center w-full animate-in fade-in">
+                                             <input disabled={!editingTotal} type="number" value={editingTotal ? (totalDraft?.discountValue ?? '') : (activeInvoice.discountValue ?? '')} onChange={e => setTotalDraft({...totalDraft, discountValue: e.target.value})} className={cn(inputCls, "rounded-r-none border-r-0 flex-1 px-2 text-right text-xs")} placeholder="Rabatt" />
+                                             <button disabled={!editingTotal} onClick={() => setTotalDraft({...totalDraft, discountType: totalDraft?.discountType === 'percentage' ? 'fixed' : 'percentage'})} className={cn("w-[40px] h-[32px] border-y border-r text-xs font-bold transition-colors disabled:opacity-50", dk ? "bg-white/10 text-white border-white/10" : "bg-slate-200 text-slate-700 border-slate-200")}>{editingTotal ? (totalDraft?.discountType === 'percentage' ? '%' : '€') : (activeInvoice.discountType === 'percentage' ? '%' : '€')}</button>
+                                             {editingTotal && <button onClick={() => { setShowTotalDiscount(false); setTotalDraft({...totalDraft, discountValue: null}); }} className={cn("w-[30px] h-[32px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>}
+                                          </div>
+                                       )}
+                                       <div className="flex items-center gap-2">
+                                          <div className="w-[60px] flex flex-col gap-1 shrink-0">
+                                             <label className="text-[9px] font-bold text-slate-500 uppercase">MwSt</label>
+                                             {editingTotal && !viewOnly ? (
+                                                <MwstInput value={totalDraft?.totalMwst} onChange={(v:any) => setTotalDraft({...totalDraft, totalMwst: v})} isDarkMode={dk} />
+                                             ) : (
+                                                <div className={cn(inputCls, "text-center opacity-50 text-xs px-1")}>{activeInvoice.totalMwst || 7}%</div>
+                                             )}
+                                          </div>
+                                          <div className="flex-1 flex flex-col gap-1">
+                                             <label className="text-[9px] font-bold text-slate-500 uppercase">Brutto</label>
+                                             <input disabled={viewOnly || !editingTotal || (editingTotal ? totalDraft?.totalNetto : activeInvoice.totalNetto)} type="number" value={editingTotal ? (totalDraft?.totalBrutto ?? '') : (activeInvoice.totalBrutto ?? '')} onChange={e => setTotalDraft({...totalDraft, totalBrutto: e.target.value, totalNetto: null})} className={cn(inputCls, "w-full disabled:opacity-100 disabled:bg-transparent disabled:border-transparent font-black text-[13px] text-right placeholder-slate-900 dark:placeholder-white")} placeholder={(editingTotal ? totalDraft?.totalNetto : activeInvoice.totalNetto) ? formatCurrency(parseFloat((editingTotal ? totalDraft?.totalNetto : activeInvoice.totalNetto)) * (1 + (parseFloat((editingTotal ? totalDraft?.totalMwst : activeInvoice.totalMwst))||0)/100)) : "0.00"} />
+                                          </div>
+                                       </div>
+                                       {editingTotal && (
+                                          <>
+                                             <textarea disabled={!editingTotal} rows={1} value={editingTotal ? (totalDraft?.note || '') : (activeInvoice.note || '')} onChange={e => {e.target.style.height='32px'; e.target.style.height=`${e.target.scrollHeight}px`; setTotalDraft({...totalDraft, note: e.target.value})}} className={cn(inputCls, "w-full text-xs font-medium resize-none min-h-[32px]")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />
+                                             <div className="flex items-center justify-end gap-2 mt-1 pt-2 border-t dark:border-teal-500/30 border-teal-200">
+                                                <button onClick={() => setEditingTotal(false)} className={cn("px-3 py-1.5 rounded text-xs font-bold border", dk ? "border-white/10 text-slate-300" : "border-slate-200 text-slate-600")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
+                                                <button onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, ...totalDraft} : i) }); setEditingTotal(false); }} className="px-4 py-1.5 rounded text-xs font-bold text-white bg-teal-500 shadow-md">{lang === 'de' ? 'Speichern' : 'Save'}</button>
+                                             </div>
+                                          </>
+                                       )}
+                                    </div>
+                                 </div>
+                              ) : (
+                                 <div className="flex flex-col flex-1 pb-1">
+                                    <div className={cn("flex items-center py-1.5 border-b mb-1", dk ? "border-white/10" : "border-slate-200")}>
+                                       <div className="flex-1 min-w-0 text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">{lang === 'de' ? 'Beschreibung' : 'Desc'}</div>
+                                       <div className="w-[50px] shrink-0 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Netto</div>
+                                       <div className="w-[30px] shrink-0 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center px-1">MwSt</div>
+                                       <div className="w-[60px] shrink-0 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right pr-1">Brutto</div>
+                                    </div>
+                                    
+                                    {(activeInvoice.items || []).length === 0 && <p className="text-[11px] font-bold text-slate-400 italic text-center py-4">{lang === 'de' ? 'Keine Posten vorhanden.' : 'No line items.'}</p>}
+                                    
+                                    {(activeInvoice.items || []).map((item: any) => {
+                                       const isEditing = editingItemId === item.id;
+                                       const defaultN = activeInvoice.startDate && activeInvoice.endDate ? calculateNights(activeInvoice.startDate, activeInvoice.endDate) : 1;
+                                       
+                                       if (isEditing) {
+                                          return <MobileInvoiceLineItem key={item.id} item={item} dk={dk} lang={lang} viewOnly={viewOnly} defaultNights={defaultN} defaultStart={activeInvoice.startDate} defaultEnd={activeInvoice.endDate} isEditing={true} onSave={(savedDraft: any) => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: i.items.map((it:any) => it.id === item.id ? savedDraft : it)} : i) }); setEditingItemId(null); }} onCancel={() => setEditingItemId(null)} onDelete={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: i.items.filter((it:any) => it.id !== item.id)} : i) }); setEditingItemId(null); }} />
+                                       }
+                                       return <MobileInvoiceLineItem key={item.id} item={item} dk={dk} lang={lang} viewOnly={viewOnly} defaultNights={defaultN} defaultStart={activeInvoice.startDate} defaultEnd={activeInvoice.endDate} isEditing={false} onEdit={() => setEditingItemId(item.id)} onDelete={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: i.items.filter((it:any) => it.id !== item.id)} : i) }); setEditingItemId(null); }} />
+                                    })}
+
+                                    {!viewOnly && !editingItemId && (
+                                       <button onClick={() => {
+                                          const newId = Math.random().toString();
+                                          patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: [...(i.items||[]), { id: newId, type: 'room', method: 'per_bed', netto: null, mwst: 7, brutto: null }]} : i) });
+                                          setEditingItemId(newId);
+                                       }} className={cn("w-full py-2 mt-2 rounded border border-dashed text-[10px] font-black uppercase tracking-widest transition-all", dk ? "border-white/20 text-slate-400 hover:bg-white/10" : "border-slate-300 text-slate-500 hover:bg-slate-50")}>+ {lang === 'de' ? 'Posten' : 'Item'}</button>
+                                    )}
+                                 </div>
+                              )}
+
+                              {/* BOTTOM MASTER SUMMARY PINNED (TIGHT) */}
+                              <div className={cn("mt-auto sticky bottom-0 z-40 flex flex-col pt-3 border-t", dk ? "border-white/10" : "border-slate-200")}>
+                                 <div className="flex justify-between items-center mb-1.5">
+                                    <span className={cn("text-[10px] font-bold uppercase", dk ? "text-slate-400" : "text-slate-500")}>Total Netto</span>
+                                    <span className={cn("font-bold text-[11px]", dk ? "text-slate-200" : "text-slate-700")}>{formatCurrency(masterMath.activeNetto)}</span>
+                                 </div>
+                                 {Object.entries(masterMath.activeBuckets).map(([percent, amount]: any) => (
+                                    <div key={percent} className="flex justify-between items-center mb-1 text-[9px]">
+                                       <span className={dk ? "text-slate-500" : "text-slate-400"}>MwSt ({percent}%)</span>
+                                       <span className={dk ? "text-slate-400" : "text-slate-500"}>{formatCurrency(amount)}</span>
+                                    </div>
+                                 ))}
+                                 <div className="flex justify-between items-center mt-1 pt-1.5 border-t border-slate-200 dark:border-white/10">
+                                    <span className={cn("text-[11px] font-black", dk ? "text-teal-400" : "text-teal-600")}>Total Brutto</span>
+                                    <span className={cn("font-black text-[13px]", dk ? "text-white" : "text-slate-900")}>{formatCurrency(masterMath.activeBrutto)}</span>
+                                 </div>
+                              </div>
+                           </div>
+                        ) : (
+                           // --- GLOBAL SUMMARY (NO INVOICE SELECTED) ---
+                           <div className="flex flex-col px-4 pt-4 pb-2 animate-in fade-in">
+                              
+                              <div className="space-y-1.5 font-medium text-[13px] border-b pb-3 mb-3 border-slate-200 dark:border-white/10">
+                                 <div className="flex justify-between items-center">
+                                    <span className={dk ? "text-slate-400" : "text-slate-500"}>{lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</span>
+                                    <span className={cn("font-bold", dk ? "text-white" : "text-slate-900")}>{formatCurrency(masterMath.displayNetto)}</span>
+                                 </div>
+                                 {Object.entries(masterMath.buckets).map(([percent, amount]: any) => (
+                                    <div key={percent} className="flex justify-between items-center text-[11px]">
+                                        <span className={dk ? "text-slate-500" : "text-slate-400"}>MwSt ({percent}%)</span>
+                                        <span className={dk ? "text-slate-400" : "text-slate-500"}>{formatCurrency(amount)}</span>
+                                    </div>
+                                 ))}
+                              </div>
+
+                              <div className="flex justify-between items-center w-full mb-4">
+                                 <span className={cn("text-[13px] font-bold shrink-0", dk ? "text-slate-400" : "text-slate-500")}>{lang === 'de' ? 'Gesamt Brutto' : 'Total Brutto'}</span>
+                                 <span className={cn("text-[17px] font-black tracking-tight", dk ? "text-white" : "text-slate-900")}>{formatCurrency(masterMath.displayBrutto)}</span>
+                              </div>
+
+                              <div className="flex flex-col gap-1.5 mb-2">
+                                  <div className="flex justify-between items-center text-[11px] font-bold">
+                                      <span className="text-slate-400">{lang === 'de' ? 'Total Bezahlt' : 'Total Paid'}</span>
+                                      <span className="text-emerald-500">{formatCurrency(masterMath.totalPaid)}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center text-[11px] font-bold">
+                                      <span className="text-slate-400">{lang === 'de' ? 'Total Offen' : 'Total Unpaid'}</span>
+                                      <span className="text-red-500">{formatCurrency(masterMath.totalUnpaid)}</span>
+                                  </div>
+                              </div>
+
+                              {masterMath.pricePerBed > 0 && (
+                                 <div className="flex justify-between items-center text-[11px] font-bold pt-3 border-t border-slate-200 dark:border-white/10 mt-1">
+                                     <span className="text-slate-400">{lang === 'de' ? 'Preis / Bett' : 'Price / Bed'}</span>
+                                     <span className="text-slate-500">{formatCurrency(masterMath.pricePerBed)} / N</span>
+                                 </div>
+                              )}
+
+                              {localHotel.depositEnabled && (
+                                  <div className="flex justify-between items-center text-[11px] font-bold pt-2 mt-1">
+                                      <span className="text-amber-500">{lang === 'de' ? 'Kaution' : 'Deposit'}</span>
+                                      <span className="text-amber-500">{formatCurrency(parseFloat(localHotel.depositAmount || '0'))}</span>
+                                  </div>
+                              )}
                            </div>
                         )}
                      </div>
                   </div>
-
-                  <div className="p-3 flex flex-col flex-1 pb-4">
-                     {editingInvoiceId && invoiceDraft ? (
-                        <div className={cn("flex flex-col gap-3 p-3 rounded-2xl border shadow-lg animate-in fade-in slide-in-from-top-2", dk ? "bg-[#1E293B] border-teal-500/30" : "bg-white border-teal-300")}>
-                           <input autoFocus value={invoiceDraft.number} onChange={e => setInvoiceDraft({...invoiceDraft, number: e.target.value})} className="w-full text-lg font-black border-b-2 bg-transparent outline-none py-1 border-teal-500 focus:ring-0 placeholder:text-slate-400" placeholder="RE-..." />
-                           <div className="grid grid-cols-2 gap-2 mt-2">
-                              <div className="flex flex-col gap-1">
-                                 <label className="text-[9px] uppercase font-bold text-slate-500 flex items-center gap-1"><Calendar size={10}/> Start</label>
-                                 <NativeDatePicker dk={dk} value={invoiceDraft.startDate || ''} onChange={(s: string) => setInvoiceDraft({...invoiceDraft, startDate: s})} className="w-full h-[32px]" />
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                 <label className="text-[9px] uppercase font-bold text-slate-500 flex items-center gap-1"><Calendar size={10}/> Ende</label>
-                                 <NativeDatePicker dk={dk} disabled={!invoiceDraft.startDate} min={invoiceDraft.startDate} value={invoiceDraft.endDate || ''} onChange={(end: string) => setInvoiceDraft({...invoiceDraft, endDate: end})} className="w-full h-[32px]" />
-                              </div>
-                           </div>
-                           <div className="flex flex-col gap-1 mt-1">
-                              <label className="text-[9px] uppercase font-bold text-slate-500 flex items-center gap-1"><Calendar size={10}/> {lang === 'de' ? 'Fällig am:' : 'Payment Due:'}</label>
-                              <NativeDatePicker dk={dk} value={invoiceDraft.dueDate || ''} onChange={(due: string) => setInvoiceDraft({...invoiceDraft, dueDate: due})} className="w-full h-[32px]" />
-                           </div>
-                           <div className="flex items-center justify-between p-2 mt-1 rounded-xl bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10">
-                              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">{lang === 'de' ? 'Status' : 'Status'}</span>
-                              <button onClick={() => setInvoiceDraft({...invoiceDraft, isPaid: !invoiceDraft.isPaid})} className={cn("px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors", invoiceDraft.isPaid ? "bg-emerald-500 text-white shadow-sm" : "bg-slate-200 dark:bg-white/10 text-slate-500 dark:text-slate-400")}>
-                                 {invoiceDraft.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid')}
-                              </button>
-                           </div>
-                           {invoiceDraft.isPaid && (
-                              <div className="flex flex-col gap-1 animate-in fade-in slide-in-from-top-1">
-                                 <label className="text-[9px] uppercase font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><Calendar size={10}/> {lang === 'de' ? 'Bezahlt am:' : 'Paid On:'}</label>
-                                 <NativeDatePicker dk={dk} value={invoiceDraft.paymentDate || ''} onChange={(pd: string) => setInvoiceDraft({...invoiceDraft, paymentDate: pd})} className="w-full h-[32px] [&>div]:border-emerald-500 [&>div]:text-emerald-600 dark:[&>div]:text-emerald-400" />
-                              </div>
-                           )}
-                           <textarea value={invoiceDraft.note || ''} onChange={e => setInvoiceDraft({...invoiceDraft, note: e.target.value})} className={cn(inputCls, "h-[60px] resize-none")} placeholder={lang === 'de' ? "Notiz hinzufügen..." : "Add note..."} />
-                           <div className="flex items-center justify-between mt-1 pt-2 border-t border-slate-200 dark:border-white/10">
-                              <button onClick={(e) => { e.stopPropagation(); if (window.confirm('Discard draft?')) { setEditingInvoiceId(null); setInvoiceDraft(null); if (!localHotel.invoices.find((i:any) => i.id === editingInvoiceId)) setSelectedInvoiceId(null); } }} className="p-2 text-slate-400 hover:text-red-500 rounded-lg bg-slate-100 dark:bg-white/5"><Trash2 size={14} /></button>
-                              <button disabled={!invoiceDraft.number || !invoiceDraft.startDate || !invoiceDraft.endDate || (invoiceDraft.isPaid && !invoiceDraft.paymentDate)} onClick={(e) => { 
-                                 e.stopPropagation(); 
-                                 const isNew = !localHotel.invoices.find((i:any) => i.id === editingInvoiceId);
-                                 patchHotel({ invoices: isNew ? [invoiceDraft, ...localHotel.invoices] : localHotel.invoices.map((i:any) => i.id === editingInvoiceId ? invoiceDraft : i) }); 
-                                 setSelectedInvoiceId(invoiceDraft.id); setEditingInvoiceId(null); setInvoiceDraft(null); 
-                              }} className="px-4 py-2 text-white bg-teal-500 hover:bg-teal-600 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:text-slate-500 rounded-lg transition-all font-black flex items-center gap-1.5 text-[11px]"><Check size={14} strokeWidth={3} /> {lang === 'de' ? 'Speichern' : 'Save'}</button>
-                           </div>
-                        </div>
-                     ) : activeInvoice ? (
-                        <div className="flex flex-col h-full flex-1">
-                           <div className="flex justify-between items-start mb-3">
-                              <div>
-                                 <h4 className={cn("text-[14px] font-black leading-tight", dk ? "text-white" : "text-slate-900")}>{activeInvoice.number}</h4>
-                                 <p className="text-[9px] font-bold text-slate-500 mt-0.5">{activeInvoice.startDate ? formatShortDate(activeInvoice.startDate, lang) : '--'} - {activeInvoice.endDate ? formatShortDate(activeInvoice.endDate, lang) : '--'} ({calculateNights(activeInvoice.startDate, activeInvoice.endDate)}N)</p>
-                              </div>
-                              {!viewOnly && (
-                                 <button onClick={() => { setEditingInvoiceId(activeInvoice.id); setInvoiceDraft(activeInvoice); }} className="p-1.5 bg-black/5 dark:bg-white/5 rounded-md text-slate-500 hover:text-teal-600 transition-all"><Edit3 size={12} /></button>
-                              )}
-                           </div>
-                           
-                           {!viewOnly && (
-                              <div className={cn("flex items-center p-1 rounded-lg border mb-2", dk ? "bg-black/40 border-white/10" : "bg-slate-100 border-slate-200")}>
-                                 <button disabled={activeInvoice.items?.length > 0} onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, billingMode: 'total'} : i) }); setEditingTotal(false); setEditingItemId(null); }} className={cn("flex-1 py-1 text-[10px] font-bold rounded-md transition-all", activeInvoice.billingMode === 'total' ? (dk ? "bg-teal-500 text-white" : "bg-white shadow-sm text-teal-700") : "text-slate-400 disabled:opacity-30")}>💰 {lang === 'de' ? 'Gesamt' : 'Total'}</button>
-                                 <button disabled={activeInvoice.totalNetto || activeInvoice.totalBrutto} onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, billingMode: 'detailed'} : i) }); setEditingTotal(false); }} className={cn("flex-1 py-1 text-[10px] font-bold rounded-md transition-all", activeInvoice.billingMode !== 'total' ? (dk ? "bg-teal-500 text-white" : "bg-white shadow-sm text-teal-700") : "text-slate-400 disabled:opacity-30")}>📝 {lang === 'de' ? 'Detailliert' : 'Detailed'}</button>
-                              </div>
-                           )}
-
-                           {activeInvoice.billingMode === 'total' ? (
-                              <div ref={totalRef} className={cn("flex flex-col p-3 rounded-xl border shadow-sm animate-in fade-in flex-1", dk ? "bg-[#1E293B] border-slate-800" : "bg-white border-slate-200", editingTotal && (dk ? "border-teal-500/50 shadow-xl bg-teal-900/20" : "border-teal-300 shadow-xl bg-teal-50"))}>
-                                 {!viewOnly && !editingTotal && (
-                                    <button onClick={() => {
-                                       setTotalDraft({ totalNetto: activeInvoice.totalNetto, totalBrutto: activeInvoice.totalBrutto, totalMwst: activeInvoice.totalMwst, discountValue: activeInvoice.discountValue, discountType: activeInvoice.discountType || 'fixed', note: activeInvoice.note });
-                                       setShowTotalDiscount(parseFloat(activeInvoice.discountValue || 0) > 0);
-                                       setEditingTotal(true);
-                                    }} className="self-end mb-2 p-1.5 bg-slate-100 dark:bg-white/10 rounded-md text-slate-500 hover:text-teal-600 transition-colors"><Edit3 size={12}/></button>
-                                 )}
-                                 <div className="flex flex-col gap-2">
-                                    <div className="flex flex-col gap-1">
-                                       <label className="text-[9px] font-bold text-slate-500 uppercase">Netto</label>
-                                       <div className="relative">
-                                          <input disabled={viewOnly || !editingTotal || (editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto)} type="number" value={editingTotal ? (totalDraft?.totalNetto ?? '') : (activeInvoice.totalNetto ?? '')} onChange={e => setTotalDraft({...totalDraft, totalNetto: e.target.value, totalBrutto: null})} className={cn(inputCls, "w-full disabled:opacity-50 text-right text-sm")} placeholder="0.00" />
-                                          {(!showTotalDiscount && !(editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto) && editingTotal && !viewOnly) && <button onClick={() => { setShowTotalDiscount(true); if(!totalDraft?.discountType) setTotalDraft({...totalDraft, discountType: 'fixed'}); }} className="absolute left-1 top-1/2 -translate-y-1/2 p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5"><Ticket size={12}/></button>}
-                                       </div>
-                                    </div>
-                                    {showTotalDiscount && !(editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto) && (
-                                       <div className="flex items-center w-full animate-in fade-in">
-                                          <input disabled={!editingTotal} type="number" value={editingTotal ? (totalDraft?.discountValue ?? '') : (activeInvoice.discountValue ?? '')} onChange={e => setTotalDraft({...totalDraft, discountValue: e.target.value})} className={cn(inputCls, "rounded-r-none border-r-0 flex-1 px-2 text-right text-xs")} placeholder="Rabatt" />
-                                          <button disabled={!editingTotal} onClick={() => setTotalDraft({...totalDraft, discountType: totalDraft?.discountType === 'percentage' ? 'fixed' : 'percentage'})} className={cn("w-[40px] h-[32px] border-y border-r text-xs font-bold transition-colors disabled:opacity-50", dk ? "bg-white/10 text-white border-white/10" : "bg-slate-200 text-slate-700 border-slate-200")}>{editingTotal ? (totalDraft?.discountType === 'percentage' ? '%' : '€') : (activeInvoice.discountType === 'percentage' ? '%' : '€')}</button>
-                                          {editingTotal && <button onClick={() => { setShowTotalDiscount(false); setTotalDraft({...totalDraft, discountValue: null}); }} className={cn("w-[30px] h-[32px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>}
-                                       </div>
-                                    )}
-                                    <div className="flex items-center gap-2">
-                                       <div className="w-[60px] flex flex-col gap-1 shrink-0">
-                                          <label className="text-[9px] font-bold text-slate-500 uppercase">MwSt</label>
-                                          {editingTotal && !viewOnly ? (
-                                             <MwstInput value={totalDraft?.totalMwst} onChange={(v:any) => setTotalDraft({...totalDraft, totalMwst: v})} isDarkMode={dk} />
-                                          ) : (
-                                             <div className={cn(inputCls, "text-center opacity-50 text-xs px-1")}>{activeInvoice.totalMwst || 7}%</div>
-                                          )}
-                                       </div>
-                                       <div className="flex-1 flex flex-col gap-1">
-                                          <label className="text-[9px] font-bold text-slate-500 uppercase">Brutto</label>
-                                          <input disabled={viewOnly || !editingTotal || (editingTotal ? totalDraft?.totalNetto : activeInvoice.totalNetto)} type="number" value={editingTotal ? (totalDraft?.totalBrutto ?? '') : (activeInvoice.totalBrutto ?? '')} onChange={e => setTotalDraft({...totalDraft, totalBrutto: e.target.value, totalNetto: null})} className={cn(inputCls, "w-full disabled:opacity-100 disabled:bg-transparent disabled:border-transparent font-black text-[13px] text-right placeholder-slate-900 dark:placeholder-white")} placeholder={(editingTotal ? totalDraft?.totalNetto : activeInvoice.totalNetto) ? formatCurrency(parseFloat((editingTotal ? totalDraft?.totalNetto : activeInvoice.totalNetto)) * (1 + (parseFloat((editingTotal ? totalDraft?.totalMwst : activeInvoice.totalMwst))||0)/100)) : "0.00"} />
-                                       </div>
-                                    </div>
-                                    {editingTotal && (
-                                       <>
-                                          <textarea disabled={!editingTotal} rows={1} value={editingTotal ? (totalDraft?.note || '') : (activeInvoice.note || '')} onChange={e => {e.target.style.height='32px'; e.target.style.height=`${e.target.scrollHeight}px`; setTotalDraft({...totalDraft, note: e.target.value})}} className={cn(inputCls, "w-full text-xs font-medium resize-none min-h-[32px]")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />
-                                          <div className="flex items-center justify-end gap-2 mt-1 pt-2 border-t dark:border-teal-500/30 border-teal-200">
-                                             <button onClick={() => setEditingTotal(false)} className={cn("px-3 py-1.5 rounded text-xs font-bold border", dk ? "border-white/10 text-slate-300" : "border-slate-200 text-slate-600")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
-                                             <button onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, ...totalDraft} : i) }); setEditingTotal(false); }} className="px-4 py-1.5 rounded text-xs font-bold text-white bg-teal-500 shadow-md">{lang === 'de' ? 'Speichern' : 'Save'}</button>
-                                          </div>
-                                       </>
-                                    )}
-                                 </div>
-                              </div>
-                           ) : (
-                              <div className="flex flex-col flex-1 pb-1">
-                                 <div className={cn("flex items-center py-1.5 border-b mb-1", dk ? "border-white/10" : "border-slate-200")}>
-                                    <div className="flex-1 min-w-0 text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">{lang === 'de' ? 'Beschreibung' : 'Desc'}</div>
-                                    <div className="w-[50px] shrink-0 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Netto</div>
-                                    <div className="w-[30px] shrink-0 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center px-1">MwSt</div>
-                                    <div className="w-[60px] shrink-0 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right pr-1">Brutto</div>
-                                 </div>
-                                 
-                                 {(activeInvoice.items || []).length === 0 && <p className="text-[11px] font-bold text-slate-400 italic text-center py-4">{lang === 'de' ? 'Keine Posten vorhanden.' : 'No line items.'}</p>}
-                                 
-                                 {(activeInvoice.items || []).map((item: any) => {
-                                    const isEditing = editingItemId === item.id;
-                                    const defaultN = activeInvoice.startDate && activeInvoice.endDate ? calculateNights(activeInvoice.startDate, activeInvoice.endDate) : 1;
-                                    
-                                    if (isEditing) {
-                                       return <MobileInvoiceLineItem key={item.id} item={item} dk={dk} lang={lang} viewOnly={viewOnly} defaultNights={defaultN} defaultStart={activeInvoice.startDate} defaultEnd={activeInvoice.endDate} isEditing={true} onSave={(savedDraft: any) => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: i.items.map((it:any) => it.id === item.id ? savedDraft : it)} : i) }); setEditingItemId(null); }} onCancel={() => setEditingItemId(null)} onDelete={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: i.items.filter((it:any) => it.id !== item.id)} : i) }); setEditingItemId(null); }} />
-                                    }
-                                    return <MobileInvoiceLineItem key={item.id} item={item} dk={dk} lang={lang} viewOnly={viewOnly} defaultNights={defaultN} defaultStart={activeInvoice.startDate} defaultEnd={activeInvoice.endDate} isEditing={false} onEdit={() => setEditingItemId(item.id)} onDelete={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: i.items.filter((it:any) => it.id !== item.id)} : i) }); setEditingItemId(null); }} />
-                                 })}
-
-                                 {!viewOnly && !editingItemId && (
-                                    <button onClick={() => {
-                                       const newId = Math.random().toString();
-                                       patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: [...(i.items||[]), { id: newId, type: 'room', method: 'per_bed', netto: null, mwst: 7, brutto: null }]} : i) });
-                                       setEditingItemId(newId);
-                                    }} className={cn("w-full py-2 mt-2 rounded border border-dashed text-[10px] font-black uppercase tracking-widest transition-all", dk ? "border-white/20 text-slate-400 hover:bg-white/10" : "border-slate-300 text-slate-500 hover:bg-slate-50")}>+ {lang === 'de' ? 'Posten' : 'Item'}</button>
-                                 )}
-                              </div>
-                           )}
-
-                           {/* BOTTOM MASTER SUMMARY PINNED (TIGHT) */}
-                           <div className={cn("mt-auto sticky bottom-0 z-40 flex flex-col p-3 rounded-t-xl border-t border-l border-r shadow-[0_-10px_20px_rgba(0,0,0,0.1)]", dk ? "bg-[#0B1224] border-white/10" : "bg-slate-50 border-slate-200")}>
-                              <div className="flex justify-between items-center mb-1.5">
-                                 <span className={cn("text-[10px] font-bold uppercase", dk ? "text-slate-400" : "text-slate-500")}>Total Netto</span>
-                                 <span className={cn("font-bold text-[11px]", dk ? "text-slate-200" : "text-slate-700")}>{formatCurrency(masterMath.activeNetto)}</span>
-                              </div>
-                              {Object.entries(masterMath.activeBuckets).map(([percent, amount]: any) => (
-                                 <div key={percent} className="flex justify-between items-center mb-1 text-[9px]">
-                                    <span className={dk ? "text-slate-500" : "text-slate-400"}>MwSt ({percent}%)</span>
-                                    <span className={dk ? "text-slate-400" : "text-slate-500"}>{formatCurrency(amount)}</span>
-                                 </div>
-                              ))}
-                              <div className="flex justify-between items-center mt-1 pt-1.5 border-t border-slate-200 dark:border-white/10">
-                                 <span className={cn("text-[11px] font-black", dk ? "text-teal-400" : "text-teal-600")}>Total Brutto</span>
-                                 <span className={cn("font-black text-[13px]", dk ? "text-white" : "text-slate-900")}>{formatCurrency(masterMath.activeBrutto)}</span>
-                              </div>
-                           </div>
-                        </div>
-                     ) : (
-                        <div className="flex flex-col items-center justify-center py-8 text-center opacity-50">
-                           <Receipt size={24} className="mb-2 text-slate-400" />
-                           <p className="text-[11px] font-bold">{lang === 'de' ? 'Wählen Sie eine Rechnung oben aus' : 'Select an invoice above'}</p>
-                        </div>
-                     )}
-                  </div>
-               </div>
-            )}
-         </div>
-      )}
+               );
+            })()}
 
       {confirmDelete && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 pointer-events-auto">
