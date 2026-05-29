@@ -517,77 +517,106 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
   const inputCls = cn('w-full px-2 py-1.5 rounded-lg text-xs font-bold outline-none border transition-all h-[32px]', dk ? 'bg-black/20 border-white/10 text-white placeholder-slate-600 focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-teal-500', viewOnly && "opacity-60 cursor-default");
 
   return (
-    <div className={cn('w-full rounded-2xl border mb-3 transition-all duration-200 shadow-sm relative flex flex-col', 
+    <div className={cn('w-full rounded-2xl border mb-3 transition-all duration-200 shadow-sm relative overflow-hidden flex flex-col', 
           isOpen ? (dk ? 'bg-[#1E293B] border-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'bg-white border-teal-400/60 shadow-[0_0_15px_rgba(20,184,166,0.15)]') 
           : (dk ? 'bg-[#1E293B] border-white/5' : 'bg-white border-slate-200'))}
     >
       <div className={cn("absolute top-0 bottom-0 left-0 w-1.5 transition-colors z-[60]", masterMath.totalUnpaid > 0 ? "bg-red-500" : (masterMath.totalPaid > 0 ? "bg-emerald-500" : "bg-transparent border-r border-slate-200 dark:border-white/10"))} />
 
-      {/* TOP ROW: Content + Sidebar */}
-      <div className="flex w-full">
-         <div className="flex-1 p-3 pl-4 flex flex-col">
-            <div className="w-full mb-1">
-               <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-lg font-black leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} />
+      <div className="p-3 pl-4 flex flex-col w-full cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+         
+         {/* Row 1: Name and Horizontal Icons */}
+         <div className="flex items-start justify-between w-full mb-1">
+            {/* LEFT: Hotel Name (Adjusted Typography for readability) */}
+            <div className="flex-1 min-w-0 pr-2 pt-0.5">
+               <SeamlessInput 
+                  disabled={viewOnly} 
+                  value={localHotel.name} 
+                  options={hotelOptions} 
+                  isDarkMode={dk} 
+                  onChange={(val:any) => patchHotel({ name: val })} 
+                  placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} 
+                  textClass={cn('text-base font-bold leading-tight', dk ? 'text-white' : 'text-slate-900')} 
+                  searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} 
+               />
             </div>
-            <div className="flex items-center gap-2 w-full pr-2">
-               <div className="flex items-center gap-1 min-w-0 shrink">
-                  <MapPin size={10} className={dk ? "text-slate-500" : "text-slate-400"} /> 
-                  <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} textClass={cn("text-[10px] font-bold uppercase tracking-widest truncate", dk ? "text-slate-400" : "text-slate-500")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
-               </div>
-               <div className="shrink-0 max-w-[140px]" onClick={e => e.stopPropagation()}>
-                  <CompanyMultiSelect disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onRenameOption={onRenameCompanyOption} onAddOption={onAddOption} searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} />
-               </div>
-            </div>
-         </div>
 
-         {/* Sidebar Only in Header */}
-         <div className={cn("w-10 shrink-0 border-b border-l flex flex-col items-center justify-between py-2 rounded-bl-xl", dk ? "border-white/10 bg-black/20" : "border-slate-200 bg-slate-50")}>
-            <button onClick={toggleBookmark} className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
-               <Star size={16} className={isBookmarked ? "fill-yellow-500 text-yellow-500" : (dk ? "text-slate-500" : "text-slate-400")} />
-            </button>
-            <div className="relative group/time flex items-center justify-center py-1">
-               <Clock size={14} className={dk ? "text-slate-500" : "text-slate-400"} />
-               <div className={cn("absolute right-full mr-2 top-1/2 -translate-y-1/2 w-max px-2 py-1 text-[9px] font-bold rounded opacity-0 group-hover/time:opacity-100 z-[99999] whitespace-nowrap pointer-events-none shadow-xl border", dk ? "bg-slate-700 text-white border-white/20" : "bg-white text-slate-800 border-slate-300")}>{formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}</div>
-            </div>
-            {!viewOnly && (
-               <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className={cn("p-1.5 rounded-lg transition-colors hover:bg-red-50 dark:hover:bg-red-500/10", dk ? "text-slate-500 hover:text-red-500" : "text-slate-400 hover:text-red-500")}>
-                  <Trash2 size={14} />
+            {/* RIGHT: Horizontal Actions [Trash] [Clock] [Star] */}
+            <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+               {!viewOnly && (
+                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className={cn("p-1.5 rounded-lg transition-colors", dk ? "text-slate-500 hover:text-red-500 hover:bg-red-500/10" : "text-slate-400 hover:text-red-500 hover:bg-red-50")}>
+                     <Trash2 size={16} />
+                  </button>
+               )}
+               
+               <div className="relative group/time flex items-center justify-center p-1.5">
+                  <Clock size={16} className={dk ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600"} />
+                  <div className={cn("absolute right-full mr-2 top-1/2 -translate-y-1/2 w-max px-2 py-1 text-[9px] font-bold rounded opacity-0 group-hover/time:opacity-100 z-[99999] whitespace-nowrap pointer-events-none shadow-xl border", dk ? "bg-slate-700 text-white border-white/20" : "bg-white text-slate-800 border-slate-300")}>
+                     {formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}
+                  </div>
+               </div>
+
+               <button onClick={toggleBookmark} className={cn("p-1.5 rounded-full transition-colors", isBookmarked ? "bg-yellow-500/10 text-yellow-500" : (dk ? "text-slate-500 hover:bg-white/10" : "text-slate-400 hover:bg-slate-100"))}>
+                  <Star size={18} className={isBookmarked ? "fill-yellow-500" : ""} />
                </button>
-            )}
+            </div>
          </div>
-      </div>
 
-      {/* MIDDLE ROW: Full Width Elements */}
-      <div className="px-3 pb-3 pl-4 cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
-         <div className={cn("flex items-center justify-between p-2 rounded-xl border mb-3", dk ? "bg-black/20 border-white/5" : "bg-slate-50 border-slate-100")}>
-             <div className="flex items-center gap-3 pl-1">
+         {/* Row 2: City and Company Tag */}
+         <div className="flex justify-between items-center w-full mt-0.5">
+            <div className="flex items-center gap-1.5 flex-1 min-w-0 pr-2">
+               <MapPin size={10} className={dk ? "text-slate-500" : "text-slate-400"} /> 
+               <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} textClass={cn("text-[10px] font-bold uppercase tracking-widest truncate", dk ? "text-slate-400" : "text-slate-500")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
+            </div>
+            <div className="shrink-0 max-w-[140px]" onClick={e => e.stopPropagation()}>
+               <CompanyMultiSelect disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onRenameOption={onRenameCompanyOption} onAddOption={onAddOption} searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} />
+            </div>
+         </div>
+
+         {/* Row 3: Horizontal Metrics Block */}
+         <div className={cn("flex items-center justify-between p-2.5 rounded-xl border mt-3", dk ? "bg-black/20 border-white/5" : "bg-slate-50 border-slate-100")}>
+             <div className="flex items-center gap-4">
                  <div className="flex items-center gap-1.5">
-                     <Bed size={16} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
-                     <span className={cn('text-[17px] font-black leading-none', masterMath.freeBeds > 0 ? 'text-red-500' : dk ? 'text-teal-500' : 'text-teal-600')}>{masterMath.freeBeds}</span>
+                     <Bed size={14} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={3} />
+                     <span className={cn('text-[15px] font-black leading-none', masterMath.freeBeds > 0 ? 'text-red-500' : dk ? 'text-teal-500' : 'text-teal-600')}>{masterMath.freeBeds}</span>
                  </div>
                  <div className="w-px h-5 bg-slate-200 dark:bg-white/10" />
                  <div className="flex items-center gap-1.5">
-                     <Users size={16} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
-                     <span className={cn('text-[17px] font-black leading-none', dk ? 'text-slate-300' : 'text-slate-700')}>{masterMath.totalBeds}</span>
+                     <Users size={14} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={3} />
+                     <span className={cn('text-[15px] font-black leading-none', dk ? 'text-slate-300' : 'text-slate-700')}>{masterMath.totalBeds}</span>
                  </div>
              </div>
-             <div className="flex flex-col items-end pr-1">
-                <span className={cn('font-black text-[17px] leading-none', dk ? 'text-white' : 'text-slate-900')}>{formatCurrency(masterMath.displayBrutto)}</span>
+             
+             <div className="flex flex-col items-end">
+                <span className={cn('font-black text-[15px] leading-none', dk ? 'text-white' : 'text-slate-900')}>
+                   {formatCurrency(masterMath.displayBrutto)}
+                </span>
                 {masterMath.nearestDueDate && (activeSort === 'payment_due' || (activeFilterDue && activeFilterDue !== 'all')) && (
-                   <span className="text-[8px] font-bold text-red-500 uppercase tracking-wider mt-1">{lang === 'de' ? 'Fällig: ' : 'Due: '} {formatShortDate(masterMath.nearestDueDate)}</span>
+                   <span className="text-[8px] font-bold text-red-500 uppercase tracking-wider mt-1">
+                      {lang === 'de' ? 'Fällig: ' : 'Due: '} {formatShortDate(masterMath.nearestDueDate)}
+                   </span>
                 )}
              </div>
          </div>
 
+         {/* Row 4: 4-COLUMN DURATIONS GRID (Max 8) WITH BUG FIX */}
          {sortedDurations.length > 0 && (
-            <div className="grid grid-cols-4 gap-1.5 mb-2">
+            <div className="grid grid-cols-4 gap-1.5 mt-3">
                {sortedDurations.slice(0, 8).map((d: any, i: number) => {
                    const formatChipStr = (iso: string) => {
-                       if (!iso) return ''; const date = new Date(iso);
+                       if (!iso) return '';
+                       const date = new Date(iso);
                        return `${date.getDate().toString().padStart(2, '0')} ${date.toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB', { month: 'short' }).replace('.', '')}`;
                    };
                    return (
-                      <button key={i} onClick={(e) => { e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id); setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); }} className={cn("px-1 py-1 rounded text-[9px] font-bold border text-center truncate transition-colors", dk ? "bg-slate-800 border-white/10 text-slate-300 hover:bg-slate-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50")}>
+                      <button key={i} onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setIsOpen(true); 
+                          setActiveTab('bookings'); 
+                          // FIX: Looks up the real index for safe navigation
+                          const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
+                          setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); 
+                      }} className={cn("px-1 py-1 rounded text-[9px] font-bold border text-center truncate transition-colors", dk ? "bg-slate-800 border-white/10 text-slate-300 hover:bg-slate-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50")}>
                          {d.startDate && d.endDate ? `${formatChipStr(d.startDate)} - ${formatChipStr(d.endDate)}` : 'New'}
                       </button>
                    )
@@ -600,8 +629,9 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
             </div>
          )}
          
+         {/* Row 4.5: 5-COLUMN EMPLOYEES GRID (Max 10) */}
          {sortedEmployees.length > 0 && (
-            <div className="grid grid-cols-5 gap-1.5 mb-1">
+            <div className="grid grid-cols-5 gap-1.5 mt-2">
                {sortedEmployees.slice(0, 10).map((emp: any, i: number) => {
                   const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
                   const borderCls = status === 'active' ? (dk ? "border-emerald-500/50" : "border-emerald-600") : status === 'upcoming' ? (dk ? "border-blue-500/50" : "border-blue-600") : status === 'ending-soon' ? (dk ? "border-red-500/50" : "border-red-600") : (dk ? "border-slate-500/40" : "border-slate-400");
@@ -630,7 +660,8 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
             </div>
          )}
 
-         <div className={cn("w-full mt-2 pt-2 flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-colors", dk ? "text-slate-400" : "text-slate-500")}>
+         {/* EXPAND TOGGLE */}
+         <div className={cn("w-full mt-3 pt-3 border-t flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-colors", dk ? "border-white/5 text-slate-400" : "border-slate-100 text-slate-500")}>
             {isOpen ? <ChevronUp size={14} className="text-teal-500"/> : <ChevronDown size={14} className="text-teal-500"/>} 
             {isOpen ? (lang === 'de' ? 'Schließen' : 'Close') : (lang === 'de' ? 'Details öffnen' : 'Open Details')}
          </div>
