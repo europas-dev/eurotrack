@@ -524,7 +524,135 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
     >
       <div className={cn("absolute top-0 bottom-0 left-0 w-1.5 transition-colors z-[60]", masterMath.totalUnpaid > 0 ? "bg-red-500" : (masterMath.totalPaid > 0 ? "bg-emerald-500" : "bg-transparent border-r border-slate-200 dark:border-white/10"))} />
 
-      const [showPaidSplit, setShowPaidSplit] = useState(false);
+      {/* --- COLLAPSED VIEW (No Sidebar, Flexible Rows, Flex-Wrap Chips) --- */}
+      <div className="p-3 pl-4 flex flex-col w-full">
+         
+         {/* Row 1: Name and Horizontal Icons */}
+         <div className="flex items-start justify-between w-full mb-1">
+            <div className="flex-1 min-w-0 pr-2 pt-0.5">
+               <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-base font-bold leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} />
+            </div>
+            {/* RIGHT ALIGNED ICONS: Trash -> Clock -> Star */}
+            <div className="flex items-center gap-1 shrink-0">
+               {!viewOnly && (
+                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className={cn("p-1.5 rounded-lg transition-colors", dk ? "text-slate-500 hover:text-red-500 hover:bg-red-500/10" : "text-slate-400 hover:text-red-500 hover:bg-red-50")}>
+                     <Trash2 size={16} />
+                  </button>
+               )}
+               <div className="relative group/time flex items-center justify-center p-1.5">
+                  <Clock size={16} className={dk ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600"} />
+                  <div className={cn("absolute right-full mr-2 top-1/2 -translate-y-1/2 w-max px-2 py-1 text-[9px] font-bold rounded opacity-0 group-hover/time:opacity-100 z-[99999] whitespace-nowrap pointer-events-none shadow-xl border", dk ? "bg-slate-700 text-white border-white/20" : "bg-white text-slate-800 border-slate-300")}>
+                     {formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}
+                  </div>
+               </div>
+               <button onClick={toggleBookmark} className={cn("p-1.5 rounded-full transition-colors", isBookmarked ? "bg-yellow-500/10 text-yellow-500" : (dk ? "text-slate-500 hover:bg-white/10" : "text-slate-400 hover:bg-slate-100"))}>
+                  <Star size={18} className={isBookmarked ? "fill-yellow-500" : ""} />
+               </button>
+            </div>
+         </div>
+
+         {/* Row 2: City and Company Tag (Flexible Width) */}
+         <div className="flex justify-between items-center w-full mb-3 mt-0.5">
+            <div className="flex items-center gap-1.5 flex-1 min-w-0 pr-2">
+               <MapPin size={10} className={dk ? "text-slate-500" : "text-slate-400"} /> 
+               <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} textClass={cn("text-[10px] font-bold uppercase tracking-widest truncate", dk ? "text-slate-400" : "text-slate-500")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
+            </div>
+            {/* max-w-[65%] lets it stretch responsively before truncating */}
+            <div className="shrink-0 max-w-[65%] truncate text-right">
+               <CompanyMultiSelect disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onRenameOption={onRenameCompanyOption} onAddOption={onAddOption} searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} onOpenChange={setIsDropdownActive} />
+            </div>
+         </div>
+
+         {/* Row 3: Horizontal Metrics Block with Paid/Unpaid Dropdown */}
+         <div className={cn("flex items-center justify-between p-2.5 rounded-xl border mb-3", dk ? "bg-black/20 border-white/5" : "bg-slate-50 border-slate-100")}>
+             <div className="flex items-center gap-4">
+                 <div className="flex items-center gap-1.5">
+                     <Bed size={15} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
+                     <span className={cn('text-[15px] font-black leading-none', masterMath.freeBeds > 0 ? 'text-red-500' : dk ? 'text-teal-500' : 'text-teal-600')}>{masterMath.freeBeds}</span>
+                 </div>
+                 <div className="w-px h-5 bg-slate-200 dark:bg-white/10" />
+                 <div className="flex items-center gap-1.5">
+                     <Users size={15} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
+                     <span className={cn('text-[15px] font-black leading-none', dk ? 'text-slate-300' : 'text-slate-700')}>{masterMath.totalBeds}</span>
+                 </div>
+             </div>
+             
+             {/* THE FIX: Clickable wrapper drops down the Paid/Unpaid split */}
+             <div className="flex flex-col items-end pr-1 cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowPaidSplit(!showPaidSplit); }}>
+                <span className={cn('font-black text-[15px] leading-none', dk ? 'text-white' : 'text-slate-900')}>
+                   {formatCurrency(masterMath.displayBrutto)}
+                </span>
+                
+                {(showPaidSplit || (activeFilterDue && activeFilterDue !== 'all')) && (
+                   <div className="flex items-center gap-1.5 mt-1.5 animate-in fade-in slide-in-from-top-1">
+                      <span className="text-[10px] font-bold text-emerald-500 leading-none">{formatCurrency(masterMath.totalPaid)}</span>
+                      <span className="text-[10px] text-slate-300 dark:text-slate-600 leading-none">|</span>
+                      <span className="text-[10px] font-bold text-red-500 leading-none">{formatCurrency(masterMath.totalUnpaid)}</span>
+                   </div>
+                )}
+
+                {masterMath.nearestDueDate && (activeSort === 'payment_due' || (activeFilterDue && activeFilterDue !== 'all')) && (
+                   <span className="text-[8px] font-bold text-red-500 uppercase tracking-wider mt-1.5">
+                      {lang === 'de' ? 'Fällig: ' : 'Due: '} {formatShortDate(masterMath.nearestDueDate)}
+                   </span>
+                )}
+             </div>
+         </div>
+
+         {/* Row 4: Durations (flex-wrap instead of rigid grid) */}
+         {sortedDurations.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+               {sortedDurations.map((d: any, i: number) => {
+                   const formatChipStr = (iso: string) => {
+                       if (!iso) return '';
+                       const date = new Date(iso);
+                       return `${date.getDate().toString().padStart(2, '0')} ${date.toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB', { month: 'short' }).replace('.', '')}`;
+                   };
+                   return (
+                      <button key={i} onClick={(e) => { 
+                          e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); 
+                          const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
+                          setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); 
+                      }} className={cn("px-1.5 py-1 rounded text-[9px] font-bold border text-center transition-colors", dk ? "bg-slate-800 border-white/10 text-slate-300 hover:bg-slate-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50")}>
+                         {d.startDate && d.endDate ? `${formatChipStr(d.startDate)} - ${formatChipStr(d.endDate)}` : 'New'}
+                      </button>
+                   )
+               })}
+            </div>
+         )}
+         
+         {/* Row 4.5: Employees (flex-wrap instead of rigid grid) */}
+         {sortedEmployees.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+               {sortedEmployees.map((emp: any, i: number) => {
+                  const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
+                  const borderCls = status === 'active' ? (dk ? "border-emerald-500/50" : "border-emerald-600") : status === 'upcoming' ? (dk ? "border-blue-500/50" : "border-blue-600") : status === 'ending-soon' ? (dk ? "border-red-500/50" : "border-red-600") : (dk ? "border-slate-500/40" : "border-slate-400");
+                  const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
+                  const parentDur = localHotel.durations.find((d:any) => (d.roomCards||[]).some((rc:any) => (rc.employees||[]).some((e:any) => e.id === emp.id)));
+                  const isPartial = parentDur && (emp.checkIn > parentDur.startDate || emp.checkOut < parentDur.endDate);
+                  const shortName = emp.name ? emp.name.trim().split(' ').pop() : '_ _ _';
+
+                  return (
+                     <button key={i} onClick={(e) => { 
+                         e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); 
+                         const tIdx = localHotel.durations.findIndex((dur:any) => (dur.roomCards||[]).some((rc:any) => (rc.employees||[]).some((ex:any) => ex.id === emp.id)));
+                         setActiveDurationTab(tIdx >= 0 ? tIdx : 0);
+                         setTimeout(() => window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id })), 300);
+                     }} className={cn("px-1.5 py-1 rounded-full text-[8.5px] font-bold flex items-center justify-center gap-1 border transition-all", borderCls, isPartial ? "border-dashed" : "border-solid", dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-800")}>
+                        <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
+                        <span><HighlightText text={shortName} query={searchScope === 'all' || searchScope === 'employee' ? searchQuery : ''} /></span>
+                     </button>
+                  )
+               })}
+            </div>
+         )}
+
+         {/* Row 5: Expand Toggle (Only clickable area to expand) */}
+         <div onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className={cn("w-full mt-1 pt-3 border-t flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer", dk ? "border-white/5 text-slate-400 hover:text-white" : "border-slate-100 text-slate-500 hover:text-slate-900")}>
+            {isOpen ? <ChevronUp size={14} className="text-teal-500"/> : <ChevronDown size={14} className="text-teal-500"/>} 
+            {isOpen ? (lang === 'de' ? 'Schließen' : 'Close') : (lang === 'de' ? 'Details öffnen' : 'Open Details')}
+         </div>
+      </div>
       {/* 3. EXPANDED VIEW */}
       {isOpen && (
          <div className={cn("flex flex-col border-t", dk ? "bg-[#0B1224] border-white/5" : "bg-slate-50 border-slate-200")} onClick={e => e.stopPropagation()}>
