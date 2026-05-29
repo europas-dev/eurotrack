@@ -50,6 +50,7 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [openRowId, setOpenRowId] = useState<string | null>(null);
   const [searchScope, setSearchScope] = useState('all');
   
   const [tlType, setTlType] = useState<'all'|'today'|'tomorrow'|'3days'|'7days'|'range'>('all');
@@ -325,7 +326,7 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
               {/* HOME TAB */}
               {activeTab === 'home' && (
                 finalFiltered.length > 0 ? finalFiltered.map((hotel, idx) => (
-                  <MobileHotelRow key={hotel.id} entry={hotel} index={idx} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={hId => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} />
+                  <MobileHotelRow key={hotel.id} entry={hotel} index={idx} isOpen={openRowId === hotel.id} onToggle={() => setOpenRowId(openRowId === hotel.id ? null : hotel.id)} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={hId => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} />
                 )) : <div className="text-center py-10 opacity-50 font-bold">{lang === 'de' ? 'Keine Hotels' : 'No Hotels'}</div>
               )}
 
@@ -359,7 +360,7 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
                    <div className="pt-2 border-t border-slate-200 dark:border-white/10">
                      {finalFiltered.map((hotel, idx) => (
                        <MobileHotelRow 
-                          key={hotel.id} entry={hotel} index={idx} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} 
+                          key={hotel.id} entry={hotel} index={idx} isOpen={openRowId === hotel.id} onToggle={() => setOpenRowId(openRowId === hotel.id ? null : hotel.id)} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} 
                           companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} 
                           onDelete={(hId: string) => setHotels(prev => prev.filter(ho=>ho.id!==hId))} 
                           onUpdate={(hId: string, up: any) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} 
@@ -372,7 +373,7 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
               {/* BOOKMARKS TAB */}
               {activeTab === 'bookmarks' && (
                 finalFiltered.length > 0 ? finalFiltered.map((hotel, idx) => (
-                  <MobileHotelRow key={hotel.id} entry={hotel} index={idx} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={hId => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} />
+                  <MobileHotelRow key={hotel.id} entry={hotel} index={idx} isOpen={openRowId === hotel.id} onToggle={() => setOpenRowId(openRowId === hotel.id ? null : hotel.id)} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={hId => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} />
                 )) : (
                   <div className="text-center py-10 opacity-50 font-bold flex flex-col items-center">
                     <Star size={32} className="mb-2 text-slate-400" />
