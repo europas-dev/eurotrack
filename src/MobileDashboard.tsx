@@ -158,9 +158,31 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
   // --- EXACT MATH FILTERS FROM WEB ---
   const finalFiltered = useMemo(() => {
     return hotels.filter(h => {
-      const durationInYear = (h.durations || []).some((d: any) => d.startDate && new Date(d.startDate).getFullYear() <= selectedYear && new Date(d.endDate).getFullYear() >= selectedYear);
-      const invoiceInYear = (h.invoices || []).some((inv: any) => { const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString()); return dateStr && new Date(dateStr).getFullYear() === selectedYear; });
-      if (!durationInYear && !invoiceInYear && h.year !== selectedYear) return false;
+      // 1. Precise Month & Year Filter
+      const durationMatchesTime = (h.durations || []).some((d: any) => {
+        if (!d.startDate || !d.endDate) return false;
+        const s = new Date(d.startDate);
+        const e = new Date(d.endDate);
+        const inYear = s.getFullYear() <= selectedYear && e.getFullYear() >= selectedYear;
+        
+        // If a specific month is selected, verify the duration spans into that month
+        if (selectedMonth !== null && inYear) {
+            const mS = s.getFullYear() < selectedYear ? 0 : s.getMonth();
+            const mE = e.getFullYear() > selectedYear ? 11 : e.getMonth();
+            return selectedMonth >= mS && selectedMonth <= mE;
+        }
+        return inYear;
+      });
+
+      const invoiceMatchesTime = (h.invoices || []).some((inv: any) => {
+        const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
+        if (!dateStr) return false;
+        const d = new Date(dateStr);
+        if (selectedMonth !== null) return d.getFullYear() === selectedYear && d.getMonth() === selectedMonth;
+        return d.getFullYear() === selectedYear;
+      });
+
+      if (!durationMatchesTime && !invoiceMatchesTime && h.year !== selectedYear) return false;
 
       // Bookmarks Filter
       if (activeTab === 'bookmarks' && !bookmarks.includes(h.id)) return false;
