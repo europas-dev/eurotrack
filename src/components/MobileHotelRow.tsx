@@ -289,7 +289,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
     <div ref={ref} className={cn("relative min-h-[20px] flex items-center w-full", disabled ? "cursor-default" : "cursor-pointer")} onClick={(e) => { if (disabled) return; e.stopPropagation(); setOpen(true); }}>
       <div className="flex flex-wrap gap-1 w-full justify-end">
         {safeSelected.length > 0 ? safeSelected.map((tag: string) => (
-          <span key={tag} className={cn('px-2 py-0.5 rounded-md text-[10px] font-bold border flex items-center gap-1 shadow-sm truncate max-w-[120px]', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-100 border-slate-200 text-slate-800')}>
+          <span key={tag} className={cn('px-2 py-0.5 rounded-md text-[10px] font-bold border flex items-center gap-1 shadow-sm truncate max-w-[120px]', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white<span key={tag} className={cn('px-2 py-0.5 rounded-md text-[10px] font-bold border flex items-center gap-1 shadow-sm truncate max-w-full', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-100 border-slate-200 text-slate-800')}>' : 'bg-slate-100 border-slate-200 text-slate-800')}>
             <HighlightText text={tag} query={searchQuery} />
           </span>
         )) : <span className={cn("text-[9px] font-bold border border-dashed px-2 py-0.5 rounded transition-colors w-max", isDarkMode ? "text-slate-500 border-white/20 hover:text-teal-400" : "text-slate-400 border-slate-300 hover:text-teal-600")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
@@ -551,14 +551,13 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
             </div>
          </div>
 
-         {/* Row 2: City and Company Tag (Flexible Width) */}
-         <div className="flex justify-between items-center w-full mb-3 mt-0.5">
-            <div className="flex items-center gap-1.5 flex-1 min-w-0 pr-2">
-               <MapPin size={10} className={dk ? "text-slate-500" : "text-slate-400"} /> 
+         {/* Row 2: City and Company Tag */}
+         <div className="flex justify-between items-center w-full mt-0.5">
+            <div className="flex items-center gap-1.5 shrink min-w-0 max-w-[40%] pr-2">
+               <MapPin size={10} className={cn("shrink-0", dk ? "text-slate-500" : "text-slate-400")} /> 
                <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} textClass={cn("text-[10px] font-bold uppercase tracking-widest truncate", dk ? "text-slate-400" : "text-slate-500")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
             </div>
-            {/* max-w-[65%] lets it stretch responsively before truncating */}
-            <div className="shrink-0 max-w-[65%] truncate text-right">
+            <div className="flex-1 min-w-0 flex justify-end pl-2" onClick={e => e.stopPropagation()}>
                <CompanyMultiSelect disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onRenameOption={onRenameCompanyOption} onAddOption={onAddOption} searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} onOpenChange={setIsDropdownActive} />
             </div>
          </div>
