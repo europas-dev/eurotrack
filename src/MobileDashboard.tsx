@@ -357,10 +357,15 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
                    </button>
                    
                    <div className="pt-2 border-t border-slate-200 dark:border-white/10">
-                      {finalFiltered.map((hotel, idx) => (
-                        <HotelRow key={hotel.id} entry={hotel} index={idx} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} />
-                      ))}
-                   </div>
+                     {finalFiltered.map((hotel, idx) => (
+                       <MobileHotelRow 
+                          key={hotel.id} entry={hotel} index={idx} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} 
+                          companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} 
+                          onDelete={(hId: string) => setHotels(prev => prev.filter(ho=>ho.id!==hId))} 
+                          onUpdate={(hId: string, up: any) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} 
+                       />
+                     ))}
+                  </div>
                 </div>
               )}
 
