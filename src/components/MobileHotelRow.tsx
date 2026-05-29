@@ -1,7 +1,7 @@
 // src/components/MobileHotelRow.tsx
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, ChevronUp, ChevronRight, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, FileText, Ticket, Calendar, AlertTriangle, Edit3, Filter, Bed, Users } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, ChevronRight, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, FileText, Ticket, Calendar, AlertTriangle, Edit3, Filter, Bed, Users, Coins } from 'lucide-react';
 import { cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatLastUpdated, calculateNights, calcInvoiceItem } from '../lib/utils';
 import { createDuration, updateHotel, deleteHotel } from '../lib/supabase';
 import { enqueue } from '../lib/offlineSync';
@@ -73,7 +73,6 @@ export function getTranslation(dict: any[], id: string, lang: string) {
   return item ? (lang === 'de' ? item.de : item.en) : id;
 }
 
-// --- MOBILE OPTIMIZED INVOICE LINE ITEM ---
 export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onDelete, viewOnly, dk, lang, defaultNights = 1, defaultStart, defaultEnd }: any) {
   const [draft, setDraft] = useState(item);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -201,7 +200,6 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
   return (
     <div className={cn("flex flex-col px-3 py-3 border-b last:border-b-0 transition-colors relative gap-2", dk ? "border-white/5" : "border-slate-100")}>
        
-       {/* MOBILE READ VIEW */}
        <div className="flex justify-between items-start w-full">
            <div className="flex flex-col gap-0.5 flex-1 min-w-0 pr-3">
               <div className={cn("text-[13px] font-black leading-tight", dk ? "text-slate-200" : "text-slate-800")}>
@@ -382,16 +380,16 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
   const handleToggle = (opt: string) => { if (disabled) return; onChange(safeSelected.includes(opt) ? safeSelected.filter((t: any) => t !== opt) : [...safeSelected, opt]); setQuery(''); };
   const handleAddNew = async () => { if (disabled) return; const val = query.trim(); if (val && !isAlreadySelected) { setLocalMemory(prev => Array.from(new Set([...prev, val]))); onChange([...safeSelected, val]); setQuery(''); if (onAddOption) { await onAddOption(val); } } };
   return (
-    <div ref={ref} className={cn("relative min-h-[34px] flex items-center w-full", disabled ? "cursor-default" : "cursor-pointer")} onClick={(e) => { if (disabled) return; e.stopPropagation(); setOpen(true); }}>
-      <div className="flex flex-wrap gap-1.5 w-full">
+    <div ref={ref} className={cn("relative min-h-[24px] flex items-center w-full", disabled ? "cursor-default" : "cursor-pointer")} onClick={(e) => { if (disabled) return; e.stopPropagation(); setOpen(true); }}>
+      <div className="flex flex-wrap gap-1.5 w-full justify-end">
         {safeSelected.length > 0 ? safeSelected.map((tag: string) => (
-          <span key={tag} className={cn('px-2.5 py-1.5 rounded-md text-xs font-bold border flex items-center gap-1.5 shadow-sm', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800')}>
+          <span key={tag} className={cn('px-2 py-1 rounded-md text-[10px] font-bold border flex items-center gap-1.5 shadow-sm truncate max-w-[120px]', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-800')}>
             <HighlightText text={tag} query={searchQuery} />
           </span>
-        )) : <span className={cn("text-xs font-bold border border-dashed px-3 py-1.5 rounded-md transition-colors w-full flex items-center", isDarkMode ? "text-slate-500 border-white/20 hover:text-teal-400 hover:border-teal-400" : "text-slate-400 border-slate-300 hover:text-teal-600 hover:border-teal-500")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
+        )) : <span className={cn("text-[10px] font-bold border border-dashed px-2 py-1 rounded-md transition-colors flex items-center", isDarkMode ? "text-slate-500 border-white/20 hover:text-teal-400 hover:border-teal-400" : "text-slate-400 border-slate-300 hover:text-teal-600 hover:border-teal-500")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
       </div>
       {open && !disabled && (
-        <div className={cn('absolute top-full mt-2 left-0 right-0 z-[200] rounded-xl border shadow-xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')} onClick={e => e.stopPropagation()}>
+        <div className={cn('absolute top-full mt-2 right-0 z-[200] rounded-xl border shadow-xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200 w-[240px]', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')} onClick={e => e.stopPropagation()}>
           <div className={cn("flex items-center px-3 py-3 border-b", isDarkMode ? "border-white/10 bg-[#1E293B]" : "border-slate-100 bg-slate-50")}>
             <Search size={16} className={isDarkMode ? "text-slate-400" : "text-slate-500"} />
             <input autoFocus autoComplete="new-password" spellCheck="false" name={Math.random().toString()} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAddNew(); }} placeholder={lang === 'de' ? "Suchen..." : "Search..."} className={cn("ml-2 bg-transparent text-sm font-bold outline-none w-full", isDarkMode ? "text-white placeholder:text-slate-500" : "text-slate-900 placeholder:text-slate-400")} />
@@ -443,8 +441,11 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
 }
 
 // MAIN MOBILE ROW COMPONENT
-export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onRenameCompanyOption, onAddOption, viewOnly, isSelected = false, onSelect = () => {}, isBulkActive = false, isOpen = false, onToggle = () => {}, showGlobalFinancials = false, activeSort = 'created_at', activeFilterDue, activeFilterDeposit }: any) {
+export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onRenameCompanyOption, onAddOption, viewOnly, isSelected = false, onSelect = () => {}, isBulkActive = false, showGlobalFinancials = false, activeSort = 'created_at', activeFilterDue, activeFilterDeposit }: any) {
  const [activeTab, setActiveTab] = useState<'bookings'|'billing'|'info'>('bookings');
+ 
+ // We replace the global `isOpen` prop with our own local state so tapping ALWAYS works.
+ const [isExpanded, setIsExpanded] = useState(false);
   
   const [showNotes, setShowNotes] = useState(false);
   const [editingOBrutto, setEditingOBrutto] = useState(false);
@@ -488,12 +489,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   }, [editingTotal]);
 
   useEffect(() => {
-     if (!isOpen) {
+     if (!isExpanded) {
         setLocalMonthFilter('all');
         setInvoiceFilter('all');
         setItemSearchQuery('');
      }
-  }, [isOpen]);
+  }, [isExpanded]);
 
   const [isBookmarked, setIsBookmarked] = useState(() => {
     try { return JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]').includes(entry.id); } catch { return false; }
@@ -791,38 +792,36 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   return (
     <div className={cn('w-full rounded-2xl border mb-3 transition-all duration-200 shadow-sm relative overflow-hidden', 
           isSelected ? (dk ? 'bg-teal-500/10 border-teal-500/50' : 'bg-teal-50 border-teal-500/40') 
-          : isOpen ? (dk ? 'bg-[#1E293B] border-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'bg-white border-teal-400/60 shadow-[0_0_15px_rgba(20,184,166,0.15)]') 
+          : isExpanded ? (dk ? 'bg-[#1E293B] border-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'bg-white border-teal-400/60 shadow-[0_0_15px_rgba(20,184,166,0.15)]') 
           : (dk ? 'bg-[#1E293B] border-white/5' : 'bg-white border-slate-200'))}
          style={{ zIndex: isDropdownActive ? 99999 : 10 }}
     >
-      {/* Unpaid / Paid Indicator Line */}
       <div className={cn("absolute top-0 bottom-0 left-0 w-1.5 transition-colors z-[60]", masterMath.totalUnpaid > 0 ? "bg-red-500" : (masterMath.totalPaid > 0 ? "bg-emerald-500" : "bg-transparent border-r border-slate-200 dark:border-white/10"))} />
 
       {/* MOBILE COLLAPSED VIEW (Always Visible) */}
-      <div className="p-3 pl-4 flex flex-col gap-3">
+      <div className="p-3 pl-4 flex flex-col">
          
-         <div className="flex justify-between items-start gap-2">
-            <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+         <div className="flex justify-between items-start w-full">
+            <div className="flex flex-col gap-0.5 flex-1 min-w-0 pr-2">
                <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-lg font-black leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} />
-               
-               <div className="flex flex-col gap-2">
-                 <div className="flex items-center gap-1.5">
-                    <MapPin size={12} className={dk ? "text-slate-500" : "text-slate-400"} /> 
-                    <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} textClass={cn("text-[11px] font-bold uppercase tracking-widest", dk ? "text-slate-400" : "text-slate-500")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
-                 </div>
-                 <div onClick={e => e.stopPropagation()}>
-                    <CompanyMultiSelect onOpenChange={setIsDropdownActive} disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onRenameOption={onRenameCompanyOption} onAddOption={onAddOption} searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} />
-                 </div>
+               <div className="flex items-center gap-1.5 mt-1">
+                  <MapPin size={12} className={dk ? "text-slate-500" : "text-slate-400"} /> 
+                  <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} textClass={cn("text-[11px] font-bold uppercase tracking-widest", dk ? "text-slate-400" : "text-slate-500")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
                </div>
             </div>
 
-            <button onClick={handleBookmarkToggle} className={cn("p-2 rounded-full transition-colors shrink-0", isBookmarked ? "text-yellow-500 bg-yellow-500/10" : "text-slate-400 bg-slate-100 dark:bg-white/5 dark:hover:text-white")}>
+            {/* COMPANY TAG MOVED TO RIGHT SIDE */}
+            <div className="shrink-0 w-[120px] text-right" onClick={e => e.stopPropagation()}>
+               <CompanyMultiSelect onOpenChange={setIsDropdownActive} disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onRenameOption={onRenameCompanyOption} onAddOption={onAddOption} searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} />
+            </div>
+
+            <button onClick={handleBookmarkToggle} className={cn("ml-2 p-1.5 rounded-full transition-colors shrink-0", isBookmarked ? "text-yellow-500 bg-yellow-500/10" : "text-slate-400 bg-slate-100 dark:bg-white/5 dark:hover:text-white")}>
                <Star size={18} className={isBookmarked ? "fill-yellow-500" : ""} />
             </button>
          </div>
 
-         {/* Mobile Metrics Block */}
-         <div className={cn("flex items-center justify-between p-3 rounded-xl border mt-1", dk ? "bg-black/20 border-white/5" : "bg-slate-50 border-slate-100")}>
+         {/* MOBILE METRICS BLOCK (Correct Bed / Users Icons) */}
+         <div className={cn("flex items-center justify-between p-3 rounded-xl border mt-3", dk ? "bg-black/20 border-white/5" : "bg-slate-50 border-slate-100")}>
              <div className="flex items-center gap-4">
                  <div className="flex flex-col items-center justify-center gap-1">
                      <Bed size={14} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={3} />
@@ -830,7 +829,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                  </div>
                  <div className="w-px h-6 bg-slate-200 dark:bg-white/10" />
                  <div className="flex flex-col items-center justify-center gap-1">
-                     <Building size={14} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={3} />
+                     <Users size={14} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={3} />
                      <span className={cn('text-sm font-black leading-none', dk ? 'text-slate-300' : 'text-slate-700')}>{masterMath.totalBeds}</span>
                  </div>
              </div>
@@ -847,58 +846,78 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
              </div>
          </div>
 
-         {/* Previews: Durations & Employees (Truncated) */}
-         <div className="flex flex-col gap-2 mt-1">
-             {sortedDurations.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 items-center">
-                   <Calendar size={12} className={dk ? "text-slate-500" : "text-slate-400"} />
-                   {sortedDurations.slice(0, 2).map((d: any, i: number) => {
-                       const formatChipStr = (iso: string) => {
-                           if (!iso) return '';
-                           const date = new Date(iso);
-                           const locale = lang === 'de' ? 'de-DE' : 'en-GB';
-                           return `${date.getDate().toString().padStart(2, '0')} ${date.toLocaleString(locale, { month: 'short' }).replace('.', '')}`;
-                       };
-                       return (
-                          <span key={i} className={cn("px-2 py-0.5 rounded text-[10px] font-bold border", dk ? "bg-slate-800 border-white/10 text-slate-300" : "bg-white border-slate-200 text-slate-700")}>
-                             {d.startDate && d.endDate ? `${formatChipStr(d.startDate)} - ${formatChipStr(d.endDate)}` : 'New'}
-                          </span>
-                       )
-                   })}
-                   {sortedDurations.length > 2 && <span className="text-[10px] font-bold text-slate-400">+{sortedDurations.length - 2}</span>}
-                </div>
-             )}
-             
-             {sortedEmployees.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 items-center">
-                   <Users size={12} className={dk ? "text-slate-500" : "text-slate-400"} />
-                   <div className="flex flex-wrap gap-1">
-                      {sortedEmployees.slice(0, 3).map((emp: any, i: number) => {
-                         const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
-                         const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
-                         const shortName = emp.name ? emp.name.trim().split(' ').pop() : '_ _ _';
-                         return (
-                            <span key={i} className={cn("px-2 py-0.5 rounded-full text-[9px] font-bold flex items-center gap-1 border", dk ? "bg-[#1E293B] border-white/10 text-slate-300" : "bg-slate-50 border-slate-200 text-slate-700")}>
-                               <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
-                               {shortName}
-                            </span>
-                         )
-                      })}
-                   </div>
-                   {sortedEmployees.length > 3 && <span className="text-[10px] font-bold text-slate-400">+{sortedEmployees.length - 3}</span>}
-                </div>
-             )}
-         </div>
+         {/* 4-COLUMN DURATIONS GRID (Max 8) */}
+         {sortedDurations.length > 0 && (
+            <div className="grid grid-cols-4 gap-1.5 mt-3">
+               {sortedDurations.slice(0, 8).map((d: any, i: number) => {
+                   const formatChipStr = (iso: string) => {
+                       if (!iso) return '';
+                       const date = new Date(iso);
+                       const locale = lang === 'de' ? 'de-DE' : 'en-GB';
+                       return `${date.getDate().toString().padStart(2, '0')} ${date.toLocaleString(locale, { month: 'short' }).replace('.', '')}`;
+                   };
+                   return (
+                      <button key={i} onClick={(e) => { e.stopPropagation(); setIsExpanded(true); setActiveTab('bookings'); setActiveDurationTab(i); }} className={cn("px-1 py-1 rounded text-[9px] font-bold border text-center truncate", dk ? "bg-slate-800 border-white/10 text-slate-300" : "bg-white border-slate-200 text-slate-700")}>
+                         {d.startDate && d.endDate ? `${formatChipStr(d.startDate)} - ${formatChipStr(d.endDate)}` : 'New'}
+                      </button>
+                   )
+               })}
+               {sortedDurations.length > 8 && (
+                   <button onClick={(e) => { e.stopPropagation(); setIsExpanded(true); setActiveTab('bookings'); }} className={cn("px-1 py-1 rounded text-[9px] font-bold border text-center", dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400" : "bg-teal-50 border-teal-200 text-teal-700")}>
+                      +{sortedDurations.length - 8}
+                   </button>
+               )}
+            </div>
+         )}
+         
+         {/* 5-COLUMN EMPLOYEES GRID (Max 10) */}
+         {sortedEmployees.length > 0 && (
+            <div className="grid grid-cols-5 gap-1.5 mt-2">
+               {sortedEmployees.slice(0, 10).map((emp: any, i: number) => {
+                  const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
+                  
+                  // Color assignment
+                  const borderCls = status === 'active' ? (dk ? "border-emerald-500/50" : "border-emerald-600") : status === 'upcoming' ? (dk ? "border-blue-500/50" : "border-blue-600") : status === 'ending-soon' ? (dk ? "border-red-500/50" : "border-red-600") : (dk ? "border-slate-500/40" : "border-slate-400");
+                  const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
+                  
+                  // Dashed Border Logic
+                  const parentDur = localHotel.durations.find((d:any) => (d.roomCards||[]).some((rc:any) => (rc.employees||[]).some((e:any) => e.id === emp.id)));
+                  const isPartial = parentDur && (emp.checkIn > parentDur.startDate || emp.checkOut < parentDur.endDate);
+                  const shortName = emp.name ? emp.name.trim().split(' ').pop() : '_ _ _';
 
-         {/* EXPAND TOGGLE */}
-         <button onClick={onToggle} className={cn("w-full mt-2 pt-3 border-t flex items-center justify-center gap-1.5 text-xs font-black uppercase tracking-widest transition-colors", dk ? "border-white/5 text-slate-400 hover:text-white" : "border-slate-100 text-slate-500 hover:text-slate-900")}>
-            {isOpen ? <ChevronUp size={14} className="text-teal-500"/> : <ChevronDown size={14} className="text-teal-500"/>} 
-            {isOpen ? (lang === 'de' ? 'Schließen' : 'Close') : (lang === 'de' ? 'Details öffnen' : 'Open Details')}
+                  return (
+                     <button key={i} onClick={(e) => { 
+                         e.stopPropagation(); 
+                         setIsExpanded(true); 
+                         setActiveTab('bookings'); 
+                         // Automatically find which duration tab this employee belongs to
+                         const tIdx = localHotel.durations.findIndex((dur:any) => (dur.roomCards||[]).some((rc:any) => (rc.employees||[]).some((ex:any) => ex.id === emp.id)));
+                         setActiveDurationTab(tIdx >= 0 ? tIdx : 0);
+                         // Open the specific room card
+                         setTimeout(() => window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id })), 300);
+                     }} className={cn("px-1 py-1 rounded-full text-[8.5px] font-bold flex items-center justify-center gap-1 border truncate transition-all", borderCls, isPartial ? "border-dashed" : "border-solid", dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-800")}>
+                        <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
+                        <span className="truncate"><HighlightText text={shortName} query={searchScope === 'all' || searchScope === 'employee' ? searchQuery : ''} /></span>
+                     </button>
+                  )
+               })}
+               {sortedEmployees.length > 10 && (
+                   <button onClick={(e) => { e.stopPropagation(); setIsExpanded(true); setActiveTab('bookings'); }} className={cn("px-1 py-1 rounded-full text-[8.5px] font-bold border text-center transition-all", dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400" : "bg-teal-50 border-teal-200 text-teal-700")}>
+                      +{sortedEmployees.length - 10}
+                   </button>
+               )}
+            </div>
+         )}
+
+         {/* EXPAND TOGGLE (Uses local state isExpanded) */}
+         <button onClick={() => setIsExpanded(!isExpanded)} className={cn("w-full mt-3 pt-3 border-t flex items-center justify-center gap-1.5 text-xs font-black uppercase tracking-widest transition-colors", dk ? "border-white/5 text-slate-400 hover:text-white" : "border-slate-100 text-slate-500 hover:text-slate-900")}>
+            {isExpanded ? <ChevronUp size={14} className="text-teal-500"/> : <ChevronDown size={14} className="text-teal-500"/>} 
+            {isExpanded ? (lang === 'de' ? 'Schließen' : 'Close') : (lang === 'de' ? 'Details öffnen' : 'Open Details')}
          </button>
       </div>
 
       {/* MOBILE EXPANDED VIEW */}
-      {isOpen && (
+      {isExpanded && (
          <div className={cn("flex flex-col border-t", dk ? "bg-[#0B1224] border-white/5" : "bg-slate-50 border-slate-200")} onClick={e => e.stopPropagation()}>
             
             {/* Mobile Tabs */}
@@ -1246,5 +1265,3 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     </div>
   );
 }
-
-export default HotelRow;
