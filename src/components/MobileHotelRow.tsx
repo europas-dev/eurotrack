@@ -531,18 +531,16 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
     >
       <div className={cn("absolute top-0 bottom-0 left-0 w-1.5 transition-colors z-[60]", masterMath.totalUnpaid > 0 ? "bg-red-500" : (masterMath.totalPaid > 0 ? "bg-emerald-500" : "bg-transparent border-r border-slate-200 dark:border-white/10"))} />
 
-      {/* LEFT CONTENT AREA */}
-      <div className="flex-1 flex flex-col min-w-0">
-         <div className="p-3 pl-4 flex flex-col cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
-            
-            <div className="flex items-center justify-between w-full mb-1">
-               <div className="flex-1 min-w-0 pr-2">
-                  <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-lg font-black leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} />
-               </div>
+      {/* 1. TOP HEADER + RIGHT SIDEBAR ONLY */}
+      <div className="flex w-full">
+         <div className="flex-1 p-3 pl-4 flex flex-col cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+            {/* Name */}
+            <div className="w-full mb-1">
+               <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-lg font-black leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} />
             </div>
             
-            {/* City and Company Tag aligned horizontally */}
-            <div className="flex items-center gap-2 mb-2 w-full">
+            {/* City & Company */}
+            <div className="flex items-center gap-2 w-full pr-2">
                <div className="flex items-center gap-1 min-w-0 shrink">
                   <MapPin size={10} className={dk ? "text-slate-500" : "text-slate-400"} /> 
                   <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} textClass={cn("text-[10px] font-bold uppercase tracking-widest truncate", dk ? "text-slate-400" : "text-slate-500")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
@@ -551,93 +549,109 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                   <CompanyMultiSelect disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onRenameOption={onRenameCompanyOption} onAddOption={onAddOption} searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} />
                </div>
             </div>
-
-            {/* Horizontal Metrics Block */}
-            <div className={cn("flex items-center justify-between p-2 rounded-xl border mb-3", dk ? "bg-black/20 border-white/5" : "bg-slate-50 border-slate-100")}>
-                <div className="flex items-center gap-3 pl-1">
-                    <div className="flex items-center gap-1.5">
-                        <Bed size={16} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
-                        <span className={cn('text-[17px] font-black leading-none', masterMath.freeBeds > 0 ? 'text-red-500' : dk ? 'text-teal-500' : 'text-teal-600')}>{masterMath.freeBeds}</span>
-                    </div>
-                    <div className="w-px h-5 bg-slate-200 dark:bg-white/10" />
-                    <div className="flex items-center gap-1.5">
-                        <Users size={16} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
-                        <span className={cn('text-[17px] font-black leading-none', dk ? 'text-slate-300' : 'text-slate-700')}>{masterMath.totalBeds}</span>
-                    </div>
-                </div>
-                
-                <div className="flex flex-col items-end pr-1">
-                   <span className={cn('font-black text-[17px] leading-none', dk ? 'text-white' : 'text-slate-900')}>
-                      {formatCurrency(masterMath.displayBrutto)}
-                   </span>
-                   {masterMath.nearestDueDate && (activeSort === 'payment_due' || (activeFilterDue && activeFilterDue !== 'all')) && (
-                      <span className="text-[8px] font-bold text-red-500 uppercase tracking-wider mt-1">
-                         {lang === 'de' ? 'Fällig: ' : 'Due: '} {formatShortDate(masterMath.nearestDueDate)}
-                      </span>
-                   )}
-                </div>
-            </div>
-
-            {/* Durations Grid (4 cols) */}
-            {sortedDurations.length > 0 && (
-               <div className="grid grid-cols-4 gap-1.5 mb-2">
-                  {sortedDurations.slice(0, 8).map((d: any, i: number) => {
-                      const formatChipStr = (iso: string) => {
-                          if (!iso) return '';
-                          const date = new Date(iso);
-                          return `${date.getDate().toString().padStart(2, '0')} ${date.toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB', { month: 'short' }).replace('.', '')}`;
-                      };
-                      return (
-                         <button key={i} onClick={(e) => { e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); setActiveDurationTab(i); }} className={cn("px-1 py-1 rounded text-[9px] font-bold border text-center truncate transition-colors", dk ? "bg-slate-800 border-white/10 text-slate-300 hover:bg-slate-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50")}>
-                            {d.startDate && d.endDate ? `${formatChipStr(d.startDate)} - ${formatChipStr(d.endDate)}` : 'New'}
-                         </button>
-                      )
-                  })}
-                  {sortedDurations.length > 8 && (
-                      <button onClick={(e) => { e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); }} className={cn("px-1 py-1 rounded text-[9px] font-bold border text-center", dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400" : "bg-teal-50 border-teal-200 text-teal-700")}>
-                         +{sortedDurations.length - 8}
-                      </button>
-                  )}
-               </div>
-            )}
-            
-            {/* Employees Grid (5 cols) */}
-            {sortedEmployees.length > 0 && (
-               <div className="grid grid-cols-5 gap-1.5 mb-1">
-                  {sortedEmployees.slice(0, 10).map((emp: any, i: number) => {
-                     const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
-                     const borderCls = status === 'active' ? (dk ? "border-emerald-500/50" : "border-emerald-600") : status === 'upcoming' ? (dk ? "border-blue-500/50" : "border-blue-600") : status === 'ending-soon' ? (dk ? "border-red-500/50" : "border-red-600") : (dk ? "border-slate-500/40" : "border-slate-400");
-                     const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
-                     const parentDur = localHotel.durations.find((d:any) => (d.roomCards||[]).some((rc:any) => (rc.employees||[]).some((e:any) => e.id === emp.id)));
-                     const isPartial = parentDur && (emp.checkIn > parentDur.startDate || emp.checkOut < parentDur.endDate);
-                     const shortName = emp.name ? emp.name.trim().split(' ').pop() : '_ _ _';
-
-                     return (
-                        <button key={i} onClick={(e) => { 
-                            e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); 
-                            const tIdx = localHotel.durations.findIndex((dur:any) => (dur.roomCards||[]).some((rc:any) => (rc.employees||[]).some((ex:any) => ex.id === emp.id)));
-                            setActiveDurationTab(tIdx >= 0 ? tIdx : 0);
-                            setTimeout(() => window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id })), 300);
-                        }} className={cn("px-1 py-1 rounded-full text-[8.5px] font-bold flex items-center justify-center gap-1 border truncate transition-all", borderCls, isPartial ? "border-dashed" : "border-solid", dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-800")}>
-                           <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
-                           <span className="truncate"><HighlightText text={shortName} query={searchScope === 'all' || searchScope === 'employee' ? searchQuery : ''} /></span>
-                        </button>
-                     )
-                  })}
-                  {sortedEmployees.length > 10 && (
-                      <button onClick={(e) => { e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); }} className={cn("px-1 py-1 rounded-full text-[8.5px] font-bold border text-center transition-all", dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400" : "bg-teal-50 border-teal-200 text-teal-700")}>
-                         +{sortedEmployees.length - 10}
-                      </button>
-                  )}
-               </div>
-            )}
-
-            <div className={cn("w-full mt-2 pt-2 flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-colors", dk ? "text-slate-400" : "text-slate-500")}>
-               {isOpen ? <ChevronUp size={14} className="text-teal-500"/> : <ChevronDown size={14} className="text-teal-500"/>} 
-               {isOpen ? (lang === 'de' ? 'Schließen' : 'Close') : (lang === 'de' ? 'Details öffnen' : 'Open Details')}
-            </div>
          </div>
 
+         {/* Right Sidebar (Restricted to Header Height) */}
+         <div className={cn("w-10 shrink-0 border-b border-l flex flex-col items-center justify-between py-2 rounded-tr-2xl", dk ? "border-white/10 bg-black/20" : "border-slate-200 bg-slate-50")}>
+            <button onClick={toggleBookmark} className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
+               <Star size={16} className={isBookmarked ? "fill-yellow-500 text-yellow-500" : (dk ? "text-slate-500" : "text-slate-400")} />
+            </button>
+            <div className="relative group/time flex items-center justify-center py-1">
+               <Clock size={14} className={dk ? "text-slate-500" : "text-slate-400"} />
+               <div className={cn("absolute right-full mr-2 top-1/2 -translate-y-1/2 w-max px-2 py-1 text-[9px] font-bold rounded opacity-0 group-hover/time:opacity-100 z-[99999] whitespace-nowrap pointer-events-none shadow-xl border", dk ? "bg-slate-700 text-white border-white/20" : "bg-white text-slate-800 border-slate-300")}>{formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}</div>
+            </div>
+            {!viewOnly && (
+               <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className={cn("p-1.5 rounded-lg transition-colors hover:bg-red-50 dark:hover:bg-red-500/10", dk ? "text-slate-500 hover:text-red-500" : "text-slate-400 hover:text-red-500")}>
+                  <Trash2 size={14} />
+               </button>
+            )}
+         </div>
+      </div>
+
+      {/* 2. FULL WIDTH CONTENT (Metrics, Chips, Details Toggle) */}
+      <div className="px-3 pb-3 flex flex-col cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+         
+         {/* Metrics */}
+         <div className={cn("flex items-center justify-between p-2 rounded-xl border mb-3", dk ? "bg-black/20 border-white/5" : "bg-slate-50 border-slate-100")}>
+             <div className="flex items-center gap-3 pl-1">
+                 <div className="flex items-center gap-1.5">
+                     <Bed size={16} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
+                     <span className={cn('text-[17px] font-black leading-none', masterMath.freeBeds > 0 ? 'text-red-500' : dk ? 'text-teal-500' : 'text-teal-600')}>{masterMath.freeBeds}</span>
+                 </div>
+                 <div className="w-px h-5 bg-slate-200 dark:bg-white/10" />
+                 <div className="flex items-center gap-1.5">
+                     <Users size={16} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
+                     <span className={cn('text-[17px] font-black leading-none', dk ? 'text-slate-300' : 'text-slate-700')}>{masterMath.totalBeds}</span>
+                 </div>
+             </div>
+             <div className="flex flex-col items-end pr-1">
+                <span className={cn('font-black text-[17px] leading-none', dk ? 'text-white' : 'text-slate-900')}>{formatCurrency(masterMath.displayBrutto)}</span>
+                {masterMath.nearestDueDate && (activeSort === 'payment_due' || (activeFilterDue && activeFilterDue !== 'all')) && (
+                   <span className="text-[8px] font-bold text-red-500 uppercase tracking-wider mt-1">{lang === 'de' ? 'Fällig: ' : 'Due: '} {formatShortDate(masterMath.nearestDueDate)}</span>
+                )}
+             </div>
+         </div>
+
+         {/* Durations Grid */}
+         {sortedDurations.length > 0 && (
+            <div className="grid grid-cols-4 gap-1.5 mb-2">
+               {sortedDurations.slice(0, 8).map((d: any, i: number) => {
+                   const formatChipStr = (iso: string) => {
+                       if (!iso) return '';
+                       const date = new Date(iso);
+                       return `${date.getDate().toString().padStart(2, '0')} ${date.toLocaleString(lang === 'de' ? 'de-DE' : 'en-GB', { month: 'short' }).replace('.', '')}`;
+                   };
+                   return (
+                      <button key={i} onClick={(e) => { e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id); setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); }} className={cn("px-1 py-1 rounded text-[9px] font-bold border text-center truncate transition-colors", dk ? "bg-slate-800 border-white/10 text-slate-300 hover:bg-slate-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50")}>
+                         {d.startDate && d.endDate ? `${formatChipStr(d.startDate)} - ${formatChipStr(d.endDate)}` : 'New'}
+                      </button>
+                   )
+               })}
+               {sortedDurations.length > 8 && (
+                   <button onClick={(e) => { e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); }} className={cn("px-1 py-1 rounded text-[9px] font-bold border text-center", dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400" : "bg-teal-50 border-teal-200 text-teal-700")}>
+                      +{sortedDurations.length - 8}
+                   </button>
+               )}
+            </div>
+         )}
+         
+         {/* Employees Grid */}
+         {sortedEmployees.length > 0 && (
+            <div className="grid grid-cols-5 gap-1.5 mb-1">
+               {sortedEmployees.slice(0, 10).map((emp: any, i: number) => {
+                  const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
+                  const borderCls = status === 'active' ? (dk ? "border-emerald-500/50" : "border-emerald-600") : status === 'upcoming' ? (dk ? "border-blue-500/50" : "border-blue-600") : status === 'ending-soon' ? (dk ? "border-red-500/50" : "border-red-600") : (dk ? "border-slate-500/40" : "border-slate-400");
+                  const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
+                  const parentDur = localHotel.durations.find((d:any) => (d.roomCards||[]).some((rc:any) => (rc.employees||[]).some((e:any) => e.id === emp.id)));
+                  const isPartial = parentDur && (emp.checkIn > parentDur.startDate || emp.checkOut < parentDur.endDate);
+                  const shortName = emp.name ? emp.name.trim().split(' ').pop() : '_ _ _';
+
+                  return (
+                     <button key={i} onClick={(e) => { 
+                         e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); 
+                         const tIdx = localHotel.durations.findIndex((dur:any) => (dur.roomCards||[]).some((rc:any) => (rc.employees||[]).some((ex:any) => ex.id === emp.id)));
+                         setActiveDurationTab(tIdx >= 0 ? tIdx : 0);
+                         setTimeout(() => window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id })), 300);
+                     }} className={cn("px-1 py-1 rounded-full text-[8.5px] font-bold flex items-center justify-center gap-1 border truncate transition-all", borderCls, isPartial ? "border-dashed" : "border-solid", dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-800")}>
+                        <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />
+                        <span className="truncate"><HighlightText text={shortName} query={searchScope === 'all' || searchScope === 'employee' ? searchQuery : ''} /></span>
+                     </button>
+                  )
+               })}
+               {sortedEmployees.length > 10 && (
+                   <button onClick={(e) => { e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); }} className={cn("px-1 py-1 rounded-full text-[8.5px] font-bold border text-center transition-all", dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400" : "bg-teal-50 border-teal-200 text-teal-700")}>
+                      +{sortedEmployees.length - 10}
+                   </button>
+               )}
+            </div>
+         )}
+
+         {/* Expand Toggle */}
+         <div className={cn("w-full mt-2 pt-2 flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-colors", dk ? "text-slate-400" : "text-slate-500")}>
+            {isOpen ? <ChevronUp size={14} className="text-teal-500"/> : <ChevronDown size={14} className="text-teal-500"/>} 
+            {isOpen ? (lang === 'de' ? 'Schließen' : 'Close') : (lang === 'de' ? 'Details öffnen' : 'Open Details')}
+         </div>
+      </div>
          {/* Expanded Content */}
          {isOpen && (
             <div className={cn("flex flex-col border-t", dk ? "bg-[#0B1224] border-white/5" : "bg-slate-50 border-slate-200")} onClick={e => e.stopPropagation()}>
