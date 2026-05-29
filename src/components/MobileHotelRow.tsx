@@ -355,6 +355,8 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
   const [itemSearchQuery, setItemSearchQuery] = useState(''); 
   const [showTotalDiscount, setShowTotalDiscount] = useState(false);
   const [showPaidSplit, setShowPaidSplit] = useState(false);
+  const [showAllDurs, setShowAllDurs] = useState(false);
+  const [showAllEmps, setShowAllEmps] = useState(false);
 
   const [isBookmarked, setIsBookmarked] = useState(() => {
     try { return JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]').includes(entry.id); } catch { return false; }
@@ -552,7 +554,7 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
          </div>
 
          {/* Row 2: City and Company Tag */}
-         <div className="flex justify-between items-center w-full mt-0.5">
+         <div className="flex justify-between items-center w-full mb-3 mt-0.5">
             <div className="flex items-center gap-1.5 shrink min-w-0 max-w-[40%] pr-2">
                <MapPin size={10} className={cn("shrink-0", dk ? "text-slate-500" : "text-slate-400")} /> 
                <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} textClass={cn("text-[10px] font-bold uppercase tracking-widest truncate", dk ? "text-slate-400" : "text-slate-500")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
@@ -598,10 +600,10 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
              </div>
          </div>
 
-         {/* Row 4: Durations (flex-wrap instead of rigid grid) */}
+         {/* Row 4: Durations (Inline Toggle) */}
          {sortedDurations.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-2">
-               {sortedDurations.map((d: any, i: number) => {
+               {(showAllDurs ? sortedDurations : sortedDurations.slice(0, 8)).map((d: any, i: number) => {
                    const formatChipStr = (iso: string) => {
                        if (!iso) return '';
                        const date = new Date(iso);
@@ -609,7 +611,9 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                    };
                    return (
                       <button key={i} onClick={(e) => { 
-                          e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); 
+                          e.stopPropagation(); 
+                          if (!isOpen) onToggle(); 
+                          setActiveTab('bookings'); 
                           const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
                           setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); 
                       }} className={cn("px-1.5 py-1 rounded text-[9px] font-bold border text-center transition-colors", dk ? "bg-slate-800 border-white/10 text-slate-300 hover:bg-slate-700" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50")}>
@@ -617,13 +621,18 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                       </button>
                    )
                })}
+               {sortedDurations.length > 8 && (
+                   <button onClick={(e) => { e.stopPropagation(); setShowAllDurs(!showAllDurs); }} className={cn("px-1.5 py-1 rounded text-[9px] font-bold border text-center transition-colors", dk ? "bg-slate-800 border-white/20 text-slate-300" : "bg-slate-100 border-slate-300 text-slate-600")}>
+                      {showAllDurs ? (lang === 'de' ? 'Weniger' : 'Less') : `+${sortedDurations.length - 8}`}
+                   </button>
+               )}
             </div>
          )}
          
-         {/* Row 4.5: Employees (flex-wrap instead of rigid grid) */}
+         {/* Row 4.5: Employees (Inline Toggle) */}
          {sortedEmployees.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-2">
-               {sortedEmployees.map((emp: any, i: number) => {
+            <div className="flex flex-wrap gap-1.5 mb-1">
+               {(showAllEmps ? sortedEmployees : sortedEmployees.slice(0, 10)).map((emp: any, i: number) => {
                   const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
                   const borderCls = status === 'active' ? (dk ? "border-emerald-500/50" : "border-emerald-600") : status === 'upcoming' ? (dk ? "border-blue-500/50" : "border-blue-600") : status === 'ending-soon' ? (dk ? "border-red-500/50" : "border-red-600") : (dk ? "border-slate-500/40" : "border-slate-400");
                   const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
@@ -633,7 +642,9 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
 
                   return (
                      <button key={i} onClick={(e) => { 
-                         e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); 
+                         e.stopPropagation(); 
+                         if (!isOpen) onToggle(); 
+                         setActiveTab('bookings'); 
                          const tIdx = localHotel.durations.findIndex((dur:any) => (dur.roomCards||[]).some((rc:any) => (rc.employees||[]).some((ex:any) => ex.id === emp.id)));
                          setActiveDurationTab(tIdx >= 0 ? tIdx : 0);
                          setTimeout(() => window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id })), 300);
@@ -643,6 +654,11 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                      </button>
                   )
                })}
+               {sortedEmployees.length > 10 && (
+                   <button onClick={(e) => { e.stopPropagation(); setShowAllEmps(!showAllEmps); }} className={cn("px-1.5 py-1 rounded-full text-[8.5px] font-bold border text-center transition-all", dk ? "bg-slate-800 border-white/20 text-slate-300" : "bg-slate-100 border-slate-300 text-slate-600")}>
+                      {showAllEmps ? (lang === 'de' ? 'Weniger' : 'Less') : `+${sortedEmployees.length - 10}`}
+                   </button>
+               )}
             </div>
          )}
 
