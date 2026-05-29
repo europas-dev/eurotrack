@@ -289,8 +289,8 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
     <div ref={ref} className={cn("relative min-h-[20px] flex items-center w-full", disabled ? "cursor-default" : "cursor-pointer")} onClick={(e) => { if (disabled) return; e.stopPropagation(); setOpen(true); }}>
       <div className="flex flex-wrap gap-1 w-full justify-end">
         {safeSelected.length > 0 ? safeSelected.map((tag: string) => (
-          <span key={tag} className={cn('px-2 py-0.5 rounded-md text-[10px] font-bold border flex items-center gap-1 shadow-sm truncate max-w-[120px]', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white<span key={tag} className={cn('px-2 py-0.5 rounded-md text-[10px] font-bold border flex items-center gap-1 shadow-sm truncate max-w-full', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-100 border-slate-200 text-slate-800')}>' : 'bg-slate-100 border-slate-200 text-slate-800')}>
-            <HighlightText text={tag} query={searchQuery} />
+        <span key={tag} className={cn('px-2 py-0.5 rounded-md text-[10px] font-bold border flex items-center gap-1 shadow-sm truncate max-w-full', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-slate-100 border-slate-200 text-slate-800')}>  
+        <HighlightText text={tag} query={searchQuery} />
           </span>
         )) : <span className={cn("text-[9px] font-bold border border-dashed px-2 py-0.5 rounded transition-colors w-max", isDarkMode ? "text-slate-500 border-white/20 hover:text-teal-400" : "text-slate-400 border-slate-300 hover:text-teal-600")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
       </div>
