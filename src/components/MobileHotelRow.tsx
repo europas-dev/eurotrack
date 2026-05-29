@@ -354,6 +354,7 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
   const [invoiceFilter, setInvoiceFilter] = useState<'all' | 'paid' | 'unpaid'>('all'); 
   const [itemSearchQuery, setItemSearchQuery] = useState(''); 
   const [showTotalDiscount, setShowTotalDiscount] = useState(false);
+  const [showPaidSplit, setShowPaidSplit] = useState(false);
 
   const [isBookmarked, setIsBookmarked] = useState(() => {
     try { return JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]').includes(entry.id); } catch { return false; }
@@ -523,53 +524,47 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
     >
       <div className={cn("absolute top-0 bottom-0 left-0 w-1.5 transition-colors z-[60]", masterMath.totalUnpaid > 0 ? "bg-red-500" : (masterMath.totalPaid > 0 ? "bg-emerald-500" : "bg-transparent border-r border-slate-200 dark:border-white/10"))} />
 
+      {/* FULL WIDTH CARD CONTENT (NO SIDEBAR) */}
       <div className="p-3 pl-4 flex flex-col w-full cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
          
          {/* Row 1: Name and Horizontal Icons */}
          <div className="flex items-start justify-between w-full mb-1">
-            {/* LEFT: Hotel Name (Adjusted Typography for readability) */}
             <div className="flex-1 min-w-0 pr-2 pt-0.5">
                <SeamlessInput 
-                  disabled={viewOnly} 
-                  value={localHotel.name} 
-                  options={hotelOptions} 
-                  isDarkMode={dk} 
-                  onChange={(val:any) => patchHotel({ name: val })} 
-                  placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} 
+                  disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} 
+                  onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} 
                   textClass={cn('text-base font-bold leading-tight', dk ? 'text-white' : 'text-slate-900')} 
                   searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} 
                />
             </div>
-
-            {/* RIGHT: Horizontal Actions [Trash] [Clock] [Star] */}
+            {/* RIGHT ALIGNED ICONS: Trash -> Clock -> Star */}
             <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
                {!viewOnly && (
                   <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className={cn("p-1.5 rounded-lg transition-colors", dk ? "text-slate-500 hover:text-red-500 hover:bg-red-500/10" : "text-slate-400 hover:text-red-500 hover:bg-red-50")}>
                      <Trash2 size={16} />
                   </button>
                )}
-               
                <div className="relative group/time flex items-center justify-center p-1.5">
                   <Clock size={16} className={dk ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600"} />
                   <div className={cn("absolute right-full mr-2 top-1/2 -translate-y-1/2 w-max px-2 py-1 text-[9px] font-bold rounded opacity-0 group-hover/time:opacity-100 z-[99999] whitespace-nowrap pointer-events-none shadow-xl border", dk ? "bg-slate-700 text-white border-white/20" : "bg-white text-slate-800 border-slate-300")}>
                      {formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}
                   </div>
                </div>
-
                <button onClick={toggleBookmark} className={cn("p-1.5 rounded-full transition-colors", isBookmarked ? "bg-yellow-500/10 text-yellow-500" : (dk ? "text-slate-500 hover:bg-white/10" : "text-slate-400 hover:bg-slate-100"))}>
                   <Star size={18} className={isBookmarked ? "fill-yellow-500" : ""} />
                </button>
             </div>
          </div>
 
-         {/* Row 2: City and Company Tag */}
-         <div className="flex justify-between items-center w-full mt-0.5">
+         {/* Row 2: City and Company Tag (Flexible Width) */}
+         <div className="flex justify-between items-center w-full mt-0.5 mb-3">
             <div className="flex items-center gap-1.5 flex-1 min-w-0 pr-2">
                <MapPin size={10} className={dk ? "text-slate-500" : "text-slate-400"} /> 
                <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} textClass={cn("text-[10px] font-bold uppercase tracking-widest truncate", dk ? "text-slate-400" : "text-slate-500")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
             </div>
-            <div className="shrink-0 max-w-[140px]" onClick={e => e.stopPropagation()}>
-               <CompanyMultiSelect disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onRenameOption={onRenameCompanyOption} onAddOption={onAddOption} searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} />
+            {/* max-w-[160px] allows long text to flex further left before truncating */}
+            <div className="shrink-0 max-w-[160px] truncate text-right" onClick={e => e.stopPropagation()}>
+               <CompanyMultiSelect disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onRenameOption={onRenameCompanyOption} onAddOption={onAddOption} searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} onOpenChange={setIsDropdownActive} />
             </div>
          </div>
 
@@ -587,12 +582,25 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                  </div>
              </div>
              
-             <div className="flex flex-col items-end">
-                <span className={cn('font-black text-[15px] leading-none', dk ? 'text-white' : 'text-slate-900')}>
-                   {formatCurrency(masterMath.displayBrutto)}
-                </span>
+             {/* THE FIX: Clickable wrapper for the total cost */}
+             <div 
+                className="flex flex-col items-end cursor-pointer" 
+                onClick={(e) => { e.stopPropagation(); setShowPaidSplit(!showPaidSplit); }}
+             >
+                {/* Shows split if clicked OR if global Due filter is active */}
+                {showPaidSplit || (activeFilterDue && activeFilterDue !== 'all') ? (
+                   <div className="flex flex-col items-end gap-1 animate-in fade-in">
+                      <span className="text-[11px] font-bold text-emerald-500 leading-none">{lang === 'de' ? 'Bezahlt:' : 'Paid:'} {formatCurrency(masterMath.totalPaid)}</span>
+                      <span className="text-[11px] font-bold text-red-500 leading-none">{lang === 'de' ? 'Offen:' : 'Unpaid:'} {formatCurrency(masterMath.totalUnpaid)}</span>
+                   </div>
+                ) : (
+                   <span className={cn('font-black text-[15px] leading-none animate-in fade-in', dk ? 'text-white' : 'text-slate-900')}>
+                      {formatCurrency(masterMath.displayBrutto)}
+                   </span>
+                )}
+                
                 {masterMath.nearestDueDate && (activeSort === 'payment_due' || (activeFilterDue && activeFilterDue !== 'all')) && (
-                   <span className="text-[8px] font-bold text-red-500 uppercase tracking-wider mt-1">
+                   <span className="text-[8px] font-bold text-red-500 uppercase tracking-wider mt-1.5">
                       {lang === 'de' ? 'Fällig: ' : 'Due: '} {formatShortDate(masterMath.nearestDueDate)}
                    </span>
                 )}
