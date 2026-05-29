@@ -1,7 +1,6 @@
-// src/components/MobileHotelRow.tsx
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, ChevronUp, ChevronRight, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, FileText, Ticket, Calendar, AlertTriangle, Edit3, Filter, Bed, Users, Coins } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, ChevronRight, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, FileText, Ticket, Calendar, AlertTriangle, Edit3, Filter, Bed, Users } from 'lucide-react';
 import { cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatLastUpdated, calculateNights, calcInvoiceItem, formatDateChip } from '../lib/utils';
 import { createDuration, updateHotel, deleteHotel } from '../lib/supabase';
 import { enqueue } from '../lib/offlineSync';
@@ -76,7 +75,6 @@ export function getTranslation(dict: any[], id: string, lang: string) {
 export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onDelete, viewOnly, dk, lang, defaultNights = 1, defaultStart, defaultEnd }: any) {
   const [draft, setDraft] = useState(item);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const editRef = useRef<HTMLDivElement>(null);
   const [calOpen, setCalOpen] = useState(false);
   const [showDiscount, setShowDiscount] = useState(parseFloat(item.discountValue || 0) > 0);
   
@@ -86,6 +84,7 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
 
   const currentItem = isEditing ? draft : item;
   const { finalNetto, mwst, brutto } = calcInvoiceItem(currentItem, defaultNights);
+  
   const hasNettoInput = currentItem.netto != null && currentItem.netto !== '';
   const hasBruttoInput = currentItem.brutto != null && currentItem.brutto !== '';
   const isPerBedAllowed = currentItem.type === 'room' || currentItem.type === 'energy' || currentItem.type === 'tax';
@@ -98,7 +97,7 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
 
   if (isEditing && !viewOnly) {
     return (
-      <div ref={editRef} className={cn("flex flex-col p-2 border-b transition-all w-full relative z-20 shadow-xl gap-2", dk ? "bg-teal-900/20 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
+      <div className={cn("flex flex-col p-2 border-b transition-all w-full relative z-20 shadow-xl gap-2", dk ? "bg-teal-900/20 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
         <div className="flex gap-2 w-full">
             <select value={draft.type || 'room'} onChange={e => { const newType = e.target.value; setDraft({ ...draft, type: newType, method: (newType === 'base' || newType === 'extra') ? 'total' : draft.method }); }} className={cn(inputClass, "flex-1")}>
               {COST_TYPES.map(o => <option key={o.id} value={o.id}>{lang === 'de' ? o.de : o.en}</option>)}
@@ -153,13 +152,14 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
         {needsNote && <textarea rows={1} value={draft.note || ''} onChange={handleNoteChange} className={cn(inputClass, "w-full text-[11px] font-medium resize-none min-h-[28px] mt-1")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />}
 
         <div className="flex justify-end gap-1.5 mt-1">
-           <button onClick={onCancel} className={cn("px-3 py-1.5 rounded text-xs font-bold border transition-all", dk ? "border-white/10 text-slate-300" : "border-slate-200 text-slate-600")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
-           <button onClick={() => onSave(draft)} className="px-4 py-1.5 rounded text-xs font-bold text-white bg-teal-500 hover:bg-teal-600 flex items-center gap-1"><Check size={12}/> {lang === 'de' ? 'Speichern' : 'Save'}</button>
+           <button onClick={onCancel} className={cn("px-3 py-1.5 rounded text-xs font-bold border transition-all", dk ? "border-white/10 text-slate-300 hover:bg-white/10" : "border-slate-200 text-slate-600 hover:bg-slate-100")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
+           <button onClick={() => onSave(draft)} className="px-4 py-1.5 rounded text-xs font-bold text-white bg-teal-500 hover:bg-teal-600 transition-all flex items-center gap-1"><Check size={12}/> {lang === 'de' ? 'Speichern' : 'Save'}</button>
         </div>
       </div>
     )
   }
 
+  // Micro-Table Read View
   return (
     <div className={cn("flex items-start px-2 py-2 border-b last:border-b-0 transition-colors group relative gap-2", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
        {confirmDelete ? (
@@ -177,11 +177,9 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
                 </div>
                 {currentItem.note && <span className="text-[9px] font-medium text-slate-500 italic truncate">{currentItem.note}</span>}
              </div>
-             <div className="w-[50px] shrink-0 text-right"><span className={cn("text-[10px] font-bold", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(parseFloat(currentItem.netto)||0)}</span></div>
+             <div className="w-[55px] shrink-0 text-right"><span className={cn("text-[10px] font-bold", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(parseFloat(currentItem.netto)||0)}</span></div>
              <div className="w-[30px] shrink-0 text-center"><span className={cn("text-[10px] font-bold", dk ? "text-slate-400" : "text-slate-500")}>{currentItem.mwst ?? 7}%</span></div>
-             <div className="w-[60px] shrink-0 text-right"><span className={cn("text-[11px] font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(brutto)}</span></div>
-             
-             {/* Invisible hover area that slides in the edit/trash icons */}
+             <div className="w-[65px] shrink-0 text-right"><span className={cn("text-[11px] font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(brutto)}</span></div>
              <div className="absolute right-0 top-0 bottom-0 bg-gradient-to-l from-white dark:from-[#1E293B] via-white/90 dark:via-[#1E293B]/90 to-transparent w-24 flex items-center justify-end px-2 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity">
                 {!viewOnly && <button onClick={onEdit} className="p-1.5 rounded text-slate-400 hover:text-teal-500 transition-colors"><Edit3 size={14}/></button>}
                 {!viewOnly && <button onClick={() => setConfirmDelete(true)} className="p-1.5 rounded text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={14}/></button>}
@@ -231,7 +229,7 @@ export function MwstInput({ value, onChange, isDarkMode, disabled }: { value: st
       <input type="number" disabled={disabled} value={value ?? ''} onChange={e => onChange(e.target.value === '' ? null : e.target.value)} className={cn('flex-1 px-1 rounded-l-lg text-[10px] font-bold outline-none border transition-all h-full text-center', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900', disabled && "opacity-50 cursor-not-allowed")} placeholder="--" />
       <button disabled={disabled} onClick={() => setOpen(!open)} className={cn('px-1.5 h-full rounded-r-lg border border-l-0 transition-all flex items-center justify-center', isDarkMode ? 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100', disabled && "hidden")}><ChevronDown size={12} /></button>
       {open && !disabled && (
-        <div className={cn("absolute top-full left-0 right-0 mt-1 z-[9999] rounded-lg shadow-xl overflow-hidden border", isDarkMode ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+        <div className={cn("absolute top-full right-0 mt-1 w-20 z-[9999] rounded-lg shadow-xl overflow-hidden border", isDarkMode ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
           {[7, 19, 0].map(v => <button key={v} onClick={() => { onChange(v.toString()); setOpen(false); }} className={cn("w-full text-center py-2 text-xs font-bold transition-all", isDarkMode ? "text-white hover:bg-white/10" : "text-slate-900 hover:bg-slate-100")}>{v}%</button>)}
         </div>
       )}
@@ -316,7 +314,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
         )) : <span className={cn("text-[9px] font-bold border border-dashed px-2 py-0.5 rounded transition-colors w-max", isDarkMode ? "text-slate-500 border-white/20 hover:text-teal-400" : "text-slate-400 border-slate-300 hover:text-teal-600")}>+ {lang === 'de' ? 'Firma' : 'Company'}</span>}
       </div>
       {open && !disabled && (
-        <div className={cn('absolute top-full mt-1 right-0 z-[200] rounded-xl border shadow-xl min-w-[200px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')} onClick={e => e.stopPropagation()}>
+        <div className={cn('absolute top-full mt-1 right-0 z-[200] rounded-xl border shadow-xl min-w-[200px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200 w-[240px]', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')} onClick={e => e.stopPropagation()}>
           <div className={cn("flex items-center px-2 py-2 border-b", isDarkMode ? "border-white/10 bg-[#1E293B]" : "border-slate-100 bg-slate-50")}>
             <Search size={12} className={isDarkMode ? "text-slate-400" : "text-slate-500"} />
             <input autoFocus autoComplete="new-password" spellCheck="false" name={Math.random().toString()} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAddNew(); }} placeholder={lang === 'de' ? "Suchen..." : "Search..."} className={cn("ml-2 bg-transparent text-[11px] font-bold outline-none w-full", isDarkMode ? "text-white placeholder:text-slate-500" : "text-slate-900 placeholder:text-slate-400")} />
@@ -341,6 +339,18 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
                         <div className={cn("w-3 h-3 rounded flex items-center justify-center shrink-0 border", isSelected ? "bg-teal-500 border-teal-500" : isDarkMode ? "border-slate-500" : "border-slate-400")}>{isSelected && <Check size={8} className="text-white" strokeWidth={4} />}</div>
                         <span className={cn(isSelected ? (isDarkMode ? 'text-teal-400' : 'text-teal-700') : (isDarkMode ? 'text-slate-300' : 'text-slate-700'))}>{opt}</span>
                       </button>
+                      {confirmDeleteOpt === opt ? (
+                         <div className="flex items-center gap-1 pr-2" onClick={e => e.stopPropagation()}>
+                            <span className="text-[9px] font-black text-red-500 uppercase">Sicher?</span>
+                            <button onClick={() => handleInlineDelete(opt)} className="p-1 text-white bg-red-500 hover:bg-red-600 rounded"><Check size={10} strokeWidth={3}/></button>
+                            <button onClick={() => setConfirmDeleteOpt(null)} className="p-1 text-slate-600 bg-slate-200 hover:bg-slate-300 rounded"><X size={10} strokeWidth={3}/></button>
+                         </div>
+                      ) : (
+                         <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity pr-2 gap-1" onClick={e => e.stopPropagation()}>
+                           <button onClick={() => { setEditingOpt(opt); setEditVal(opt); setConfirmDeleteOpt(null); }} className="p-1 text-slate-400 hover:text-teal-500"><Edit3 size={12}/></button>
+                           {onDeleteOption && (<button onClick={() => { setConfirmDeleteOpt(opt); setEditingOpt(null); }} className="p-1 text-slate-400 hover:text-red-500"><Trash2 size={12} /></button>)}
+                         </div>
+                      )}
                     </>
                   )}
                 </div>
@@ -352,7 +362,6 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
     </div>
   );
 }
-
 export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onRenameCompanyOption, onAddOption, viewOnly, activeSort = 'created_at', activeFilterDue, activeFilterDeposit }: any) {
   const [activeTab, setActiveTab] = useState<'bookings'|'billing'|'info'>('bookings');
   
@@ -369,8 +378,13 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
   const [activeDurationTab, setActiveDurationTab] = useState(0);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [creatingDuration, setCreatingDuration] = useState(false);
+  
+  // MISSING STATES RESTORED FOR CRASH FIXES
+  const [isDropdownActive, setIsDropdownActive] = useState(false);
+  const [invoiceFilter, setInvoiceFilter] = useState<'all' | 'paid' | 'unpaid'>('all'); 
+  const [itemSearchQuery, setItemSearchQuery] = useState(''); 
+  const [showTotalDiscount, setShowTotalDiscount] = useState(false);
 
-  // Parse bookmarks locally
   const [isBookmarked, setIsBookmarked] = useState(() => {
     try { return JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]').includes(entry.id); } catch { return false; }
   });
@@ -459,6 +473,39 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
      return durs;
   }, [localHotel.durations]);
 
+  // RESTORED filteredMasterInvoices TO FIX CRASH #1
+  const filteredMasterInvoices = useMemo(() => {
+    let filtered = (localHotel.invoices || []).filter((inv:any) => {
+       const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
+       if (!dateStr) return false;
+       const d = new Date(dateStr);
+       if (d.getFullYear() !== (selectedYear || new Date().getFullYear())) return false;
+       if (selectedMonth !== null && d.getMonth() !== selectedMonth) return false;
+       return true;
+    });
+
+    if (invoiceFilter === 'paid') filtered = filtered.filter((inv:any) => inv.isPaid);
+    if (invoiceFilter === 'unpaid') filtered = filtered.filter((inv:any) => !inv.isPaid);
+
+    if (itemSearchQuery.trim()) {
+        const lowerQ = itemSearchQuery.toLowerCase();
+        filtered = filtered.map((inv: any) => {
+            const matchesInvNum = inv.number?.toLowerCase().includes(lowerQ);
+            if (inv.billingMode === 'total') {
+                if (matchesInvNum || inv.totalNetto?.toString().includes(lowerQ) || inv.totalMwst?.toString().includes(lowerQ)) return inv;
+                return null;
+            }
+            const matchingItems = (inv.items || []).filter((item: any) => {
+                const typeText = getTranslation(COST_TYPES, item.type || 'room', lang).toLowerCase();
+                return typeText.includes(lowerQ) || item.note?.toLowerCase().includes(lowerQ) || item.netto?.toString().includes(lowerQ) || item.brutto?.toString().includes(lowerQ) || matchesInvNum; 
+            });
+            if (matchingItems.length > 0) return { ...inv, items: matchingItems };
+            return null;
+        }).filter(Boolean);
+    }
+    return filtered;
+  }, [localHotel.invoices, selectedYear, selectedMonth, itemSearchQuery, invoiceFilter, lang]);
+
   function patchHotel(changes: any) {
     if (viewOnly) return; 
     let next = { ...localHotel, ...changes };
@@ -497,7 +544,6 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
     window.dispatchEvent(new Event('storage'));
   };
 
-  const activeInvoice = localHotel.invoices?.find((i:any) => i.id === selectedInvoiceId);
   const labelCls = cn('flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1', dk && 'text-slate-400');
   const inputCls = cn('w-full px-2 py-1.5 rounded-lg text-xs font-bold outline-none border transition-all h-[32px]', dk ? 'bg-black/20 border-white/10 text-white placeholder-slate-600 focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-teal-500', viewOnly && "opacity-60 cursor-default");
 
@@ -593,14 +639,14 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                              const tIdx = localHotel.durations.findIndex((dur:any) => (dur.roomCards||[]).some((rc:any) => (rc.employees||[]).some((ex:any) => ex.id === emp.id)));
                              setActiveDurationTab(tIdx >= 0 ? tIdx : 0);
                              setTimeout(() => window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id })), 300);
-                         }} className={cn("px-1 py-1 rounded-full text-[8px] font-bold flex items-center justify-center gap-1 border truncate transition-all", borderCls, isPartial ? "border-dashed" : "border-solid", dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-800")}>
+                         }} className={cn("px-1 py-1 rounded-full text-[8.5px] font-bold flex items-center justify-center gap-1 border truncate transition-all", borderCls, isPartial ? "border-dashed" : "border-solid", dk ? "bg-[#1E293B] text-slate-200" : "bg-slate-50 text-slate-800")}>
                             <span className={cn("w-1 h-1 rounded-full shrink-0", dotColor)} />
                             <span className="truncate"><HighlightText text={shortName} query={searchScope === 'all' || searchScope === 'employee' ? searchQuery : ''} /></span>
                          </button>
                       )
                    })}
                    {sortedEmployees.length > 10 && (
-                       <button onClick={(e) => { e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); }} className={cn("px-1 py-1 rounded-full text-[8px] font-bold border text-center transition-all", dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400" : "bg-teal-50 border-teal-200 text-teal-700")}>
+                       <button onClick={(e) => { e.stopPropagation(); setIsOpen(true); setActiveTab('bookings'); }} className={cn("px-1 py-1 rounded-full text-[8.5px] font-bold border text-center transition-all", dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400" : "bg-teal-50 border-teal-200 text-teal-700")}>
                           +{sortedEmployees.length - 10}
                        </button>
                    )}
@@ -626,7 +672,7 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
              </div>
 
              {!viewOnly && (
-                <button onClick={() => setConfirmDelete(true)} className={cn("p-1.5 rounded-lg transition-colors hover:bg-red-50 dark:hover:bg-red-500/10", dk ? "text-slate-500 hover:text-red-500" : "text-slate-400 hover:text-red-500")}>
+                <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className={cn("p-1.5 rounded-lg transition-colors hover:bg-red-50 dark:hover:bg-red-500/10", dk ? "text-slate-500 hover:text-red-500" : "text-slate-400 hover:text-red-500")}>
                    <Trash2 size={16} />
                 </button>
              )}
@@ -805,7 +851,7 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                                  <NativeDatePicker dk={dk} value={invoiceDraft.paymentDate || ''} onChange={(pd: string) => setInvoiceDraft({...invoiceDraft, paymentDate: pd})} className="w-full h-[32px] [&>div]:border-emerald-500 [&>div]:text-emerald-600 dark:[&>div]:text-emerald-400" />
                               </div>
                            )}
-                           <textarea value={invoiceDraft.note || ''} onChange={e => setInvoiceDraft({...invoiceDraft, note: e.target.value})} className={cn(inputCls, "h-[60px] resize-none")} placeholder={lang === 'de' ? "Notiz hinzufügen..." : "Add note..."} />
+                           <textarea value={invoiceDraft.note || ''} onChange={e => setInvoiceDraft({...invoiceDraft, note: e.target.value})} className={cn("w-full px-2 py-2 rounded-lg text-xs font-bold outline-none border transition-all resize-y min-h-[80px]", dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-teal-500' : 'bg-white border-slate-200 text-slate-900 focus:border-teal-500')} placeholder={lang === 'de' ? "Notiz hinzufügen..." : "Add note..."} />
                            <div className="flex items-center justify-between mt-1 pt-2 border-t border-slate-200 dark:border-white/10">
                               <button onClick={(e) => { e.stopPropagation(); if (window.confirm('Discard draft?')) { setEditingInvoiceId(null); setInvoiceDraft(null); if (!localHotel.invoices.find((i:any) => i.id === editingInvoiceId)) setSelectedInvoiceId(null); } }} className="p-2 text-slate-400 hover:text-red-500 rounded-lg bg-slate-100 dark:bg-white/5"><Trash2 size={14} /></button>
                               <button disabled={!invoiceDraft.number || !invoiceDraft.startDate || !invoiceDraft.endDate || (invoiceDraft.isPaid && !invoiceDraft.paymentDate)} onClick={(e) => { 
@@ -878,14 +924,14 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                                           <textarea disabled={!editingTotal} rows={1} value={editingTotal ? (totalDraft?.note || '') : (activeInvoice.note || '')} onChange={e => {e.target.style.height='32px'; e.target.style.height=`${e.target.scrollHeight}px`; setTotalDraft({...totalDraft, note: e.target.value})}} className={cn(inputCls, "w-full text-xs font-medium resize-none min-h-[32px]")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />
                                           <div className="flex items-center justify-end gap-2 mt-1 pt-2 border-t dark:border-teal-500/30 border-teal-200">
                                              <button onClick={() => setEditingTotal(false)} className={cn("px-3 py-1.5 rounded text-xs font-bold border", dk ? "border-white/10 text-slate-300" : "border-slate-200 text-slate-600")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
-                                             <button onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, ...totalDraft} : i) }); setEditingTotal(false); }} className="px-4 py-1.5 rounded text-xs font-bold text-white bg-teal-500 shadow-sm">{lang === 'de' ? 'Speichern' : 'Save'}</button>
+                                             <button onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, ...totalDraft} : i) }); setEditingTotal(false); }} className="px-4 py-1.5 rounded text-xs font-bold text-white bg-teal-500 shadow-md">{lang === 'de' ? 'Speichern' : 'Save'}</button>
                                           </div>
                                        </>
                                     )}
                                  </div>
                               </div>
                            ) : (
-                              <div className="flex flex-col flex-1 pb-2">
+                              <div className="flex flex-col flex-1 pb-1">
                                  <div className={cn("flex items-center py-1.5 border-b mb-1", dk ? "border-white/10" : "border-slate-200")}>
                                     <div className="flex-1 min-w-0 text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">{lang === 'de' ? 'Beschreibung' : 'Desc'}</div>
                                     <div className="w-[50px] shrink-0 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Netto</div>
