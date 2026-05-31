@@ -2,7 +2,7 @@
 
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, ChevronUp, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, Ticket, Calendar, Edit3, Bed, Users } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Loader2, Plus, Trash2, X, MapPin, User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, Ticket, Calendar, Edit3, Bed, Users, FileText } from 'lucide-react';
 import { cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatLastUpdated, calculateNights, calcInvoiceItem } from '../lib/utils';
 import { createDuration, updateHotel, deleteHotel } from '../lib/supabase';
 import { enqueue } from '../lib/offlineSync';
