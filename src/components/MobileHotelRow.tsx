@@ -241,12 +241,18 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
               {currentItem.method === 'per_bed' && <span className="text-[9.5px] font-bold text-slate-500 mt-0.5">({activeNights}N, {currentItem.beds||1}B)</span>}
            </div>
            
-           <div className="flex items-center gap-1 shrink-0 pt-0.5">
-               <div className="w-[50px] text-right">
+           <div className="flex items-start gap-1 shrink-0 pt-0.5">
+               <div className="w-[50px] flex flex-col items-end">
                   <span className={cn("text-[10px] font-bold", dk ? "text-slate-400" : "text-slate-500")}>{currentItem.method === 'per_bed' ? formatCurrency(parseFloat(currentItem.netto)||0) : '--'}</span>
+                  {(currentItem.method === 'per_bed' && parseFloat(currentItem.discountValue) > 0) && (
+                      <span className="text-[8px] font-black text-teal-500 mt-0.5 bg-teal-500/10 px-1 rounded border border-teal-500/20">-{currentItem.discountValue}{currentItem.discountType === 'percentage' ? '%' : '€'}</span>
+                  )}
                </div>
-               <div className="w-[60px] text-right">
+               <div className="w-[60px] flex flex-col items-end">
                   <span className={cn("text-[10px] font-bold", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(finalNetto)}</span>
+                  {(currentItem.method === 'total' && parseFloat(currentItem.discountValue) > 0) && (
+                      <span className="text-[8px] font-black text-teal-500 mt-0.5 bg-teal-500/10 px-1 rounded border border-teal-500/20">-{currentItem.discountValue}{currentItem.discountType === 'percentage' ? '%' : '€'}</span>
+                  )}
                </div>
                <div className="w-[30px] text-center">
                   <span className={cn("text-[10px] font-bold", dk ? "text-slate-400" : "text-slate-500")}>{currentItem.mwst ?? 7}%</span>
@@ -1064,53 +1070,110 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                               )}
 
                               {activeInvoice.billingMode === 'total' ? (
-                                 <div ref={totalRef} className={cn("flex flex-col p-3 rounded-xl border shadow-sm animate-in fade-in flex-1", dk ? "bg-[#1E293B] border-slate-800" : "bg-white border-slate-200", editingTotal && (dk ? "border-teal-500/50 shadow-xl bg-teal-900/20" : "border-teal-300 shadow-xl bg-teal-50"))}>
-                                    {!viewOnly && !editingTotal && (
-                                       <button onClick={() => {
-                                          setTotalDraft({ totalNetto: activeInvoice.totalNetto, totalBrutto: activeInvoice.totalBrutto, totalMwst: activeInvoice.totalMwst, discountValue: activeInvoice.discountValue, discountType: activeInvoice.discountType || 'fixed', note: activeInvoice.note });
-                                          setShowTotalDiscount(parseFloat(activeInvoice.discountValue || 0) > 0);
-                                          setEditingTotal(true);
-                                       }} className="self-end mb-2 p-1.5 bg-slate-100 dark:bg-white/10 rounded-md text-slate-500 hover:text-teal-600 transition-colors"><Edit3 size={12}/></button>
-                                    )}
-                                    <div className="flex flex-col gap-2">
-                                       <div className="flex flex-col gap-1">
-                                          <label className="text-[9px] font-bold text-slate-500 uppercase">Netto</label>
-                                          <div className="relative">
-                                             <input disabled={viewOnly || !editingTotal || (editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto)} type="number" value={editingTotal ? (totalDraft?.totalNetto ?? '') : (activeInvoice.totalNetto ?? '')} onChange={e => setTotalDraft({...totalDraft, totalNetto: e.target.value, totalBrutto: null})} className={cn(inputCls, "w-full disabled:opacity-50 text-right text-sm")} placeholder="0.00" />
-                                             {(!showTotalDiscount && !(editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto) && editingTotal && !viewOnly) && <button onClick={() => { setShowTotalDiscount(true); if(!totalDraft?.discountType) setTotalDraft({...totalDraft, discountType: 'fixed'}); }} className="absolute left-1 top-1/2 -translate-y-1/2 p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5"><Ticket size={12}/></button>}
-                                          </div>
-                                       </div>
-                                       {showTotalDiscount && !(editingTotal ? totalDraft?.totalBrutto : activeInvoice.totalBrutto) && (
-                                          <div className="flex items-center w-full animate-in fade-in">
-                                             <input disabled={!editingTotal} type="number" value={editingTotal ? (totalDraft?.discountValue ?? '') : (activeInvoice.discountValue ?? '')} onChange={e => setTotalDraft({...totalDraft, discountValue: e.target.value})} className={cn(inputCls, "rounded-r-none border-r-0 flex-1 px-2 text-right text-xs")} placeholder="Rabatt" />
-                                             <button disabled={!editingTotal} onClick={() => setTotalDraft({...totalDraft, discountType: totalDraft?.discountType === 'percentage' ? 'fixed' : 'percentage'})} className={cn("w-[40px] h-[32px] border-y border-r text-xs font-bold transition-colors disabled:opacity-50", dk ? "bg-white/10 text-white border-white/10" : "bg-slate-200 text-slate-700 border-slate-200")}>{editingTotal ? (totalDraft?.discountType === 'percentage' ? '%' : '€') : (activeInvoice.discountType === 'percentage' ? '%' : '€')}</button>
-                                             {editingTotal && <button onClick={() => { setShowTotalDiscount(false); setTotalDraft({...totalDraft, discountValue: null}); }} className={cn("w-[30px] h-[32px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>}
-                                          </div>
-                                       )}
-                                       <div className="flex items-center gap-2">
-                                          <div className="w-[60px] flex flex-col gap-1 shrink-0">
-                                             <label className="text-[9px] font-bold text-slate-500 uppercase">MwSt</label>
-                                             {editingTotal && !viewOnly ? (
-                                                <MwstInput value={totalDraft?.totalMwst} onChange={(v:any) => setTotalDraft({...totalDraft, totalMwst: v})} isDarkMode={dk} />
-                                             ) : (
-                                                <div className={cn(inputCls, "text-center opacity-50 text-xs px-1")}>{activeInvoice.totalMwst || 7}%</div>
-                                             )}
-                                          </div>
-                                          <div className="flex-1 flex flex-col gap-1">
-                                             <label className="text-[9px] font-bold text-slate-500 uppercase">Brutto</label>
-                                             <input disabled={viewOnly || !editingTotal || (editingTotal ? totalDraft?.totalNetto : activeInvoice.totalNetto)} type="number" value={editingTotal ? (totalDraft?.totalBrutto ?? '') : (activeInvoice.totalBrutto ?? '')} onChange={e => setTotalDraft({...totalDraft, totalBrutto: e.target.value, totalNetto: null})} className={cn(inputCls, "w-full disabled:opacity-100 disabled:bg-transparent disabled:border-transparent font-black text-[13px] text-right placeholder-slate-900 dark:placeholder-white")} placeholder={(editingTotal ? totalDraft?.totalNetto : activeInvoice.totalNetto) ? formatCurrency(parseFloat((editingTotal ? totalDraft?.totalNetto : activeInvoice.totalNetto)) * (1 + (parseFloat((editingTotal ? totalDraft?.totalMwst : activeInvoice.totalMwst))||0)/100)) : "0.00"} />
-                                          </div>
-                                       </div>
-                                       {editingTotal && (
-                                          <>
-                                             <textarea disabled={!editingTotal} rows={1} value={editingTotal ? (totalDraft?.note || '') : (activeInvoice.note || '')} onChange={e => {e.target.style.height='32px'; e.target.style.height=`${e.target.scrollHeight}px`; setTotalDraft({...totalDraft, note: e.target.value})}} className={cn(inputCls, "w-full text-xs font-medium resize-none min-h-[32px]")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />
-                                             <div className="flex items-center justify-end gap-2 mt-1 pt-2 border-t dark:border-teal-500/30 border-teal-200">
-                                                <button onClick={() => setEditingTotal(false)} className={cn("px-3 py-1.5 rounded text-xs font-bold border", dk ? "border-white/10 text-slate-300" : "border-slate-200 text-slate-600")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
-                                                <button onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, ...totalDraft} : i) }); setEditingTotal(false); }} className="px-4 py-1.5 rounded text-xs font-bold text-white bg-teal-500 shadow-md">{lang === 'de' ? 'Speichern' : 'Save'}</button>
+                                 <div className="flex flex-col flex-1 pb-1">
+                                    {editingTotal && !viewOnly ? (
+                                       <div ref={totalRef} className={cn("flex flex-col p-3 mt-2 rounded-xl border shadow-xl animate-in fade-in flex-1", dk ? "border-teal-500/50 bg-teal-900/20" : "border-teal-300 bg-teal-50")}>
+                                          {/* Master Gesamt Edit Math (Flex 5.5 | 1.5 | 3.0) */}
+                                          <div className="flex items-center gap-1.5 w-full h-[30px]">
+                                             
+                                             {/* Netto (Flex 5.5 or 3.5) */}
+                                             <div style={{ flex: showTotalDiscount ? 3.5 : 5.5 }} className="relative min-w-0">
+                                                <input type="number" placeholder="Gesamt Netto" value={totalDraft?.totalNetto ?? ''} onChange={e => setTotalDraft({...totalDraft, totalNetto: e.target.value, totalBrutto: null})} className={cn(inputCls, "w-full h-full text-right", !showTotalDiscount ? "pr-6" : "px-1.5")} />
+                                                {!showTotalDiscount && <button onClick={() => { setShowTotalDiscount(true); if(!totalDraft?.discountType) setTotalDraft({...totalDraft, discountType: 'fixed'}); }} className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
                                              </div>
-                                          </>
-                                       )}
-                                    </div>
+                                             
+                                             {/* Rabatt (Flex 2) */}
+                                             {showTotalDiscount && (
+                                                <div style={{ flex: 2 }} className="flex items-center rounded border h-full min-w-0 overflow-hidden animate-in fade-in slide-in-from-right-2 bg-white dark:bg-[#1E293B] dark:border-white/10 border-slate-200">
+                                                   <input type="number" value={totalDraft?.discountValue ?? ''} onChange={e => setTotalDraft({...totalDraft, discountValue: e.target.value})} className="min-w-0 w-full h-full bg-transparent text-right text-[11px] font-bold px-1 outline-none placeholder:text-[9px]" placeholder="Rab." />
+                                                   <button onClick={() => setTotalDraft({...totalDraft, discountType: totalDraft?.discountType === 'percentage' ? 'fixed' : 'percentage'})} className={cn("w-[20px] shrink-0 h-full border-x text-[10px] font-bold transition-colors", dk ? "border-white/10 text-white hover:bg-white/10" : "border-slate-200 text-slate-700 hover:bg-slate-100")}>{totalDraft?.discountType === 'percentage' ? '%' : '€'}</button>
+                                                   <button onClick={() => { setShowTotalDiscount(false); setTotalDraft({...totalDraft, discountValue: null}); }} className={cn("w-[20px] shrink-0 h-full flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors", dk ? "hover:bg-white/10" : "hover:bg-slate-100")}><X size={10}/></button>
+                                                </div>
+                                             )}
+
+                                             {/* MwSt (Flex 1.5) */}
+                                             <div style={{ flex: 1.5 }} className="min-w-0">
+                                                <MwstInput value={totalDraft?.totalMwst} onChange={(v:any) => setTotalDraft({...totalDraft, totalMwst: v})} isDarkMode={dk} disabled={false} />
+                                             </div>
+
+                                             {/* Brutto (Flex 3) */}
+                                             <div style={{ flex: 3 }} className="min-w-0">
+                                                <input type="number" placeholder="Brutto" value={totalDraft?.totalBrutto ?? ''} onChange={e => setTotalDraft({...totalDraft, totalBrutto: e.target.value, totalNetto: null})} className={cn(inputCls, "w-full h-full text-right font-black px-1.5 placeholder:text-slate-900 dark:placeholder:white")} />
+                                             </div>
+                                          </div>
+                                          
+                                          <textarea rows={1} value={totalDraft?.note || ''} onChange={e => {e.target.style.height='32px'; e.target.style.height=`${e.target.scrollHeight}px`; setTotalDraft({...totalDraft, note: e.target.value})}} className={cn(inputCls, "w-full text-xs font-medium resize-none min-h-[32px] mt-2")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />
+                                          
+                                          <div className="flex items-center justify-end gap-2 mt-1 pt-2 border-t dark:border-teal-500/30 border-teal-200">
+                                             <button onClick={() => setEditingTotal(false)} className={cn("px-4 py-1.5 rounded-lg text-xs font-bold border h-[32px] transition-all", dk ? "border-white/10 text-slate-300 hover:bg-white/10" : "border-slate-200 text-slate-600 hover:bg-slate-100")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
+                                             <button onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, ...totalDraft} : i) }); setEditingTotal(false); }} className="px-5 py-1.5 rounded-lg text-xs font-bold text-white bg-teal-500 hover:bg-teal-600 h-[32px] shadow-sm transition-all"><Check size={14} strokeWidth={3}/> {lang === 'de' ? 'Speichern' : 'Save'}</button>
+                                          </div>
+                                       </div>
+                                    ) : (() => {
+                                       
+                                       // --- Master Gesamt (Flat Text View Mode) ---
+                                       const baseNetto = parseFloat(activeInvoice.totalNetto) || 0;
+                                       const discVal = parseFloat(activeInvoice.discountValue) || 0;
+                                       const finalNetto = activeInvoice.discountType === 'percentage' ? baseNetto * (1 - discVal/100) : Math.max(0, baseNetto - discVal);
+                                       const mwst = parseFloat(activeInvoice.totalMwst) || 0;
+                                       const finalBrutto = activeInvoice.totalBrutto ? parseFloat(activeInvoice.totalBrutto) : finalNetto * (1 + mwst/100);
+
+                                       return (
+                                          <div className="flex flex-col">
+                                             
+                                             <div className={cn("flex items-center px-3 py-2 border-b mb-1", dk ? "border-white/10 bg-white/[0.02]" : "border-slate-200 bg-slate-50/50")}>
+                                                <div className="flex-1 min-w-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest">{lang === 'de' ? 'Beschreibung' : 'Desc'}</div>
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                   <div className="w-[50px] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">{lang === 'de' ? 'N. / Bett' : 'N. / Bed'}</div>
+                                                   <div className="w-[60px] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">Gesamt</div>
+                                                   <div className="w-[30px] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-center">MwSt</div>
+                                                   <div className="w-[65px] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">Brutto</div>
+                                                </div>
+                                             </div>
+                                             
+                                             <div className={cn("flex flex-col px-3 py-2.5 group relative rounded-xl transition-colors", dk ? "hover:bg-white/[0.02]" : "hover:bg-slate-50/50")}>
+                                                <div className="flex items-start justify-between gap-2 w-full">
+                                                   
+                                                   <div className="flex-1 min-w-0 flex flex-col">
+                                                      <span className={cn("text-[12px] font-black leading-tight truncate", dk ? "text-slate-200" : "text-slate-800")}>
+                                                         {lang === 'de' ? 'Gesamtbetrag' : 'Total Amount'}
+                                                      </span>
+                                                   </div>
+                                                   
+                                                   <div className="flex items-start gap-1 shrink-0 pt-0.5">
+                                                      <div className="w-[50px] flex flex-col items-end">
+                                                         <span className={cn("text-[10px] italic opacity-50", dk ? "text-slate-400" : "text-slate-500")}>--</span>
+                                                      </div>
+                                                      <div className="w-[60px] flex flex-col items-end">
+                                                         <span className={cn("text-[10px] font-bold", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(finalNetto)}</span>
+                                                         {discVal > 0 && (
+                                                             <span className="text-[8px] font-black text-teal-500 mt-0.5 bg-teal-500/10 px-1 rounded border border-teal-500/20">-{discVal}{activeInvoice.discountType === 'percentage' ? '%' : '€'}</span>
+                                                         )}
+                                                      </div>
+                                                      <div className="w-[30px] text-center">
+                                                         <span className={cn("text-[10px] font-bold", dk ? "text-slate-400" : "text-slate-500")}>{mwst}%</span>
+                                                      </div>
+                                                      <div className="w-[65px] text-right">
+                                                         <span className={cn("text-[11px] font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(finalBrutto)}</span>
+                                                      </div>
+                                                   </div>
+                                                </div>
+                                                
+                                                {activeInvoice.note && <span className="text-[10px] font-medium text-slate-500 italic mt-0.5 pr-8 leading-tight break-words whitespace-pre-wrap">{activeInvoice.note}</span>}
+                                                
+                                                <div className="absolute right-0 top-0 bottom-0 flex items-center justify-end px-2 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-white dark:from-[#1E293B] via-white/90 dark:via-[#1E293B]/90 to-transparent pl-8">
+                                                   {!viewOnly && (
+                                                      <button onClick={() => {
+                                                         setTotalDraft({ totalNetto: activeInvoice.totalNetto, totalBrutto: activeInvoice.totalBrutto, totalMwst: activeInvoice.totalMwst, discountValue: activeInvoice.discountValue, discountType: activeInvoice.discountType || 'fixed', note: activeInvoice.note });
+                                                         setShowTotalDiscount(parseFloat(activeInvoice.discountValue || 0) > 0);
+                                                         setEditingTotal(true);
+                                                      }} className="p-1.5 rounded-md bg-black/5 dark:bg-white/5 text-slate-400 hover:text-teal-500 transition-colors"><Edit3 size={14}/></button>
+                                                   )}
+                                                </div>
+                                             </div>
+                                          </div>
+                                       );
+                                    })()}
                                  </div>
                               ) : (
                                  <div className="flex flex-col flex-1 pb-1">
