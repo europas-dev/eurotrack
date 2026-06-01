@@ -70,6 +70,8 @@ export function getTranslation(dict: any[], id: string, lang: string) {
   return item ? (lang === 'de' ? item.de : item.en) : id;
 }
 
+// src/components/MobileHotelRow.tsx
+
 export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onDelete, viewOnly, dk, lang, defaultNights = 1, defaultStart, defaultEnd }: any) {
   const [draft, setDraft] = useState(item);
   const [calOpen, setCalOpen] = useState(false);
@@ -104,10 +106,10 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
             </select>
         </div>
 
-        {/* ROW 2: Per Bed Math (Only shown if per_bed is active) */}
+        {/* ROW 2: Per Bed Math (Beds x Nights @ Netto/Bett) */}
         {draft.method === 'per_bed' && isPerBedAllowed && (
            <>
-              <div className="flex items-center gap-1 w-full relative">
+              <div className="flex items-center gap-1.5 w-full relative">
                  <div className="flex items-center gap-1 shrink-0">
                     <input type="number" value={draft.beds ?? 1} onChange={e => setDraft({ ...draft, beds: e.target.value })} className={cn(inputClass, "w-[40px] text-center px-0")} placeholder="1" />
                     <span className="text-[10px] font-bold text-slate-400">B</span>
@@ -137,7 +139,7 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
            </>
         )}
 
-        {/* DISCOUNT ROW: Floats right below whichever row has the Netto input */}
+        {/* DISCOUNT ROW: Attached to the Netto Input */}
         {showDiscount && !hasBruttoInput && (
            <div className="flex items-center justify-end w-full animate-in fade-in slide-in-from-top-1">
               <input type="number" value={draft.discountValue ?? ''} onChange={e => setDraft({ ...draft, discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-[75px] px-1.5 text-right placeholder:text-[10px]")} placeholder="Rabatt" />
@@ -146,16 +148,16 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
            </div>
         )}
 
-        {/* ROW 3: Totals (Total Netto, MwSt, Total Brutto) */}
+        {/* ROW 3: Totals (Total Netto | MwSt | Brutto) */}
         <div className="flex items-center gap-1.5 w-full">
            <div className="relative flex-1">
               {draft.method === 'total' || !isPerBedAllowed ? (
                  <>
-                    <input type="number" disabled={hasBruttoInput} placeholder="Gesamt Netto" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 text-right pr-7")} />
+                    <input type="number" disabled={hasBruttoInput} placeholder="Gesamt Netto" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 text-right pr-7 border-teal-500/30")} />
                     {(!showDiscount && !hasBruttoInput) && <button onClick={() => { setShowDiscount(true); if(!draft.discountType) setDraft({...draft, discountType: 'fixed'}); }} className="absolute right-1 top-[4px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
                  </>
               ) : (
-                 <div className={cn(inputClass, "w-full bg-slate-100 dark:bg-white/5 text-right flex items-center justify-end opacity-70 cursor-not-allowed text-slate-500")} title="Berechnetes Gesamt Netto">
+                 <div className={cn(inputClass, "w-full bg-slate-100 dark:bg-white/5 text-right flex items-center justify-end opacity-80 text-slate-600")} title="Total Netto (Berechnet)">
                     {formatCurrency(finalNetto)}
                  </div>
               )}
@@ -164,7 +166,7 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
               <MwstInput value={draft.mwst} onChange={(v:any) => setDraft({ ...draft, mwst: v })} isDarkMode={dk} disabled={false} />
            </div>
            <div className="flex-1">
-              <input type="number" disabled={hasNettoInput} placeholder={hasNettoInput ? formatCurrency(brutto) : "Gesamt Brutto"} value={draft.brutto ?? ''} onChange={e => setDraft({ ...draft, brutto: e.target.value, netto: null })} className={cn(inputClass, "w-full text-right disabled:opacity-100 disabled:bg-transparent disabled:border-transparent font-black")} />
+              <input type="number" disabled={hasNettoInput} placeholder={hasNettoInput ? formatCurrency(brutto) : "Brutto"} value={draft.brutto ?? ''} onChange={e => setDraft({ ...draft, brutto: e.target.value, netto: null })} className={cn(inputClass, "w-full text-right disabled:opacity-100 disabled:bg-transparent disabled:border-transparent font-black")} />
            </div>
         </div>
 
@@ -179,7 +181,7 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
     )
   }
 
-  // FLAT VIEW MODE
+  // 5-COLUMN VIEW MODE (Clean Text)
   return (
     <div className={cn("flex flex-col px-3 py-2.5 border-b last:border-b-0 transition-colors group relative gap-1", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
        <div className="flex items-start justify-between gap-2 w-full">
@@ -209,26 +211,6 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
        {currentItem.note && <span className="text-[10px] font-medium text-slate-500 italic mt-0.5 pr-8 leading-tight">{currentItem.note}</span>}
        
        <div className="absolute right-0 top-0 bottom-0 flex items-center justify-end px-2 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity bg-gradient-to-l from-white dark:from-[#1E293B] via-white dark:via-[#1E293B] to-transparent pl-8">
-          {!viewOnly && <button onClick={onEdit} className="p-1.5 rounded text-slate-400 hover:text-teal-500 transition-colors"><Edit3 size={14}/></button>}
-          {!viewOnly && <button onClick={onDelete} className="p-1.5 rounded text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={14}/></button>}
-       </div>
-    </div>
-  )
-}
-
-  return (
-    <div className={cn("flex items-start px-2 py-2 border-b last:border-b-0 transition-colors group relative gap-2", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
-       <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-          <div className={cn("text-[11px] font-black leading-tight truncate", dk ? "text-slate-200" : "text-slate-800")}>
-             {getTranslation(COST_TYPES, currentItem.type || 'room', lang)}
-             {currentItem.method === 'per_bed' && <span className="text-[9px] font-bold text-slate-500 ml-1">({activeNights}N, {currentItem.beds||1}B)</span>}
-          </div>
-          {currentItem.note && <span className="text-[9px] font-medium text-slate-500 italic truncate">{currentItem.note}</span>}
-       </div>
-       <div className="w-[55px] shrink-0 text-right"><span className={cn("text-[10px] font-bold", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(parseFloat(currentItem.netto)||0)}</span></div>
-       <div className="w-[30px] shrink-0 text-center"><span className={cn("text-[10px] font-bold", dk ? "text-slate-400" : "text-slate-500")}>{currentItem.mwst ?? 7}%</span></div>
-       <div className="w-[65px] shrink-0 text-right"><span className={cn("text-[11px] font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(brutto)}</span></div>
-       <div className="absolute right-0 top-0 bottom-0 bg-gradient-to-l from-white dark:from-[#1E293B] via-white/90 dark:via-[#1E293B]/90 to-transparent w-24 flex items-center justify-end px-2 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity">
           {!viewOnly && <button onClick={onEdit} className="p-1.5 rounded text-slate-400 hover:text-teal-500 transition-colors"><Edit3 size={14}/></button>}
           {!viewOnly && <button onClick={onDelete} className="p-1.5 rounded text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={14}/></button>}
        </div>
@@ -449,8 +431,17 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
 
     let finalNetto = 0; let finalBrutto = 0; let totalPaid = 0; let totalUnpaid = 0; let nearestDueDate: string | null = null;
     let buckets: Record<string, number> = {};
+    let minPricePerBed: number | null = null;
 
-    (localHotel.invoices || []).forEach((inv: any) => {
+    // FIX: Filter invoices by localMonthFilter FIRST before summing the global summary
+    const mathInvoices = (localHotel.invoices || []).filter((inv:any) => {
+        if (localMonthFilter === 'all') return true;
+        const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
+        if (!dateStr) return false;
+        return new Date(dateStr).getMonth() === localMonthFilter;
+    });
+
+    mathInvoices.forEach((inv: any) => {
        let invBrutto = 0;
        if (inv.billingMode === 'total') {
           const n = parseFloat(inv.totalNetto) || 0; const m = parseFloat(inv.totalMwst) || 0;
@@ -463,6 +454,12 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
              const { finalNetto: itemNetto, mwst: itemMwst, brutto: itemBrutto } = calcInvoiceItem(item, defaultN);
              finalNetto += itemNetto; finalBrutto += itemBrutto; invBrutto += itemBrutto;
              if (itemNetto > 0 && itemMwst !== null) buckets[itemMwst] = (buckets[itemMwst] || 0) + (itemNetto * (itemMwst/100));
+             
+             // Min Price Per Bed Logic
+             if (item.type === 'room' && item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 0) {
+                 const bedPrice = parseFloat(item.netto);
+                 if (minPricePerBed === null || bedPrice < minPricePerBed) minPricePerBed = bedPrice;
+             }
           });
        }
        if (inv.isPaid) totalPaid += invBrutto; else {
@@ -487,13 +484,18 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
        }
     }
 
+    let finalPriceBed = minPricePerBed || 0;
+    if (localHotel.override_price_per_bed != null) {
+        finalPriceBed = parseFloat(localHotel.override_price_per_bed);
+    }
+
     return { 
       freeBeds: tFree, totalBeds: tBeds, employees: allEmps, 
       displayNetto: finalNetto, displayBrutto: finalBrutto, buckets, 
       activeNetto, activeBrutto, activeBuckets, totalPaid, totalUnpaid, nearestDueDate, isMasterActive: false,
-      pricePerBed: tBeds > 0 ? finalBrutto / tBeds : 0
+      pricePerBed: finalPriceBed
     };
-  }, [localHotel, activeInvoice]);
+  }, [localHotel, activeInvoice, localMonthFilter]);
 
   const sortedEmployees = useMemo(() => {
      const emps = [...masterMath.employees];
@@ -954,25 +956,29 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                         ) : activeInvoice ? (
                            // --- ACTIVE INVOICE DETAILS ---
                            <div className="flex flex-col h-full flex-1 p-3 animate-in fade-in">
-                              
+
                               {/* ENHANCED INVOICE HEADER */}
                               <div className="flex items-start justify-between mb-4 border-b border-slate-200 dark:border-white/10 pb-3">
-                                 <div className="flex flex-col gap-1.5">
+                                 <div className="flex flex-col gap-1">
                                     <div className="flex items-center gap-2">
                                        <h4 className={cn("text-[16px] font-black leading-none tracking-tight", dk ? "text-white" : "text-slate-900")}>{activeInvoice.number}</h4>
                                        <span className={cn("px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border", activeInvoice.isPaid ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" : "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20")}>
                                           {activeInvoice.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid')}
                                        </span>
                                     </div>
-                                    <p className="text-[10px] font-bold text-slate-500 mt-1">
-                                       {activeInvoice.startDate ? formatShortDate(activeInvoice.startDate, lang) : '--'} - {activeInvoice.endDate ? formatShortDate(activeInvoice.endDate, lang) : '--'} ({calculateNights(activeInvoice.startDate, activeInvoice.endDate)}N)
+                                    
+                                    {/* FIX 4: Merged Duration and Status Date into a single horizontal line */}
+                                    <p className="text-[10px] font-bold text-slate-500 mt-1 flex flex-wrap items-center gap-1.5">
+                                       <span>{activeInvoice.startDate ? formatShortDate(activeInvoice.startDate, lang) : '--'} - {activeInvoice.endDate ? formatShortDate(activeInvoice.endDate, lang) : '--'} ({calculateNights(activeInvoice.startDate, activeInvoice.endDate)}N)</span>
+                                       <span className="opacity-40">|</span>
+                                       <span className={activeInvoice.isPaid ? "text-emerald-500" : "text-red-500"}>
+                                          {activeInvoice.isPaid 
+                                             ? `${lang === 'de' ? 'Bezahlt am:' : 'Paid on:'} ${activeInvoice.paymentDate ? formatShortDate(activeInvoice.paymentDate, lang) : '--'}`
+                                             : `${lang === 'de' ? 'Fällig:' : 'Due:'} ${activeInvoice.dueDate ? formatShortDate(activeInvoice.dueDate, lang) : '--'}`
+                                          }
+                                       </span>
                                     </p>
-                                    <p className={cn("text-[10px] font-bold mt-0.5", activeInvoice.isPaid ? "text-emerald-500" : "text-red-500")}>
-                                       {activeInvoice.isPaid 
-                                          ? `${lang === 'de' ? 'Bezahlt am:' : 'Paid on:'} ${activeInvoice.paymentDate ? formatShortDate(activeInvoice.paymentDate, lang) : '--'}`
-                                          : `${lang === 'de' ? 'Fällig:' : 'Due:'} ${activeInvoice.dueDate ? formatShortDate(activeInvoice.dueDate, lang) : '--'}`
-                                       }
-                                    </p>
+                                    
                                  </div>
                                  {!viewOnly && (
                                     <button onClick={() => { setEditingInvoiceId(activeInvoice.id); setInvoiceDraft(activeInvoice); }} className="p-1.5 bg-black/5 dark:bg-white/5 rounded-md text-slate-500 hover:text-teal-600 transition-all"><Edit3 size={14} /></button>
