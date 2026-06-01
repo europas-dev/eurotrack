@@ -75,6 +75,7 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
   const [calOpen, setCalOpen] = useState(false);
   const [showDiscount, setShowDiscount] = useState(parseFloat(item.discountValue || 0) > 0);
   const inputClass = cn('px-1.5 py-1 rounded text-[11px] font-bold outline-none border transition-all h-[30px]', dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-teal-500' : 'bg-white border-slate-200 text-slate-900 focus:border-teal-500');
+  const bruttoReadonlyClass = cn(inputClass, "w-full text-right disabled:opacity-100 disabled:bg-transparent disabled:border-transparent disabled:text-slate-900 dark:disabled:text-white font-black px-1.5 placeholder:text-slate-900 dark:placeholder:white");
 
   useEffect(() => { if (isEditing) setDraft(item); }, [isEditing, item]);
 
@@ -83,7 +84,6 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
   const needsNote = currentItem.type === 'base' || currentItem.type === 'extra';
   const activeNights = currentItem.nights || defaultNights;
 
-  // Local UI Math Override to ensure the Rabatt is applied to the Per-Bed Netto visually
   const localNettoInput = parseFloat(draft.netto) || 0;
   const localDiscount = parseFloat(draft.discountValue) || 0;
   const localMwst = parseFloat(draft.mwst) || 0;
@@ -93,18 +93,12 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
   let localTotalNetto = 0;
   if (draft.method === 'per_bed' && isPerBedAllowed) {
       const localBeds = parseFloat(draft.beds) || 1;
-      const netPerBedAfterDiscount = draft.discountType === 'percentage' 
-          ? localNettoInput * (1 - localDiscount / 100) 
-          : Math.max(0, localNettoInput - localDiscount);
+      const netPerBedAfterDiscount = draft.discountType === 'percentage' ? localNettoInput * (1 - localDiscount / 100) : Math.max(0, localNettoInput - localDiscount);
       localTotalNetto = netPerBedAfterDiscount * localBeds * activeNights;
   } else {
-      localTotalNetto = draft.discountType === 'percentage'
-          ? localNettoInput * (1 - localDiscount / 100)
-          : Math.max(0, localNettoInput - localDiscount);
+      localTotalNetto = draft.discountType === 'percentage' ? localNettoInput * (1 - localDiscount / 100) : Math.max(0, localNettoInput - localDiscount);
   }
   const localBrutto = localTotalNetto * (1 + localMwst / 100);
-
-  // Read-only final numbers for the View Mode
   const { finalNetto, mwst, brutto } = calcInvoiceItem(currentItem, defaultNights);
 
   const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -115,15 +109,15 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
     return (
       <div className={cn("flex flex-col p-3 border-b transition-all w-full relative z-20 shadow-xl gap-2", dk ? "bg-teal-900/20 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
         
-        {/* ROW 1: Configuration */}
+        {/* ROW 1: Configuration Dropdowns */}
         <div className="flex gap-2 w-full h-[30px]">
-            <div className={cn("relative flex-1 rounded text-[11px] font-bold border transition-all", dk ? 'bg-[#1E293B] border-white/10 text-white focus-within:border-teal-500' : 'bg-white border-slate-200 text-slate-900 focus-within:border-teal-500')}>
+            <div className={cn("relative flex-1 rounded text-[11px] font-bold border transition-all", dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
                 <select value={draft.type || 'room'} onChange={e => { const newType = e.target.value; setDraft({ ...draft, type: newType, method: (newType === 'base' || newType === 'extra') ? 'total' : draft.method }); }} className="w-full h-full appearance-none bg-transparent pl-2 pr-6 outline-none">
                   {COST_TYPES.map(o => <option key={o.id} value={o.id}>{lang === 'de' ? o.de : o.en}</option>)}
                 </select>
                 <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" />
             </div>
-            <div className={cn("relative flex-1 rounded text-[11px] font-bold border transition-all", dk ? 'bg-[#1E293B] border-white/10 text-white focus-within:border-teal-500' : 'bg-white border-slate-200 text-slate-900 focus-within:border-teal-500', !isPerBedAllowed && "opacity-50")}>
+            <div className={cn("relative flex-1 rounded text-[11px] font-bold border transition-all", dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900', !isPerBedAllowed && "opacity-50")}>
                 <select disabled={!isPerBedAllowed} value={!isPerBedAllowed ? 'total' : (draft.method || 'total')} onChange={e => setDraft({ ...draft, method: e.target.value })} className="w-full h-full appearance-none bg-transparent pl-2 pr-6 outline-none">
                      {COST_METHODS.map(m => <option key={m.id} value={m.id}>{lang === 'de' ? m.de : m.en}</option>)}
                 </select>
@@ -134,31 +128,32 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
         {/* PRO BETT MATH */}
         {draft.method === 'per_bed' && isPerBedAllowed && (
            <>
-              {/* ROW 2: Beds/Nights (Flex 4) | Netto & Rabatt (Flex 6) */}
+              {/* Row 2: Beds x Nights (Flex 4) | Netto & Rabatt (Flex 6) */}
               <div className="flex w-full gap-1.5 h-[30px]">
-                 
                  <div style={{ flex: 4 }} className="flex items-center gap-1 min-w-0">
                     <input type="number" value={draft.beds ?? 1} onChange={e => setDraft({ ...draft, beds: e.target.value })} className={cn(inputClass, "w-[40%] min-w-0 text-center px-0 h-full")} placeholder="1" />
                     <span className="text-[10px] font-bold text-slate-400">B</span>
-                    <span className="text-[11px] text-slate-400 font-black">×</span>
+                    <span className="text-[11px] text-slate-400 font-black mx-0.5">×</span>
                     <div className={cn("flex-1 min-w-0 flex items-center justify-center rounded border h-full px-1 cursor-pointer transition-colors", dk ? "bg-black/20 border-white/10 text-white" : "bg-white border-slate-200 text-slate-700")} onClick={() => setCalOpen(!calOpen)}>
                        <span className="text-[10px] font-bold mr-0.5 truncate">{activeNights}N</span>
                        <Calendar size={10} className="shrink-0 opacity-50"/>
                     </div>
                  </div>
                  
-                 <div style={{ flex: showDiscount ? 4 : 6 }} className="relative min-w-0">
-                    <input type="number" disabled={hasBruttoInput} placeholder="Netto/Bett" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full h-full disabled:opacity-30 text-right", !showDiscount && !hasBruttoInput ? "pr-6" : "px-1.5")} />
-                    {(!showDiscount && !hasBruttoInput) && <button onClick={() => { setShowDiscount(true); if(!draft.discountType) setDraft({...draft, discountType: 'fixed'}); }} className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
-                 </div>
-
-                 {showDiscount && !hasBruttoInput && (
-                    <div style={{ flex: 2 }} className="flex items-center rounded border h-full min-w-0 overflow-hidden animate-in fade-in slide-in-from-right-2 bg-white dark:bg-[#1E293B] dark:border-white/10 border-slate-200">
-                       <input type="number" value={draft.discountValue ?? ''} onChange={e => setDraft({ ...draft, discountValue: e.target.value })} className="min-w-0 w-full h-full bg-transparent text-right text-[11px] font-bold px-1 outline-none placeholder:text-[9px]" placeholder="Rab." />
-                       <button onClick={() => setDraft({ ...draft, discountType: draft.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[20px] shrink-0 h-full border-x text-[10px] font-bold transition-colors", dk ? "border-white/10 text-white hover:bg-white/10" : "border-slate-200 text-slate-700 hover:bg-slate-100")}>{draft.discountType === 'percentage' ? '%' : '€'}</button>
-                       <button onClick={() => { setShowDiscount(false); setDraft({ ...draft, discountValue: null }); }} className={cn("w-[20px] shrink-0 h-full flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors", dk ? "hover:bg-white/10" : "hover:bg-slate-100")}><X size={10}/></button>
+                 <div style={{ flex: 6 }} className="flex items-center gap-1 min-w-0">
+                    <div className={cn("relative transition-all h-full", showDiscount ? "w-[60%]" : "w-full")}>
+                       <input type="number" disabled={hasBruttoInput} placeholder="Netto/Bett" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full h-full disabled:opacity-30 text-right", !showDiscount && !hasBruttoInput ? "pr-6" : "px-1.5")} />
+                       {(!showDiscount && !hasBruttoInput) && <button onClick={() => { setShowDiscount(true); if(!draft.discountType) setDraft({...draft, discountType: 'fixed'}); }} className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
                     </div>
-                 )}
+                    
+                    {showDiscount && !hasBruttoInput && (
+                       <div className="w-[40%] flex items-center rounded border h-full shrink-0 overflow-hidden animate-in fade-in slide-in-from-right-2 bg-white dark:bg-[#1E293B] dark:border-white/10 border-slate-200">
+                          <input type="number" value={draft.discountValue ?? ''} onChange={e => setDraft({ ...draft, discountValue: e.target.value })} className="min-w-0 w-full h-full bg-transparent text-right text-[11px] font-bold px-1 outline-none placeholder:text-[9px]" placeholder="Rab." />
+                          <button onClick={() => setDraft({ ...draft, discountType: draft.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[22px] shrink-0 h-full border-x text-[10px] font-bold transition-colors", dk ? "border-white/10 text-white hover:bg-white/20" : "border-slate-200 text-slate-700 hover:bg-slate-300")}>{draft.discountType === 'percentage' ? '%' : '€'}</button>
+                          <button onClick={() => { setShowDiscount(false); setDraft({ ...draft, discountValue: null }); }} className={cn("w-[22px] shrink-0 h-full flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors", dk ? "bg-black/20 hover:bg-white/10" : "bg-white hover:bg-slate-100")}><X size={10}/></button>
+                       </div>
+                    )}
+                 </div>
               </div>
 
               {calOpen && (
@@ -172,18 +167,18 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
                  </div>
               )}
 
-              {/* ROW 3: Pro Bett Totals (Flex 4 | 2 | 4) */}
+              {/* Row 3: Totals (Flex 4 | Flex 2 | Flex 4) */}
               <div className="flex items-center gap-1.5 w-full h-[30px]">
-                 <div style={{ flex: 4 }} className="min-w-0">
+                 <div style={{ flex: 4 }} className="min-w-0 h-full">
                     <div className={cn(inputClass, "w-full bg-black/5 dark:bg-white/5 text-right flex items-center justify-end opacity-80 text-slate-600 dark:text-slate-300 h-full px-1.5 truncate")} title="Total Netto (Berechnet)">
                        {formatCurrency(localTotalNetto)}
                     </div>
                  </div>
-                 <div style={{ flex: 2 }} className="min-w-0">
+                 <div style={{ flex: 2 }} className="min-w-0 h-full">
                     <MwstInput value={draft.mwst} onChange={(v:any) => setDraft({ ...draft, mwst: v })} isDarkMode={dk} disabled={false} />
                  </div>
-                 <div style={{ flex: 4 }} className="min-w-0">
-                    <input type="number" disabled placeholder={hasNettoInput ? formatCurrency(localBrutto) : "Brutto"} value={draft.brutto ?? ''} className={cn(inputClass, "w-full text-right disabled:opacity-100 disabled:bg-transparent disabled:border-transparent font-black h-full px-1.5 placeholder:text-slate-900 dark:placeholder:white")} />
+                 <div style={{ flex: 4 }} className="min-w-0 h-full">
+                    <input type="number" disabled placeholder={hasNettoInput ? formatCurrency(localBrutto) : "Brutto"} value={draft.brutto ?? ''} className={bruttoReadonlyClass} />
                  </div>
               </div>
            </>
@@ -191,35 +186,32 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
 
         {/* GESAMT MATH */}
         {(draft.method === 'total' || !isPerBedAllowed) && (
-           <div className="flex items-center gap-1.5 w-full h-[30px]">
-              {/* ROW 2: Total Netto (Flex 5.5 or 3.5) */}
-              <div style={{ flex: showDiscount && !hasBruttoInput ? 3.5 : 5.5 }} className="relative min-w-0">
+           <div className="flex items-center w-full gap-1.5 h-[30px]">
+              {/* Row 2: Netto (55% or 35%) | Rabatt (20%) | MwSt (15%) | Brutto (30%) */}
+              <div style={{ flex: showDiscount && !hasBruttoInput ? 3.5 : 5.5 }} className="relative shrink-0 min-w-0 transition-all h-full">
                  <input type="number" disabled={hasBruttoInput} placeholder="Gesamt Netto" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full h-full disabled:opacity-30 text-right", !showDiscount && !hasBruttoInput ? "pr-6" : "px-1.5")} />
                  {(!showDiscount && !hasBruttoInput) && <button onClick={() => { setShowDiscount(true); if(!draft.discountType) setDraft({...draft, discountType: 'fixed'}); }} className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
               </div>
               
-              {/* Rabatt (Flex 2) */}
               {showDiscount && !hasBruttoInput && (
-                 <div style={{ flex: 2 }} className="flex items-center rounded border h-full min-w-0 overflow-hidden animate-in fade-in slide-in-from-right-2 bg-white dark:bg-[#1E293B] dark:border-white/10 border-slate-200">
+                 <div style={{ flex: 2 }} className="flex items-center rounded border h-full shrink-0 overflow-hidden animate-in fade-in slide-in-from-right-2 bg-white dark:bg-[#1E293B] dark:border-white/10 border-slate-200">
                     <input type="number" value={draft.discountValue ?? ''} onChange={e => setDraft({ ...draft, discountValue: e.target.value })} className="min-w-0 w-full h-full bg-transparent text-right text-[11px] font-bold px-1 outline-none placeholder:text-[9px]" placeholder="Rab." />
                     <button onClick={() => setDraft({ ...draft, discountType: draft.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[20px] shrink-0 h-full border-x text-[10px] font-bold transition-colors", dk ? "border-white/10 text-white hover:bg-white/10" : "border-slate-200 text-slate-700 hover:bg-slate-100")}>{draft.discountType === 'percentage' ? '%' : '€'}</button>
                     <button onClick={() => { setShowDiscount(false); setDraft({ ...draft, discountValue: null }); }} className={cn("w-[20px] shrink-0 h-full flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors", dk ? "hover:bg-white/10" : "hover:bg-slate-100")}><X size={10}/></button>
                  </div>
               )}
 
-              {/* MwSt (Flex 1.5) */}
-              <div style={{ flex: 1.5 }} className="min-w-0">
+              <div style={{ flex: 1.5 }} className="min-w-0 shrink-0 h-full">
                  <MwstInput value={draft.mwst} onChange={(v:any) => setDraft({ ...draft, mwst: v })} isDarkMode={dk} disabled={false} />
               </div>
 
-              {/* Brutto (Flex 3) */}
-              <div style={{ flex: 3 }} className="min-w-0">
-                 <input type="number" disabled={hasNettoInput} placeholder={hasNettoInput ? formatCurrency(localBrutto) : "Brutto"} value={draft.brutto ?? ''} onChange={e => setDraft({ ...draft, brutto: e.target.value, netto: null })} className={cn(inputClass, "w-full h-full text-right disabled:opacity-100 disabled:bg-transparent disabled:border-transparent font-black px-1.5 placeholder:text-slate-900 dark:placeholder:white")} />
+              <div style={{ flex: 3 }} className="min-w-0 shrink-0 h-full">
+                 <input type="number" disabled={hasNettoInput} placeholder={hasNettoInput ? formatCurrency(localBrutto) : "Brutto"} value={draft.brutto ?? ''} onChange={e => setDraft({ ...draft, brutto: e.target.value, netto: null })} className={bruttoReadonlyClass} />
               </div>
            </div>
         )}
 
-        {/* ROW 4 & 5: Notes and Actions */}
+        {/* Notes and Actions */}
         {needsNote && <textarea rows={1} value={draft.note || ''} onChange={handleNoteChange} className={cn(inputClass, "w-full text-[11px] font-medium resize-none min-h-[30px] mt-0.5")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />}
 
         <div className="flex justify-end gap-1.5 mt-1 border-t pt-2 dark:border-teal-500/30 border-teal-200">
@@ -232,32 +224,32 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
 
   // FLAT VIEW MODE
   return (
-    <div className={cn("flex flex-col px-3 py-2.5 border-b last:border-b-0 transition-colors group relative gap-1", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
-       <div className="flex items-start justify-between gap-2 w-full">
-           <div className="flex-1 min-w-0 flex flex-col">
+    <div className={cn("flex flex-col px-3 py-3 border-b last:border-b-0 transition-colors group relative gap-1.5", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
+       <div className="flex items-start justify-between gap-1 w-full">
+           <div className="flex-1 min-w-0 flex flex-col pr-1">
               <span className={cn("text-[12px] font-black leading-tight truncate", dk ? "text-slate-200" : "text-slate-800")}>
                  {getTranslation(COST_TYPES, currentItem.type || 'room', lang)}
               </span>
-              {currentItem.method === 'per_bed' && <span className="text-[9.5px] font-bold text-slate-500 mt-0.5">({activeNights}N, {currentItem.beds||1}B)</span>}
+              {currentItem.method === 'per_bed' && <span className="text-[9.5px] font-bold text-slate-500 mt-0.5 truncate">({activeNights}N, {currentItem.beds||1}B)</span>}
            </div>
            
-           <div className="flex items-start gap-1 shrink-0 pt-0.5">
-               <div className="w-[50px] flex flex-col items-end">
+           <div className="w-[65%] flex items-start gap-1 shrink-0 justify-end pt-0.5">
+               <div className="w-[28%] flex flex-col items-end whitespace-nowrap">
                   <span className={cn("text-[10px] font-bold", dk ? "text-slate-400" : "text-slate-500")}>{currentItem.method === 'per_bed' ? formatCurrency(parseFloat(currentItem.netto)||0) : '--'}</span>
                   {(currentItem.method === 'per_bed' && parseFloat(currentItem.discountValue) > 0) && (
                       <span className="text-[8px] font-black text-teal-500 mt-0.5 bg-teal-500/10 px-1 rounded border border-teal-500/20">-{currentItem.discountValue}{currentItem.discountType === 'percentage' ? '%' : '€'}</span>
                   )}
                </div>
-               <div className="w-[60px] flex flex-col items-end">
+               <div className="w-[32%] flex flex-col items-end whitespace-nowrap">
                   <span className={cn("text-[10px] font-bold", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(finalNetto)}</span>
                   {(currentItem.method === 'total' && parseFloat(currentItem.discountValue) > 0) && (
                       <span className="text-[8px] font-black text-teal-500 mt-0.5 bg-teal-500/10 px-1 rounded border border-teal-500/20">-{currentItem.discountValue}{currentItem.discountType === 'percentage' ? '%' : '€'}</span>
                   )}
                </div>
-               <div className="w-[30px] text-center">
+               <div className="w-[15%] text-center whitespace-nowrap">
                   <span className={cn("text-[10px] font-bold", dk ? "text-slate-400" : "text-slate-500")}>{currentItem.mwst ?? 7}%</span>
                </div>
-               <div className="w-[65px] text-right">
+               <div className="w-[25%] text-right whitespace-nowrap">
                   <span className={cn("text-[11px] font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(brutto)}</span>
                </div>
            </div>
@@ -307,9 +299,9 @@ export function MwstInput({ value, onChange, isDarkMode, disabled }: { value: st
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }; document.addEventListener('mousedown', handle); return () => document.removeEventListener('mousedown', handle); }, []);
   return (
-    <div ref={ref} className="relative flex items-center h-[30px] w-full">
-     <input type="number" disabled={disabled} value={value ?? ''} onChange={e => onChange(e.target.value === '' ? null : e.target.value)} className={cn('flex-1 min-w-0 px-1 rounded-l-lg text-[10px] font-bold outline-none border transition-all h-full text-center', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900', disabled && "opacity-50 cursor-not-allowed")} placeholder="--" />
-      <button disabled={disabled} onClick={() => setOpen(!open)} className={cn('px-1 h-full rounded-r-lg border border-l-0 transition-all flex items-center justify-center', isDarkMode ? 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100', disabled && "hidden")}><ChevronDown size={12} /></button>
+    <div ref={ref} className="relative flex items-center h-full w-full">
+      <input type="number" disabled={disabled} value={value ?? ''} onChange={e => onChange(e.target.value === '' ? null : e.target.value)} className={cn('flex-1 min-w-0 px-1 rounded-l-lg text-[10px] font-bold outline-none border transition-all h-full text-center', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900', disabled && "opacity-50 cursor-not-allowed")} placeholder="--" />
+      <button disabled={disabled} onClick={() => setOpen(!open)} className={cn('px-1 h-full rounded-r-lg border border-l-0 transition-all flex items-center justify-center shrink-0', isDarkMode ? 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100', disabled && "hidden")}><ChevronDown size={12} /></button>
       {open && !disabled && (
         <div className={cn("absolute top-full right-0 mt-1 w-20 z-[9999] rounded-lg shadow-xl overflow-hidden border", isDarkMode ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
           {[7, 19, 0].map(v => <button key={v} onClick={() => { onChange(v.toString()); setOpen(false); }} className={cn("w-full text-center py-2 text-xs font-bold transition-all", isDarkMode ? "text-white hover:bg-white/10" : "text-slate-900 hover:bg-slate-100")}>{v}%</button>)}
@@ -459,6 +451,8 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
   useEffect(() => {
      if (!isOpen) {
          setLocalMonthFilter('all');
+         setSelectedInvoiceId(null);
+         setEditingInvoiceId(null);
      }
   }, [isOpen]);
 
@@ -660,10 +654,9 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
     >
       <div className={cn("absolute top-0 bottom-0 left-0 w-1.5 transition-colors z-[60]", globalMath.totalUnpaid > 0 ? "bg-red-500" : (globalMath.totalPaid > 0 ? "bg-emerald-500" : "bg-transparent border-r border-slate-200 dark:border-white/10"))} />
 
-      {/* --- COLLAPSED VIEW (No Sidebar, Flexible Rows, Flex-Wrap Chips) --- */}
+      {/* --- COLLAPSED VIEW --- */}
       <div className="p-3 pl-4 flex flex-col w-full">
          
-         {/* Row 1: Name and Horizontal Icons */}
          <div className="flex items-start justify-between w-full">
             <div className="flex-1 min-w-0 pr-2 pt-0.5">
                <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-base font-bold leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} />
@@ -686,7 +679,6 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
             </div>
          </div>
 
-         {/* Row 2: City and Company Tag */}
          <div className="flex justify-between items-center w-full mb-3 mt-0.5">
             <div className="flex items-center gap-1.5 shrink min-w-0 max-w-[40%] pr-2">
                <MapPin size={10} className={cn("shrink-0", dk ? "text-slate-500" : "text-slate-400")} /> 
@@ -697,7 +689,6 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
             </div>
          </div>
 
-         {/* Row 3: Horizontal Metrics Block */}
          <div className={cn("flex items-center justify-between p-2.5 rounded-xl border mb-3", dk ? "bg-black/20 border-white/5" : "bg-slate-50 border-slate-100")}>
              <div className="flex items-center gap-4">
                  <div className="flex items-center gap-1.5">
@@ -732,7 +723,6 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
              </div>
          </div>
 
-         {/* Row 4: Durations (Inline Toggle) */}
          {sortedDurations.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-2">
                {(showAllDurs ? sortedDurations : sortedDurations.slice(0, 8)).map((d: any, i: number) => {
@@ -761,7 +751,6 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
             </div>
          )}
          
-         {/* Row 4.5: Employees (Inline Toggle) */}
          {sortedEmployees.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-1">
                {(showAllEmps ? sortedEmployees : sortedEmployees.slice(0, 10)).map((emp: any, i: number) => {
@@ -794,7 +783,6 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
             </div>
          )}
 
-         {/* Row 5: Expand Toggle (Only clickable area to expand) */}
          <div onClick={(e) => { e.stopPropagation(); if (onToggle) onToggle(); }} className={cn("w-full mt-1 pt-3 border-t flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer", dk ? "border-white/5 text-slate-400 hover:text-white" : "border-slate-100 text-slate-500 hover:text-slate-900")}>
             {isOpen ? <ChevronUp size={14} className="text-teal-500"/> : <ChevronDown size={14} className="text-teal-500"/>} 
             {isOpen ? (lang === 'de' ? 'Schließen' : 'Close') : (lang === 'de' ? 'Details öffnen' : 'Open Details')}
@@ -899,12 +887,11 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                </div>
             )}
 
-            {/* TAB: BILLING (Enhanced Architecture) */}
+            {/* TAB: BILLING */}
             {activeTab === 'billing' && (() => {
                
                const monthNames = lang === 'de' ? ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'] : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                
-               // Apply month filter for the pills logic to stay perfectly in sync
                const monthInvoices = (localHotel.invoices || []).filter((inv: any) => {
                    if (localMonthFilter === 'all') return true;
                    const d = new Date(inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at));
@@ -915,7 +902,6 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                const paidInvs = monthInvoices.filter((i:any) => i.isPaid).length;
                const unpaidInvs = totalInvs - paidInvs;
 
-               // Apply search and status filter on top of the month filter for the horizontal list
                const finalDisplayedInvoices = monthInvoices.filter((inv: any) => {
                    if (invoiceFilter === 'paid' && !inv.isPaid) return false;
                    if (invoiceFilter === 'unpaid' && inv.isPaid) return false;
@@ -952,7 +938,11 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                               )}
                            </div>
 
-                           <select value={localMonthFilter} onChange={(e) => setLocalMonthFilter(e.target.value === 'all' ? 'all' : parseInt(e.target.value))} className={cn("px-1.5 py-1 text-[10px] font-bold rounded border outline-none appearance-none cursor-pointer", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-700")}>
+                           <select value={localMonthFilter} onChange={(e) => {
+                              setLocalMonthFilter(e.target.value === 'all' ? 'all' : parseInt(e.target.value));
+                              setSelectedInvoiceId(null);
+                              setEditingInvoiceId(null);
+                           }} className={cn("px-1.5 py-1 text-[10px] font-bold rounded border outline-none appearance-none cursor-pointer", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-700")}>
                               <option value="all">{lang === 'de' ? 'Alle Monate' : 'All Months'}</option>
                               {monthNames.map((m, i) => <option key={i} value={i}>{m}</option>)}
                            </select>
@@ -1058,7 +1048,16 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                                     </p>
                                  </div>
                                  {!viewOnly && (
-                                    <button onClick={() => { setEditingInvoiceId(activeInvoice.id); setInvoiceDraft(activeInvoice); }} className="p-1.5 bg-black/5 dark:bg-white/5 rounded-md text-slate-500 hover:text-teal-600 transition-all"><Edit3 size={14} /></button>
+                                    <div className="flex items-center gap-1">
+                                       <button onClick={() => { setEditingInvoiceId(activeInvoice.id); setInvoiceDraft(activeInvoice); }} className="p-1.5 bg-black/5 dark:bg-white/5 rounded-md text-slate-500 hover:text-teal-600 transition-all"><Edit3 size={14} /></button>
+                                       <button onClick={() => { 
+                                          if(window.confirm(lang === 'de' ? 'Diese Rechnung endgültig löschen?' : 'Permanently delete this invoice?')) { 
+                                             patchHotel({ invoices: localHotel.invoices.filter((i:any) => i.id !== activeInvoice.id) }); 
+                                             setSelectedInvoiceId(null); 
+                                             setEditingInvoiceId(null);
+                                          } 
+                                       }} className="p-1.5 bg-black/5 dark:bg-white/5 rounded-md text-slate-500 hover:text-red-500 transition-all"><Trash2 size={14} /></button>
+                                    </div>
                                  )}
                               </div>
                               
@@ -1073,16 +1072,12 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                                  <div className="flex flex-col flex-1 pb-1">
                                     {editingTotal && !viewOnly ? (
                                        <div ref={totalRef} className={cn("flex flex-col p-3 mt-2 rounded-xl border shadow-xl animate-in fade-in flex-1", dk ? "border-teal-500/50 bg-teal-900/20" : "border-teal-300 bg-teal-50")}>
-                                          {/* Master Gesamt Edit Math (Flex 5.5 | 1.5 | 3.0) */}
                                           <div className="flex items-center gap-1.5 w-full h-[30px]">
-                                             
-                                             {/* Netto (Flex 5.5 or 3.5) */}
-                                             <div style={{ flex: showTotalDiscount ? 3.5 : 5.5 }} className="relative min-w-0">
+                                             <div style={{ flex: showTotalDiscount ? 3.5 : 5.5 }} className="relative min-w-0 transition-all">
                                                 <input type="number" placeholder="Gesamt Netto" value={totalDraft?.totalNetto ?? ''} onChange={e => setTotalDraft({...totalDraft, totalNetto: e.target.value, totalBrutto: null})} className={cn(inputCls, "w-full h-full text-right", !showTotalDiscount ? "pr-6" : "px-1.5")} />
                                                 {!showTotalDiscount && <button onClick={() => { setShowTotalDiscount(true); if(!totalDraft?.discountType) setTotalDraft({...totalDraft, discountType: 'fixed'}); }} className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
                                              </div>
                                              
-                                             {/* Rabatt (Flex 2) */}
                                              {showTotalDiscount && (
                                                 <div style={{ flex: 2 }} className="flex items-center rounded border h-full min-w-0 overflow-hidden animate-in fade-in slide-in-from-right-2 bg-white dark:bg-[#1E293B] dark:border-white/10 border-slate-200">
                                                    <input type="number" value={totalDraft?.discountValue ?? ''} onChange={e => setTotalDraft({...totalDraft, discountValue: e.target.value})} className="min-w-0 w-full h-full bg-transparent text-right text-[11px] font-bold px-1 outline-none placeholder:text-[9px]" placeholder="Rab." />
@@ -1091,14 +1086,12 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                                                 </div>
                                              )}
 
-                                             {/* MwSt (Flex 1.5) */}
                                              <div style={{ flex: 1.5 }} className="min-w-0">
                                                 <MwstInput value={totalDraft?.totalMwst} onChange={(v:any) => setTotalDraft({...totalDraft, totalMwst: v})} isDarkMode={dk} disabled={false} />
                                              </div>
 
-                                             {/* Brutto (Flex 3) */}
                                              <div style={{ flex: 3 }} className="min-w-0">
-                                                <input type="number" placeholder="Brutto" value={totalDraft?.totalBrutto ?? ''} onChange={e => setTotalDraft({...totalDraft, totalBrutto: e.target.value, totalNetto: null})} className={cn(inputCls, "w-full h-full text-right font-black px-1.5 placeholder:text-slate-900 dark:placeholder:white")} />
+                                                <input type="number" placeholder="Brutto" value={totalDraft?.totalBrutto ?? ''} onChange={e => setTotalDraft({...totalDraft, totalBrutto: e.target.value, totalNetto: null})} className={cn(inputCls, "w-full h-full text-right font-black px-1.5 disabled:text-slate-900 dark:disabled:text-white placeholder:text-slate-900 dark:placeholder:white disabled:opacity-100 disabled:bg-transparent disabled:border-transparent")} />
                                              </div>
                                           </div>
                                           
@@ -1111,7 +1104,6 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                                        </div>
                                     ) : (() => {
                                        
-                                       // --- Master Gesamt (Flat Text View Mode) ---
                                        const baseNetto = parseFloat(activeInvoice.totalNetto) || 0;
                                        const discVal = parseFloat(activeInvoice.discountValue) || 0;
                                        const finalNetto = activeInvoice.discountType === 'percentage' ? baseNetto * (1 - discVal/100) : Math.max(0, baseNetto - discVal);
@@ -1120,40 +1112,34 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
 
                                        return (
                                           <div className="flex flex-col">
-                                             
-                                             <div className={cn("flex items-center px-3 py-2 border-b mb-1", dk ? "border-white/10 bg-white/[0.02]" : "border-slate-200 bg-slate-50/50")}>
-                                                <div className="flex-1 min-w-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest">{lang === 'de' ? 'Beschreibung' : 'Desc'}</div>
-                                                <div className="flex items-center gap-1 shrink-0">
-                                                   <div className="w-[50px] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">{lang === 'de' ? 'N. / Bett' : 'N. / Bed'}</div>
-                                                   <div className="w-[60px] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">Gesamt</div>
-                                                   <div className="w-[30px] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-center">MwSt</div>
-                                                   <div className="w-[65px] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">Brutto</div>
+                                             <div className={cn("flex items-center gap-1 px-3 py-2 border-b mb-1 justify-end", dk ? "border-white/10 bg-white/[0.02]" : "border-slate-200 bg-slate-50/50")}>
+                                                <div className="flex-1 min-w-0 pr-2" />
+                                                <div className="w-[55%] flex items-center gap-1 shrink-0 justify-end">
+                                                   <div className="w-[45%] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">Gesamt</div>
+                                                   <div className="w-[20%] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-center">MwSt</div>
+                                                   <div className="w-[35%] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">Brutto</div>
                                                 </div>
                                              </div>
                                              
                                              <div className={cn("flex flex-col px-3 py-2.5 group relative rounded-xl transition-colors", dk ? "hover:bg-white/[0.02]" : "hover:bg-slate-50/50")}>
-                                                <div className="flex items-start justify-between gap-2 w-full">
-                                                   
-                                                   <div className="flex-1 min-w-0 flex flex-col">
+                                                <div className="flex items-start justify-between gap-1 w-full">
+                                                   <div className="flex-1 min-w-0 pr-2">
                                                       <span className={cn("text-[12px] font-black leading-tight truncate", dk ? "text-slate-200" : "text-slate-800")}>
                                                          {lang === 'de' ? 'Gesamtbetrag' : 'Total Amount'}
                                                       </span>
                                                    </div>
                                                    
-                                                   <div className="flex items-start gap-1 shrink-0 pt-0.5">
-                                                      <div className="w-[50px] flex flex-col items-end">
-                                                         <span className={cn("text-[10px] italic opacity-50", dk ? "text-slate-400" : "text-slate-500")}>--</span>
-                                                      </div>
-                                                      <div className="w-[60px] flex flex-col items-end">
+                                                   <div className="w-[55%] flex items-start gap-1 shrink-0 justify-end pt-0.5">
+                                                      <div className="w-[45%] flex flex-col items-end whitespace-nowrap">
                                                          <span className={cn("text-[10px] font-bold", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(finalNetto)}</span>
                                                          {discVal > 0 && (
                                                              <span className="text-[8px] font-black text-teal-500 mt-0.5 bg-teal-500/10 px-1 rounded border border-teal-500/20">-{discVal}{activeInvoice.discountType === 'percentage' ? '%' : '€'}</span>
                                                          )}
                                                       </div>
-                                                      <div className="w-[30px] text-center">
+                                                      <div className="w-[20%] text-center whitespace-nowrap">
                                                          <span className={cn("text-[10px] font-bold", dk ? "text-slate-400" : "text-slate-500")}>{mwst}%</span>
                                                       </div>
-                                                      <div className="w-[65px] text-right">
+                                                      <div className="w-[35%] text-right whitespace-nowrap">
                                                          <span className={cn("text-[11px] font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(finalBrutto)}</span>
                                                       </div>
                                                    </div>
@@ -1179,11 +1165,11 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                                  <div className="flex flex-col flex-1 pb-1">
                                     <div className={cn("flex items-center px-3 py-2 border-b mb-1", dk ? "border-white/10 bg-white/[0.02]" : "border-slate-200 bg-slate-50/50")}>
                                        <div className="flex-1 min-w-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest">{lang === 'de' ? 'Beschreibung' : 'Desc'}</div>
-                                       <div className="flex items-center gap-1 shrink-0">
-                                          <div className="w-[50px] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">{lang === 'de' ? 'N. / Bett' : 'N. / Bed'}</div>
-                                          <div className="w-[60px] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">Gesamt</div>
-                                          <div className="w-[30px] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-center">MwSt</div>
-                                          <div className="w-[65px] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">Brutto</div>
+                                       <div className="w-[65%] flex items-center gap-1 shrink-0 justify-end">
+                                          <div className="w-[28%] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">{lang === 'de' ? 'N. / Bett' : 'N. / Bed'}</div>
+                                          <div className="w-[32%] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">Gesamt</div>
+                                          <div className="w-[15%] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-center">MwSt</div>
+                                          <div className="w-[25%] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">Brutto</div>
                                        </div>
                                     </div>
                                     
