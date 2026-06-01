@@ -1,4 +1,4 @@
-//src/components/MobileHotelRow.tsx
+// src/components/MobileHotelRow.tsx
 
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
@@ -70,13 +70,11 @@ export function getTranslation(dict: any[], id: string, lang: string) {
   return item ? (lang === 'de' ? item.de : item.en) : id;
 }
 
-// src/components/MobileHotelRow.tsx
-
 export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onDelete, viewOnly, dk, lang, defaultNights = 1, defaultStart, defaultEnd }: any) {
   const [draft, setDraft] = useState(item);
   const [calOpen, setCalOpen] = useState(false);
   const [showDiscount, setShowDiscount] = useState(parseFloat(item.discountValue || 0) > 0);
-  const inputClass = cn('px-1.5 py-1 rounded text-[11px] font-bold outline-none border transition-all h-[30px]', dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-teal-500' : 'bg-white border-slate-200 text-slate-900 focus:border-teal-500');
+  const inputClass = cn('px-2 py-1.5 rounded-lg text-[12px] font-bold outline-none border transition-all h-[32px]', dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-teal-500' : 'bg-white border-slate-200 text-slate-900 focus:border-teal-500');
 
   useEffect(() => { if (isEditing) setDraft(item); }, [isEditing, item]);
 
@@ -89,7 +87,7 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
   const activeNights = currentItem.nights || defaultNights;
 
   const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    e.target.style.height = '30px'; e.target.style.height = `${e.target.scrollHeight}px`; setDraft({ ...draft, note: e.target.value });
+    e.target.style.height = '32px'; e.target.style.height = `${e.target.scrollHeight}px`; setDraft({ ...draft, note: e.target.value });
   };
 
   if (isEditing && !viewOnly) {
@@ -106,76 +104,76 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
             </select>
         </div>
 
-        {/* ROW 2: Per Bed Math (Beds x Nights @ Netto/Bett) */}
+        {/* ROW 2: Per Bed Math */}
         {draft.method === 'per_bed' && isPerBedAllowed && (
            <>
               <div className="flex items-center gap-1.5 w-full relative">
                  <div className="flex items-center gap-1 shrink-0">
-                    <input type="number" value={draft.beds ?? 1} onChange={e => setDraft({ ...draft, beds: e.target.value })} className={cn(inputClass, "w-[40px] text-center px-0")} placeholder="1" />
+                    <input type="number" value={draft.beds ?? 1} onChange={e => setDraft({ ...draft, beds: e.target.value })} className={cn(inputClass, "w-[45px] text-center px-0")} placeholder="1" />
                     <span className="text-[10px] font-bold text-slate-400">B</span>
                  </div>
                  <span className="text-[12px] text-slate-400 font-black shrink-0">×</span>
-                 <div className={cn("flex items-center rounded border h-[30px] px-1.5 cursor-pointer shrink-0", dk ? "bg-black/20 border-white/10 text-white" : "bg-white border-slate-200 text-slate-700")} onClick={() => setCalOpen(!calOpen)}>
-                    <span className="text-[11px] font-bold mr-1">{activeNights}N</span>
-                    <Calendar size={10}/>
+                 <div className={cn("flex items-center rounded-lg border h-[32px] px-2 cursor-pointer shrink-0 transition-colors", dk ? "bg-black/20 border-white/10 text-white hover:border-white/30" : "bg-white border-slate-200 text-slate-700 hover:border-slate-300")} onClick={() => setCalOpen(!calOpen)}>
+                    <span className="text-[11px] font-bold mr-1.5">{activeNights}N</span>
+                    <Calendar size={12} className={dk ? "text-slate-400" : "text-slate-500"}/>
                  </div>
-                 <span className="text-[12px] text-slate-400 font-black shrink-0">@</span>
-                 <div className="relative flex-1">
+                 <div className="relative flex-1 ml-auto">
                     <input type="number" disabled={hasBruttoInput} placeholder="Netto/Bett" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 text-right pr-7")} />
-                    {(!showDiscount && !hasBruttoInput) && <button onClick={() => { setShowDiscount(true); if(!draft.discountType) setDraft({...draft, discountType: 'fixed'}); }} className="absolute right-1 top-[4px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
+                    {(!showDiscount && !hasBruttoInput) && <button onClick={() => { setShowDiscount(true); if(!draft.discountType) setDraft({...draft, discountType: 'fixed'}); }} className="absolute right-1 top-[4px] p-1.5 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
                  </div>
               </div>
 
               {calOpen && (
-                 <div className={cn("p-2 rounded-lg border shadow-xl flex flex-col gap-2 w-full animate-in fade-in slide-in-from-top-1", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+                 <div className={cn("p-3 rounded-xl border shadow-xl flex flex-col gap-2 w-full animate-in fade-in slide-in-from-top-1", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
                     <div className="flex items-center gap-2">
-                       <NativeDatePicker dk={dk} value={draft.startDate || defaultStart || ''} onChange={(s: string) => setDraft({ ...draft, startDate: s, nights: calculateNights(s, draft.endDate || defaultEnd || s) })} className="w-full h-[30px]" />
+                       <NativeDatePicker dk={dk} value={draft.startDate || defaultStart || ''} onChange={(s: string) => setDraft({ ...draft, startDate: s, nights: calculateNights(s, draft.endDate || defaultEnd || s) })} className="w-full h-[32px]" />
                        <span className="text-slate-400">-</span>
-                       <NativeDatePicker dk={dk} min={draft.startDate || defaultStart} value={draft.endDate || defaultEnd || ''} onChange={(end: string) => setDraft({ ...draft, endDate: end, nights: calculateNights(draft.startDate || defaultStart || end, end) })} className="w-full h-[30px]" />
+                       <NativeDatePicker dk={dk} min={draft.startDate || defaultStart} value={draft.endDate || defaultEnd || ''} onChange={(end: string) => setDraft({ ...draft, endDate: end, nights: calculateNights(draft.startDate || defaultStart || end, end) })} className="w-full h-[32px]" />
                     </div>
-                    <button onClick={() => setCalOpen(false)} className="py-1.5 bg-teal-500 text-white text-[11px] font-bold rounded">OK</button>
+                    <button onClick={() => setCalOpen(false)} className="py-2 bg-teal-500 text-white text-[12px] font-bold rounded-lg shadow-sm">OK</button>
                  </div>
               )}
            </>
         )}
 
-        {/* DISCOUNT ROW: Attached to the Netto Input */}
-        {showDiscount && !hasBruttoInput && (
-           <div className="flex items-center justify-end w-full animate-in fade-in slide-in-from-top-1">
-              <input type="number" value={draft.discountValue ?? ''} onChange={e => setDraft({ ...draft, discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-[75px] px-1.5 text-right placeholder:text-[10px]")} placeholder="Rabatt" />
-              <button onClick={() => setDraft({ ...draft, discountType: draft.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[30px] h-[30px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 text-white" : "bg-slate-200 text-slate-700")}>{draft.discountType === 'percentage' ? '%' : '€'}</button>
-              <button onClick={() => { setShowDiscount(false); setDraft({ ...draft, discountValue: null }); }} className={cn("w-[30px] h-[30px] rounded-r border-y border-r flex items-center justify-center text-slate-400 hover:text-red-500", dk ? "bg-black/20" : "bg-white")}><X size={14}/></button>
-           </div>
-        )}
-
-        {/* ROW 3: Totals (Total Netto | MwSt | Brutto) */}
+        {/* ROW 3: Totals & Discounts */}
         <div className="flex items-center gap-1.5 w-full">
            <div className="relative flex-1">
               {draft.method === 'total' || !isPerBedAllowed ? (
                  <>
-                    <input type="number" disabled={hasBruttoInput} placeholder="Gesamt Netto" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 text-right pr-7 border-teal-500/30")} />
-                    {(!showDiscount && !hasBruttoInput) && <button onClick={() => { setShowDiscount(true); if(!draft.discountType) setDraft({...draft, discountType: 'fixed'}); }} className="absolute right-1 top-[4px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
+                    <input type="number" disabled={hasBruttoInput} placeholder="Gesamt Netto" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 text-right pr-7")} />
+                    {(!showDiscount && !hasBruttoInput) && <button onClick={() => { setShowDiscount(true); if(!draft.discountType) setDraft({...draft, discountType: 'fixed'}); }} className="absolute right-1 top-[4px] p-1.5 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
                  </>
               ) : (
-                 <div className={cn(inputClass, "w-full bg-slate-100 dark:bg-white/5 text-right flex items-center justify-end opacity-80 text-slate-600")} title="Total Netto (Berechnet)">
+                 <div className={cn(inputClass, "w-full bg-black/5 dark:bg-white/5 text-right flex items-center justify-end opacity-80 text-slate-600 dark:text-slate-300")} title="Gesamt Netto">
                     {formatCurrency(finalNetto)}
                  </div>
               )}
            </div>
+           
+           {/* DISCOUNT FLOATS NEXT TO TOTAL NETTO ON TOTAL MODE, OR TOTAL NETTO ON BED MODE */}
+           {showDiscount && !hasBruttoInput && (
+               <div className="flex items-center w-[85px] shrink-0 animate-in fade-in slide-in-from-left-2">
+                  <input type="number" value={draft.discountValue ?? ''} onChange={e => setDraft({ ...draft, discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-full px-1.5 text-right placeholder:text-[10px]")} placeholder="Rabatt" />
+                  <button onClick={() => setDraft({ ...draft, discountType: draft.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[28px] h-[32px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 text-white border-white/10 hover:bg-white/20" : "bg-slate-200 text-slate-700 border-slate-200 hover:bg-slate-300")}>{draft.discountType === 'percentage' ? '%' : '€'}</button>
+                  <button onClick={() => { setShowDiscount(false); setDraft({ ...draft, discountValue: null }); }} className={cn("w-[28px] h-[32px] rounded-r border-y border-r flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
+               </div>
+           )}
+
            <div className="w-[60px] shrink-0">
               <MwstInput value={draft.mwst} onChange={(v:any) => setDraft({ ...draft, mwst: v })} isDarkMode={dk} disabled={false} />
            </div>
-           <div className="flex-1">
+           <div className={cn("flex-1", showDiscount ? "max-w-[80px]" : "")}>
               <input type="number" disabled={hasNettoInput} placeholder={hasNettoInput ? formatCurrency(brutto) : "Brutto"} value={draft.brutto ?? ''} onChange={e => setDraft({ ...draft, brutto: e.target.value, netto: null })} className={cn(inputClass, "w-full text-right disabled:opacity-100 disabled:bg-transparent disabled:border-transparent font-black")} />
            </div>
         </div>
 
         {/* ROW 4 & 5: Notes and Actions */}
-        {needsNote && <textarea rows={1} value={draft.note || ''} onChange={handleNoteChange} className={cn(inputClass, "w-full text-[11px] font-medium resize-none min-h-[30px]")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />}
+        {needsNote && <textarea rows={1} value={draft.note || ''} onChange={handleNoteChange} className={cn(inputClass, "w-full text-[12px] font-medium resize-none min-h-[32px] mt-1")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />}
 
-        <div className="flex justify-end gap-1.5 mt-1">
-           <button onClick={onCancel} className={cn("px-4 py-1.5 rounded text-xs font-bold border transition-all", dk ? "border-white/10 text-slate-300 hover:bg-white/10" : "border-slate-200 text-slate-600 hover:bg-slate-100")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
-           <button onClick={() => onSave(draft)} className="px-5 py-1.5 rounded text-xs font-bold text-white bg-teal-500 hover:bg-teal-600 transition-all flex items-center gap-1.5 shadow-sm"><Check size={14} strokeWidth={3}/> {lang === 'de' ? 'Speichern' : 'Save'}</button>
+        <div className="flex justify-end gap-2 mt-1 border-t pt-2 dark:border-teal-500/30 border-teal-200">
+           <button onClick={onCancel} className={cn("px-4 py-1.5 rounded-lg text-xs font-bold border transition-all", dk ? "border-white/10 text-slate-300 hover:bg-white/10" : "border-slate-200 text-slate-600 hover:bg-slate-100")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
+           <button onClick={() => onSave(draft)} className="px-5 py-1.5 rounded-lg text-xs font-bold text-white bg-teal-500 hover:bg-teal-600 transition-all flex items-center gap-1.5 shadow-sm"><Check size={14} strokeWidth={3}/> {lang === 'de' ? 'Speichern' : 'Save'}</button>
         </div>
       </div>
     )
@@ -183,7 +181,7 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
 
   // 5-COLUMN VIEW MODE (Clean Text)
   return (
-    <div className={cn("flex flex-col px-3 py-2.5 border-b last:border-b-0 transition-colors group relative gap-1", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
+    <div className={cn("flex flex-col px-3 py-3 border-b last:border-b-0 transition-colors group relative gap-1.5", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
        <div className="flex items-start justify-between gap-2 w-full">
            <div className="flex-1 min-w-0 flex flex-col">
               <span className={cn("text-[12px] font-black leading-tight truncate", dk ? "text-slate-200" : "text-slate-800")}>
@@ -208,11 +206,11 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
            </div>
        </div>
 
-       {currentItem.note && <span className="text-[10px] font-medium text-slate-500 italic mt-0.5 pr-8 leading-tight">{currentItem.note}</span>}
+       {currentItem.note && <span className="text-[10px] font-medium text-slate-500 italic mt-0.5 pr-8 leading-tight break-words whitespace-pre-wrap">{currentItem.note}</span>}
        
-       <div className="absolute right-0 top-0 bottom-0 flex items-center justify-end px-2 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity bg-gradient-to-l from-white dark:from-[#1E293B] via-white dark:via-[#1E293B] to-transparent pl-8">
-          {!viewOnly && <button onClick={onEdit} className="p-1.5 rounded text-slate-400 hover:text-teal-500 transition-colors"><Edit3 size={14}/></button>}
-          {!viewOnly && <button onClick={onDelete} className="p-1.5 rounded text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={14}/></button>}
+       <div className="absolute right-0 top-0 bottom-0 flex items-center justify-end px-2 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity bg-gradient-to-l from-white dark:from-[#1E293B] via-white/90 dark:via-[#1E293B]/90 to-transparent pl-8">
+          {!viewOnly && <button onClick={onEdit} className="p-1.5 rounded-md bg-black/5 dark:bg-white/5 text-slate-400 hover:text-teal-500 transition-colors mr-1"><Edit3 size={14}/></button>}
+          {!viewOnly && <button onClick={onDelete} className="p-1.5 rounded-md bg-black/5 dark:bg-white/5 text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={14}/></button>}
        </div>
     </div>
   )
@@ -253,9 +251,9 @@ export function MwstInput({ value, onChange, isDarkMode, disabled }: { value: st
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }; document.addEventListener('mousedown', handle); return () => document.removeEventListener('mousedown', handle); }, []);
   return (
-    <div ref={ref} className="relative flex items-center h-[28px] w-full">
-      <input type="number" disabled={disabled} value={value ?? ''} onChange={e => onChange(e.target.value === '' ? null : e.target.value)} className={cn('flex-1 px-1 rounded-l-lg text-[10px] font-bold outline-none border transition-all h-full text-center', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900', disabled && "opacity-50 cursor-not-allowed")} placeholder="--" />
-      <button disabled={disabled} onClick={() => setOpen(!open)} className={cn('px-1.5 h-full rounded-r-lg border border-l-0 transition-all flex items-center justify-center', isDarkMode ? 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100', disabled && "hidden")}><ChevronDown size={12} /></button>
+    <div ref={ref} className="relative flex items-center h-[30px] w-full">
+      <input type="number" disabled={disabled} value={value ?? ''} onChange={e => onChange(e.target.value === '' ? null : e.target.value)} className={cn('flex-1 px-1 rounded-l-lg text-[11px] font-bold outline-none border transition-all h-full text-center', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900', disabled && "opacity-50 cursor-not-allowed")} placeholder="--" />
+      <button disabled={disabled} onClick={() => setOpen(!open)} className={cn('px-1 h-full rounded-r-lg border border-l-0 transition-all flex items-center justify-center', isDarkMode ? 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10 hover:text-white' : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100', disabled && "hidden")}><ChevronDown size={12} /></button>
       {open && !disabled && (
         <div className={cn("absolute top-full right-0 mt-1 w-20 z-[9999] rounded-lg shadow-xl overflow-hidden border", isDarkMode ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
           {[7, 19, 0].map(v => <button key={v} onClick={() => { onChange(v.toString()); setOpen(false); }} className={cn("w-full text-center py-2 text-xs font-bold transition-all", isDarkMode ? "text-white hover:bg-white/10" : "text-slate-900 hover:bg-slate-100")}>{v}%</button>)}
@@ -380,10 +378,9 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
   );
 }
 
-export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onRenameCompanyOption, onAddOption, viewOnly, activeSort = 'created_at', activeFilterDue, activeFilterDeposit, onToggle }: any) {
+export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onRenameCompanyOption, onAddOption, viewOnly, activeSort = 'created_at', activeFilterDue, activeFilterDeposit, onToggle, isOpen }: any) {
   
   const [activeTab, setActiveTab] = useState<'bookings'|'billing'|'info'>('bookings');
-  const [isOpen, setIsOpen] = useState(false);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingTotal, setEditingTotal] = useState(false);
@@ -403,6 +400,12 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
   const [showAllEmps, setShowAllEmps] = useState(false);
   const [localMonthFilter, setLocalMonthFilter] = useState<number | 'all'>('all');
 
+  useEffect(() => {
+     if (!isOpen) {
+         setLocalMonthFilter('all');
+     }
+  }, [isOpen]);
+
   const [isBookmarked, setIsBookmarked] = useState(() => {
     try { return JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]').includes(entry.id); } catch { return false; }
   });
@@ -416,7 +419,8 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
 
   const activeInvoice = useMemo(() => localHotel.invoices?.find((i:any) => i.id === selectedInvoiceId), [localHotel.invoices, selectedInvoiceId]);
 
-  const masterMath = useMemo(() => {
+  // GLOBAL MATH (Main Card)
+  const globalMath = useMemo(() => {
     let tFree = 0; let tBeds = 0; const allEmps: any[] = [];
     const today = new Date().toISOString().split('T')[0];
     
@@ -429,11 +433,34 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
       tFree += calcDurationFreeBeds(d, today);
     });
 
-    let finalNetto = 0; let finalBrutto = 0; let totalPaid = 0; let totalUnpaid = 0; let nearestDueDate: string | null = null;
+    let finalBrutto = 0; let totalPaid = 0; let totalUnpaid = 0; let nearestDueDate: string | null = null;
+    (localHotel.invoices || []).forEach((inv: any) => {
+       let invBrutto = 0;
+       if (inv.billingMode === 'total') {
+          const n = parseFloat(inv.totalNetto) || 0; const m = parseFloat(inv.totalMwst) || 0;
+          invBrutto += n * (1 + m/100);
+       } else {
+          (inv.items || []).forEach((item: any) => {
+             const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
+             invBrutto += calcInvoiceItem(item, defaultN).brutto;
+          });
+       }
+       finalBrutto += invBrutto;
+       if (inv.isPaid) totalPaid += invBrutto; else {
+          totalUnpaid += invBrutto;
+          if (inv.dueDate && (!nearestDueDate || new Date(inv.dueDate) < new Date(nearestDueDate))) nearestDueDate = inv.dueDate;
+       }
+    });
+
+    return { freeBeds: tFree, totalBeds: tBeds, employees: allEmps, displayBrutto: finalBrutto, totalPaid, totalUnpaid, nearestDueDate };
+  }, [localHotel]);
+
+  // TAB MATH (Filtered by localMonthFilter)
+  const tabMath = useMemo(() => {
+    let finalNetto = 0; let finalBrutto = 0; let totalPaid = 0; let totalUnpaid = 0;
     let buckets: Record<string, number> = {};
     let minPricePerBed: number | null = null;
 
-    // FIX: Filter invoices by localMonthFilter FIRST before summing the global summary
     const mathInvoices = (localHotel.invoices || []).filter((inv:any) => {
         if (localMonthFilter === 'all') return true;
         const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
@@ -455,17 +482,13 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
              finalNetto += itemNetto; finalBrutto += itemBrutto; invBrutto += itemBrutto;
              if (itemNetto > 0 && itemMwst !== null) buckets[itemMwst] = (buckets[itemMwst] || 0) + (itemNetto * (itemMwst/100));
              
-             // Min Price Per Bed Logic
              if (item.type === 'room' && item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 0) {
                  const bedPrice = parseFloat(item.netto);
                  if (minPricePerBed === null || bedPrice < minPricePerBed) minPricePerBed = bedPrice;
              }
           });
        }
-       if (inv.isPaid) totalPaid += invBrutto; else {
-          totalUnpaid += invBrutto;
-          if (inv.dueDate && (!nearestDueDate || new Date(inv.dueDate) < new Date(nearestDueDate))) nearestDueDate = inv.dueDate;
-       }
+       if (inv.isPaid) totalPaid += invBrutto; else totalUnpaid += invBrutto;
     });
 
     let activeNetto = 0; let activeBrutto = 0; let activeBuckets: Record<string, number> = {};
@@ -485,26 +508,19 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
     }
 
     let finalPriceBed = minPricePerBed || 0;
-    if (localHotel.override_price_per_bed != null) {
-        finalPriceBed = parseFloat(localHotel.override_price_per_bed);
-    }
+    if (localHotel.override_price_per_bed != null) finalPriceBed = parseFloat(localHotel.override_price_per_bed);
 
-    return { 
-      freeBeds: tFree, totalBeds: tBeds, employees: allEmps, 
-      displayNetto: finalNetto, displayBrutto: finalBrutto, buckets, 
-      activeNetto, activeBrutto, activeBuckets, totalPaid, totalUnpaid, nearestDueDate, isMasterActive: false,
-      pricePerBed: finalPriceBed
-    };
+    return { displayNetto: finalNetto, displayBrutto: finalBrutto, buckets, activeNetto, activeBrutto, activeBuckets, totalPaid, totalUnpaid, pricePerBed: finalPriceBed, isMasterActive: false };
   }, [localHotel, activeInvoice, localMonthFilter]);
 
   const sortedEmployees = useMemo(() => {
-     const emps = [...masterMath.employees];
+     const emps = [...globalMath.employees];
      emps.sort((a, b) => {
         const statusWeight = (status: string) => status === 'active' ? 1 : status === 'ending-soon' ? 2 : status === 'upcoming' ? 3 : 4;
         return statusWeight(getEmployeeStatus(a.checkIn, a.checkOut)) - statusWeight(getEmployeeStatus(b.checkIn, b.checkOut));
      });
      return emps;
-  }, [masterMath.employees]);
+  }, [globalMath.employees]);
 
   const sortedDurations = useMemo(() => {
      const durs = [...(localHotel.durations || [])];
@@ -518,12 +534,8 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
        if (!dateStr) return false;
        const d = new Date(dateStr);
        if (d.getFullYear() !== (selectedYear || new Date().getFullYear())) return false;
-       if (selectedMonth !== null && d.getMonth() !== selectedMonth) return false;
        return true;
     });
-
-    if (invoiceFilter === 'paid') filtered = filtered.filter((inv:any) => inv.isPaid);
-    if (invoiceFilter === 'unpaid') filtered = filtered.filter((inv:any) => !inv.isPaid);
 
     if (itemSearchQuery.trim()) {
         const lowerQ = itemSearchQuery.toLowerCase();
@@ -542,7 +554,7 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
         }).filter(Boolean);
     }
     return filtered;
-  }, [localHotel.invoices, selectedYear, selectedMonth, itemSearchQuery, invoiceFilter, lang]);
+  }, [localHotel.invoices, selectedYear, itemSearchQuery, lang]);
 
   function patchHotel(changes: any) {
     if (viewOnly) return; 
@@ -590,17 +602,16 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
           isOpen ? (dk ? 'bg-[#1E293B] border-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'bg-white border-teal-400/60 shadow-[0_0_15px_rgba(20,184,166,0.15)]') 
           : (dk ? 'bg-[#1E293B] border-white/5' : 'bg-white border-slate-200'))}
     >
-      <div className={cn("absolute top-0 bottom-0 left-0 w-1.5 transition-colors z-[60]", masterMath.totalUnpaid > 0 ? "bg-red-500" : (masterMath.totalPaid > 0 ? "bg-emerald-500" : "bg-transparent border-r border-slate-200 dark:border-white/10"))} />
+      <div className={cn("absolute top-0 bottom-0 left-0 w-1.5 transition-colors z-[60]", globalMath.totalUnpaid > 0 ? "bg-red-500" : (globalMath.totalPaid > 0 ? "bg-emerald-500" : "bg-transparent border-r border-slate-200 dark:border-white/10"))} />
 
       {/* --- COLLAPSED VIEW (No Sidebar, Flexible Rows, Flex-Wrap Chips) --- */}
       <div className="p-3 pl-4 flex flex-col w-full">
          
          {/* Row 1: Name and Horizontal Icons */}
-         <div className="flex items-start justify-between w-full mb-1">
+         <div className="flex items-start justify-between w-full">
             <div className="flex-1 min-w-0 pr-2 pt-0.5">
                <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-base font-bold leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} />
             </div>
-            {/* RIGHT ALIGNED ICONS: Trash -> Clock -> Star */}
             <div className="flex items-center gap-1 shrink-0">
                {!viewOnly && (
                   <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className={cn("p-1.5 rounded-lg transition-colors", dk ? "text-slate-500 hover:text-red-500 hover:bg-red-500/10" : "text-slate-400 hover:text-red-500 hover:bg-red-50")}>
@@ -630,37 +641,36 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
             </div>
          </div>
 
-         {/* Row 3: Horizontal Metrics Block with Paid/Unpaid Dropdown */}
+         {/* Row 3: Horizontal Metrics Block */}
          <div className={cn("flex items-center justify-between p-2.5 rounded-xl border mb-3", dk ? "bg-black/20 border-white/5" : "bg-slate-50 border-slate-100")}>
              <div className="flex items-center gap-4">
                  <div className="flex items-center gap-1.5">
                      <Bed size={15} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
-                     <span className={cn('text-[15px] font-black leading-none', masterMath.freeBeds > 0 ? 'text-red-500' : dk ? 'text-teal-500' : 'text-teal-600')}>{masterMath.freeBeds}</span>
+                     <span className={cn('text-[15px] font-black leading-none', globalMath.freeBeds > 0 ? 'text-red-500' : dk ? 'text-teal-500' : 'text-teal-600')}>{globalMath.freeBeds}</span>
                  </div>
                  <div className="w-px h-5 bg-slate-200 dark:bg-white/10" />
                  <div className="flex items-center gap-1.5">
                      <Users size={15} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
-                     <span className={cn('text-[15px] font-black leading-none', dk ? 'text-slate-300' : 'text-slate-700')}>{masterMath.totalBeds}</span>
+                     <span className={cn('text-[15px] font-black leading-none', dk ? 'text-slate-300' : 'text-slate-700')}>{globalMath.totalBeds}</span>
                  </div>
              </div>
              
-             {/* THE FIX: Clickable wrapper drops down the Paid/Unpaid split */}
              <div className="flex flex-col items-end pr-1 cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowPaidSplit(!showPaidSplit); }}>
                 <span className={cn('font-black text-[15px] leading-none', dk ? 'text-white' : 'text-slate-900')}>
-                   {formatCurrency(masterMath.displayBrutto)}
+                   {formatCurrency(globalMath.displayBrutto)}
                 </span>
                 
                 {(showPaidSplit || (activeFilterDue && activeFilterDue !== 'all')) && (
                    <div className="flex items-center gap-1.5 mt-1.5 animate-in fade-in slide-in-from-top-1">
-                      <span className="text-[10px] font-bold text-emerald-500 leading-none">{formatCurrency(masterMath.totalPaid)}</span>
+                      <span className="text-[10px] font-bold text-emerald-500 leading-none">{formatCurrency(globalMath.totalPaid)}</span>
                       <span className="text-[10px] text-slate-300 dark:text-slate-600 leading-none">|</span>
-                      <span className="text-[10px] font-bold text-red-500 leading-none">{formatCurrency(masterMath.totalUnpaid)}</span>
+                      <span className="text-[10px] font-bold text-red-500 leading-none">{formatCurrency(globalMath.totalUnpaid)}</span>
                    </div>
                 )}
 
-                {masterMath.nearestDueDate && (activeSort === 'payment_due' || (activeFilterDue && activeFilterDue !== 'all')) && (
+                {globalMath.nearestDueDate && (activeSort === 'payment_due' || (activeFilterDue && activeFilterDue !== 'all')) && (
                    <span className="text-[8px] font-bold text-red-500 uppercase tracking-wider mt-1.5">
-                      {lang === 'de' ? 'Fällig: ' : 'Due: '} {formatShortDate(masterMath.nearestDueDate)}
+                      {lang === 'de' ? 'Fällig: ' : 'Due: '} {formatShortDate(globalMath.nearestDueDate)}
                    </span>
                 )}
              </div>
@@ -678,7 +688,7 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                    return (
                       <button key={i} onClick={(e) => { 
                           e.stopPropagation(); 
-                          if (!isOpen) { setIsOpen(true); if (onToggle) onToggle(); } 
+                          if (!isOpen && onToggle) onToggle(); 
                           setActiveTab('bookings'); 
                           const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
                           setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); 
@@ -709,7 +719,7 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                   return (
                      <button key={i} onClick={(e) => { 
                          e.stopPropagation(); 
-                         if (!isOpen) { setIsOpen(true); if (onToggle) onToggle(); } 
+                         if (!isOpen && onToggle) onToggle(); 
                          setActiveTab('bookings'); 
                          const tIdx = localHotel.durations.findIndex((dur:any) => (dur.roomCards||[]).some((rc:any) => (rc.employees||[]).some((ex:any) => ex.id === emp.id)));
                          setActiveDurationTab(tIdx >= 0 ? tIdx : 0);
@@ -729,12 +739,13 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
          )}
 
          {/* Row 5: Expand Toggle (Only clickable area to expand) */}
-         <div onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className={cn("w-full mt-1 pt-3 border-t flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer", dk ? "border-white/5 text-slate-400 hover:text-white" : "border-slate-100 text-slate-500 hover:text-slate-900")}>
+         <div onClick={(e) => { e.stopPropagation(); if (onToggle) onToggle(); }} className={cn("w-full mt-1 pt-3 border-t flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer", dk ? "border-white/5 text-slate-400 hover:text-white" : "border-slate-100 text-slate-500 hover:text-slate-900")}>
             {isOpen ? <ChevronUp size={14} className="text-teal-500"/> : <ChevronDown size={14} className="text-teal-500"/>} 
             {isOpen ? (lang === 'de' ? 'Schließen' : 'Close') : (lang === 'de' ? 'Details öffnen' : 'Open Details')}
          </div>
       </div>
-      {/* 3. EXPANDED VIEW */}
+
+      {/* --- EXPANDED VIEW --- */}
       {isOpen && (
          <div className={cn("flex flex-col border-t", dk ? "bg-[#0B1224] border-white/5" : "bg-slate-50 border-slate-200")} onClick={e => e.stopPropagation()}>
             
@@ -822,7 +833,7 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                         <DurationCard 
                           duration={localHotel.durations[activeDurationTab]} 
                           isDarkMode={dk} lang={lang} 
-                          isMasterPricingActive={masterMath.isMasterActive} 
+                          isMasterPricingActive={tabMath.isMasterActive} 
                           viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} employeeOptions={employeeOptions}
                           onUpdate={(id, upd) => patchHotel({ durations: localHotel.durations.map((d: any) => d.id === id ? upd : d) })} 
                           onDelete={(id) => { const n = localHotel.durations.filter((d: any) => d.id !== id); patchHotel({ durations: n }); enqueue({ type: 'deleteDuration', payload: { id } }); if (activeDurationTab >= n.length) setActiveDurationTab(Math.max(0, n.length - 1)); }} 
@@ -834,28 +845,46 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
 
             {/* TAB: BILLING (Enhanced Architecture) */}
             {activeTab === 'billing' && (() => {
-               // Calculate metrics specifically for the billing header
-               const totalInvs = (localHotel.invoices || []).length;
-               const paidInvs = (localHotel.invoices || []).filter((i:any) => i.isPaid).length;
-               const unpaidInvs = totalInvs - paidInvs;
+               
                const monthNames = lang === 'de' ? ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'] : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                
-               // Apply the local month filter on top of the search/status filters
-               const finalDisplayedInvoices = filteredMasterInvoices.filter((inv: any) => {
+               // Apply month filter for the pills logic to stay perfectly in sync
+               const monthInvoices = (localHotel.invoices || []).filter((inv: any) => {
                    if (localMonthFilter === 'all') return true;
                    const d = new Date(inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at));
                    return d.getMonth() === localMonthFilter;
                });
 
+               const totalInvs = monthInvoices.length;
+               const paidInvs = monthInvoices.filter((i:any) => i.isPaid).length;
+               const unpaidInvs = totalInvs - paidInvs;
+
+               // Apply search and status filter on top of the month filter for the horizontal list
+               const finalDisplayedInvoices = monthInvoices.filter((inv: any) => {
+                   if (invoiceFilter === 'paid' && !inv.isPaid) return false;
+                   if (invoiceFilter === 'unpaid' && inv.isPaid) return false;
+                   if (itemSearchQuery.trim()) {
+                       const lowerQ = itemSearchQuery.toLowerCase();
+                       const matchesInvNum = inv.number?.toLowerCase().includes(lowerQ);
+                       if (inv.billingMode === 'total') {
+                           return matchesInvNum || inv.totalNetto?.toString().includes(lowerQ) || inv.totalMwst?.toString().includes(lowerQ);
+                       }
+                       return (inv.items || []).some((item: any) => {
+                           const typeText = getTranslation(COST_TYPES, item.type || 'room', lang).toLowerCase();
+                           return typeText.includes(lowerQ) || item.note?.toLowerCase().includes(lowerQ) || item.netto?.toString().includes(lowerQ) || item.brutto?.toString().includes(lowerQ) || matchesInvNum; 
+                       });
+                   }
+                   return true;
+               });
+
                return (
                   <div className="flex flex-col animate-in fade-in">
-                     {/* 1. THE SINGLE-LINE HEADER & SCROLL LIST */}
+                     
                      <div className={cn("p-3 border-b flex flex-col gap-3 shrink-0", dk ? "border-white/5" : "border-slate-200")}>
                         <div className="flex items-center justify-between w-full">
                            <div className="flex items-center gap-2">
                               <label className={cn("flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest", dk ? "text-slate-400" : "text-slate-500")}><Receipt size={14}/> {lang === 'de' ? 'Rechnungen' : 'Invoices'}</label>
                               
-                              {/* Compact Filter Pills */}
                               {totalInvs > 0 && (
                                  <div className={cn("flex items-center rounded border shadow-sm overflow-hidden", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
                                     <button onClick={() => setInvoiceFilter('all')} className={cn("flex items-center gap-1 px-1.5 py-1 text-[9px] font-black transition-colors", invoiceFilter === 'all' ? (dk ? "bg-white/10 text-white" : "bg-slate-100 text-slate-800") : "text-slate-400 hover:text-slate-600")}><FileText size={10} className={invoiceFilter === 'all' ? "opacity-100" : "opacity-60"} /> {totalInvs}</button>
@@ -867,14 +896,12 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                               )}
                            </div>
 
-                           {/* Compact Native Select for Month */}
                            <select value={localMonthFilter} onChange={(e) => setLocalMonthFilter(e.target.value === 'all' ? 'all' : parseInt(e.target.value))} className={cn("px-1.5 py-1 text-[10px] font-bold rounded border outline-none appearance-none cursor-pointer", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-700")}>
                               <option value="all">{lang === 'de' ? 'Alle Monate' : 'All Months'}</option>
                               {monthNames.map((m, i) => <option key={i} value={i}>{m}</option>)}
                            </select>
                         </div>
 
-                        {/* Horizontal Invoice Chips */}
                         <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
                            {!viewOnly && (
                               <button onClick={() => {
@@ -913,7 +940,6 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
 
                      <div className="flex flex-col flex-1 pb-4 bg-slate-50/30 dark:bg-[#0B1224]/50">
                         {editingInvoiceId && invoiceDraft ? (
-                           // --- DRAFT EDITOR ---
                            <div className={cn("flex flex-col gap-3 p-4 m-3 rounded-2xl border shadow-lg animate-in fade-in slide-in-from-top-2", dk ? "bg-[#1E293B] border-teal-500/30" : "bg-white border-teal-300")}>
                               <input autoFocus value={invoiceDraft.number} onChange={e => setInvoiceDraft({...invoiceDraft, number: e.target.value})} className="w-full text-lg font-black border-b-2 bg-transparent outline-none py-1 border-teal-500 focus:ring-0 placeholder:text-slate-400" placeholder="RE-..." />
                               <div className="grid grid-cols-2 gap-2 mt-2">
@@ -954,10 +980,8 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                               </div>
                            </div>
                         ) : activeInvoice ? (
-                           // --- ACTIVE INVOICE DETAILS ---
                            <div className="flex flex-col h-full flex-1 p-3 animate-in fade-in">
-
-                              {/* ENHANCED INVOICE HEADER */}
+                              
                               <div className="flex items-start justify-between mb-4 border-b border-slate-200 dark:border-white/10 pb-3">
                                  <div className="flex flex-col gap-1">
                                     <div className="flex items-center gap-2">
@@ -966,8 +990,6 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                                           {activeInvoice.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid')}
                                        </span>
                                     </div>
-                                    
-                                    {/* FIX 4: Merged Duration and Status Date into a single horizontal line */}
                                     <p className="text-[10px] font-bold text-slate-500 mt-1 flex flex-wrap items-center gap-1.5">
                                        <span>{activeInvoice.startDate ? formatShortDate(activeInvoice.startDate, lang) : '--'} - {activeInvoice.endDate ? formatShortDate(activeInvoice.endDate, lang) : '--'} ({calculateNights(activeInvoice.startDate, activeInvoice.endDate)}N)</span>
                                        <span className="opacity-40">|</span>
@@ -978,7 +1000,6 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                                           }
                                        </span>
                                     </p>
-                                    
                                  </div>
                                  {!viewOnly && (
                                     <button onClick={() => { setEditingInvoiceId(activeInvoice.id); setInvoiceDraft(activeInvoice); }} className="p-1.5 bg-black/5 dark:bg-white/5 rounded-md text-slate-500 hover:text-teal-600 transition-all"><Edit3 size={14} /></button>
@@ -1075,13 +1096,12 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                                  </div>
                               )}
 
-                              {/* BOTTOM MASTER SUMMARY PINNED (TIGHT) */}
                               <div className={cn("mt-auto sticky bottom-0 z-40 flex flex-col pt-3 border-t", dk ? "border-white/10" : "border-slate-200")}>
                                  <div className="flex justify-between items-center mb-1.5">
                                     <span className={cn("text-[10px] font-bold uppercase", dk ? "text-slate-400" : "text-slate-500")}>Total Netto</span>
-                                    <span className={cn("font-bold text-[11px]", dk ? "text-slate-200" : "text-slate-700")}>{formatCurrency(masterMath.activeNetto)}</span>
+                                    <span className={cn("font-bold text-[11px]", dk ? "text-slate-200" : "text-slate-700")}>{formatCurrency(tabMath.activeNetto)}</span>
                                  </div>
-                                 {Object.entries(masterMath.activeBuckets).map(([percent, amount]: any) => (
+                                 {Object.entries(tabMath.activeBuckets).map(([percent, amount]: any) => (
                                     <div key={percent} className="flex justify-between items-center mb-1 text-[9px]">
                                        <span className={dk ? "text-slate-500" : "text-slate-400"}>MwSt ({percent}%)</span>
                                        <span className={dk ? "text-slate-400" : "text-slate-500"}>{formatCurrency(amount)}</span>
@@ -1089,20 +1109,19 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                                  ))}
                                  <div className="flex justify-between items-center mt-1 pt-1.5 border-t border-slate-200 dark:border-white/10">
                                     <span className={cn("text-[11px] font-black", dk ? "text-teal-400" : "text-teal-600")}>Total Brutto</span>
-                                    <span className={cn("font-black text-[13px]", dk ? "text-white" : "text-slate-900")}>{formatCurrency(masterMath.activeBrutto)}</span>
+                                    <span className={cn("font-black text-[13px]", dk ? "text-white" : "text-slate-900")}>{formatCurrency(tabMath.activeBrutto)}</span>
                                  </div>
                               </div>
                            </div>
                         ) : (
-                           // --- GLOBAL SUMMARY (NO INVOICE SELECTED) ---
                            <div className="flex flex-col px-4 pt-4 pb-2 animate-in fade-in">
                               
                               <div className="space-y-1.5 font-medium text-[13px] border-b pb-3 mb-3 border-slate-200 dark:border-white/10">
                                  <div className="flex justify-between items-center">
                                     <span className={dk ? "text-slate-400" : "text-slate-500"}>{lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</span>
-                                    <span className={cn("font-bold", dk ? "text-white" : "text-slate-900")}>{formatCurrency(masterMath.displayNetto)}</span>
+                                    <span className={cn("font-bold", dk ? "text-white" : "text-slate-900")}>{formatCurrency(tabMath.displayNetto)}</span>
                                  </div>
-                                 {Object.entries(masterMath.buckets).map(([percent, amount]: any) => (
+                                 {Object.entries(tabMath.buckets).map(([percent, amount]: any) => (
                                     <div key={percent} className="flex justify-between items-center text-[11px]">
                                         <span className={dk ? "text-slate-500" : "text-slate-400"}>MwSt ({percent}%)</span>
                                         <span className={dk ? "text-slate-400" : "text-slate-500"}>{formatCurrency(amount)}</span>
@@ -1112,24 +1131,24 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
 
                               <div className="flex justify-between items-center w-full mb-4">
                                  <span className={cn("text-[13px] font-bold shrink-0", dk ? "text-slate-400" : "text-slate-500")}>{lang === 'de' ? 'Gesamt Brutto' : 'Total Brutto'}</span>
-                                 <span className={cn("text-[17px] font-black tracking-tight", dk ? "text-white" : "text-slate-900")}>{formatCurrency(masterMath.displayBrutto)}</span>
+                                 <span className={cn("text-[17px] font-black tracking-tight", dk ? "text-white" : "text-slate-900")}>{formatCurrency(tabMath.displayBrutto)}</span>
                               </div>
 
                               <div className="flex flex-col gap-1.5 mb-2">
                                   <div className="flex justify-between items-center text-[11px] font-bold">
                                       <span className="text-slate-400">{lang === 'de' ? 'Total Bezahlt' : 'Total Paid'}</span>
-                                      <span className="text-emerald-500">{formatCurrency(masterMath.totalPaid)}</span>
+                                      <span className="text-emerald-500">{formatCurrency(tabMath.totalPaid)}</span>
                                   </div>
                                   <div className="flex justify-between items-center text-[11px] font-bold">
                                       <span className="text-slate-400">{lang === 'de' ? 'Total Offen' : 'Total Unpaid'}</span>
-                                      <span className="text-red-500">{formatCurrency(masterMath.totalUnpaid)}</span>
+                                      <span className="text-red-500">{formatCurrency(tabMath.totalUnpaid)}</span>
                                   </div>
                               </div>
 
-                              {masterMath.pricePerBed > 0 && (
+                              {tabMath.pricePerBed > 0 && (
                                  <div className="flex justify-between items-center text-[11px] font-bold pt-3 border-t border-slate-200 dark:border-white/10 mt-1">
                                      <span className="text-slate-400">{lang === 'de' ? 'Preis / Bett' : 'Price / Bed'}</span>
-                                     <span className="text-slate-500">{formatCurrency(masterMath.pricePerBed)} / N</span>
+                                     <span className="text-slate-500">{formatCurrency(tabMath.pricePerBed)} / N</span>
                                  </div>
                               )}
 
@@ -1147,7 +1166,6 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
             })()}
          </div>
       )}
-
 
       {confirmDelete && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 pointer-events-auto">
