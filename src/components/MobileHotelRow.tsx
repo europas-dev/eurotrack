@@ -74,7 +74,7 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
   const [draft, setDraft] = useState(item);
   const [calOpen, setCalOpen] = useState(false);
   const [showDiscount, setShowDiscount] = useState(parseFloat(item.discountValue || 0) > 0);
-  const inputClass = cn('px-1.5 py-1 rounded text-[11px] font-bold outline-none border transition-all h-[28px]', dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-teal-500' : 'bg-white border-slate-200 text-slate-900 focus:border-teal-500');
+  const inputClass = cn('px-1.5 py-1 rounded text-[11px] font-bold outline-none border transition-all h-[30px]', dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-teal-500' : 'bg-white border-slate-200 text-slate-900 focus:border-teal-500');
 
   useEffect(() => { if (isEditing) setDraft(item); }, [isEditing, item]);
 
@@ -87,12 +87,14 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
   const activeNights = currentItem.nights || defaultNights;
 
   const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    e.target.style.height = '28px'; e.target.style.height = `${e.target.scrollHeight}px`; setDraft({ ...draft, note: e.target.value });
+    e.target.style.height = '30px'; e.target.style.height = `${e.target.scrollHeight}px`; setDraft({ ...draft, note: e.target.value });
   };
 
   if (isEditing && !viewOnly) {
     return (
-      <div className={cn("flex flex-col p-2 border-b transition-all w-full relative z-20 shadow-xl gap-2", dk ? "bg-teal-900/20 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
+      <div className={cn("flex flex-col p-3 border-b transition-all w-full relative z-20 shadow-xl gap-2.5", dk ? "bg-teal-900/20 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
+        
+        {/* ROW 1: Configuration */}
         <div className="flex gap-2 w-full">
             <select value={draft.type || 'room'} onChange={e => { const newType = e.target.value; setDraft({ ...draft, type: newType, method: (newType === 'base' || newType === 'extra') ? 'total' : draft.method }); }} className={cn(inputClass, "flex-1")}>
               {COST_TYPES.map(o => <option key={o.id} value={o.id}>{lang === 'de' ? o.de : o.en}</option>)}
@@ -102,57 +104,117 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
             </select>
         </div>
 
+        {/* ROW 2: Per Bed Math (Only shown if per_bed is active) */}
         {draft.method === 'per_bed' && isPerBedAllowed && (
-           <div className="flex items-center justify-between gap-1 w-full">
-              <div className="flex items-center gap-1">
-                 <input type="number" value={draft.beds ?? 1} onChange={e => setDraft({ ...draft, beds: e.target.value })} className={cn(inputClass, "w-[40px] text-center px-0")} placeholder="1" />
-                 <span className="text-[10px] font-bold text-slate-400">Betten</span>
+           <>
+              <div className="flex items-center gap-1 w-full relative">
+                 <div className="flex items-center gap-1 shrink-0">
+                    <input type="number" value={draft.beds ?? 1} onChange={e => setDraft({ ...draft, beds: e.target.value })} className={cn(inputClass, "w-[40px] text-center px-0")} placeholder="1" />
+                    <span className="text-[10px] font-bold text-slate-400">B</span>
+                 </div>
+                 <span className="text-[12px] text-slate-400 font-black shrink-0">×</span>
+                 <div className={cn("flex items-center rounded border h-[30px] px-1.5 cursor-pointer shrink-0", dk ? "bg-black/20 border-white/10 text-white" : "bg-white border-slate-200 text-slate-700")} onClick={() => setCalOpen(!calOpen)}>
+                    <span className="text-[11px] font-bold mr-1">{activeNights}N</span>
+                    <Calendar size={10}/>
+                 </div>
+                 <span className="text-[12px] text-slate-400 font-black shrink-0">@</span>
+                 <div className="relative flex-1">
+                    <input type="number" disabled={hasBruttoInput} placeholder="Netto/Bett" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 text-right pr-7")} />
+                    {(!showDiscount && !hasBruttoInput) && <button onClick={() => { setShowDiscount(true); if(!draft.discountType) setDraft({...draft, discountType: 'fixed'}); }} className="absolute right-1 top-[4px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
+                 </div>
               </div>
-              <span className="text-[12px] text-slate-400 font-black">×</span>
-              <div className={cn("flex items-center rounded border h-[28px] px-2 cursor-pointer", dk ? "bg-black/20 border-white/10 text-white" : "bg-white border-slate-200 text-slate-700")} onClick={() => setCalOpen(!calOpen)}>
-                 <span className="text-[11px] font-bold mr-1">{activeNights}N</span>
-                 <Calendar size={10}/>
-              </div>
+
+              {calOpen && (
+                 <div className={cn("p-2 rounded-lg border shadow-xl flex flex-col gap-2 w-full animate-in fade-in slide-in-from-top-1", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+                    <div className="flex items-center gap-2">
+                       <NativeDatePicker dk={dk} value={draft.startDate || defaultStart || ''} onChange={(s: string) => setDraft({ ...draft, startDate: s, nights: calculateNights(s, draft.endDate || defaultEnd || s) })} className="w-full h-[30px]" />
+                       <span className="text-slate-400">-</span>
+                       <NativeDatePicker dk={dk} min={draft.startDate || defaultStart} value={draft.endDate || defaultEnd || ''} onChange={(end: string) => setDraft({ ...draft, endDate: end, nights: calculateNights(draft.startDate || defaultStart || end, end) })} className="w-full h-[30px]" />
+                    </div>
+                    <button onClick={() => setCalOpen(false)} className="py-1.5 bg-teal-500 text-white text-[11px] font-bold rounded">OK</button>
+                 </div>
+              )}
+           </>
+        )}
+
+        {/* DISCOUNT ROW: Floats right below whichever row has the Netto input */}
+        {showDiscount && !hasBruttoInput && (
+           <div className="flex items-center justify-end w-full animate-in fade-in slide-in-from-top-1">
+              <input type="number" value={draft.discountValue ?? ''} onChange={e => setDraft({ ...draft, discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-[75px] px-1.5 text-right placeholder:text-[10px]")} placeholder="Rabatt" />
+              <button onClick={() => setDraft({ ...draft, discountType: draft.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[30px] h-[30px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 text-white" : "bg-slate-200 text-slate-700")}>{draft.discountType === 'percentage' ? '%' : '€'}</button>
+              <button onClick={() => { setShowDiscount(false); setDraft({ ...draft, discountValue: null }); }} className={cn("w-[30px] h-[30px] rounded-r border-y border-r flex items-center justify-center text-slate-400 hover:text-red-500", dk ? "bg-black/20" : "bg-white")}><X size={14}/></button>
            </div>
         )}
 
-        {calOpen && draft.method === 'per_bed' && (
-            <div className={cn("p-2 rounded-lg border shadow-xl flex flex-col gap-2 w-full", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
-               <div className="flex items-center gap-2">
-                  <NativeDatePicker dk={dk} value={draft.startDate || defaultStart || ''} onChange={(s: string) => setDraft({ ...draft, startDate: s, nights: calculateNights(s, draft.endDate || defaultEnd || s) })} className="w-full h-[30px]" />
-                  <span className="text-slate-400">-</span>
-                  <NativeDatePicker dk={dk} min={draft.startDate || defaultStart} value={draft.endDate || defaultEnd || ''} onChange={(end: string) => setDraft({ ...draft, endDate: end, nights: calculateNights(draft.startDate || defaultStart || end, end) })} className="w-full h-[30px]" />
-               </div>
-               <button onClick={() => setCalOpen(false)} className="py-1.5 bg-teal-500 text-white text-[11px] font-bold rounded">OK</button>
-            </div>
-        )}
-
-        <div className="flex items-center gap-2 w-full relative">
+        {/* ROW 3: Totals (Total Netto, MwSt, Total Brutto) */}
+        <div className="flex items-center gap-1.5 w-full">
            <div className="relative flex-1">
-             <input type="number" disabled={hasBruttoInput} placeholder="Netto" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 text-right pr-6")} />
-             {(!showDiscount && !hasBruttoInput) && <button onClick={() => { setShowDiscount(true); if(!draft.discountType) setDraft({...draft, discountType: 'fixed'}); }} className="absolute right-1 top-[3px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
+              {draft.method === 'total' || !isPerBedAllowed ? (
+                 <>
+                    <input type="number" disabled={hasBruttoInput} placeholder="Gesamt Netto" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 text-right pr-7")} />
+                    {(!showDiscount && !hasBruttoInput) && <button onClick={() => { setShowDiscount(true); if(!draft.discountType) setDraft({...draft, discountType: 'fixed'}); }} className="absolute right-1 top-[4px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
+                 </>
+              ) : (
+                 <div className={cn(inputClass, "w-full bg-slate-100 dark:bg-white/5 text-right flex items-center justify-end opacity-70 cursor-not-allowed text-slate-500")} title="Berechnetes Gesamt Netto">
+                    {formatCurrency(finalNetto)}
+                 </div>
+              )}
            </div>
-           <MwstInput value={draft.mwst} onChange={(v:any) => setDraft({ ...draft, mwst: v })} isDarkMode={dk} disabled={false} />
-           <input type="number" disabled={hasNettoInput} placeholder={hasNettoInput ? formatCurrency(brutto) : "Brutto"} value={draft.brutto ?? ''} onChange={e => setDraft({ ...draft, brutto: e.target.value, netto: null })} className={cn(inputClass, "flex-1 text-right disabled:opacity-100 disabled:bg-transparent disabled:border-transparent font-black")} />
+           <div className="w-[60px] shrink-0">
+              <MwstInput value={draft.mwst} onChange={(v:any) => setDraft({ ...draft, mwst: v })} isDarkMode={dk} disabled={false} />
+           </div>
+           <div className="flex-1">
+              <input type="number" disabled={hasNettoInput} placeholder={hasNettoInput ? formatCurrency(brutto) : "Gesamt Brutto"} value={draft.brutto ?? ''} onChange={e => setDraft({ ...draft, brutto: e.target.value, netto: null })} className={cn(inputClass, "w-full text-right disabled:opacity-100 disabled:bg-transparent disabled:border-transparent font-black")} />
+           </div>
         </div>
 
-        {showDiscount && !hasBruttoInput && (
-           <div className="flex items-center w-full mt-1">
-              <input type="number" value={draft.discountValue ?? ''} onChange={e => setDraft({ ...draft, discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 flex-1 px-1.5 text-right placeholder:text-[10px]")} placeholder="Rabatt" />
-              <button onClick={() => setDraft({ ...draft, discountType: draft.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[30px] h-[28px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 text-white" : "bg-slate-200 text-slate-700")}>{draft.discountType === 'percentage' ? '%' : '€'}</button>
-              <button onClick={() => { setShowDiscount(false); setDraft({ ...draft, discountValue: null }); }} className={cn("w-[30px] h-[28px] rounded-r border-y border-r flex items-center justify-center text-slate-400 hover:text-red-500", dk ? "bg-black/20" : "bg-white")}><X size={14}/></button>
-           </div>
-        )}
-
-        {needsNote && <textarea rows={1} value={draft.note || ''} onChange={handleNoteChange} className={cn(inputClass, "w-full text-[11px] font-medium resize-none min-h-[28px] mt-1")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />}
+        {/* ROW 4 & 5: Notes and Actions */}
+        {needsNote && <textarea rows={1} value={draft.note || ''} onChange={handleNoteChange} className={cn(inputClass, "w-full text-[11px] font-medium resize-none min-h-[30px]")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />}
 
         <div className="flex justify-end gap-1.5 mt-1">
-           <button onClick={onCancel} className={cn("px-3 py-1.5 rounded text-xs font-bold border transition-all", dk ? "border-white/10 text-slate-300 hover:bg-white/10" : "border-slate-200 text-slate-600 hover:bg-slate-100")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
-           <button onClick={() => onSave(draft)} className="px-4 py-1.5 rounded text-xs font-bold text-white bg-teal-500 hover:bg-teal-600 transition-all flex items-center gap-1"><Check size={12}/> {lang === 'de' ? 'Speichern' : 'Save'}</button>
+           <button onClick={onCancel} className={cn("px-4 py-1.5 rounded text-xs font-bold border transition-all", dk ? "border-white/10 text-slate-300 hover:bg-white/10" : "border-slate-200 text-slate-600 hover:bg-slate-100")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
+           <button onClick={() => onSave(draft)} className="px-5 py-1.5 rounded text-xs font-bold text-white bg-teal-500 hover:bg-teal-600 transition-all flex items-center gap-1.5 shadow-sm"><Check size={14} strokeWidth={3}/> {lang === 'de' ? 'Speichern' : 'Save'}</button>
         </div>
       </div>
     )
   }
+
+  // FLAT VIEW MODE
+  return (
+    <div className={cn("flex flex-col px-3 py-2.5 border-b last:border-b-0 transition-colors group relative gap-1", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
+       <div className="flex items-start justify-between gap-2 w-full">
+           <div className="flex-1 min-w-0 flex flex-col">
+              <span className={cn("text-[12px] font-black leading-tight truncate", dk ? "text-slate-200" : "text-slate-800")}>
+                 {getTranslation(COST_TYPES, currentItem.type || 'room', lang)}
+              </span>
+              {currentItem.method === 'per_bed' && <span className="text-[9.5px] font-bold text-slate-500 mt-0.5">({activeNights}N, {currentItem.beds||1}B)</span>}
+           </div>
+           
+           <div className="flex items-center gap-1 shrink-0 pt-0.5">
+               <div className="w-[50px] text-right">
+                  <span className={cn("text-[10px] font-bold", dk ? "text-slate-400" : "text-slate-500")}>{currentItem.method === 'per_bed' ? formatCurrency(parseFloat(currentItem.netto)||0) : '--'}</span>
+               </div>
+               <div className="w-[60px] text-right">
+                  <span className={cn("text-[10px] font-bold", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(finalNetto)}</span>
+               </div>
+               <div className="w-[30px] text-center">
+                  <span className={cn("text-[10px] font-bold", dk ? "text-slate-400" : "text-slate-500")}>{currentItem.mwst ?? 7}%</span>
+               </div>
+               <div className="w-[65px] text-right">
+                  <span className={cn("text-[11px] font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(brutto)}</span>
+               </div>
+           </div>
+       </div>
+
+       {currentItem.note && <span className="text-[10px] font-medium text-slate-500 italic mt-0.5 pr-8 leading-tight">{currentItem.note}</span>}
+       
+       <div className="absolute right-0 top-0 bottom-0 flex items-center justify-end px-2 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity bg-gradient-to-l from-white dark:from-[#1E293B] via-white dark:via-[#1E293B] to-transparent pl-8">
+          {!viewOnly && <button onClick={onEdit} className="p-1.5 rounded text-slate-400 hover:text-teal-500 transition-colors"><Edit3 size={14}/></button>}
+          {!viewOnly && <button onClick={onDelete} className="p-1.5 rounded text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={14}/></button>}
+       </div>
+    </div>
+  )
+}
 
   return (
     <div className={cn("flex items-start px-2 py-2 border-b last:border-b-0 transition-colors group relative gap-2", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
@@ -975,11 +1037,14 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                                  </div>
                               ) : (
                                  <div className="flex flex-col flex-1 pb-1">
-                                    <div className={cn("flex items-center py-1.5 border-b mb-1", dk ? "border-white/10" : "border-slate-200")}>
-                                       <div className="flex-1 min-w-0 text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">{lang === 'de' ? 'Beschreibung' : 'Desc'}</div>
-                                       <div className="w-[50px] shrink-0 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Netto</div>
-                                       <div className="w-[30px] shrink-0 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center px-1">MwSt</div>
-                                       <div className="w-[60px] shrink-0 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right pr-1">Brutto</div>
+                                    <div className={cn("flex items-center px-3 py-2 border-b mb-1", dk ? "border-white/10 bg-white/[0.02]" : "border-slate-200 bg-slate-50/50")}>
+                                       <div className="flex-1 min-w-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest">{lang === 'de' ? 'Beschreibung' : 'Desc'}</div>
+                                       <div className="flex items-center gap-1 shrink-0">
+                                          <div className="w-[50px] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">{lang === 'de' ? 'N. / Bett' : 'N. / Bed'}</div>
+                                          <div className="w-[60px] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">Gesamt</div>
+                                          <div className="w-[30px] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-center">MwSt</div>
+                                          <div className="w-[65px] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">Brutto</div>
+                                       </div>
                                     </div>
                                     
                                     {(activeInvoice.items || []).length === 0 && <p className="text-[11px] font-bold text-slate-400 italic text-center py-4">{lang === 'de' ? 'Keine Posten vorhanden.' : 'No line items.'}</p>}
