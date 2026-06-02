@@ -323,18 +323,47 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
          ) : (
             <div className="p-2 space-y-3">
               
-              {/* HOME TAB */}
-              {activeTab === 'home' && (
-                finalFiltered.length > 0 ? finalFiltered.map((hotel, idx) => (
-                  <MobileHotelRow key={hotel.id} entry={hotel} index={idx} isOpen={openRowId === hotel.id} onToggle={() => setOpenRowId(openRowId === hotel.id ? null : hotel.id)} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={hId => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} />
-                )) : <div className="text-center py-10 opacity-50 font-bold">{lang === 'de' ? 'Keine Hotels' : 'No Hotels'}</div>
-              )}
+              {/* HOME TAB (WITH GROUP BY LOGIC) */}
+              {activeTab === 'home' && (() => {
+                 if (finalFiltered.length === 0) return <div className="text-center py-10 opacity-50 font-bold">{lang === 'de' ? 'Keine Hotels' : 'No Hotels'}</div>;
+                 
+                 // Standard list if no grouping
+                 if (groupBy === 'none') {
+                    return finalFiltered.map((hotel, idx) => (
+                       <MobileHotelRow key={hotel.id} entry={hotel} index={idx} isOpen={openRowId === hotel.id} onToggle={() => setOpenRowId(openRowId === hotel.id ? null : hotel.id)} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={hId => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} showGlobalFinancials={showGlobalFinancials} activeSort={sortBy} activeFilterDue={filterDue} activeFilterDeposit={filterDeposit} />
+                    ));
+                 }
+
+                 // Grouped list
+                 const grouped = finalFiltered.reduce((acc: any, h: any) => {
+                    let key = 'Ungruppiert';
+                    if (groupBy === 'city' && h.city) key = h.city;
+                    if (groupBy === 'country' && h.country) key = h.country;
+                    if (groupBy === 'company' && h.companyTag && h.companyTag.length > 0) key = h.companyTag[0];
+                    if (groupBy === 'hotel' && h.name) key = h.name;
+                    if (!acc[key]) acc[key] = [];
+                    acc[key].push(h);
+                    return acc;
+                 }, {});
+
+                 return Object.entries(grouped).map(([groupName, groupHotels]: any) => (
+                    <div key={groupName} className="mb-4">
+                       <div className="sticky top-0 z-40 backdrop-blur-md bg-slate-50/90 dark:bg-[#0F172A]/90 py-2 px-2 mb-2 border-b dark:border-white/10 flex items-center justify-between">
+                          <span className="text-xs font-black uppercase tracking-widest text-teal-600 dark:text-teal-400">{groupName}</span>
+                          <span className="text-[10px] font-bold text-slate-500 bg-slate-200 dark:bg-white/10 px-2 py-0.5 rounded-full">{groupHotels.length}</span>
+                       </div>
+                       <div className="space-y-3">
+                          {groupHotels.map((hotel: any, idx: number) => (
+                             <MobileHotelRow key={hotel.id} entry={hotel} index={idx} isOpen={openRowId === hotel.id} onToggle={() => setOpenRowId(openRowId === hotel.id ? null : hotel.id)} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={hId => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} showGlobalFinancials={showGlobalFinancials} activeSort={sortBy} activeFilterDue={filterDue} activeFilterDeposit={filterDeposit} />
+                          ))}
+                       </div>
+                    </div>
+                 ));
+              })()}
 
               {/* SEARCH TAB */}
               {activeTab === 'search' && (
                 <div className="space-y-3 p-2 animate-in fade-in">
-                   
-                   {/* EXACT WEB SEARCH BAR WITH SCOPE DROPDOWN */}
                    <div className={cn("flex items-center rounded-xl border overflow-hidden", dk ? "bg-[#1E293B] border-white/10 focus-within:border-teal-500" : "bg-white border-slate-200 focus-within:border-teal-500")}>
                       <select value={searchScope} onChange={e => setSearchScope(e.target.value)} className={cn("h-[46px] pl-3 pr-6 text-xs font-bold bg-transparent border-r outline-none appearance-none", dk ? "border-white/10 text-slate-300" : "border-slate-200 text-slate-700")}>
                         <option value="all">{lang === 'de' ? 'Überall' : 'All Fields'}</option>
@@ -360,10 +389,7 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
                    <div className="pt-2 border-t border-slate-200 dark:border-white/10">
                      {finalFiltered.map((hotel, idx) => (
                        <MobileHotelRow 
-                          key={hotel.id} entry={hotel} index={idx} isOpen={openRowId === hotel.id} onToggle={() => setOpenRowId(openRowId === hotel.id ? null : hotel.id)} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} 
-                          companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} 
-                          onDelete={(hId: string) => setHotels(prev => prev.filter(ho=>ho.id!==hId))} 
-                          onUpdate={(hId: string, up: any) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} 
+                          key={hotel.id} entry={hotel} index={idx} isOpen={openRowId === hotel.id} onToggle={() => setOpenRowId(openRowId === hotel.id ? null : hotel.id)} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={hId => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} showGlobalFinancials={showGlobalFinancials} activeSort={sortBy} activeFilterDue={filterDue} activeFilterDeposit={filterDeposit} 
                        />
                      ))}
                   </div>
@@ -373,7 +399,7 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
               {/* BOOKMARKS TAB */}
               {activeTab === 'bookmarks' && (
                 finalFiltered.length > 0 ? finalFiltered.map((hotel, idx) => (
-                  <MobileHotelRow key={hotel.id} entry={hotel} index={idx} isOpen={openRowId === hotel.id} onToggle={() => setOpenRowId(openRowId === hotel.id ? null : hotel.id)} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={hId => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} />
+                  <MobileHotelRow key={hotel.id} entry={hotel} index={idx} isOpen={openRowId === hotel.id} onToggle={() => setOpenRowId(openRowId === hotel.id ? null : hotel.id)} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={hId => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} showGlobalFinancials={showGlobalFinancials} activeSort={sortBy} activeFilterDue={filterDue} activeFilterDeposit={filterDeposit} />
                 )) : (
                   <div className="text-center py-10 opacity-50 font-bold flex flex-col items-center">
                     <Star size={32} className="mb-2 text-slate-400" />
