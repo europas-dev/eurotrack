@@ -157,6 +157,30 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
   };
 
   // --- EXACT MATH FILTERS FROM WEB ---
+  // --- FREE BEDS COUNTS ---
+  const getBedsCount = (daysOffset: number) => {
+     const d = new Date(); d.setDate(d.getDate() + daysOffset);
+     const dStr = d.toISOString().split('T')[0];
+     let total = 0;
+     hotels.forEach(h => {
+        (h.durations || []).forEach((dur: any) => {
+           if (dur.startDate <= dStr && dur.endDate >= dStr) {
+              (dur.roomCards || []).forEach((rc: any) => {
+                 const emps = (rc.employees || []).filter((e: any) => e.checkIn <= dStr && e.checkOut > dStr);
+                 total += Math.max(0, (rc.bedCount || 0) - emps.length);
+              });
+           }
+        });
+     });
+     return total;
+  };
+
+  const fbCountToday = useMemo(() => getBedsCount(0), [hotels]);
+  const fbCountTomorrow = useMemo(() => getBedsCount(1), [hotels]);
+  const fbCount3 = useMemo(() => getBedsCount(3), [hotels]);
+  const fbCount7 = useMemo(() => getBedsCount(7), [hotels]);
+
+  // --- EXACT MATH FILTERS FROM WEB ---
   const finalFiltered = useMemo(() => {
     return hotels.filter(h => {
       // 1. EXACT WEB MONTH & YEAR OVERLAP CHECK
@@ -196,7 +220,7 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
       if (searchQuery && activeTab === 'search') {
           const q = searchQuery.toLowerCase();
           const matchAll = hotelMatchesSearch(h, searchQuery, 'all');
-          const deepInvoiceMatch = h.rechnungNr?.toLowerCase().includes(q) || (h.invoices || []).some((inv: any) => inv.number?.toLowerCase().includes(q));
+          const deepInvoiceMatch = h.rechnungNr?.toLowerCase().includes(q) || (h.invoices || []).some((inv: any) => inv.number?.toLowerCase().includes(q)) || (h.durations || []).some((d:any) => d.rechnungNr?.toLowerCase().includes(q));
           const deepEmployeeMatch = (h.durations || []).some((d:any) => (d.roomCards || []).some((rc:any) => (rc.employees || []).some((e:any) => e.name?.toLowerCase().includes(q))));
           if (!matchAll && !deepInvoiceMatch && !deepEmployeeMatch) return false;
       }
@@ -210,13 +234,88 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
       return true;
     }).sort((a, b) => {
       let va: any; let vb: any;
-      if (sortBy === 'cost') { va = calcHotelTotalCost(a, selectedMonth, selectedYear); vb = calcHotelTotalCost(b, selectedMonth, selectedYear); }
+      
+      if (sortBy === 'bed_price') {
+          const getMinPrice = (hotel: any) => {
+              let minPricePerBed: number | null = null;
+              const invoicesToScan = hotel.invoices || [];
+              invoicesToScan.forEach((inv: any) => {
+                  const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
+                  if (!dateStr) return;
+                  const d = new Date(dateStr);
+                  if (d.getFullYear() !== selectedYear) return;
+                  if (selectedMonth !== null && d.getMonth() !== selectedMonth) return;
+
+                  if (inv.billingMode !== 'total') {
+                      (inv.items || []).forEach((item: any) => {
+                          if (item.type === 'room' && item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 0) {
+                              const bedPrice = parseFloat(item.netto);
+                              if (minPricePerBed === null || bedPrice < minPricePerBed) minPricePerBed = bedPrice;
+                          }
+                      });
+                  }
+              });
+
+              let finalPrice = minPricePerBed !== null ? minPricePerBed : Infinity;
+              if (hotel.override_price_per_bed != null) {
+                  const overrideVal = parseFloat(hotel.override_price_per_bed);
+                  if (minPricePerBed !== null && minPricePerBed < overrideVal) finalPrice = minPricePerBed; 
+                  else finalPrice = overrideVal;
+              }
+              return (finalPrice === 0) ? Infinity : finalPrice;
+          };
+          va = getMinPrice(a); vb = getMinPrice(b);
+      }
+      else if (sortBy === 'cost') { va = calcHotelTotalCost(a, selectedMonth !== null ? selectedMonth : null, selectedYear); vb = calcHotelTotalCost(b, selectedMonth !== null ? selectedMonth : null, selectedYear); }
       else if (sortBy === 'free_beds') { va = calcHotelFreeBedsToday(a); vb = calcHotelFreeBedsToday(b); }
       else if (sortBy === 'created_at') { va = new Date(a.created_at).getTime(); vb = new Date(b.created_at).getTime(); }
+      else if (sortBy === 'updated_at') { va = new Date(a.last_updated_at || a.lastUpdatedAt || 0).getTime(); vb = new Date(b.last_updated_at || b.lastUpdatedAt || 0).getTime(); }
+      else if (sortBy === 'payment_due') {
+          const getNextDue = (hotel: any) => {
+             const unpaids = (hotel.invoices || []).filter((i:any) => !i.isPaid && i.dueDate).map((i:any) => new Date(i.dueDate).getTime());
+             return unpaids.length > 0 ? Math.min(...unpaids) : Infinity;
+          };
+          va = getNextDue(a); vb = getNextDue(b);
+      }
+      else if (sortBy === 'total_paid') {
+          const getPaid = (hotel: any) => {
+              let p = 0;
+              (hotel.invoices || []).filter((i:any) => i.isPaid).forEach((inv: any) => {
+                  if (inv.billingMode === 'total') {
+                     p += (parseFloat(inv.totalNetto)||0) * (1 + (parseFloat(inv.totalMwst)||0)/100);
+                  } else {
+                     const defN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
+                     p += (inv.items || []).reduce((s:number, it:any) => s + (calcInvoiceItem(it, defN)?.brutto || 0), 0);
+                  }
+              });
+              return p;
+          };
+          va = getPaid(a); vb = getPaid(b);
+      }
       else { va = a.name?.toLowerCase() || ''; vb = b.name?.toLowerCase() || ''; }
+      
+      if (va === Infinity && vb === Infinity) return 0;
+      if (va === Infinity) return 1;
+      if (vb === Infinity) return -1;
+      
       return (va < vb ? -1 : va > vb ? 1 : 0) * (sortDir === 'asc' ? 1 : -1);
     });
   }, [hotels, searchQuery, activeTab, bookmarks, sortBy, sortDir, filterPaid, filterDeposit, selectedMonth, selectedYear]);
+
+  // --- GROUP DATA ---
+  const [activeGroupTab, setActiveGroupTab] = useState<string | null>(null);
+  const groupData = useMemo(() => {
+    if (groupBy === 'none') return null;
+    const groups: Record<string, any[]> = {};
+    finalFiltered.forEach(h => {
+      const key = groupBy === 'company' 
+        ? (h.companyTag?.[0] || (lang === 'de' ? 'Nicht zugeordnet' : 'Unassigned')) 
+        : groupBy === 'city' ? (h.city || 'Other') : groupBy === 'country' ? (h.country || 'Other') : h.name;
+      if (!groups[key]) groups[key] = []; 
+      groups[key].push(h);
+    });
+    return groups;
+  }, [finalFiltered, groupBy, lang]);
 
   // --- GLOBAL FINANCES ---
   let totalSpend = 0; let totalPaidGlobal = 0; let totalUnpaidGlobal = 0;
@@ -316,12 +415,7 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
          </div>
       </div>
 
-      {/* SCROLLING CONTENT AREA */}
-      <div className="flex-1 overflow-y-auto pb-24 relative no-scrollbar">
-         {loading ? (
-           <div className="flex items-center justify-center h-full"><Loader2 size={32} className="animate-spin text-teal-500 opacity-50" /></div>
-         ) : (
-            <div className="p-2 space-y-3">
+      <div className="p-2 space-y-3">
               
               {/* HOME TAB (WITH GROUP BY LOGIC) */}
               {activeTab === 'home' && (() => {
@@ -330,40 +424,34 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
                  // Standard list if no grouping
                  if (groupBy === 'none') {
                     return finalFiltered.map((hotel, idx) => (
-                       <MobileHotelRow key={hotel.id} entry={hotel} index={idx} isOpen={openRowId === hotel.id} onToggle={() => setOpenRowId(openRowId === hotel.id ? null : hotel.id)} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={hId => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} showGlobalFinancials={showGlobalFinancials} activeSort={sortBy} activeFilterDue={filterDue} activeFilterDeposit={filterDeposit} />
+                       <MobileHotelRow key={hotel.id} entry={hotel} index={idx} isOpen={openRowId === hotel.id} onToggle={() => setOpenRowId(openRowId === hotel.id ? null : hotel.id)} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={(hId: string) => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId: string, up: any) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} showGlobalFinancials={showGlobalFinancials} activeSort={sortBy} activeFilterDue={filterDue} activeFilterDeposit={filterDeposit} />
                     ));
                  }
 
                  // Grouped list
-                 const grouped = finalFiltered.reduce((acc: any, h: any) => {
-                    let key = 'Ungruppiert';
-                    if (groupBy === 'city' && h.city) key = h.city;
-                    if (groupBy === 'country' && h.country) key = h.country;
-                    if (groupBy === 'company' && h.companyTag && h.companyTag.length > 0) key = h.companyTag[0];
-                    if (groupBy === 'hotel' && h.name) key = h.name;
-                    if (!acc[key]) acc[key] = [];
-                    acc[key].push(h);
-                    return acc;
-                 }, {});
-
-                 return Object.entries(grouped).map(([groupName, groupHotels]: any) => (
-                    <div key={groupName} className="mb-4">
-                       <div className="sticky top-0 z-40 backdrop-blur-md bg-slate-50/90 dark:bg-[#0F172A]/90 py-2 px-2 mb-2 border-b dark:border-white/10 flex items-center justify-between">
-                          <span className="text-xs font-black uppercase tracking-widest text-teal-600 dark:text-teal-400">{groupName}</span>
-                          <span className="text-[10px] font-bold text-slate-500 bg-slate-200 dark:bg-white/10 px-2 py-0.5 rounded-full">{groupHotels.length}</span>
-                       </div>
-                       <div className="space-y-3">
-                          {groupHotels.map((hotel: any, idx: number) => (
-                             <MobileHotelRow key={hotel.id} entry={hotel} index={idx} isOpen={openRowId === hotel.id} onToggle={() => setOpenRowId(openRowId === hotel.id ? null : hotel.id)} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={hId => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} showGlobalFinancials={showGlobalFinancials} activeSort={sortBy} activeFilterDue={filterDue} activeFilterDeposit={filterDeposit} />
+                 return (
+                    <div className="flex flex-col gap-3">
+                       <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar border-b border-slate-200 dark:border-white/10">
+                          {Object.keys(groupData || {}).map(g => (
+                             <button key={g} onClick={() => setActiveGroupTab(g === activeGroupTab ? null : g)} className={cn("px-4 py-2 rounded-xl text-[11px] font-bold border transition-all whitespace-nowrap", activeGroupTab === g ? "bg-teal-600 text-white border-teal-600 shadow-md" : "bg-white dark:bg-white/5 text-slate-500 border-slate-200 dark:border-white/10 shadow-sm")}>
+                                {g} ({(groupData as any)[g].length})
+                             </button>
                           ))}
                        </div>
+                       {(activeGroupTab && groupData && groupData[activeGroupTab]) ? groupData[activeGroupTab].map((hotel: any, idx: number) => (
+                          <MobileHotelRow key={hotel.id} entry={hotel} index={idx} isOpen={openRowId === hotel.id} onToggle={() => setOpenRowId(openRowId === hotel.id ? null : hotel.id)} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={(hId: string) => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId: string, up: any) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} showGlobalFinancials={showGlobalFinancials} activeSort={sortBy} activeFilterDue={filterDue} activeFilterDeposit={filterDeposit} />
+                       )) : (
+                          <div className="text-center py-10 opacity-50 font-bold text-slate-500">{lang === 'de' ? 'Wählen Sie eine Gruppe' : 'Select a group'}</div>
+                       )}
                     </div>
-                 ));
+                 );
               })()}
 
               {/* SEARCH TAB */}
               {activeTab === 'search' && (
                 <div className="space-y-3 p-2 animate-in fade-in">
+                   
+                   {/* EXACT WEB SEARCH BAR WITH SCOPE DROPDOWN */}
                    <div className={cn("flex items-center rounded-xl border overflow-hidden", dk ? "bg-[#1E293B] border-white/10 focus-within:border-teal-500" : "bg-white border-slate-200 focus-within:border-teal-500")}>
                       <select value={searchScope} onChange={e => setSearchScope(e.target.value)} className={cn("h-[46px] pl-3 pr-6 text-xs font-bold bg-transparent border-r outline-none appearance-none", dk ? "border-white/10 text-slate-300" : "border-slate-200 text-slate-700")}>
                         <option value="all">{lang === 'de' ? 'Überall' : 'All Fields'}</option>
@@ -389,7 +477,11 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
                    <div className="pt-2 border-t border-slate-200 dark:border-white/10">
                      {finalFiltered.map((hotel, idx) => (
                        <MobileHotelRow 
-                          key={hotel.id} entry={hotel} index={idx} isOpen={openRowId === hotel.id} onToggle={() => setOpenRowId(openRowId === hotel.id ? null : hotel.id)} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={hId => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} showGlobalFinancials={showGlobalFinancials} activeSort={sortBy} activeFilterDue={filterDue} activeFilterDeposit={filterDeposit} 
+                          key={hotel.id} entry={hotel} index={idx} isOpen={openRowId === hotel.id} onToggle={() => setOpenRowId(openRowId === hotel.id ? null : hotel.id)} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} 
+                          companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} 
+                          onDelete={(hId: string) => setHotels(prev => prev.filter(ho=>ho.id!==hId))} 
+                          onUpdate={(hId: string, up: any) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} 
+                          showGlobalFinancials={showGlobalFinancials} activeSort={sortBy} activeFilterDue={filterDue} activeFilterDeposit={filterDeposit}
                        />
                      ))}
                   </div>
@@ -399,7 +491,9 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
               {/* BOOKMARKS TAB */}
               {activeTab === 'bookmarks' && (
                 finalFiltered.length > 0 ? finalFiltered.map((hotel, idx) => (
-                  <MobileHotelRow key={hotel.id} entry={hotel} index={idx} isOpen={openRowId === hotel.id} onToggle={() => setOpenRowId(openRowId === hotel.id ? null : hotel.id)} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={hId => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId, up) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} showGlobalFinancials={showGlobalFinancials} activeSort={sortBy} activeFilterDue={filterDue} activeFilterDeposit={filterDeposit} />
+                  <MobileHotelRow 
+                     key={hotel.id} entry={hotel} index={idx} isOpen={openRowId === hotel.id} onToggle={() => setOpenRowId(openRowId === hotel.id ? null : hotel.id)} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={(hId: string) => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId: string, up: any) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} showGlobalFinancials={showGlobalFinancials} activeSort={sortBy} activeFilterDue={filterDue} activeFilterDeposit={filterDeposit} 
+                  />
                 )) : (
                   <div className="text-center py-10 opacity-50 font-bold flex flex-col items-center">
                     <Star size={32} className="mb-2 text-slate-400" />
@@ -461,7 +555,7 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
                        <div>
                          <p className="text-xs font-black text-slate-400 uppercase mb-2">{lang === 'de' ? 'Verfügbare freie Betten' : 'Free Beds Availability'}</p>
                          <div className="grid grid-cols-2 gap-2">
-                           {[ { id: 'today', lEn: 'Today', lDe: 'Heute' }, { id: 'tomorrow', lEn: 'Tomorrow', lDe: 'Morgen' }, { id: '3days', lEn: 'in 3 days', lDe: 'in 3 Tagen' }, { id: '7days', lEn: 'in 7 days', lDe: 'in 7 Tagen' } ].map(f => (
+                           {[ { id: 'today', lEn: `Today (${fbCountToday})`, lDe: `Heute (${fbCountToday})` }, { id: 'tomorrow', lEn: `Tomorrow (${fbCountTomorrow})`, lDe: `Morgen (${fbCountTomorrow})` }, { id: '3days', lEn: `in 3 days (${fbCount3})`, lDe: `in 3 Tagen (${fbCount3})` }, { id: '7days', lEn: `in 7 days (${fbCount7})`, lDe: `in 7 Tagen (${fbCount7})` } ].map(f => (
                              <button key={f.id} onClick={() => setFbType(f.id as any)} className={cn("py-2 rounded-lg text-xs font-bold transition-all border", fbType === f.id ? btnActive : btnInactive)}>{lang === 'de' ? f.lDe : f.lEn}</button>
                            ))}
                          </div>
