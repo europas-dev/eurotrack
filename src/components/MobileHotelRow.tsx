@@ -436,8 +436,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
   );
 }
 
-export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onRenameCompanyOption, onAddOption, viewOnly, activeSort = 'created_at', activeFilterDue, activeFilterDeposit, onToggle, isOpen, isSelected = false, onSelect = () => {}, isBulkActive = false, showGlobalFinancials = false }: any) {
-  
+export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onRenameCompanyOption, onAddOption, viewOnly, activeSort = 'created_at', activeFilterDue, activeFilterDeposit, onToggle, isOpen, showGlobalFinancials = false, isSelected = false, isBulkActive = false, onSelect = () => {} }: any) {  
   const [activeTab, setActiveTab] = useState<'bookings'|'billing'|'info'>('bookings');
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -712,7 +711,18 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                </div>
                {/* NEW: Search Highlighter Tooltip */}
                {hiddenMatchText && (
-                  <button onClick={(e) => { e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('billing'); }} className={cn("w-max flex items-center gap-1.5 px-2 py-0.5 rounded border text-[9px] font-bold transition-colors cursor-pointer shadow-sm", dk ? "border-teal-500/30 text-teal-400 hover:bg-teal-500/10" : "border-teal-200 text-teal-700 hover:bg-teal-50")}>
+                  <button onClick={(e) => { 
+                      e.stopPropagation(); 
+                      if (!isOpen) onToggle(); 
+                      setActiveTab('billing'); 
+                      
+                      // Auto-find and expand the matched invoice
+                      const q = searchQuery.toLowerCase();
+                      const matchedInv = localHotel.invoices?.find((inv: any) => inv.number?.toLowerCase().includes(q));
+                      if (matchedInv) {
+                          setSelectedInvoiceId(matchedInv.id);
+                      }
+                  }} className={cn("mt-1.5 w-max flex items-center gap-1.5 px-2 py-0.5 rounded border text-[10px] font-medium transition-colors cursor-pointer shadow-sm", dk ? "border-teal-500/30 text-teal-400 hover:bg-teal-500/10" : "border-teal-200 text-teal-700 hover:bg-teal-50")}>
                      <Search size={10} /> <span className="tracking-wide">{hiddenMatchText}</span>
                   </button>
                )}
@@ -740,7 +750,7 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                    {formatCurrency(globalMath.displayBrutto)}
                 </span>
                 
-                {/* NEW: Global Financials & Sort Filter Overrides */}
+                {/* 1. Show Global Financials Split (Paid/Unpaid) */}
                 {(showGlobalFinancials || showPaidSplit) && (
                    <div className="flex items-center gap-1.5 mt-1.5 animate-in fade-in slide-in-from-top-1">
                       <span className="text-[10px] font-bold text-emerald-500 leading-none">{formatCurrency(globalMath.totalPaid)}</span>
@@ -749,24 +759,28 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                    </div>
                 )}
 
+                {/* 2. Show Due Date if sorted by Date */}
                 {!(showGlobalFinancials || showPaidSplit) && (activeSort === 'payment_due' || (activeFilterDue && activeFilterDue !== 'all')) && globalMath.nearestDueDate && (
                    <span className="text-[8px] font-bold text-red-500 uppercase tracking-wider mt-1.5">
                       {lang === 'de' ? 'Fällig: ' : 'Due: '} {formatShortDate(globalMath.nearestDueDate)}
                    </span>
                 )}
 
+                {/* 3. Show Deposit if Filtered by Deposit */}
                 {!(showGlobalFinancials || showPaidSplit) && activeFilterDeposit === 'yes' && localHotel.depositEnabled && (
                    <span className="text-[8px] font-bold text-amber-500 uppercase tracking-wider mt-1.5">
                       {lang === 'de' ? 'Kaution: ' : 'Deposit: '} {formatCurrency(parseFloat(localHotel.depositAmount || '0'))}
                    </span>
                 )}
 
+                {/* 4. Show Price/Bed if Sorted by Bed Price */}
                 {!(showGlobalFinancials || showPaidSplit) && activeSort === 'bed_price' && tabMath.pricePerBed > 0 && (
                    <span className="text-[9px] font-bold text-slate-500 mt-1.5">
                       {formatCurrency(tabMath.pricePerBed)} / {lang === 'de' ? 'Bett' : 'Bed'}
                    </span>
                 )}
 
+                {/* 5. Show Total Paid if Sorted by Total Paid */}
                 {!(showGlobalFinancials || showPaidSplit) && activeSort === 'total_paid' && (
                    <span className="text-[9px] font-bold text-emerald-500 mt-1.5">
                       {formatCurrency(globalMath.totalPaid)}
