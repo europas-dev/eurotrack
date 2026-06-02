@@ -320,15 +320,15 @@ export function MwstInput({ value, onChange, isDarkMode, disabled }: { value: st
   );
 }
 
-export function ModernDropdown({ value, options, onChange, isDarkMode, lang, placeholder = 'Select', disabled, onOpenChange }: any) {
+export function ModernDropdown({ value, options, onChange, isDarkMode, lang, placeholder = 'Select', disabled, onOpenChange, className }: any) {
   const [open, setOpen] = useState(false);
   useEffect(() => { if (onOpenChange) onOpenChange(open); }, [open, onOpenChange]);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { function handle(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); } } document.addEventListener('mousedown', handle); return () => document.removeEventListener('mousedown', handle); }, []);
   const displayValue = (val: string) => { if (lang !== 'de') return val; const de: any = { 'Germany': 'Deutschland', 'Switzerland': 'Schweiz', 'Austria': 'Österreich', 'Netherlands': 'Niederlande', 'Poland': 'Polen', 'Belgium': 'Belgien', 'France': 'Frankreich', 'Luxembourg': 'Luxemburg' }; return de[val] || val; };
   return (
-    <div ref={ref} className="relative w-full h-[34px]">
-      <button disabled={disabled} onClick={() => setOpen(!open)} className={cn('w-full h-full px-3 flex items-center justify-between rounded-lg border text-sm font-bold outline-none transition-all', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white hover:border-teal-500' : 'bg-white border-slate-200 text-slate-900 hover:border-teal-500', disabled && "opacity-60 cursor-not-allowed")}>
+    <div ref={ref} className={cn("relative w-full h-[34px]", className)}>
+      <button disabled={disabled} onClick={() => setOpen(!open)} className={cn('w-full h-full px-3 flex items-center justify-between rounded-lg border text-[11px] font-bold outline-none transition-all', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white hover:border-teal-500' : 'bg-white border-slate-200 text-slate-900 hover:border-teal-500', disabled && "opacity-60 cursor-not-allowed")}>
         <span className="truncate">{displayValue(value) || placeholder}</span>
         <ChevronDown size={14} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
       </button>
@@ -336,7 +336,7 @@ export function ModernDropdown({ value, options, onChange, isDarkMode, lang, pla
         <div className={cn('absolute top-full mt-1 left-0 right-0 z-[200] rounded-xl border shadow-xl py-1 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200', isDarkMode ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
           <div className="max-h-48 overflow-y-auto no-scrollbar">
             {options.map((opt:any) => (
-              <button key={opt} onClick={() => { onChange(opt); setOpen(false); }} className={cn('w-full text-left px-4 py-2.5 text-sm font-bold transition-all', value === opt ? (isDarkMode ? 'bg-teal-500/20 text-teal-400' : 'bg-teal-50 text-teal-700') : (isDarkMode ? 'text-slate-300 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'))}>{displayValue(opt)}</button>
+              <button key={opt} onClick={() => { onChange(opt); setOpen(false); }} className={cn('w-full text-left px-4 py-2.5 text-[11px] font-bold transition-all', value === opt ? (isDarkMode ? 'bg-teal-500/20 text-teal-400' : 'bg-teal-50 text-teal-700') : (isDarkMode ? 'text-slate-300 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'))}>{displayValue(opt)}</button>
             ))}
           </div>
         </div>
@@ -808,56 +808,69 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                <button onClick={() => setActiveTab('info')} className={cn("flex-1 py-3 text-[11px] font-bold transition-all border-b-2 text-center", activeTab === 'info' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-slate-500")}>{lang === 'de' ? 'Info' : 'Info'}</button>
             </div>
 
-            {activeTab === 'info' && (
-               <div className="p-3 animate-in fade-in flex flex-col gap-2">
-                  <div className="grid grid-cols-2 gap-2">
-                     <div className="flex flex-col">
-                        <label className={labelCls}><MapPin size={10}/> {lang === 'de' ? 'Adresse' : 'Address'}</label>
-                        <input disabled={viewOnly} value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} className={inputCls} placeholder="..." />
-                     </div>
-                     <div className="flex flex-col">
-                        <label className={labelCls}><User size={10}/> {lang === 'de' ? 'Kontakt' : 'Contact'}</label>
-                        <input disabled={viewOnly} value={localHotel.contactPerson || ''} onChange={e => patchHotel({ contactPerson: e.target.value })} className={inputCls} placeholder="..." />
-                     </div>
-                  </div>
+            {activeTab === 'info' && (() => {
+               // Scoped classes for 11px font and auto-height textareas
+               const infoFieldCls = cn("w-full px-2 py-1.5 rounded-lg text-[11px] font-bold outline-none border transition-all resize-none overflow-hidden h-full min-h-[32px] leading-snug", dk ? "bg-black/20 border-white/10 text-white focus:border-teal-500 placeholder-slate-600" : "bg-white border-slate-200 text-slate-900 focus:border-teal-500 placeholder-slate-400", viewOnly && "opacity-60 cursor-default");
+               
+               // Fallback JS resize for Safari (Chrome uses fieldSizing automatically)
+               const autoResize = (e: any) => {
+                   e.target.style.height = 'auto';
+                   e.target.style.height = `${e.target.scrollHeight}px`;
+               };
 
-                  <div className="grid grid-cols-2 gap-2">
-                     <div className="flex flex-col">
-                        <label className={labelCls}><Phone size={10}/> {lang === 'de' ? 'Telefon' : 'Phone'}</label>
-                        <div className={cn("flex items-center rounded-lg border h-[32px] overflow-hidden", dk ? "bg-black/20 border-white/10 focus-within:border-teal-500" : "bg-white border-slate-200 focus-within:border-teal-500")}>
-                           <span className={cn("px-2 text-[10px] font-bold border-r h-full flex items-center opacity-60", dk ? "border-white/10 text-slate-300" : "border-slate-200 text-slate-600")}>{getCountryCode(localHotel.country || 'Germany')}</span>
-                           <input disabled={viewOnly} value={localHotel.phone || ''} onChange={e => patchHotel({ phone: e.target.value })} className="w-full px-2 text-[11px] font-bold outline-none bg-transparent" placeholder="..." />
+               return (
+                  <div className="p-3 animate-in fade-in flex flex-col gap-2">
+                     
+                     <div className="flex items-stretch gap-2 w-full">
+                        <div className="flex flex-col flex-1 w-1/2">
+                           <label className={labelCls}><MapPin size={10}/> {lang === 'de' ? 'Adresse' : 'Address'}</label>
+                           <textarea rows={1} disabled={viewOnly} value={localHotel.address || ''} style={{ fieldSizing: 'content' } as any} onInput={autoResize} onChange={e => patchHotel({ address: e.target.value })} className={infoFieldCls} placeholder="..." />
+                        </div>
+                        <div className="flex flex-col flex-1 w-1/2">
+                           <label className={labelCls}><User size={10}/> {lang === 'de' ? 'Kontakt' : 'Contact'}</label>
+                           <textarea rows={1} disabled={viewOnly} value={localHotel.contactPerson || ''} style={{ fieldSizing: 'content' } as any} onInput={autoResize} onChange={e => patchHotel({ contactPerson: e.target.value })} className={infoFieldCls} placeholder="..." />
                         </div>
                      </div>
-                     <div className="flex flex-col">
-                        <label className={labelCls}><Mail size={10}/> Email</label>
-                        <div className="relative flex items-center group">
-                           <input disabled={viewOnly} value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })} className={cn(inputCls, "pr-7")} placeholder="..." />
-                           {localHotel.email && <a href={`mailto:${localHotel.email}`} className="absolute right-1 p-1 bg-teal-600 text-white rounded"><Mail size={10} /></a>}
+
+                     <div className="flex items-stretch gap-2 w-full">
+                        <div className="flex flex-col flex-1 w-1/2">
+                           <label className={labelCls}><Phone size={10}/> {lang === 'de' ? 'Telefon' : 'Phone'}</label>
+                           <div className={cn("flex items-stretch rounded-lg border overflow-hidden h-full min-h-[32px]", dk ? "bg-black/20 border-white/10 focus-within:border-teal-500" : "bg-white border-slate-200 focus-within:border-teal-500")}>
+                              <span className={cn("px-2 text-[10px] font-bold border-r flex items-center justify-center opacity-60", dk ? "border-white/10 text-slate-300" : "border-slate-200 text-slate-600")}>{getCountryCode(localHotel.country || 'Germany')}</span>
+                              <textarea rows={1} disabled={viewOnly} value={localHotel.phone || ''} style={{ fieldSizing: 'content' } as any} onInput={autoResize} onChange={e => patchHotel({ phone: e.target.value })} className="w-full px-2 py-1.5 text-[11px] font-bold outline-none bg-transparent resize-none overflow-hidden h-full" placeholder="..." />
+                           </div>
+                        </div>
+                        <div className="flex flex-col flex-1 w-1/2">
+                           <label className={labelCls}><Mail size={10}/> Email</label>
+                           <div className="relative flex items-stretch group h-full">
+                              <textarea rows={1} disabled={viewOnly} value={localHotel.email || ''} style={{ fieldSizing: 'content' } as any} onInput={autoResize} onChange={e => patchHotel({ email: e.target.value })} className={cn(infoFieldCls, "pr-7")} placeholder="..." />
+                              {localHotel.email && <a href={`mailto:${localHotel.email}`} className="absolute right-1 top-1/2 -translate-y-1/2 p-1 bg-teal-600 text-white rounded"><Mail size={10} /></a>}
+                           </div>
                         </div>
                      </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                     <div className="flex flex-col">
-                        <label className={labelCls}><Globe size={10}/> {lang === 'de' ? 'Webseite' : 'Website'}</label>
-                        <div className="relative flex items-center group">
-                           <input disabled={viewOnly} value={localHotel.website || ''} onChange={e => patchHotel({ website: e.target.value })} className={cn(inputCls, "pr-7")} placeholder="..." />
-                           {localHotel.website && <a href={localHotel.website.startsWith('http') ? localHotel.website : `https://${localHotel.website}`} target="_blank" rel="noreferrer" className="absolute right-1 p-1 bg-teal-600 text-white rounded"><ExternalLink size={10} /></a>}
+                     <div className="flex items-stretch gap-2 w-full">
+                        <div className="flex flex-col flex-1 w-1/2">
+                           <label className={labelCls}><Globe size={10}/> {lang === 'de' ? 'Webseite' : 'Website'}</label>
+                           <div className="relative flex items-stretch group h-full">
+                              <textarea rows={1} disabled={viewOnly} value={localHotel.website || ''} style={{ fieldSizing: 'content' } as any} onInput={autoResize} onChange={e => patchHotel({ website: e.target.value })} className={cn(infoFieldCls, "pr-7")} placeholder="..." />
+                              {localHotel.website && <a href={localHotel.website.startsWith('http') ? localHotel.website : `https://${localHotel.website}`} target="_blank" rel="noreferrer" className="absolute right-1 top-1/2 -translate-y-1/2 p-1 bg-teal-600 text-white rounded"><ExternalLink size={10} /></a>}
+                           </div>
+                        </div>
+                        <div className="flex flex-col flex-1 w-1/2">
+                           <label className={labelCls}><Building size={10}/> {lang === 'de' ? 'Land' : 'Country'}</label>
+                           {/* Drops to h-full so it matches the website box height if it expands */}
+                           <ModernDropdown disabled={viewOnly} value={localHotel.country || 'Germany'} options={getCountryOptions()} onChange={(v:string) => patchHotel({ country: v })} isDarkMode={dk} lang={lang} className="h-full min-h-[32px] !h-auto" />
                         </div>
                      </div>
+
                      <div className="flex flex-col">
-                        <label className={labelCls}><Building size={10}/> {lang === 'de' ? 'Land' : 'Country'}</label>
-                        <ModernDropdown disabled={viewOnly} value={localHotel.country || 'Germany'} options={getCountryOptions()} onChange={(v:string) => patchHotel({ country: v })} isDarkMode={dk} lang={lang} />
+                        <label className={labelCls}><StickyNote size={10}/> {lang === 'de' ? 'Notiz' : 'Note'}</label>
+                        <textarea disabled={viewOnly} value={localHotel.notes || ''} style={{ fieldSizing: 'content' } as any} onInput={autoResize} onChange={e => patchHotel({ notes: e.target.value })} className={cn("w-full px-2 py-2 rounded-lg text-[11px] font-medium outline-none border transition-all resize-y min-h-[50px]", dk ? "bg-black/20 border-white/10 text-white focus:border-teal-500 placeholder-slate-600" : "bg-white border-slate-200 text-slate-900 focus:border-teal-500 placeholder-slate-400")} placeholder={lang === 'de' ? "Private Notizen hier eintragen..." : "Write private notes here..."} />
                      </div>
                   </div>
-
-                  <div className="flex flex-col">
-                     <label className={labelCls}><StickyNote size={10}/> {lang === 'de' ? 'Notiz' : 'Note'}</label>
-                     <textarea disabled={viewOnly} value={localHotel.notes || ''} onChange={e => patchHotel({ notes: e.target.value })} className={cn("w-full px-2 py-2 rounded-lg text-xs font-medium outline-none border transition-all min-h-[50px] resize-y", dk ? "bg-black/20 border-white/10 text-white focus:border-teal-500 placeholder-slate-600" : "bg-white border-slate-200 text-slate-900 focus:border-teal-500 placeholder-slate-400")} placeholder={lang === 'de' ? "Private Notizen hier eintragen..." : "Write private notes here..."} />
-                  </div>
-               </div>
-            )}
+               );
+            })()}
 
             {activeTab === 'bookings' && (
                <div className="p-3 animate-in fade-in flex flex-col gap-4">
