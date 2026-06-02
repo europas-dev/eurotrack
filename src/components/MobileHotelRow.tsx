@@ -436,7 +436,7 @@ export function CompanyMultiSelect({ selected, options, isDarkMode, lang, onChan
   );
 }
 
-export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onRenameCompanyOption, onAddOption, viewOnly, activeSort = 'created_at', activeFilterDue, activeFilterDeposit, onToggle, isOpen }: any) {
+export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onRenameCompanyOption, onAddOption, viewOnly, activeSort = 'created_at', activeFilterDue, activeFilterDeposit, onToggle, isOpen, isSelected = false, onSelect = () => {}, isBulkActive = false, showGlobalFinancials = false }: any) {
   
   const [activeTab, setActiveTab] = useState<'bookings'|'billing'|'info'>('bookings');
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
@@ -478,6 +478,17 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
   });
 
   const activeInvoice = useMemo(() => localHotel.invoices?.find((i:any) => i.id === selectedInvoiceId), [localHotel.invoices, selectedInvoiceId]);
+
+  // NEW: Calculate if there is a hidden invoice match for the magnifier tooltip
+  const hiddenMatchText = useMemo(() => {
+    if (!searchQuery) return null;
+    const q = searchQuery.toLowerCase();
+    const invoiceMatch = localHotel.invoices?.some((inv: any) => inv.number?.toLowerCase().includes(q)) || 
+                         localHotel.durations?.some((d:any) => d.rechnungNr?.toLowerCase().includes(q));
+    if (invoiceMatch && (searchScope === 'all' || searchScope === 'invoice')) 
+      return lang === 'de' ? `Treffer: Rechnung` : `Invoice Match`;
+    return null;
+  }, [localHotel, searchQuery, searchScope, lang]);
 
   // GLOBAL MATH (Main Card)
   const globalMath = useMemo(() => {
@@ -668,7 +679,11 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
       {/* --- COLLAPSED VIEW --- */}
       <div className="p-3 pl-4 flex flex-col w-full">
          <div className="flex items-start justify-between w-full">
-            <div className="flex-1 min-w-0 pr-2 pt-0.5">
+            <div className="flex-1 min-w-0 pr-2 pt-0.5 flex items-center gap-2">
+               {/* NEW: Bulk Action Checkbox */}
+               {(!viewOnly && (isSelected || isBulkActive)) && (
+                  <input type="checkbox" checked={isSelected} onChange={(e) => { e.stopPropagation(); onSelect(); }} className="w-4 h-4 rounded border-slate-300 accent-teal-600 cursor-pointer shadow-sm transition-transform active:scale-90 shrink-0" />
+               )}
                <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-base font-bold leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} />
             </div>
             <div className="flex items-center gap-1 shrink-0">
@@ -689,10 +704,18 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
             </div>
          </div>
 
-         <div className="flex justify-between items-center w-full mb-3 mt-0.5">
-            <div className="flex items-center gap-1.5 shrink min-w-0 max-w-[40%] pr-2">
-               <MapPin size={10} className={cn("shrink-0", dk ? "text-slate-500" : "text-slate-400")} /> 
-               <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} textClass={cn("text-[10px] font-bold uppercase tracking-widest truncate", dk ? "text-slate-400" : "text-slate-500")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
+         <div className="flex justify-between items-start w-full mb-3 mt-0.5">
+            <div className="flex flex-col gap-1.5 shrink min-w-0 max-w-[50%] pr-2">
+               <div className="flex items-center gap-1.5">
+                  <MapPin size={10} className={cn("shrink-0", dk ? "text-slate-500" : "text-slate-400")} /> 
+                  <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} textClass={cn("text-[10px] font-bold uppercase tracking-widest truncate", dk ? "text-slate-400" : "text-slate-500")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
+               </div>
+               {/* NEW: Search Highlighter Tooltip */}
+               {hiddenMatchText && (
+                  <button onClick={(e) => { e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('billing'); }} className={cn("w-max flex items-center gap-1.5 px-2 py-0.5 rounded border text-[9px] font-bold transition-colors cursor-pointer shadow-sm", dk ? "border-teal-500/30 text-teal-400 hover:bg-teal-500/10" : "border-teal-200 text-teal-700 hover:bg-teal-50")}>
+                     <Search size={10} /> <span className="tracking-wide">{hiddenMatchText}</span>
+                  </button>
+               )}
             </div>
             <div className="flex-1 min-w-0 flex justify-end pl-2" onClick={e => e.stopPropagation()}>
                <CompanyMultiSelect disabled={viewOnly} selected={localHotel.companyTag} options={companyOptions} isDarkMode={dk} lang={lang} onChange={(tags:any) => patchHotel({ companyTag: tags })} onDeleteOption={onDeleteCompanyOption} onRenameOption={onRenameCompanyOption} onAddOption={onAddOption} searchQuery={searchScope === 'all' || searchScope === 'company' ? searchQuery : ''} onOpenChange={setIsDropdownActive} />
@@ -717,7 +740,8 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                    {formatCurrency(globalMath.displayBrutto)}
                 </span>
                 
-                {(showPaidSplit || (activeFilterDue && activeFilterDue !== 'all')) && (
+                {/* NEW: Global Financials & Sort Filter Overrides */}
+                {(showGlobalFinancials || showPaidSplit) && (
                    <div className="flex items-center gap-1.5 mt-1.5 animate-in fade-in slide-in-from-top-1">
                       <span className="text-[10px] font-bold text-emerald-500 leading-none">{formatCurrency(globalMath.totalPaid)}</span>
                       <span className="text-[10px] text-slate-300 dark:text-slate-600 leading-none">|</span>
@@ -725,9 +749,27 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                    </div>
                 )}
 
-                {globalMath.nearestDueDate && (activeSort === 'payment_due' || (activeFilterDue && activeFilterDue !== 'all')) && (
+                {!(showGlobalFinancials || showPaidSplit) && (activeSort === 'payment_due' || (activeFilterDue && activeFilterDue !== 'all')) && globalMath.nearestDueDate && (
                    <span className="text-[8px] font-bold text-red-500 uppercase tracking-wider mt-1.5">
                       {lang === 'de' ? 'Fällig: ' : 'Due: '} {formatShortDate(globalMath.nearestDueDate)}
+                   </span>
+                )}
+
+                {!(showGlobalFinancials || showPaidSplit) && activeFilterDeposit === 'yes' && localHotel.depositEnabled && (
+                   <span className="text-[8px] font-bold text-amber-500 uppercase tracking-wider mt-1.5">
+                      {lang === 'de' ? 'Kaution: ' : 'Deposit: '} {formatCurrency(parseFloat(localHotel.depositAmount || '0'))}
+                   </span>
+                )}
+
+                {!(showGlobalFinancials || showPaidSplit) && activeSort === 'bed_price' && tabMath.pricePerBed > 0 && (
+                   <span className="text-[9px] font-bold text-slate-500 mt-1.5">
+                      {formatCurrency(tabMath.pricePerBed)} / {lang === 'de' ? 'Bett' : 'Bed'}
+                   </span>
+                )}
+
+                {!(showGlobalFinancials || showPaidSplit) && activeSort === 'total_paid' && (
+                   <span className="text-[9px] font-bold text-emerald-500 mt-1.5">
+                      {formatCurrency(globalMath.totalPaid)}
                    </span>
                 )}
              </div>
@@ -798,7 +840,6 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
             {isOpen ? (lang === 'de' ? 'Schließen' : 'Close') : (lang === 'de' ? 'Details öffnen' : 'Open Details')}
          </div>
       </div>
-
       {/* --- EXPANDED VIEW --- */}
       {isOpen && (
          <div className={cn("flex flex-col border-t", dk ? "bg-[#0B1224] border-white/5" : "bg-slate-50 border-slate-200")} onClick={e => e.stopPropagation()}>
