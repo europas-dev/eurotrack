@@ -230,7 +230,7 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
     )
   }
 
-  // FLAT VIEW MODE
+  // FLAT VIEW MODE (No text wrapping)
   return (
     <div className={cn("flex flex-col px-3 py-3 border-b last:border-b-0 transition-colors group relative gap-1.5", dk ? "border-white/5 hover:bg-white/[0.02]" : "border-slate-100 hover:bg-slate-50/50")}>
        <div className="flex items-start justify-between w-full">
@@ -241,6 +241,7 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
               {currentItem.method === 'per_bed' && <span className="text-[9.5px] font-bold text-slate-500 mt-0.5 truncate">({activeNights}N, {currentItem.beds||1}B)</span>}
            </div>
            
+           {/* FIX: Removed 'gap-1' so the percentages perfectly equal 100% */}
            <div className="w-[65%] flex items-start shrink-0 justify-end pt-0.5">
                <div className="w-[28%] flex flex-col items-end whitespace-nowrap">
                   <span className={cn("text-[10px] font-bold", dk ? "text-slate-400" : "text-slate-500")}>{currentItem.method === 'per_bed' ? formatCurrency(parseFloat(currentItem.netto)||0) : '--'}</span>
@@ -265,7 +266,7 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
 
        {currentItem.note && <span className="text-[10px] font-medium text-slate-500 italic mt-0.5 pr-8 leading-tight break-words whitespace-pre-wrap">{currentItem.note}</span>}
        
-       <div className="absolute right-0 top-0 bottom-0 flex items-center justify-end px-2 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-l from-white dark:from-[#1E293B] via-white/90 dark:via-[#1E293B]/90 to-transparent pl-8">
+       <div className="absolute right-0 top-0 bottom-0 flex items-center justify-end px-2 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity bg-gradient-to-l from-white dark:from-[#1E293B] via-white/90 dark:via-[#1E293B]/90 to-transparent pl-8">
           {!viewOnly && <button onClick={onEdit} className="p-1.5 rounded-md bg-black/5 dark:bg-white/5 text-slate-400 hover:text-teal-500 transition-colors mr-1"><Edit3 size={14}/></button>}
           {!viewOnly && <button onClick={onDelete} className="p-1.5 rounded-md bg-black/5 dark:bg-white/5 text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={14}/></button>}
        </div>
@@ -1078,40 +1079,60 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
 
                               {activeInvoice.billingMode === 'total' ? (
                                  <div className="flex flex-col flex-1 pb-1">
-                                    {editingTotal && !viewOnly ? (
-                                       <div ref={totalRef} className={cn("flex flex-col p-3 mt-2 rounded-xl border shadow-xl animate-in fade-in flex-1", dk ? "border-teal-500/50 bg-teal-900/20" : "border-teal-300 bg-teal-50")}>
-                                          <div className="flex items-center gap-1 w-full h-[30px]">
-                                             <div style={{ flex: showTotalDiscount ? 3 : 5 }} className="relative min-w-0 transition-all">
-                                                <input type="number" placeholder="Gesamt Netto" value={totalDraft?.totalNetto ?? ''} onChange={e => setTotalDraft({...totalDraft, totalNetto: e.target.value, totalBrutto: null})} className={cn(inputCls, "w-full h-full text-right", !showTotalDiscount ? "pr-6" : "px-1.5")} />
-                                                {!showTotalDiscount && <button onClick={() => { setShowTotalDiscount(true); if(!totalDraft?.discountType) setTotalDraft({...totalDraft, discountType: 'fixed'}); }} className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
+                                    {editingTotal && !viewOnly ? (() => {
+                                       
+                                       // FIX: Calculate Total Brutto live in the editor so it doesn't show placeholder text
+                                       const currentTotalNetto = parseFloat(totalDraft?.totalNetto) || 0;
+                                       const currentDisc = parseFloat(totalDraft?.discountValue) || 0;
+                                       const calcNet = totalDraft?.discountType === 'percentage' ? currentTotalNetto * (1 - currentDisc/100) : Math.max(0, currentTotalNetto - currentDisc);
+                                       const calcMwst = parseFloat(totalDraft?.totalMwst) || 0;
+                                       const autoBrutto = calcNet * (1 + calcMwst/100);
+
+                                       return (
+                                          <div ref={totalRef} className={cn("flex flex-col p-3 mt-2 rounded-xl border shadow-xl animate-in fade-in flex-1", dk ? "border-teal-500/50 bg-teal-900/20" : "border-teal-300 bg-teal-50")}>
+                                             <div className="flex items-center gap-1.5 w-full h-[30px]">
+                                                
+                                                <div style={{ flex: showTotalDiscount ? 3.5 : 5.5 }} className="relative min-w-0">
+                                                   <input type="number" placeholder="Gesamt Netto" value={totalDraft?.totalNetto ?? ''} onChange={e => setTotalDraft({...totalDraft, totalNetto: e.target.value, totalBrutto: null})} className={cn(inputCls, "w-full h-full text-right", !showTotalDiscount ? "pr-6" : "px-1.5")} />
+                                                   {!showTotalDiscount && <button onClick={() => { setShowTotalDiscount(true); if(!totalDraft?.discountType) setTotalDraft({...totalDraft, discountType: 'fixed'}); }} className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
+                                                </div>
+                                                
+                                                {showTotalDiscount && (
+                                                   <div style={{ flex: 2 }} className="flex items-center rounded border h-full min-w-0 overflow-hidden animate-in fade-in slide-in-from-right-2 bg-white dark:bg-[#1E293B] dark:border-white/10 border-slate-200">
+                                                      <input type="number" value={totalDraft?.discountValue ?? ''} onChange={e => setTotalDraft({...totalDraft, discountValue: e.target.value})} className="min-w-0 w-full h-full bg-transparent text-right text-[11px] font-bold px-1 outline-none placeholder:text-[9px]" placeholder="Rab." />
+                                                      <button onClick={() => setTotalDraft({...totalDraft, discountType: totalDraft?.discountType === 'percentage' ? 'fixed' : 'percentage'})} className={cn("w-[20px] shrink-0 h-full border-x text-[10px] font-bold transition-colors", dk ? "border-white/10 text-white hover:bg-white/10" : "border-slate-200 text-slate-700 hover:bg-slate-100")}>{totalDraft?.discountType === 'percentage' ? '%' : '€'}</button>
+                                                      <button onClick={() => { setShowTotalDiscount(false); setTotalDraft({...totalDraft, discountValue: null}); }} className={cn("w-[20px] shrink-0 h-full flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors", dk ? "hover:bg-white/10" : "hover:bg-slate-100")}><X size={10}/></button>
+                                                   </div>
+                                                )}
+
+                                                <div style={{ flex: 1.5 }} className="min-w-0">
+                                                   <MwstInput value={totalDraft?.totalMwst} onChange={(v:any) => setTotalDraft({...totalDraft, totalMwst: v})} isDarkMode={dk} disabled={false} />
+                                                </div>
+
+                                                <div style={{ flex: 3 }} className="min-w-0">
+                                                   {/* FIX: Show calculated AutoBrutto visibly, instead of gray disabled input */}
+                                                   {totalDraft?.totalNetto && !totalDraft?.totalBrutto ? (
+                                                       <div className={cn(inputCls, "w-full h-full bg-transparent border-transparent text-right font-black px-1.5 flex items-center justify-end", dk ? "text-white" : "text-slate-900")}>
+                                                           {formatCurrency(autoBrutto)}
+                                                       </div>
+                                                   ) : (
+                                                       <input type="number" placeholder="Brutto" value={totalDraft?.totalBrutto ?? ''} onChange={e => setTotalDraft({...totalDraft, totalBrutto: e.target.value, totalNetto: null})} className={cn(inputCls, "w-full h-full text-right font-black px-1.5 placeholder:text-slate-900 dark:placeholder:white")} />
+                                                   )}
+                                                </div>
                                              </div>
                                              
-                                             {showTotalDiscount && (
-                                                <div style={{ flex: 2 }} className="flex items-center rounded border h-full min-w-0 shrink-0 overflow-hidden animate-in fade-in slide-in-from-right-2 bg-white dark:bg-[#1E293B] dark:border-white/10 border-slate-200">
-                                                   <input type="number" value={totalDraft?.discountValue ?? ''} onChange={e => setTotalDraft({...totalDraft, discountValue: e.target.value})} className="min-w-0 w-full h-full bg-transparent text-right text-[11px] font-bold px-1 outline-none placeholder:text-[9px]" placeholder="Rab." />
-                                                   <button onClick={() => setTotalDraft({...totalDraft, discountType: totalDraft?.discountType === 'percentage' ? 'fixed' : 'percentage'})} className={cn("w-[18px] shrink-0 h-full border-x text-[10px] font-bold transition-colors flex items-center justify-center", dk ? "border-white/10 text-white hover:bg-white/20" : "border-slate-200 text-slate-700 hover:bg-slate-300")}>{totalDraft?.discountType === 'percentage' ? '%' : '€'}</button>
-                                                   <button onClick={() => { setShowTotalDiscount(false); setTotalDraft({...totalDraft, discountValue: null}); }} className={cn("w-[18px] shrink-0 h-full flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors", dk ? "bg-black/20 hover:bg-white/10" : "bg-white hover:bg-slate-100")}><X size={10}/></button>
-                                                </div>
-                                             )}
-
-                                             <div style={{ flex: 2 }} className="min-w-0 shrink-0 h-full">
-                                                <MwstInput value={totalDraft?.totalMwst} onChange={(v:any) => setTotalDraft({...totalDraft, totalMwst: v})} isDarkMode={dk} disabled={false} />
-                                             </div>
-
-                                             <div style={{ flex: 3 }} className="min-w-0 shrink-0 h-full">
-                                                <input type="number" placeholder="Brutto" value={totalDraft?.totalBrutto ?? ''} onChange={e => setTotalDraft({...totalDraft, totalBrutto: e.target.value, totalNetto: null})} className={bruttoReadonlyClass} />
+                                             <textarea rows={1} value={totalDraft?.note || ''} onChange={e => {e.target.style.height='32px'; e.target.style.height=`${e.target.scrollHeight}px`; setTotalDraft({...totalDraft, note: e.target.value})}} className={cn(inputCls, "w-full text-xs font-medium resize-none min-h-[32px] mt-2")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />
+                                             
+                                             <div className="flex items-center justify-end gap-2 mt-1 pt-2 border-t dark:border-teal-500/30 border-teal-200">
+                                                {/* FIX: Flex Center to align text and icons in buttons */}
+                                                <button onClick={() => setEditingTotal(false)} className={cn("px-4 py-1.5 rounded-lg text-xs font-bold border h-[32px] transition-all flex items-center justify-center", dk ? "border-white/10 text-slate-300 hover:bg-white/10" : "border-slate-200 text-slate-600 hover:bg-slate-100")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
+                                                <button onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, ...totalDraft} : i) }); setEditingTotal(false); }} className="px-5 py-1.5 rounded-lg text-xs font-bold text-white bg-teal-500 hover:bg-teal-600 h-[32px] shadow-sm transition-all flex items-center justify-center gap-1.5"><Check size={14} strokeWidth={3}/> {lang === 'de' ? 'Speichern' : 'Save'}</button>
                                              </div>
                                           </div>
-                                          
-                                          <textarea rows={1} value={totalDraft?.note || ''} onChange={e => {e.target.style.height='32px'; e.target.style.height=`${e.target.scrollHeight}px`; setTotalDraft({...totalDraft, note: e.target.value})}} className={cn(inputCls, "w-full text-xs font-medium resize-none min-h-[32px] mt-2")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />
-                                          
-                                          <div className="flex items-center justify-end gap-2 mt-1 pt-2 border-t dark:border-teal-500/30 border-teal-200">
-                                             <button onClick={() => setEditingTotal(false)} className={cn("px-4 py-1.5 rounded-lg text-xs font-bold border h-[32px] transition-all", dk ? "border-white/10 text-slate-300 hover:bg-white/10" : "border-slate-200 text-slate-600 hover:bg-slate-100")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
-                                             <button onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, ...totalDraft} : i) }); setEditingTotal(false); }} className="px-5 py-1.5 rounded-lg text-xs font-bold text-white bg-teal-500 hover:bg-teal-600 h-[32px] shadow-sm transition-all"><Check size={14} strokeWidth={3}/> {lang === 'de' ? 'Speichern' : 'Save'}</button>
-                                          </div>
-                                       </div>
-                                    ) : (() => {
+                                       );
+                                    })() : (() => {
                                        
+                                       // --- Master Gesamt (Flat Text View Mode) ---
                                        const baseNetto = parseFloat(activeInvoice.totalNetto) || 0;
                                        const discVal = parseFloat(activeInvoice.discountValue) || 0;
                                        const finalNetto = activeInvoice.discountType === 'percentage' ? baseNetto * (1 - discVal/100) : Math.max(0, baseNetto - discVal);
@@ -1120,9 +1141,11 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
 
                                        return (
                                           <div className="flex flex-col">
-                                             <div className={cn("flex items-center gap-1 px-3 py-2 border-b mb-1 justify-end", dk ? "border-white/10 bg-white/[0.02]" : "border-slate-200 bg-slate-50/50")}>
+                                             
+                                             <div className={cn("flex items-center px-3 py-2 border-b mb-1 justify-end", dk ? "border-white/10 bg-white/[0.02]" : "border-slate-200 bg-slate-50/50")}>
                                                 <div className="flex-1 min-w-0 pr-2" />
-                                                <div className="w-[65%] flex items-center gap-1 shrink-0 justify-end">
+                                                {/* FIX: Removed gap-1 */}
+                                                <div className="w-[55%] flex items-center shrink-0 justify-end">
                                                    <div className="w-[45%] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">Gesamt</div>
                                                    <div className="w-[20%] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-center">MwSt</div>
                                                    <div className="w-[35%] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">Brutto</div>
@@ -1130,14 +1153,16 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                                              </div>
                                              
                                              <div className={cn("flex flex-col px-3 py-2.5 group relative rounded-xl transition-colors", dk ? "hover:bg-white/[0.02]" : "hover:bg-slate-50/50")}>
-                                                <div className="flex items-start justify-between gap-1 w-full">
+                                                <div className="flex items-start justify-between w-full">
+                                                   
                                                    <div className="flex-1 min-w-0 pr-2">
                                                       <span className={cn("text-[12px] font-black leading-tight truncate", dk ? "text-slate-200" : "text-slate-800")}>
                                                          {lang === 'de' ? 'Gesamtbetrag' : 'Total Amount'}
                                                       </span>
                                                    </div>
                                                    
-                                                   <div className="w-[65%] flex items-start gap-1 shrink-0 justify-end pt-0.5">
+                                                   {/* FIX: Removed gap-1 */}
+                                                   <div className="w-[55%] flex items-start shrink-0 justify-end pt-0.5">
                                                       <div className="w-[45%] flex flex-col items-end whitespace-nowrap">
                                                          <span className={cn("text-[10px] font-bold", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(finalNetto)}</span>
                                                          {discVal > 0 && (
@@ -1173,7 +1198,7 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                                  <div className="flex flex-col flex-1 pb-1">
                                     <div className={cn("flex items-center px-3 py-2 border-b mb-1", dk ? "border-white/10 bg-white/[0.02]" : "border-slate-200 bg-slate-50/50")}>
                                        <div className="flex-1 min-w-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest">{lang === 'de' ? 'Beschreibung' : 'Desc'}</div>
-                                       <div className="w-[65%] flex items-center gap-1 shrink-0 justify-end">
+                                       <div className="w-[65%] flex items-center shrink-0 justify-end">
                                           <div className="w-[28%] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">{lang === 'de' ? 'N. / Bett' : 'N. / Bed'}</div>
                                           <div className="w-[32%] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-right">Gesamt</div>
                                           <div className="w-[15%] shrink-0 text-[8.5px] font-black text-slate-400 uppercase tracking-widest text-center">MwSt</div>
