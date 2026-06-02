@@ -1,5 +1,4 @@
-// src/MobileDashboard.tsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday, calculateNights, calcInvoiceItem } from './lib/utils';
 import type { AccessLevel } from './lib/supabase';
@@ -62,6 +61,7 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
   const [filterDue, setFilterDue] = useState<'all' | 'today' | '3days' | '5days'>('all');
   const [filterDeposit, setFilterDeposit] = useState<'all' | 'yes' | 'no'>('all');
   const [groupBy, setGroupBy] = useState<'none' | 'hotel' | 'company' | 'city' | 'country'>('none');
+  const [activeGroupTab, setActiveGroupTab] = useState<string | null>(null);
   
   const [sortBy, setSortBy] = useState<'name' | 'cost' | 'bed_price' | 'free_beds' | 'payment_due' | 'total_paid' | 'created_at' | 'updated_at'>('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -157,7 +157,6 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
   };
 
   // --- EXACT MATH FILTERS FROM WEB ---
-  // --- FREE BEDS COUNTS ---
   const getBedsCount = (daysOffset: number) => {
      const d = new Date(); d.setDate(d.getDate() + daysOffset);
      const dStr = d.toISOString().split('T')[0];
@@ -180,7 +179,6 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
   const fbCount3 = useMemo(() => getBedsCount(3), [hotels]);
   const fbCount7 = useMemo(() => getBedsCount(7), [hotels]);
 
-  // --- EXACT MATH FILTERS FROM WEB ---
   const finalFiltered = useMemo(() => {
     return hotels.filter(h => {
       // 1. EXACT WEB MONTH & YEAR OVERLAP CHECK
@@ -231,6 +229,52 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
       if (filterDeposit === 'yes' && !h.depositEnabled) return false;
       if (filterDeposit === 'no' && h.depositEnabled) return false;
       
+      // Payment Due Logic
+      if (filterDue !== 'all') {
+          const today = new Date();
+          today.setHours(0,0,0,0);
+          let maxDate = new Date(today);
+          if (filterDue === 'today') maxDate.setDate(today.getDate() + 0);
+          else if (filterDue === '3days') maxDate.setDate(today.getDate() + 3);
+          else if (filterDue === '5days') maxDate.setDate(today.getDate() + 5);
+          maxDate.setHours(23,59,59,999);
+
+          const hasDueInvoice = (h.invoices || []).some((inv: any) => {
+              if (inv.isPaid || !inv.dueDate) return false;
+              const d = new Date(inv.dueDate);
+              return d >= today && d <= maxDate;
+          });
+          if (!hasDueInvoice) return false;
+      }
+
+      // Timeline Logic
+      if (tlType !== 'all' && tlStart && tlEnd) {
+          const hasTimelineOverlap = (h.durations || []).some((dur: any) => {
+              if (!dur.startDate || !dur.endDate) return false;
+              return dur.startDate <= tlEnd && dur.endDate >= tlStart;
+          });
+          if (!hasTimelineOverlap) return false;
+      }
+
+      // Free Beds Logic
+      if (fbType !== 'all') {
+         let targetDate = new Date().toISOString().split('T')[0];
+         if (fbType === 'tomorrow') { const d = new Date(); d.setDate(d.getDate()+1); targetDate = d.toISOString().split('T')[0]; }
+         if (fbType === '3days') { const d = new Date(); d.setDate(d.getDate()+3); targetDate = d.toISOString().split('T')[0]; }
+         if (fbType === '7days') { const d = new Date(); d.setDate(d.getDate()+7); targetDate = d.toISOString().split('T')[0]; }
+         
+         let hasFree = false;
+         (h.durations || []).forEach((dur: any) => {
+            if (dur.startDate <= targetDate && dur.endDate >= targetDate) {
+               (dur.roomCards || []).forEach((rc: any) => {
+                  const emps = (rc.employees || []).filter((e: any) => e.checkIn <= targetDate && e.checkOut > targetDate);
+                  if ((rc.bedCount || 0) > emps.length) hasFree = true;
+               });
+            }
+         });
+         if (!hasFree) return false;
+      }
+
       return true;
     }).sort((a, b) => {
       let va: any; let vb: any;
@@ -300,10 +344,9 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
       
       return (va < vb ? -1 : va > vb ? 1 : 0) * (sortDir === 'asc' ? 1 : -1);
     });
-  }, [hotels, searchQuery, activeTab, bookmarks, sortBy, sortDir, filterPaid, filterDeposit, selectedMonth, selectedYear]);
+  }, [hotels, searchQuery, activeTab, bookmarks, sortBy, sortDir, tlType, tlStart, tlEnd, fbType, filterPaid, filterDue, filterDeposit, selectedMonth, selectedYear]);
 
   // --- GROUP DATA ---
-  const [activeGroupTab, setActiveGroupTab] = useState<string | null>(null);
   const groupData = useMemo(() => {
     if (groupBy === 'none') return null;
     const groups: Record<string, any[]> = {};
@@ -328,6 +371,7 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
 
   const btnActive = dk ? 'bg-teal-600 text-white border-transparent' : 'bg-teal-600 text-white shadow-sm';
   const btnInactive = dk ? 'bg-white/5 text-slate-300 border-white/10' : 'bg-white border-slate-200 text-slate-600';
+  
   return (
     <div className={cn("flex flex-col h-screen overflow-hidden", dk ? "bg-[#0F172A]" : "bg-slate-50")}>
       
@@ -399,7 +443,7 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
            </div>
            
            <div className="flex items-center">
-             <button onClick={() => setShowGlobalFinancials(!showGlobalFinancials)} className="flex items-center gap-1.5 transition-opacity hover:opacity-80">
+             <button onClick={() => setShowGlobalFinancials(!showGlobalFinancials)} className="flex items-center gap-1.5 transition-opacity hover:opacity-80 outline-none">
                 <Coins size={18} className={cn(showGlobalFinancials ? "text-teal-500" : (dk ? "text-slate-500" : "text-slate-400"))} strokeWidth={2.5} />
                 <span className="text-[18px] font-black text-teal-600 dark:text-teal-400">{formatCurrency(totalSpend)}</span>
              </button>
@@ -415,8 +459,6 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
          </div>
       </div>
 
-      <div className="p-2 space-y-3">
-              
       {/* SCROLLING CONTENT AREA */}
       <div className="flex-1 overflow-y-auto pb-24 relative no-scrollbar">
          {loading ? (
@@ -442,33 +484,21 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
                  }
 
                  // Grouped list
-                 const grouped = finalFiltered.reduce((acc: any, h: any) => {
-                    let key = 'Ungruppiert';
-                    if (groupBy === 'city' && h.city) key = h.city;
-                    if (groupBy === 'country' && h.country) key = h.country;
-                    if (groupBy === 'company' && h.companyTag && h.companyTag.length > 0) key = h.companyTag[0];
-                    if (groupBy === 'hotel' && h.name) key = h.name;
-                    if (!acc[key]) acc[key] = [];
-                    acc[key].push(h);
-                    return acc;
-                 }, {});
-
                  return (
-                    <>
-                       {Object.entries(grouped).map(([groupName, groupHotels]: any) => (
-                          <div key={groupName} className="mb-4">
-                             <div className="sticky top-0 z-40 backdrop-blur-md bg-slate-50/90 dark:bg-[#0F172A]/90 py-2 px-2 mb-2 border-b dark:border-white/10 flex items-center justify-between">
-                                <span className="text-xs font-black uppercase tracking-widest text-teal-600 dark:text-teal-400">{groupName}</span>
-                                <span className="text-[10px] font-bold text-slate-500 bg-slate-200 dark:bg-white/10 px-2 py-0.5 rounded-full">{groupHotels.length}</span>
-                             </div>
-                             <div className="space-y-3">
-                                {groupHotels.map((hotel: any, idx: number) => (
-                                   <MobileHotelRow key={hotel.id} entry={hotel} index={idx} isOpen={openRowId === hotel.id} onToggle={() => setOpenRowId(openRowId === hotel.id ? null : hotel.id)} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={(hId: string) => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId: string, up: any) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} showGlobalFinancials={showGlobalFinancials} activeSort={sortBy} activeFilterDue={filterDue} activeFilterDeposit={filterDeposit} />
-                                ))}
-                             </div>
-                          </div>
-                       ))}
-                    </>
+                    <div className="flex flex-col gap-3">
+                       <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar border-b border-slate-200 dark:border-white/10">
+                          {Object.keys(groupData || {}).map(g => (
+                             <button key={g} onClick={() => setActiveGroupTab(g === activeGroupTab ? null : g)} className={cn("px-4 py-2 rounded-xl text-[11px] font-bold border transition-all whitespace-nowrap", activeGroupTab === g ? "bg-teal-600 text-white border-teal-600 shadow-md" : "bg-white dark:bg-white/5 text-slate-500 border-slate-200 dark:border-white/10 shadow-sm")}>
+                                {g} ({(groupData as any)[g].length})
+                             </button>
+                          ))}
+                       </div>
+                       {(activeGroupTab && groupData && groupData[activeGroupTab]) ? groupData[activeGroupTab].map((hotel: any, idx: number) => (
+                          <MobileHotelRow key={hotel.id} entry={hotel} index={idx} isOpen={openRowId === hotel.id} onToggle={() => setOpenRowId(openRowId === hotel.id ? null : hotel.id)} isDarkMode={dk} lang={lang} viewOnly={viewOnly} searchQuery={searchQuery} searchScope={searchScope} companyOptions={allCompanyOptions} cityOptions={uniqueCities} hotelOptions={uniqueHotelNames} employeeOptions={uniqueEmployeeNames} onDelete={(hId: string) => setHotels(prev => prev.filter(ho=>ho.id!==hId))} onUpdate={(hId: string, up: any) => setHotels(prev => prev.map(ho=>ho.id===hId?{...ho,...up}:ho))} showGlobalFinancials={showGlobalFinancials} activeSort={sortBy} activeFilterDue={filterDue} activeFilterDeposit={filterDeposit} />
+                       )) : (
+                          <div className="text-center py-10 opacity-50 font-bold text-slate-500">{lang === 'de' ? 'Wählen Sie eine Gruppe' : 'Select a group'}</div>
+                       )}
+                    </div>
                  );
               })()}
 
@@ -552,7 +582,7 @@ export default function MobileDashboard({ theme, lang, toggleTheme, setLang, vie
          </button>
       </div>
 
-      {/* TABBED BOTTOM SHEET FOR FILTERS (Exact Match to Web) */}
+      {/* TABBED BOTTOM SHEET FOR FILTERS */}
       {showBottomSheet && (
         <div className="absolute inset-0 z-[99999] flex flex-col justify-end bg-black/60 backdrop-blur-sm pointer-events-auto" onClick={() => setShowBottomSheet(false)}>
            <div className={cn("w-full h-[75vh] rounded-t-3xl flex flex-col border-t shadow-2xl", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")} onClick={e => e.stopPropagation()} style={{ animation: 'slideUp 0.2s ease-out' }}>
