@@ -996,7 +996,20 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                      <div className="flex flex-col flex-1 pb-4 bg-slate-50/30 dark:bg-[#0B1224]/50">
                         {editingInvoiceId && invoiceDraft ? (
                            <div className={cn("flex flex-col gap-3 p-4 m-3 rounded-2xl border shadow-lg animate-in fade-in slide-in-from-top-2", dk ? "bg-[#1E293B] border-teal-500/30" : "bg-white border-teal-300")}>
-                              <input autoFocus value={invoiceDraft.number} onChange={e => setInvoiceDraft({...invoiceDraft, number: e.target.value})} className="w-full text-lg font-black border-b-2 bg-transparent outline-none py-1 border-teal-500 focus:ring-0 placeholder:text-slate-400" placeholder="RE-..." />
+                              
+                              {/* FIX 1: Added X button on the top right to close the editor without saving */}
+                              <div className="flex justify-between items-start gap-2">
+                                 <input autoFocus value={invoiceDraft.number} onChange={e => setInvoiceDraft({...invoiceDraft, number: e.target.value})} className="w-full text-lg font-black border-b-2 bg-transparent outline-none py-1 border-teal-500 focus:ring-0 placeholder:text-slate-400" placeholder="RE-..." />
+                                 <button onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    setEditingInvoiceId(null); 
+                                    setInvoiceDraft(null); 
+                                    if (!localHotel.invoices.find((i:any) => i.id === editingInvoiceId)) setSelectedInvoiceId(null); 
+                                 }} className="p-1.5 rounded-lg bg-black/5 dark:bg-white/5 text-slate-400 hover:text-red-500 transition-colors shrink-0">
+                                    <X size={16} />
+                                 </button>
+                              </div>
+
                               <div className="grid grid-cols-2 gap-2 mt-2">
                                  <div className="flex flex-col gap-1">
                                     <label className="text-[9px] uppercase font-bold text-slate-500 flex items-center gap-1"><Calendar size={10}/> Start</label>
@@ -1024,8 +1037,27 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                                  </div>
                               )}
                               <textarea value={invoiceDraft.note || ''} onChange={e => setInvoiceDraft({...invoiceDraft, note: e.target.value})} className={cn(inputCls, "h-[60px] resize-none")} placeholder={lang === 'de' ? "Notiz hinzufügen..." : "Add note..."} />
+                              
                               <div className="flex items-center justify-between mt-1 pt-2 border-t border-slate-200 dark:border-white/10">
-                                 <button onClick={(e) => { e.stopPropagation(); if (window.confirm('Discard draft?')) { setEditingInvoiceId(null); setInvoiceDraft(null); if (!localHotel.invoices.find((i:any) => i.id === editingInvoiceId)) setSelectedInvoiceId(null); } }} className="p-2 text-slate-400 hover:text-red-500 rounded-lg bg-slate-100 dark:bg-white/5"><Trash2 size={14} /></button>
+                                 
+                                 {/* FIX 2: Smart Delete Button. Discards draft if new, completely deletes invoice if saved. */}
+                                 <button onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    const isNew = !localHotel.invoices.find((i:any) => i.id === editingInvoiceId);
+                                    const confirmMsg = isNew ? (lang === 'de' ? 'Entwurf verwerfen?' : 'Discard draft?') : (lang === 'de' ? 'Diese Rechnung endgültig löschen?' : 'Permanently delete this invoice?');
+                                    
+                                    if (window.confirm(confirmMsg)) { 
+                                       if (!isNew) {
+                                          patchHotel({ invoices: localHotel.invoices.filter((i:any) => i.id !== editingInvoiceId) });
+                                       }
+                                       setEditingInvoiceId(null); 
+                                       setInvoiceDraft(null); 
+                                       setSelectedInvoiceId(null); 
+                                    } 
+                                 }} className="p-2 text-slate-400 hover:text-red-500 rounded-lg bg-slate-100 dark:bg-white/5 transition-colors">
+                                    <Trash2 size={14} />
+                                 </button>
+                                 
                                  <button disabled={!invoiceDraft.number || !invoiceDraft.startDate || !invoiceDraft.endDate || (invoiceDraft.isPaid && !invoiceDraft.paymentDate)} onClick={(e) => { 
                                     e.stopPropagation(); 
                                     const isNew = !localHotel.invoices.find((i:any) => i.id === editingInvoiceId);
