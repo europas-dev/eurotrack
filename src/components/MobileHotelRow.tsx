@@ -328,7 +328,8 @@ export function ModernDropdown({ value, options, onChange, isDarkMode, lang, pla
   const displayValue = (val: string) => { if (lang !== 'de') return val; const de: any = { 'Germany': 'Deutschland', 'Switzerland': 'Schweiz', 'Austria': 'Österreich', 'Netherlands': 'Niederlande', 'Poland': 'Polen', 'Belgium': 'Belgien', 'France': 'Frankreich', 'Luxembourg': 'Luxemburg' }; return de[val] || val; };
   return (
     <div ref={ref} className={cn("relative w-full h-[34px]", className)}>
-      <button disabled={disabled} onClick={() => setOpen(!open)} className={cn('w-full h-full px-3 flex items-center justify-between rounded-lg border text-[11px] font-bold outline-none transition-all', isDarkMode ? 'bg-[#1E293B] border-white/10 text-white hover:border-teal-500' : 'bg-white border-slate-200 text-slate-900 hover:border-teal-500', disabled && "opacity-60 cursor-not-allowed")}>
+      {/* FIX: Removed opacity-60 when disabled to keep text bright */}
+      <button disabled={disabled} onClick={() => setOpen(!open)} className={cn('w-full h-full px-3 flex items-center justify-between rounded-lg border text-[11px] font-bold outline-none transition-all disabled:opacity-100', isDarkMode ? 'bg-[#1E293B] border-white/10 disabled:text-white text-white hover:border-teal-500' : 'bg-white border-slate-200 disabled:text-slate-900 text-slate-900 hover:border-teal-500', disabled && "cursor-default")}>
         <span className="truncate">{displayValue(value) || placeholder}</span>
         <ChevronDown size={14} className={isDarkMode ? 'text-slate-400' : 'text-slate-500'} />
       </button>
@@ -809,10 +810,10 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
             </div>
 
             {activeTab === 'info' && (() => {
-               // Scoped classes for 11px font and auto-height textareas
-               const infoFieldCls = cn("w-full px-2 py-1.5 rounded-lg text-[11px] font-bold outline-none border transition-all resize-none overflow-hidden h-full min-h-[32px] leading-snug", dk ? "bg-black/20 border-white/10 text-white focus:border-teal-500 placeholder-slate-600" : "bg-white border-slate-200 text-slate-900 focus:border-teal-500 placeholder-slate-400", viewOnly && "opacity-60 cursor-default");
+               // FIX: Wrapper handles border & stretching. Textarea handles transparent auto-resizing.
+               const infoWrapperCls = cn("flex items-center w-full rounded-lg border transition-all h-full min-h-[32px]", dk ? "bg-black/20 border-white/10 focus-within:border-teal-500" : "bg-white border-slate-200 focus-within:border-teal-500");
+               const infoTextareaCls = cn("w-full px-2 py-2 text-[11px] font-bold outline-none bg-transparent resize-none overflow-hidden leading-snug disabled:opacity-100 disabled:text-slate-900 dark:disabled:text-white", dk ? "placeholder-slate-600" : "placeholder-slate-400");
                
-               // Fallback JS resize for Safari (Chrome uses fieldSizing automatically)
                const autoResize = (e: any) => {
                    e.target.style.height = 'auto';
                    e.target.style.height = `${e.target.scrollHeight}px`;
@@ -824,27 +825,33 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                      <div className="flex items-stretch gap-2 w-full">
                         <div className="flex flex-col flex-1 w-1/2">
                            <label className={labelCls}><MapPin size={10}/> {lang === 'de' ? 'Adresse' : 'Address'}</label>
-                           <textarea rows={1} disabled={viewOnly} value={localHotel.address || ''} style={{ fieldSizing: 'content' } as any} onInput={autoResize} onChange={e => patchHotel({ address: e.target.value })} className={infoFieldCls} placeholder="..." />
+                           <div className={infoWrapperCls}>
+                              <textarea rows={1} disabled={viewOnly} value={localHotel.address || ''} style={{ fieldSizing: 'content' } as any} onInput={autoResize} onChange={e => patchHotel({ address: e.target.value })} className={infoTextareaCls} placeholder="..." />
+                           </div>
                         </div>
                         <div className="flex flex-col flex-1 w-1/2">
                            <label className={labelCls}><User size={10}/> {lang === 'de' ? 'Kontakt' : 'Contact'}</label>
-                           <textarea rows={1} disabled={viewOnly} value={localHotel.contactPerson || ''} style={{ fieldSizing: 'content' } as any} onInput={autoResize} onChange={e => patchHotel({ contactPerson: e.target.value })} className={infoFieldCls} placeholder="..." />
+                           <div className={infoWrapperCls}>
+                              <textarea rows={1} disabled={viewOnly} value={localHotel.contactPerson || ''} style={{ fieldSizing: 'content' } as any} onInput={autoResize} onChange={e => patchHotel({ contactPerson: e.target.value })} className={infoTextareaCls} placeholder="..." />
+                           </div>
                         </div>
                      </div>
 
                      <div className="flex items-stretch gap-2 w-full">
                         <div className="flex flex-col flex-1 w-1/2">
                            <label className={labelCls}><Phone size={10}/> {lang === 'de' ? 'Telefon' : 'Phone'}</label>
-                           <div className={cn("flex items-stretch rounded-lg border overflow-hidden h-full min-h-[32px]", dk ? "bg-black/20 border-white/10 focus-within:border-teal-500" : "bg-white border-slate-200 focus-within:border-teal-500")}>
-                              <span className={cn("px-2 text-[10px] font-bold border-r flex items-center justify-center opacity-60", dk ? "border-white/10 text-slate-300" : "border-slate-200 text-slate-600")}>{getCountryCode(localHotel.country || 'Germany')}</span>
-                              <textarea rows={1} disabled={viewOnly} value={localHotel.phone || ''} style={{ fieldSizing: 'content' } as any} onInput={autoResize} onChange={e => patchHotel({ phone: e.target.value })} className="w-full px-2 py-1.5 text-[11px] font-bold outline-none bg-transparent resize-none overflow-hidden h-full" placeholder="..." />
+                           <div className={cn(infoWrapperCls, "p-0 items-stretch overflow-hidden")}>
+                              <span className={cn("px-2 text-[10px] font-bold border-r flex items-center justify-center shrink-0", dk ? "border-white/10 text-slate-300" : "border-slate-200 text-slate-600")}>{getCountryCode(localHotel.country || 'Germany')}</span>
+                              <div className="flex-1 flex items-center">
+                                 <textarea rows={1} disabled={viewOnly} value={localHotel.phone || ''} style={{ fieldSizing: 'content' } as any} onInput={autoResize} onChange={e => patchHotel({ phone: e.target.value })} className={infoTextareaCls} placeholder="..." />
+                              </div>
                            </div>
                         </div>
                         <div className="flex flex-col flex-1 w-1/2">
                            <label className={labelCls}><Mail size={10}/> Email</label>
-                           <div className="relative flex items-stretch group h-full">
-                              <textarea rows={1} disabled={viewOnly} value={localHotel.email || ''} style={{ fieldSizing: 'content' } as any} onInput={autoResize} onChange={e => patchHotel({ email: e.target.value })} className={cn(infoFieldCls, "pr-7")} placeholder="..." />
-                              {localHotel.email && <a href={`mailto:${localHotel.email}`} className="absolute right-1 top-1/2 -translate-y-1/2 p-1 bg-teal-600 text-white rounded"><Mail size={10} /></a>}
+                           <div className={cn("relative group", infoWrapperCls)}>
+                              <textarea rows={1} disabled={viewOnly} value={localHotel.email || ''} style={{ fieldSizing: 'content' } as any} onInput={autoResize} onChange={e => patchHotel({ email: e.target.value })} className={cn(infoTextareaCls, "pr-7")} placeholder="..." />
+                              {localHotel.email && <a href={`mailto:${localHotel.email}`} className="absolute right-1 top-1/2 -translate-y-1/2 p-1 bg-teal-600 text-white rounded shrink-0 z-10"><Mail size={10} /></a>}
                            </div>
                         </div>
                      </div>
@@ -852,21 +859,22 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                      <div className="flex items-stretch gap-2 w-full">
                         <div className="flex flex-col flex-1 w-1/2">
                            <label className={labelCls}><Globe size={10}/> {lang === 'de' ? 'Webseite' : 'Website'}</label>
-                           <div className="relative flex items-stretch group h-full">
-                              <textarea rows={1} disabled={viewOnly} value={localHotel.website || ''} style={{ fieldSizing: 'content' } as any} onInput={autoResize} onChange={e => patchHotel({ website: e.target.value })} className={cn(infoFieldCls, "pr-7")} placeholder="..." />
-                              {localHotel.website && <a href={localHotel.website.startsWith('http') ? localHotel.website : `https://${localHotel.website}`} target="_blank" rel="noreferrer" className="absolute right-1 top-1/2 -translate-y-1/2 p-1 bg-teal-600 text-white rounded"><ExternalLink size={10} /></a>}
+                           <div className={cn("relative group", infoWrapperCls)}>
+                              <textarea rows={1} disabled={viewOnly} value={localHotel.website || ''} style={{ fieldSizing: 'content' } as any} onInput={autoResize} onChange={e => patchHotel({ website: e.target.value })} className={cn(infoTextareaCls, "pr-7")} placeholder="..." />
+                              {localHotel.website && <a href={localHotel.website.startsWith('http') ? localHotel.website : `https://${localHotel.website}`} target="_blank" rel="noreferrer" className="absolute right-1 top-1/2 -translate-y-1/2 p-1 bg-teal-600 text-white rounded shrink-0 z-10"><ExternalLink size={10} /></a>}
                            </div>
                         </div>
                         <div className="flex flex-col flex-1 w-1/2">
                            <label className={labelCls}><Building size={10}/> {lang === 'de' ? 'Land' : 'Country'}</label>
-                           {/* Drops to h-full so it matches the website box height if it expands */}
                            <ModernDropdown disabled={viewOnly} value={localHotel.country || 'Germany'} options={getCountryOptions()} onChange={(v:string) => patchHotel({ country: v })} isDarkMode={dk} lang={lang} className="h-full min-h-[32px] !h-auto" />
                         </div>
                      </div>
 
                      <div className="flex flex-col">
                         <label className={labelCls}><StickyNote size={10}/> {lang === 'de' ? 'Notiz' : 'Note'}</label>
-                        <textarea disabled={viewOnly} value={localHotel.notes || ''} style={{ fieldSizing: 'content' } as any} onInput={autoResize} onChange={e => patchHotel({ notes: e.target.value })} className={cn("w-full px-2 py-2 rounded-lg text-[11px] font-medium outline-none border transition-all resize-y min-h-[50px]", dk ? "bg-black/20 border-white/10 text-white focus:border-teal-500 placeholder-slate-600" : "bg-white border-slate-200 text-slate-900 focus:border-teal-500 placeholder-slate-400")} placeholder={lang === 'de' ? "Private Notizen hier eintragen..." : "Write private notes here..."} />
+                        <div className={cn(infoWrapperCls, "items-start h-auto")}>
+                           <textarea disabled={viewOnly} value={localHotel.notes || ''} style={{ fieldSizing: 'content' } as any} onInput={autoResize} onChange={e => patchHotel({ notes: e.target.value })} className={cn(infoTextareaCls, "min-h-[50px]")} placeholder={lang === 'de' ? "Private Notizen hier eintragen..." : "Write private notes here..."} />
+                        </div>
                      </div>
                   </div>
                );
