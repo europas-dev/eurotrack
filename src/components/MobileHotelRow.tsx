@@ -111,13 +111,13 @@ export function MobileInvoiceLineItem({ item, isEditing, onEdit, onSave, onCance
         <div className="flex gap-1 w-full h-[30px]">
             <div className={cn("relative flex-1 rounded text-[11px] font-bold border transition-all min-w-0", dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
                 <select value={draft.type || 'room'} onChange={e => { const newType = e.target.value; setDraft({ ...draft, type: newType, method: (newType === 'base' || newType === 'extra') ? 'total' : draft.method }); }} className="w-full h-full appearance-none bg-transparent pl-2 pr-6 outline-none truncate">
-                  {COST_TYPES.map(o => <option key={o.id} value={o.id}>{lang === 'de' ? o.de : o.en}</option>)}
+                  {COST_TYPES.map(o => <option key={o.id} value={o.id} className={dk ? "bg-slate-800 text-white" : "bg-white text-slate-900"}>{lang === 'de' ? o.de : o.en}</option>)}
                 </select>
                 <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" />
             </div>
             <div className={cn("relative flex-1 rounded text-[11px] font-bold border transition-all min-w-0", dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900', !isPerBedAllowed && "opacity-50")}>
                 <select disabled={!isPerBedAllowed} value={!isPerBedAllowed ? 'total' : (draft.method || 'total')} onChange={e => setDraft({ ...draft, method: e.target.value })} className="w-full h-full appearance-none bg-transparent pl-2 pr-6 outline-none truncate">
-                     {COST_METHODS.map(m => <option key={m.id} value={m.id}>{lang === 'de' ? m.de : m.en}</option>)}
+                     {COST_METHODS.map(m => <option key={m.id} value={m.id} className={dk ? "bg-slate-800 text-white" : "bg-white text-slate-900"}>{lang === 'de' ? m.de : m.en}</option>)}
                 </select>
                 <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" />
             </div>
