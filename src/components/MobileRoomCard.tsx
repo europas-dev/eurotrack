@@ -114,19 +114,21 @@ function MobileBedSlot({
           <input disabled={viewOnly} type="text" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+49" className={cn(inputCls, 'pl-9')} />
         </div>
 
-        <div className="flex items-center gap-2 w-full">
-          <div className="relative flex-1 h-[42px]">
-             <div className={cn('absolute inset-0 flex items-center justify-between pointer-events-none rounded-lg border px-3 text-[12px] font-bold', dk ? 'border-white/10 text-white' : 'border-slate-200 text-slate-900', viewOnly && "opacity-60")}>
-               {fmtDateDe(checkIn)}
+        <div className="flex items-center gap-2 w-full h-[42px] shrink-0">
+          <div className="relative flex-1 h-full">
+             <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent px-3', viewOnly && "opacity-60")}>
+               <span className="text-[12px]">{fmtDateDe(checkIn)}</span>
              </div>
-             <input type="date" disabled={viewOnly} value={checkIn || ''} min={effectiveIn} max={effectiveOut} onChange={e => setCheckIn(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+             {/* EXACT WEB LOGIC FOR CHECKIN */}
+             <input type="date" disabled={viewOnly} value={checkIn || ''} min={effectiveIn} max={effectiveOut} onChange={e => setCheckIn(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0" />
           </div>
           <span className="text-slate-400 text-xs shrink-0">➔</span>
-          <div className="relative flex-1 h-[42px]">
-             <div className={cn('absolute inset-0 flex items-center justify-between pointer-events-none rounded-lg border px-3 text-[12px] font-bold', dk ? 'border-white/10 text-white' : 'border-slate-200 text-slate-900', viewOnly && "opacity-60")}>
-               {fmtDateDe(checkOut)}
+          <div className="relative flex-1 h-full">
+             <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent px-3', viewOnly && "opacity-60")}>
+               <span className="text-[12px]">{fmtDateDe(checkOut)}</span>
              </div>
-             <input type="date" disabled={viewOnly} value={checkOut || ''} min={checkIn || effectiveIn} max={effectiveOut} onChange={e => setCheckOut(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+             {/* EXACT WEB LOGIC FOR CHECKOUT */}
+             <input type="date" disabled={viewOnly} value={checkOut || ''} min={checkIn || effectiveIn} max={effectiveOut} onChange={e => setCheckOut(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0" />
           </div>
         </div>
 
@@ -339,8 +341,9 @@ export default function MobileRoomCard({
                   const bColor = empBorderColor(emp, dk);
                   const isPart = emp.checkIn > durationStart || emp.checkOut < durationEnd;
                   const lastName = emp.name ? emp.name.trim().split(' ').pop() : '---';
-                  // Check if someone else was in this exact slot before them
-                  const isSub = employees.some((e:any) => e.slotIndex === emp.slotIndex && e.id !== emp.id && (e.checkIn || '') < (emp.checkIn || ''));
+                  // Evaluate if this employee is a replacement for this specific bed slot
+                  const slotMates = employees.filter((e:any) => e.slotIndex === emp.slotIndex).sort((a:any,b:any) => (a.checkIn || '').localeCompare(b.checkIn || ''));
+                  const isSub = slotMates.length > 1 && slotMates[0].id !== emp.id;
 
                   return (
                      <div key={emp.id} className="flex items-center gap-2 text-[12px] truncate py-0.5">
@@ -350,7 +353,7 @@ export default function MobileRoomCard({
                             e.stopPropagation(); 
                             setIsOpen(true); 
                             setTimeout(() => window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id })), 50); 
-                        }} className={cn("px-2.5 py-1 rounded-full font-bold truncate text-left transition-colors border shadow-sm flex items-center gap-1.5", !viewOnly ? "hover:opacity-80" : "cursor-default", isPart ? "border-dashed" : "border-solid", bColor, dk ? "bg-[#1E293B] text-slate-200" : "bg-white text-slate-700")}>
+                        }} className={cn("px-3 py-1 rounded-full font-bold truncate text-left transition-colors border-2 shadow-sm flex items-center gap-1.5", !viewOnly ? "hover:opacity-80" : "cursor-default", isPart ? "border-dashed" : "border-solid", bColor, dk ? "bg-[#1E293B] text-slate-200" : "bg-white text-slate-700")}>
                            <span className="truncate max-w-[120px]">{lastName}</span>
                         </button>
                         
