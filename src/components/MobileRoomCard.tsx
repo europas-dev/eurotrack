@@ -104,7 +104,7 @@ function MobileBedSlot({
   if (editing || (!employee && editing)) {
     return (
       <div className={cn('flex flex-col gap-3 p-3 rounded-xl border shadow-md', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
-        <input disabled={viewOnly} type="text" value={name} onChange={e => setName(e.target.value)} placeholder={lang === 'de' ? 'Name...' : 'Name...'} className={inputCls} list={`emp-list-${roomCardId}-${slotIndex}`} />
+        <input disabled={viewOnly} autoFocus type="text" value={name} onChange={e => setName(e.target.value)} placeholder={lang === 'de' ? 'Name...' : 'Name...'} className={inputCls} list={`emp-list-${roomCardId}-${slotIndex}`} />
         <datalist id={`emp-list-${roomCardId}-${slotIndex}`}>
             {name.trim().length > 0 && employeeOptions?.map((opt: string) => <option key={opt} value={opt} />)}
         </datalist>
@@ -174,7 +174,7 @@ function MobileBedSlot({
   // --- EMPTY GAP SLOT ---
   const isGap = !!(gapStart || gapEnd)
   return (
-    <button disabled={viewOnly} onClick={() => { if(!viewOnly) setEditing(true) }} className={cn('w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed text-sm font-bold transition-all', isGap ? (dk ? 'border-amber-500/40 text-amber-400 bg-amber-500/5' : 'border-amber-400 text-amber-600 bg-amber-50') : (dk ? 'border-white/10 text-slate-500' : 'border-slate-200 text-slate-400'), viewOnly && "opacity-60 cursor-default hover:bg-transparent pointer-events-none")}>
+    <button disabled={viewOnly} onClick={() => { if(!viewOnly) setEditing(true) }} className={cn('w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed text-sm font-bold transition-all', isGap ? (dk ? 'border-amber-500/40 text-amber-400 bg-amber-500/5' : 'border-amber-400 text-amber-600 bg-amber-50') : (dk ? 'border-white/10 text-slate-500 hover:text-white' : 'border-slate-200 text-slate-400 hover:text-slate-700'), viewOnly && "opacity-60 cursor-default hover:bg-transparent pointer-events-none")}>
       {!viewOnly && <Plus size={16} />} {isGap ? `${lang === 'de' ? 'Lücke füllen' : 'Fill gap'} (${fmtDateDe(effectiveIn)} ➔ ${fmtDateDe(effectiveOut)})` : (lang === 'de' ? 'Bett zuweisen' : 'Assign bed')}
     </button>
   )
@@ -205,8 +205,8 @@ function getGapSlots(beds: number, employees: Employee[], durationStart: string,
 
 // --- MAIN MOBILE ROOM CARD COMPONENT ---
 export default function MobileRoomCard({
-  card, durationStart, durationEnd, dk, lang,
-  onUpdate, onDelete, viewOnly, employeeOptions
+  card, durationStart, durationEnd, dk, lang, allCardsOfSameType, isMasterPricingActive = false,
+  onUpdate, onDelete, onApplyToSameType, viewOnly, employeeOptions
 }: any) {
   const [isOpen, setIsOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -255,6 +255,33 @@ export default function MobileRoomCard({
     }
   }, [durationStart, durationEnd, JSON.stringify(card.employees)]);
 
+  // --- RESTORED NAVIGATION ENGINE FOR MOBILE ---
+  useEffect(() => {
+    const handleOpenSlot = (e: any) => {
+      const targetId = e.detail;
+      const hasEmp = employees.some((emp: any) => emp.id === targetId);
+      if (!hasEmp) return;
+
+      // 1. Force the card open
+      setIsOpen(true);
+
+      // 2. Wait for React to render the expanded view, then scroll to the exact BedSlot
+      setTimeout(() => {
+          const el = document.getElementById(`emp-slot-${targetId}`);
+          if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              
+              // Apply a flash effect so the user sees which bed it is
+              el.classList.add('ring-2', 'ring-teal-500', 'bg-teal-500/10');
+              setTimeout(() => el.classList.remove('ring-2', 'ring-teal-500', 'bg-teal-500/10'), 2500);
+          }
+      }, 350);
+    };
+
+    window.addEventListener('open-emp-slot', handleOpenSlot);
+    return () => window.removeEventListener('open-emp-slot', handleOpenSlot);
+  }, [employees]);
+
   const inputCls = cn('px-2 py-1.5 rounded-lg text-sm font-bold outline-none border transition-all h-[42px] w-full', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900', viewOnly && "opacity-60 cursor-default")
   const labelCls = cn('text-[10px] font-black uppercase tracking-widest mb-1 block', dk ? 'text-slate-500' : 'text-slate-400')
 
@@ -277,9 +304,8 @@ export default function MobileRoomCard({
   let displayEmps = allOrdered;
   let overflowCount = 0;
   
-  // Smart truncating if too many employees
   if (allOrdered.length > 12) {
-      displayEmps = activeEmps.slice(0, 12); // Only show up to 12 active ones
+      displayEmps = activeEmps.slice(0, 12); 
       overflowCount = allOrdered.length - displayEmps.length;
   }
 
@@ -300,7 +326,7 @@ export default function MobileRoomCard({
                </div>
             </div>
             
-            {/* The Badge logic exactly matching your screenshot */}
+            {/* The Blue Pill Badge */}
             <div className={cn("flex items-center gap-2 px-2.5 py-1.5 rounded-lg border", dk ? "bg-blue-500/10 border-blue-500/20 text-blue-400" : "bg-blue-50 border-blue-200 text-blue-600")}>
                <span className="flex items-center gap-1 font-black text-xs"><Moon size={14} /> {nights}</span>
                <div className={cn("w-px h-3", dk ? "bg-blue-500/30" : "bg-blue-300")} /> 
@@ -308,18 +334,23 @@ export default function MobileRoomCard({
             </div>
          </div>
 
-         {/* Employee Preview shown directly on the closed card! */}
+         {/* CLICKABLE EMPLOYEE PREVIEW (NO DATES) */}
          {!isOpen && displayEmps.length > 0 && (
-            <div className="flex flex-col gap-1.5 px-11 pb-4">
+            <div className="flex flex-col gap-1 px-11 pb-4">
                {displayEmps.map(emp => (
-                  <div key={emp.id} className="flex items-center gap-1.5 text-[11px] truncate">
+                  <div key={emp.id} className="flex items-center gap-1.5 text-[12px] truncate py-0.5">
                      <CornerDownRight size={12} className={cn("shrink-0", dk ? "text-slate-600" : "text-slate-400")} />
-                     <span className={cn("font-bold truncate", dk ? "text-slate-300" : "text-slate-700")}>{emp.name}</span>
-                     <span className={cn("opacity-60 shrink-0", dk ? "text-slate-400" : "text-slate-500")}>({fmtDateDe(emp.checkIn)} ➔ {fmtDateDe(emp.checkOut)})</span>
+                     <button onClick={(e) => { 
+                         e.stopPropagation(); 
+                         setIsOpen(true); 
+                         setTimeout(() => window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id })), 50); 
+                     }} className={cn("font-bold truncate text-left transition-colors", !viewOnly ? "hover:underline" : "cursor-default", dk ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-black")}>
+                        {emp.name}
+                     </button>
                   </div>
                ))}
                {overflowCount > 0 && (
-                  <div className="text-[10px] font-black text-teal-500 pl-4 mt-0.5">
+                  <div className="text-[10px] font-black text-teal-500 mt-1">
                      + {overflowCount} weitere
                   </div>
                )}
@@ -339,14 +370,23 @@ export default function MobileRoomCard({
                     <option value="EZ">EZ</option><option value="DZ">DZ</option><option value="TZ">TZ</option><option value="WG">WG</option>
                  </select>
               </div>
+              
               <div className="flex flex-col w-[80px] shrink-0">
                  <label className={labelCls}>{lang === 'de' ? 'Betten' : 'Beds'}</label>
                  <div className={cn("flex items-center h-[42px] rounded-lg border overflow-hidden", dk ? "border-white/10 bg-[#1E293B]" : "border-slate-200 bg-white")}>
-                    <button disabled={viewOnly || card.roomType !== 'WG'} onClick={() => queueSave({ bedCount: Math.max(1, (card.bedCount || 1) - 1) })} className={cn("flex-1 h-full font-black text-lg transition-colors border-r", dk ? "border-white/10 hover:bg-white/10" : "border-slate-200 hover:bg-slate-100", (viewOnly || card.roomType !== 'WG') && "opacity-50 cursor-not-allowed text-slate-500")}>−</button>
-                    <div className={cn("w-6 h-full flex items-center justify-center font-black text-sm", dk ? "text-white" : "text-slate-900")}>{card.bedCount || 1}</div>
-                    <button disabled={viewOnly || card.roomType !== 'WG'} onClick={() => queueSave({ bedCount: (card.bedCount || 1) + 1 })} className={cn("flex-1 h-full font-black text-lg transition-colors border-l", dk ? "border-white/10 hover:bg-white/10" : "border-slate-200 hover:bg-slate-100", (viewOnly || card.roomType !== 'WG') && "opacity-50 cursor-not-allowed text-slate-500")}>+</button>
+                    {/* Stepper buttons ONLY show if WG */}
+                    {card.roomType === 'WG' && (
+                        <button disabled={viewOnly} onClick={() => queueSave({ bedCount: Math.max(1, (card.bedCount || 1) - 1) })} className={cn("w-8 shrink-0 h-full font-black text-lg transition-colors border-r", dk ? "border-white/10 hover:bg-white/10" : "border-slate-200 hover:bg-slate-100", viewOnly && "opacity-50 cursor-not-allowed text-slate-500")}>−</button>
+                    )}
+                    
+                    <div className={cn("flex-1 h-full flex items-center justify-center font-black text-sm", dk ? "text-white" : "text-slate-900")}>{card.bedCount || 1}</div>
+                    
+                    {card.roomType === 'WG' && (
+                        <button disabled={viewOnly} onClick={() => queueSave({ bedCount: (card.bedCount || 1) + 1 })} className={cn("w-8 shrink-0 h-full font-black text-lg transition-colors border-l", dk ? "border-white/10 hover:bg-white/10" : "border-slate-200 hover:bg-slate-100", viewOnly && "opacity-50 cursor-not-allowed text-slate-500")}>+</button>
+                    )}
                  </div>
               </div>
+
               <div className="flex flex-col flex-1 min-w-0">
                  <label className={labelCls}>{lang === 'de' ? 'Zimmer Nr.' : 'Room No.'}</label>
                  <input disabled={viewOnly} type="text" value={card.roomNo || ''} onChange={e => queueSave({ roomNo: e.target.value })} placeholder="..." className={inputCls} />
