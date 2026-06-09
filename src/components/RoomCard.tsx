@@ -127,22 +127,38 @@ function BedSlot({
     if (!name.trim()) return;
     setSaving(true);
     
-    // Exact web logic: Clean phone, handle nulls
+    // Explicitly handle nulls and phone cleaning
     const cleanPhone = phone.trim() === '+49' ? '' : phone.trim();
+    // Using the current state directly ensures we save what the user sees
     const finalIn = checkIn === '' ? null : checkIn;
     const finalOut = checkOut === '' ? null : checkOut;
 
     try {
       if (employee?.id) {
         // Update existing
-        const payload = { id: employee.id, name: name.trim(), phone: cleanPhone, checkIn: finalIn, checkOut: finalOut };
+        const payload = { 
+            id: employee.id, 
+            name: name.trim(), 
+            phone: cleanPhone, 
+            checkIn: finalIn, 
+            checkOut: finalOut 
+        };
         await enqueue({ type: 'updateEmployee', payload });
         onUpdated(slotIndex, { ...employee, ...payload });
       } else {
         // Create new
         const isGapFill = !!(gapStart || gapEnd);
         const newId = crypto.randomUUID();
-        const payload = { id: newId, durationId, roomCardId, slotIndex, name: name.trim(), phone: cleanPhone, checkIn: finalIn, checkOut: finalOut };
+        const payload = { 
+            id: newId, 
+            durationId, 
+            roomCardId, 
+            slotIndex, 
+            name: name.trim(), 
+            phone: cleanPhone, 
+            checkIn: finalIn, 
+            checkOut: finalOut 
+        };
         await enqueue({ type: 'createEmployee', payload });
         onUpdated(slotIndex, payload as any, isGapFill);
       }
