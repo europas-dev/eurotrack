@@ -123,29 +123,35 @@ function BedSlot({
   )
 
   async function save() {
-    if (viewOnly) return; // SURGICAL LOCK
-    if (!name.trim()) return
-    setSaving(true)
-    const cleanPhone = phone.trim() === '+49' ? '' : phone.trim();
+    if (viewOnly) return;
+    if (!name.trim()) return;
+    setSaving(true);
     
-    // FIX: Map empty strings to null so the database doesn't reject it
+    // Exact web logic: Clean phone, handle nulls
+    const cleanPhone = phone.trim() === '+49' ? '' : phone.trim();
     const finalIn = checkIn === '' ? null : checkIn;
     const finalOut = checkOut === '' ? null : checkOut;
 
     try {
       if (employee?.id) {
+        // Update existing
         const payload = { id: employee.id, name: name.trim(), phone: cleanPhone, checkIn: finalIn, checkOut: finalOut };
         await enqueue({ type: 'updateEmployee', payload });
         onUpdated(slotIndex, { ...employee, ...payload });
       } else {
-        const isGapFill = !!(gapStart || gapEnd)
+        // Create new
+        const isGapFill = !!(gapStart || gapEnd);
         const newId = crypto.randomUUID();
         const payload = { id: newId, durationId, roomCardId, slotIndex, name: name.trim(), phone: cleanPhone, checkIn: finalIn, checkOut: finalOut };
         await enqueue({ type: 'createEmployee', payload });
         onUpdated(slotIndex, payload as any, isGapFill);
       }
-      setEditing(false)
-    } catch (e) { console.error(e) } finally { setSaving(false) }
+      setEditing(false);
+    } catch (e) { 
+      console.error(e); 
+    } finally { 
+      setSaving(false); 
+    }
   }
 
   async function remove() {
