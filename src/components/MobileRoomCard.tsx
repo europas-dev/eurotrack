@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import {
   Bed, ChevronDown, ChevronUp, Loader2, Phone,
-  Minus, Plus, Trash2, X, CornerDownRight, Moon, Calendar, Check
+  Minus, Plus, Trash2, CornerDownRight, Moon, Check
 } from 'lucide-react'
 import { cn, calculateNights, getEmployeeStatus } from '../lib/utils'
 import { bedsForType } from '../lib/roomCardUtils'
@@ -19,10 +19,10 @@ function fmtDateDe(iso: string | null | undefined) {
 function empBorderColor(emp: Employee | null, dk: boolean): string {
   if (!emp) return dk ? 'border-white/10' : 'border-slate-200'
   const s = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '')
-  if (s === 'active') return dk ? 'border-emerald-500/50' : 'border-emerald-500'
-  if (s === 'ending-soon') return dk ? 'border-red-500/50' : 'border-red-500'
-  if (s === 'completed') return dk ? 'border-slate-500/40' : 'border-slate-400'
-  if (s === 'upcoming') return dk ? 'border-blue-500/50' : 'border-blue-500'
+  if (s === 'active') return dk ? 'border-emerald-500' : 'border-emerald-500'
+  if (s === 'ending-soon') return dk ? 'border-red-500' : 'border-red-500'
+  if (s === 'completed') return dk ? 'border-slate-600' : 'border-slate-400'
+  if (s === 'upcoming') return dk ? 'border-blue-500' : 'border-blue-500'
   return dk ? 'border-white/10' : 'border-slate-200'
 }
 
@@ -47,7 +47,7 @@ function MobileBedSlot({
   const isPartial = employee && (employee.checkIn > durationStart || employee.checkOut < durationEnd);
 
   const inputCls = cn(
-    'px-3 py-2 rounded-lg text-sm outline-none border transition-all h-[42px] font-bold w-full',
+    'px-3 py-2 rounded-lg text-sm outline-none border transition-all font-bold w-full h-[42px]',
     dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-teal-500 placeholder-slate-500' : 'bg-white border-slate-200 text-slate-900 focus:border-teal-500 placeholder-slate-400'
   )
 
@@ -90,7 +90,7 @@ function MobileBedSlot({
 
   if (confirmDel) {
     return (
-      <div className={cn('flex flex-col gap-3 p-4 rounded-xl border shadow-sm', dk ? 'bg-red-950/20 border-red-500/30' : 'bg-red-50 border-red-200')}>
+      <div className={cn('flex flex-col gap-3 p-4 rounded-xl border shadow-sm h-full justify-center', dk ? 'bg-red-950/20 border-red-500/30' : 'bg-red-50 border-red-200')}>
         <span className={cn('text-sm font-black text-center', dk ? 'text-red-400' : 'text-red-700')}>{lang === 'de' ? 'Mitarbeiter löschen?' : 'Delete Employee?'}</span>
         <div className="flex gap-2 w-full">
           <button onClick={() => setConfirmDel(false)} className={cn('flex-1 py-2 rounded-lg text-sm font-bold border', dk ? 'border-white/10 text-slate-300' : 'border-slate-200 text-slate-700')}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
@@ -100,7 +100,7 @@ function MobileBedSlot({
     )
   }
 
-  // --- EDIT MODE (Mobile Stacked) ---
+  // --- EDIT MODE (Mobile Stacked, No Overlap) ---
   if (editing || (!employee && editing)) {
     return (
       <div className={cn('flex flex-col gap-3 p-3 rounded-xl border shadow-md', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
@@ -115,26 +115,26 @@ function MobileBedSlot({
         </div>
 
         <div className="flex items-center gap-2 w-full">
-          <div className="relative flex-1">
-             <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent px-3', viewOnly && "opacity-60")}>
-               <span className="text-[12px]">{fmtDateDe(checkIn)}</span>
+          <div className="relative flex-1 h-[42px]">
+             <div className={cn('absolute inset-0 flex items-center justify-between pointer-events-none rounded-lg border px-3 text-[12px] font-bold', dk ? 'border-white/10 text-white' : 'border-slate-200 text-slate-900', viewOnly && "opacity-60")}>
+               {fmtDateDe(checkIn)}
              </div>
              <input type="date" disabled={viewOnly} value={checkIn || ''} min={effectiveIn} max={effectiveOut} onChange={e => setCheckIn(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
           </div>
           <span className="text-slate-400 text-xs shrink-0">➔</span>
-          <div className="relative flex-1">
-             <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent px-3', viewOnly && "opacity-60")}>
-               <span className="text-[12px]">{fmtDateDe(checkOut)}</span>
+          <div className="relative flex-1 h-[42px]">
+             <div className={cn('absolute inset-0 flex items-center justify-between pointer-events-none rounded-lg border px-3 text-[12px] font-bold', dk ? 'border-white/10 text-white' : 'border-slate-200 text-slate-900', viewOnly && "opacity-60")}>
+               {fmtDateDe(checkOut)}
              </div>
              <input type="date" disabled={viewOnly} value={checkOut || ''} min={checkIn || effectiveIn} max={effectiveOut} onChange={e => setCheckOut(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
           </div>
         </div>
 
         <div className="flex gap-2 w-full pt-1">
-           <button onClick={() => setEditing(false)} className={cn('flex-1 py-2 rounded-lg font-bold border transition-all', dk ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-500 hover:bg-slate-100')}>
+           <button onClick={() => setEditing(false)} className={cn('flex-1 py-2.5 rounded-lg font-bold border transition-all text-sm', dk ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-500 hover:bg-slate-100')}>
               {lang === 'de' ? 'Abbrechen' : 'Cancel'}
            </button>
-           <button onClick={save} disabled={saving || !name.trim()} className="flex-1 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-bold flex items-center justify-center gap-2 shadow-sm">
+           <button onClick={save} disabled={saving || !name.trim()} className="flex-1 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-sm">
               {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={3} />} {lang === 'de' ? 'Speichern' : 'Save'}
            </button>
         </div>
@@ -145,7 +145,7 @@ function MobileBedSlot({
   // --- VIEW MODE (Mobile Vertical Layout) ---
   if (!editing && employee) {
     return (
-      <div id={`emp-slot-${employee.id}`} className={cn('flex flex-col gap-2 p-3 rounded-xl transition-all relative shadow-sm', borderCls, isPartial ? 'border-2 border-dashed' : 'border-2 border-solid', dk ? 'bg-[#0F172A]' : 'bg-white')}>
+      <div id={`emp-slot-${employee.id}`} className={cn('flex flex-col gap-2 p-3 rounded-xl transition-all relative shadow-sm border-2 h-full', borderCls, isPartial ? 'border-dashed' : 'border-solid', dk ? 'bg-[#0F172A]' : 'bg-white')}>
          <div className="flex items-start justify-between w-full">
             <div className="flex items-center gap-2.5 flex-1 min-w-0">
               <IconToUse size={18} className={cn("shrink-0", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} />
@@ -156,7 +156,7 @@ function MobileBedSlot({
             )}
          </div>
          
-         <div className="flex flex-col gap-1.5 pl-7">
+         <div className="flex flex-col gap-1.5 pl-7 mt-auto">
             {employee.phone && employee.phone !== '+49' && employee.phone.trim() !== '' && (
               <a href={`tel:${employee.phone.replace(/\s/g, '')}`} onClick={e => e.stopPropagation()} className={cn("flex items-center gap-1.5 text-[12px] font-bold w-max", dk ? "text-blue-400" : "text-blue-600")}>
                 <Phone size={12} /> <span>{employee.phone}</span>
@@ -174,7 +174,7 @@ function MobileBedSlot({
   // --- EMPTY GAP SLOT ---
   const isGap = !!(gapStart || gapEnd)
   return (
-    <button disabled={viewOnly} onClick={() => { if(!viewOnly) setEditing(true) }} className={cn('w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed text-sm font-bold transition-all', isGap ? (dk ? 'border-amber-500/40 text-amber-400 bg-amber-500/5' : 'border-amber-400 text-amber-600 bg-amber-50') : (dk ? 'border-white/10 text-slate-500 hover:text-white' : 'border-slate-200 text-slate-400 hover:text-slate-700'), viewOnly && "opacity-60 cursor-default hover:bg-transparent pointer-events-none")}>
+    <button disabled={viewOnly} onClick={() => { if(!viewOnly) setEditing(true) }} className={cn('w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed text-sm font-bold transition-all h-full min-h-[50px]', isGap ? (dk ? 'border-amber-500/40 text-amber-400 bg-amber-500/5' : 'border-amber-400 text-amber-600 bg-amber-50') : (dk ? 'border-white/10 text-slate-500 hover:text-white' : 'border-slate-200 text-slate-400 hover:text-slate-700'), viewOnly && "opacity-60 cursor-default hover:bg-transparent pointer-events-none")}>
       {!viewOnly && <Plus size={16} />} {isGap ? `${lang === 'de' ? 'Lücke füllen' : 'Fill gap'} (${fmtDateDe(effectiveIn)} ➔ ${fmtDateDe(effectiveOut)})` : (lang === 'de' ? 'Bett zuweisen' : 'Assign bed')}
     </button>
   )
@@ -270,8 +270,6 @@ export default function MobileRoomCard({
           const el = document.getElementById(`emp-slot-${targetId}`);
           if (el) {
               el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              
-              // Apply a flash effect so the user sees which bed it is
               el.classList.add('ring-2', 'ring-teal-500', 'bg-teal-500/10');
               setTimeout(() => el.classList.remove('ring-2', 'ring-teal-500', 'bg-teal-500/10'), 2500);
           }
@@ -326,7 +324,7 @@ export default function MobileRoomCard({
                </div>
             </div>
             
-            {/* The Blue Pill Badge */}
+            {/* The Badge logic exactly matching your screenshot */}
             <div className={cn("flex items-center gap-2 px-2.5 py-1.5 rounded-lg border", dk ? "bg-blue-500/10 border-blue-500/20 text-blue-400" : "bg-blue-50 border-blue-200 text-blue-600")}>
                <span className="flex items-center gap-1 font-black text-xs"><Moon size={14} /> {nights}</span>
                <div className={cn("w-px h-3", dk ? "bg-blue-500/30" : "bg-blue-300")} /> 
@@ -334,21 +332,24 @@ export default function MobileRoomCard({
             </div>
          </div>
 
-         {/* CLICKABLE EMPLOYEE PREVIEW (NO DATES) */}
+         {/* CLICKABLE EMPLOYEE PREVIEW (LAST NAME ONLY, NO DATES) */}
          {!isOpen && displayEmps.length > 0 && (
             <div className="flex flex-col gap-1 px-11 pb-4">
-               {displayEmps.map(emp => (
-                  <div key={emp.id} className="flex items-center gap-1.5 text-[12px] truncate py-0.5">
-                     <CornerDownRight size={12} className={cn("shrink-0", dk ? "text-slate-600" : "text-slate-400")} />
-                     <button onClick={(e) => { 
-                         e.stopPropagation(); 
-                         setIsOpen(true); 
-                         setTimeout(() => window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id })), 50); 
-                     }} className={cn("font-bold truncate text-left transition-colors", !viewOnly ? "hover:underline" : "cursor-default", dk ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-black")}>
-                        {emp.name}
-                     </button>
-                  </div>
-               ))}
+               {displayEmps.map(emp => {
+                  const shortName = emp.name ? emp.name.trim().split(' ').pop() : '---';
+                  return (
+                    <div key={emp.id} className="flex items-center gap-1.5 text-[12px] truncate py-0.5">
+                       <CornerDownRight size={12} className={cn("shrink-0", dk ? "text-slate-600" : "text-slate-400")} />
+                       <button onClick={(e) => { 
+                           e.stopPropagation(); 
+                           setIsOpen(true); 
+                           setTimeout(() => window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id })), 50); 
+                       }} className={cn("font-bold truncate text-left transition-colors", !viewOnly ? "hover:underline" : "cursor-default", dk ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-black")}>
+                          {shortName}
+                       </button>
+                    </div>
+                  );
+               })}
                {overflowCount > 0 && (
                   <div className="text-[10px] font-black text-teal-500 mt-1">
                      + {overflowCount} weitere
@@ -397,9 +398,9 @@ export default function MobileRoomCard({
               </div>
            </div>
 
-           {/* SECTION B: EMPLOYEES & BEDS */}
+           {/* SECTION B: EMPLOYEES & BEDS (TABLET RESPONSIVE GRID) */}
            <div className="flex flex-col gap-3 pt-4 border-t dark:border-white/10 border-slate-200">
-              <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                  {Array.from({ length: beds }).map((_, i) => {
                     const slotE = employees.filter(e => (e.slotIndex ?? 0) === i).sort((a,b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
                     return (
