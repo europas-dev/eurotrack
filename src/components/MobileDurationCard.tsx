@@ -240,28 +240,32 @@ export default function MobileDurationCard({
 
          {/* Row 2: Date Pickers & Presets (Single Line Scrollable) */}
          <div className="flex items-center gap-2 w-full h-[42px] overflow-x-auto no-scrollbar flex-nowrap pb-1">
-            <div className={cn("w-[130px] shrink-0 h-full relative rounded-xl border flex items-center shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-slate-50 border-slate-200 text-slate-900")}>
+            
+            {/* START DATE */}
+            <div className={cn("w-[125px] shrink-0 h-full relative rounded-xl border flex items-center shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-slate-50 border-slate-200 text-slate-900")}>
                <div className="absolute inset-0 flex items-center justify-between px-2.5 pointer-events-none">
-                  <span className={cn("text-[12px] font-black", !local.startDate && "opacity-50 font-normal")}>{local.startDate ? forceDMY(local.startDate) : 'Start'}</span>
+                  <span className={cn("text-[12px] font-black", !local.startDate && "opacity-50 font-normal")}>{local.startDate ? forceDMY(local.startDate) : (lang === 'de' ? 'Start...' : 'Start')}</span>
                   <Calendar size={14} className="opacity-50" />
                </div>
-               <input disabled={viewOnly} ref={inDateRef} type="date" value={local.startDate || ''} onChange={e => handleStartDateChange(e.target.value)} onClick={() => openPicker(inDateRef)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+               {/* Native HTML picker handles the click automatically without JS loops */}
+               <input disabled={viewOnly} type="date" value={local.startDate || ''} onChange={e => handleStartDateChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
             </div>
             
             <ArrowRight size={14} className="opacity-30 shrink-0" />
             
-            <div className={cn("w-[130px] shrink-0 h-full relative rounded-xl border flex items-center shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-slate-50 border-slate-200 text-slate-900", (!local.startDate || viewOnly) && "opacity-60")}>
+            {/* END DATE */}
+            <div className={cn("w-[125px] shrink-0 h-full relative rounded-xl border flex items-center shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-slate-50 border-slate-200 text-slate-900", (!local.startDate || viewOnly) && "opacity-60")}>
                <div className="absolute inset-0 flex items-center justify-between px-2.5 pointer-events-none">
-                  <span className={cn("text-[12px] font-black", !local.endDate && "opacity-50 font-normal")}>{local.endDate ? forceDMY(local.endDate) : 'Ende'}</span>
+                  <span className={cn("text-[12px] font-black", !local.endDate && "opacity-50 font-normal")}>{local.endDate ? forceDMY(local.endDate) : (lang === 'de' ? 'Ende...' : 'End')}</span>
                   <Calendar size={14} className="opacity-50" />
                </div>
-               <input disabled={viewOnly || !local.startDate} ref={outDateRef} type="date" value={local.endDate || ''} min={local.startDate || undefined} onChange={e => handleEndDateChange(e.target.value)} onClick={() => openPicker(outDateRef)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+               <input disabled={viewOnly || !local.startDate} type="date" value={local.endDate || ''} min={local.startDate || undefined} onChange={e => handleEndDateChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
             </div>
 
-            {/* 1W / 1M Steppers Inline */}
+            {/* PRESETS (1W / 1M) INLINE */}
             {!viewOnly && local.startDate && [ { label: '1W', days: 7 }, { label: '1M', days: 30 } ].map(p => (
-               <div key={p.label} className="flex items-center h-full shadow-sm rounded-lg overflow-hidden shrink-0 ml-1">
-                  <button type="button" onClick={() => togglePreset(p.days)} disabled={!!local.endDate} className={cn("px-2.5 h-full text-[11px] font-black transition-all border-y border-l rounded-l-lg", local.endDate ? (dk ? "bg-white/5 border-white/10 text-slate-600" : "bg-slate-100 border-slate-200 text-slate-400") : (dk ? "bg-[#1E293B] border-white/10 text-teal-400" : "bg-white border-slate-200 text-teal-600"))}>
+               <div key={p.label} className="flex items-center h-full shadow-sm rounded-lg overflow-hidden shrink-0">
+                  <button type="button" onClick={() => togglePreset(p.days)} disabled={!!local.endDate} className={cn("px-2.5 h-full text-[11px] font-black transition-all border-y border-l rounded-l-lg", local.endDate ? (dk ? "bg-white/5 border-white/10 text-slate-600" : "bg-slate-100 border-slate-200 text-slate-400") : (dk ? "bg-[#1E293B] border-white/10 text-teal-400 hover:bg-white/10" : "bg-white border-slate-200 text-teal-600 hover:bg-slate-50"))}>
                      {p.label}
                   </button>
                   <div className={cn("flex flex-col h-full border rounded-r-lg w-[28px]", dk ? "border-white/10" : "border-slate-300")}>
@@ -271,23 +275,6 @@ export default function MobileDurationCard({
                </div>
             ))}
          </div>
-
-         {/* Row 3: Presets & Steppers */}
-         {!viewOnly && local.startDate && (
-            <div className="flex items-center gap-2 h-[38px] w-full">
-               {[ { label: '1W', days: 7 }, { label: '1M', days: 30 } ].map(p => (
-                  <div key={p.label} className="flex-1 flex items-center h-full shadow-sm rounded-lg overflow-hidden">
-                     <button type="button" onClick={() => togglePreset(p.days)} disabled={!!local.endDate} className={cn("flex-1 h-full text-[11px] font-black transition-all border-y border-l rounded-l-lg", local.endDate ? (dk ? "bg-white/5 border-white/10 text-slate-600 cursor-default" : "bg-slate-100 border-slate-200 text-slate-400 cursor-default") : (dk ? "bg-[#1E293B] border-white/10 text-teal-400 hover:bg-white/5" : "bg-white border-slate-200 text-teal-600 hover:bg-slate-50"))}>
-                        {p.label}
-                     </button>
-                     <div className={cn("flex flex-col h-full border rounded-r-lg w-[32px] shrink-0", dk ? "border-white/10" : "border-slate-300")}>
-                        <button type="button" disabled={!local.endDate} onClick={() => shiftEndDate(1, p.days)} className={cn("flex-1 flex items-center justify-center text-[10px] font-black border-b outline-none", !local.endDate ? (dk ? "text-slate-700 bg-white/5 border-white/5" : "text-slate-300 bg-slate-50 border-slate-200") : (dk ? "text-teal-400 bg-[#1E293B] border-white/10 hover:bg-white/10" : "text-teal-600 bg-white border-slate-200 hover:bg-slate-50"))}>+</button>
-                        <button type="button" disabled={!local.endDate} onClick={() => shiftEndDate(-1, p.days)} className={cn("flex-1 flex items-center justify-center text-[10px] font-black outline-none", !local.endDate ? (dk ? "text-slate-700 bg-white/5" : "text-slate-300 bg-slate-50") : (dk ? "text-teal-400 bg-[#1E293B] hover:bg-white/10" : "text-teal-600 bg-white hover:bg-slate-50"))}>−</button>
-                     </div>
-                  </div>
-               ))}
-            </div>
-         )}
 
          {/* Row 4: Room Summaries (ONLY VISIBLE FOR VIEWERS) */}
          {roomCards.length > 0 && viewOnly && (
