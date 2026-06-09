@@ -238,25 +238,38 @@ export default function MobileDurationCard({
             </div>
          </div>
 
-         {/* Row 2: Date Pickers */}
-         <div className="flex items-center gap-2 w-full h-[46px]">
-            <div className={cn("flex-1 h-full relative rounded-xl border flex items-center shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-slate-50 border-slate-200 text-slate-900")}>
-               <div className="absolute inset-0 flex items-center justify-between px-3 pointer-events-none">
-                  <span className={cn("text-[13px] font-black", !local.startDate && "opacity-50 font-normal")}>{local.startDate ? forceDMY(local.startDate) : (lang === 'de' ? 'Start...' : 'Start...')}</span>
-                  <Calendar size={16} className="opacity-50" />
+         {/* Row 2: Date Pickers & Presets (Single Line Scrollable) */}
+         <div className="flex items-center gap-2 w-full h-[42px] overflow-x-auto no-scrollbar flex-nowrap pb-1">
+            <div className={cn("w-[130px] shrink-0 h-full relative rounded-xl border flex items-center shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-slate-50 border-slate-200 text-slate-900")}>
+               <div className="absolute inset-0 flex items-center justify-between px-2.5 pointer-events-none">
+                  <span className={cn("text-[12px] font-black", !local.startDate && "opacity-50 font-normal")}>{local.startDate ? forceDMY(local.startDate) : 'Start'}</span>
+                  <Calendar size={14} className="opacity-50" />
                </div>
                <input disabled={viewOnly} ref={inDateRef} type="date" value={local.startDate || ''} onChange={e => handleStartDateChange(e.target.value)} onClick={() => openPicker(inDateRef)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
             </div>
             
             <ArrowRight size={14} className="opacity-30 shrink-0" />
             
-            <div className={cn("flex-1 h-full relative rounded-xl border flex items-center shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-slate-50 border-slate-200 text-slate-900", (!local.startDate || viewOnly) && "opacity-60")}>
-               <div className="absolute inset-0 flex items-center justify-between px-3 pointer-events-none">
-                  <span className={cn("text-[13px] font-black", !local.endDate && "opacity-50 font-normal")}>{local.endDate ? forceDMY(local.endDate) : (lang === 'de' ? 'Ende...' : 'End...')}</span>
-                  <Calendar size={16} className="opacity-50" />
+            <div className={cn("w-[130px] shrink-0 h-full relative rounded-xl border flex items-center shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-slate-50 border-slate-200 text-slate-900", (!local.startDate || viewOnly) && "opacity-60")}>
+               <div className="absolute inset-0 flex items-center justify-between px-2.5 pointer-events-none">
+                  <span className={cn("text-[12px] font-black", !local.endDate && "opacity-50 font-normal")}>{local.endDate ? forceDMY(local.endDate) : 'Ende'}</span>
+                  <Calendar size={14} className="opacity-50" />
                </div>
                <input disabled={viewOnly || !local.startDate} ref={outDateRef} type="date" value={local.endDate || ''} min={local.startDate || undefined} onChange={e => handleEndDateChange(e.target.value)} onClick={() => openPicker(outDateRef)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
             </div>
+
+            {/* 1W / 1M Steppers Inline */}
+            {!viewOnly && local.startDate && [ { label: '1W', days: 7 }, { label: '1M', days: 30 } ].map(p => (
+               <div key={p.label} className="flex items-center h-full shadow-sm rounded-lg overflow-hidden shrink-0 ml-1">
+                  <button type="button" onClick={() => togglePreset(p.days)} disabled={!!local.endDate} className={cn("px-2.5 h-full text-[11px] font-black transition-all border-y border-l rounded-l-lg", local.endDate ? (dk ? "bg-white/5 border-white/10 text-slate-600" : "bg-slate-100 border-slate-200 text-slate-400") : (dk ? "bg-[#1E293B] border-white/10 text-teal-400" : "bg-white border-slate-200 text-teal-600"))}>
+                     {p.label}
+                  </button>
+                  <div className={cn("flex flex-col h-full border rounded-r-lg w-[28px]", dk ? "border-white/10" : "border-slate-300")}>
+                     <button type="button" disabled={!local.endDate} onClick={() => shiftEndDate(1, p.days)} className={cn("flex-1 flex items-center justify-center text-[10px] font-black border-b outline-none", !local.endDate ? (dk ? "text-slate-700 bg-white/5 border-white/5" : "text-slate-300 bg-slate-50 border-slate-200") : (dk ? "text-teal-400 bg-[#1E293B] border-white/10 hover:bg-white/10" : "text-teal-600 bg-white border-slate-200 hover:bg-slate-50"))}>+</button>
+                     <button type="button" disabled={!local.endDate} onClick={() => shiftEndDate(-1, p.days)} className={cn("flex-1 flex items-center justify-center text-[10px] font-black outline-none", !local.endDate ? (dk ? "text-slate-700 bg-white/5" : "text-slate-300 bg-slate-50") : (dk ? "text-teal-400 bg-[#1E293B] hover:bg-white/10" : "text-teal-600 bg-white hover:bg-slate-50"))}>−</button>
+                  </div>
+               </div>
+            ))}
          </div>
 
          {/* Row 3: Presets & Steppers */}
@@ -304,22 +317,12 @@ export default function MobileDurationCard({
                      </div>
                   )
                }
-               if (count === 0) {
-                  return (
-                     <button key={rt} onClick={() => rt === 'WG' ? setIsAddingWg(true) : handleAddRoomCard(rt)} disabled={!!addingType} className={cn('px-4 h-[36px] rounded-lg text-[12px] font-black border transition-all flex items-center justify-center gap-1.5 shadow-sm shrink-0', dk ? 'border-white/10 text-slate-400 bg-[#1E293B] hover:bg-white/5 hover:text-white' : 'border-slate-300 text-slate-500 bg-white hover:bg-slate-50 hover:text-slate-800')}>
-                        <Plus size={14} strokeWidth={3} /> {rt}
-                     </button>
-                  );
-               }
+               // Unified button: No minus button. Just click to add, badge shows current count.
                return (
-                  <div key={rt} className={cn("flex items-center h-[36px] shadow-sm rounded-lg overflow-hidden border shrink-0", dk ? "border-white/10 bg-[#1E293B]" : "border-slate-300 bg-white")}>
-                     <button onClick={() => handleRemoveLastOfType(rt)} className={cn('px-3 h-full border-r transition-all', dk ? 'border-white/10 text-slate-400 hover:bg-red-900/20 hover:text-red-400' : 'border-slate-200 text-slate-400 hover:bg-red-50 hover:text-red-600')}><Minus size={14} strokeWidth={3} /></button>
-                     <div className="flex items-center justify-center px-3.5">
-                        <span className={cn('text-[11px] font-bold mr-1.5', dk ? 'text-slate-400' : 'text-slate-500')}>{rt}</span>
-                        <span className={cn('text-[14px] font-black', dk ? 'text-teal-400' : 'text-teal-600')}>{count}</span>
-                     </div>
-                     <button onClick={() => rt === 'WG' ? setIsAddingWg(true) : handleAddRoomCard(rt)} disabled={!!addingType} className={cn('px-3 h-full border-l transition-all', dk ? 'border-white/10 text-slate-400 hover:bg-teal-900/20 hover:text-teal-400' : 'border-slate-200 text-slate-400 hover:bg-teal-50 hover:text-teal-600')}><Plus size={14} strokeWidth={3} /></button>
-                  </div>
+                  <button key={rt} onClick={() => rt === 'WG' ? setIsAddingWg(true) : handleAddRoomCard(rt)} disabled={!!addingType} className={cn('px-3 h-[36px] rounded-lg text-[12px] font-black border transition-all flex items-center justify-center gap-1.5 shadow-sm shrink-0', dk ? 'border-white/10 text-slate-300 bg-[#1E293B] hover:bg-white/5' : 'border-slate-300 text-slate-600 bg-white hover:bg-slate-50')}>
+                     <Plus size={14} strokeWidth={3} /> {rt} 
+                     {count > 0 && <span className={cn("ml-0.5 px-1.5 py-0.5 rounded text-[10px] leading-none", dk ? "bg-white/10" : "bg-slate-200")}>{count}</span>}
+                  </button>
                );
             })}
          </div>
