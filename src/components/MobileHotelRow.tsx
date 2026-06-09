@@ -6,7 +6,7 @@ import { Check, ChevronDown, ChevronUp, Loader2, Plus, Trash2, X, MapPin, User, 
 import { cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatLastUpdated, calculateNights, calcInvoiceItem } from '../lib/utils';
 import { createDuration, updateHotel, deleteHotel } from '../lib/supabase';
 import { enqueue } from '../lib/offlineSync';
-import DurationCard from './DurationCard';
+import MobileDurationCard from './MobileDurationCard';
 
 export const DEFAULT_COUNTRIES = ['Germany', 'Switzerland', 'Austria', 'Netherlands', 'Poland', 'Belgium', 'France', 'Luxembourg'];
 export function getCountryOptions() { return DEFAULT_COUNTRIES; }
