@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState, useMemo } from 'react'
 import {
-  CalendarDays, Loader2, Minus, Plus, Trash2, 
+  Loader2, Minus, Plus, Trash2, 
   Moon, DoorClosed, Bed, ArrowRight, X, Calendar
 } from 'lucide-react'
 import {
@@ -199,28 +199,7 @@ export default function MobileDurationCard({
       {/* 1. DATES & STATS */}
       <div className="flex flex-col gap-3 p-3 pb-2">
          
-         {/* Row 1: Date Pickers */}
-         <div className="flex items-center gap-2 w-full h-[46px]">
-            <div className={cn("flex-1 h-full relative rounded-xl border flex items-center shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-slate-50 border-slate-200 text-slate-900")}>
-               <div className="absolute inset-0 flex items-center justify-between px-3 pointer-events-none">
-                  <span className={cn("text-[13px] font-black", !local.startDate && "opacity-50 font-normal")}>{local.startDate ? forceDMY(local.startDate) : (lang === 'de' ? 'Start...' : 'Start...')}</span>
-                  <Calendar size={16} className="opacity-50" />
-               </div>
-               <input disabled={viewOnly} ref={inDateRef} type="date" value={local.startDate || ''} onChange={e => handleStartDateChange(e.target.value)} onClick={() => openPicker(inDateRef)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-            </div>
-            
-            <ArrowRight size={14} className="opacity-30 shrink-0" />
-            
-            <div className={cn("flex-1 h-full relative rounded-xl border flex items-center shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-slate-50 border-slate-200 text-slate-900", (!local.startDate || viewOnly) && "opacity-60")}>
-               <div className="absolute inset-0 flex items-center justify-between px-3 pointer-events-none">
-                  <span className={cn("text-[13px] font-black", !local.endDate && "opacity-50 font-normal")}>{local.endDate ? forceDMY(local.endDate) : (lang === 'de' ? 'Ende...' : 'End...')}</span>
-                  <Calendar size={16} className="opacity-50" />
-               </div>
-               <input disabled={viewOnly || !local.startDate} ref={outDateRef} type="date" value={local.endDate || ''} min={local.startDate || undefined} onChange={e => handleEndDateChange(e.target.value)} onClick={() => openPicker(outDateRef)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-            </div>
-         </div>
-
-         {/* Row 2: Metrics & Status */}
+         {/* Row 1: Metrics & Status */}
          <div className="flex items-center justify-between pl-1">
             <div className="flex items-center gap-4">
                <span className={cn("flex items-center gap-1.5 text-[13px] font-black", dk ? "text-slate-300" : "text-slate-600")}><Moon size={14} className="opacity-70" /> {nights}</span>
@@ -246,6 +225,38 @@ export default function MobileDurationCard({
                )}
             </div>
          </div>
+
+         {/* Row 2: Date Pickers */}
+         <div className="flex items-center gap-2 w-full h-[46px]">
+            <div className={cn("flex-1 h-full relative rounded-xl border flex items-center shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-slate-50 border-slate-200 text-slate-900")}>
+               <div className="absolute inset-0 flex items-center justify-between px-3 pointer-events-none">
+                  <span className={cn("text-[13px] font-black", !local.startDate && "opacity-50 font-normal")}>{local.startDate ? forceDMY(local.startDate) : (lang === 'de' ? 'Start...' : 'Start...')}</span>
+                  <Calendar size={16} className="opacity-50" />
+               </div>
+               <input disabled={viewOnly} ref={inDateRef} type="date" value={local.startDate || ''} onChange={e => handleStartDateChange(e.target.value)} onClick={() => openPicker(inDateRef)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+            </div>
+            
+            <ArrowRight size={14} className="opacity-30 shrink-0" />
+            
+            <div className={cn("flex-1 h-full relative rounded-xl border flex items-center shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-slate-50 border-slate-200 text-slate-900", (!local.startDate || viewOnly) && "opacity-60")}>
+               <div className="absolute inset-0 flex items-center justify-between px-3 pointer-events-none">
+                  <span className={cn("text-[13px] font-black", !local.endDate && "opacity-50 font-normal")}>{local.endDate ? forceDMY(local.endDate) : (lang === 'de' ? 'Ende...' : 'End...')}</span>
+                  <Calendar size={16} className="opacity-50" />
+               </div>
+               <input disabled={viewOnly || !local.startDate} ref={outDateRef} type="date" value={local.endDate || ''} min={local.startDate || undefined} onChange={e => handleEndDateChange(e.target.value)} onClick={() => openPicker(outDateRef)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+            </div>
+         </div>
+
+         {/* Row 3: Room Summaries */}
+         {roomCards.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-1 pl-1">
+               {ROOM_TYPES.map(rt => {
+                  const count = typeCount[rt] ?? 0;
+                  if (count === 0) return null;
+                  return <span key={rt} className={cn("px-2 py-0.5 rounded text-[10px] font-black border", dk ? "bg-white/5 border-white/10 text-slate-300" : "bg-slate-100 border-slate-200 text-slate-600")}>{rt} {count}</span>
+               })}
+            </div>
+         )}
       </div>
 
       {/* 2. ADD ROOM CONTROLS */}
