@@ -119,16 +119,31 @@ function MobileBedSlot({
              <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent px-3', viewOnly && "opacity-60")}>
                <span className="text-[12px]">{fmtDateDe(checkIn)}</span>
              </div>
-             {/* EXACT WEB LOGIC FOR CHECKIN */}
-             <input type="date" disabled={viewOnly} value={checkIn || ''} min={effectiveIn} max={effectiveOut} onChange={e => setCheckIn(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0" />
+             <input type="date" disabled={viewOnly} value={checkIn || ''} min={effectiveIn} max={effectiveOut} 
+                onChange={e => {
+                   const v = e.target.value;
+                   if (v && effectiveIn && v < effectiveIn) return;
+                   if (v && effectiveOut && v > effectiveOut) return;
+                   if (v && checkOut && v > checkOut) setCheckOut(v); // Auto-push checkout
+                   setCheckIn(v);
+                }} 
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0" 
+             />
           </div>
           <span className="text-slate-400 text-xs shrink-0">➔</span>
           <div className="relative flex-1 h-full">
              <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent px-3', viewOnly && "opacity-60")}>
                <span className="text-[12px]">{fmtDateDe(checkOut)}</span>
              </div>
-             {/* EXACT WEB LOGIC FOR CHECKOUT */}
-             <input type="date" disabled={viewOnly} value={checkOut || ''} min={checkIn || effectiveIn} max={effectiveOut} onChange={e => setCheckOut(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0" />
+             <input type="date" disabled={viewOnly} value={checkOut || ''} min={checkIn || effectiveIn} max={effectiveOut} 
+                onChange={e => {
+                   const v = e.target.value;
+                   if (v && (checkIn || effectiveIn) && v < (checkIn || effectiveIn)) return; // Strict prevent
+                   if (v && effectiveOut && v > effectiveOut) return;
+                   setCheckOut(v);
+                }} 
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0" 
+             />
           </div>
         </div>
 
@@ -312,10 +327,10 @@ export default function MobileRoomCard({
   return (
     <div className={cn('rounded-xl border transition-all shadow-sm flex flex-col w-full', dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')}>
       
-      {/* 1. COLLAPSED HEADER */}
+      {/* 1. HEADER & COLLAPSED PREVIEW */}
       <div className={cn("flex flex-col w-full cursor-pointer", isOpen && (dk ? "border-b border-white/10 bg-black/20" : "border-b border-slate-100 bg-slate-50/50"))} onClick={() => setIsOpen(!isOpen)}>
          
-         <div className="flex items-center justify-between p-4 pb-2">
+         <div className="flex items-center justify-between p-3 pb-2">
             <div className="flex items-center gap-3">
                <button className={cn("p-1 rounded-md transition-all shrink-0", dk ? "text-slate-400" : "text-slate-500")}>
                   {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -326,47 +341,58 @@ export default function MobileRoomCard({
                </div>
             </div>
             
-            {/* The Badge logic exactly matching your screenshot */}
-            <div className={cn("flex items-center gap-2 px-2.5 py-1.5 rounded-lg border", dk ? "bg-blue-500/10 border-blue-500/20 text-blue-400" : "bg-blue-50 border-blue-200 text-blue-600")}>
-               <span className="flex items-center gap-1 font-black text-xs"><Moon size={14} /> {nights}</span>
-               <div className={cn("w-px h-3", dk ? "bg-blue-500/30" : "bg-blue-300")} /> 
-               <span className="flex items-center gap-1 font-black text-xs"><Bed size={14} /> {beds}</span>
+            <div className="flex items-center gap-2">
+               {/* The Blue Pill Badge */}
+               <div className={cn("flex items-center gap-2 px-2 py-1 rounded-lg border", dk ? "bg-blue-500/10 border-blue-500/20 text-blue-400" : "bg-blue-50 border-blue-200 text-blue-600")}>
+                  <span className="flex items-center gap-1 font-black text-xs"><Moon size={12} /> {nights}</span>
+                  <div className={cn("w-px h-3", dk ? "bg-blue-500/30" : "bg-blue-300")} /> 
+                  <span className="flex items-center gap-1 font-black text-xs"><Bed size={12} /> {beds}</span>
+               </div>
+               
+               {/* Moved Delete Room to Header */}
+               {!viewOnly && (
+                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className={cn("p-1.5 rounded-lg transition-colors shrink-0", dk ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-slate-400 hover:text-red-500 hover:bg-red-50")}>
+                     <Trash2 size={16} />
+                  </button>
+               )}
             </div>
          </div>
 
-         {/* CLICKABLE EMPLOYEE PREVIEW (NO DATES) */}
+         {/* CLICKABLE EMPLOYEE PREVIEW (WRAPPED PILLS) */}
          {!isOpen && displayEmps.length > 0 && (
-            <div className="flex flex-col gap-1.5 px-4 pb-4">
+            <div className="flex flex-wrap items-center gap-1.5 px-3 pb-3 ml-8">
                {displayEmps.map(emp => {
                   const bColor = empBorderColor(emp, dk);
                   const isPart = emp.checkIn > durationStart || emp.checkOut < durationEnd;
                   const lastName = emp.name ? emp.name.trim().split(' ').pop() : '---';
-                  // Evaluate if this employee is a replacement for this specific bed slot
+                  
+                  // Web Logic: Evaluate if this employee is a replacement
                   const slotMates = employees.filter((e:any) => e.slotIndex === emp.slotIndex).sort((a:any,b:any) => (a.checkIn || '').localeCompare(b.checkIn || ''));
                   const isSub = slotMates.length > 1 && slotMates[0].id !== emp.id;
+                  
+                  // Extract status color for dots/arrows
+                  const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
+                  const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
+                  const textColor = status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400';
 
                   return (
-                     <div key={emp.id} className="flex items-center gap-2 text-[12px] truncate py-0.5">
-                        {isSub ? <CornerDownRight size={12} className={cn("shrink-0", dk ? "text-slate-500" : "text-slate-400")} /> : null}
+                     <button key={emp.id} onClick={(e) => { 
+                         e.stopPropagation(); 
+                         setIsOpen(true); 
+                         setTimeout(() => window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id })), 50); 
+                     }} className={cn("px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5 transition-colors border shadow-sm", !viewOnly ? "hover:opacity-80" : "cursor-default", isPart ? "border-dashed" : "border-solid", bColor, dk ? "bg-[#1E293B] text-slate-200" : "bg-white text-slate-700")}>
                         
-                        <button onClick={(e) => { 
-                            e.stopPropagation(); 
-                            setIsOpen(true); 
-                            setTimeout(() => window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id })), 50); 
-                        }} className={cn("px-3 py-1 rounded-full font-bold truncate text-left transition-colors border-2 shadow-sm flex items-center gap-1.5", !viewOnly ? "hover:opacity-80" : "cursor-default", isPart ? "border-dashed" : "border-solid", bColor, dk ? "bg-[#1E293B] text-slate-200" : "bg-white text-slate-700")}>
-                           <span className="truncate max-w-[120px]">{lastName}</span>
-                        </button>
+                        {/* Replacement Icon INSIDE the pill */}
+                        {isSub ? <CornerDownRight size={11} className={textColor} /> : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />}
                         
-                        <span className={cn("text-[10px] font-bold opacity-60 shrink-0", dk ? "text-slate-400" : "text-slate-500")}>
-                           {calculateNights(emp.checkIn||'', emp.checkOut||'')}N
-                        </span>
-                     </div>
+                        <span className="truncate max-w-[90px]">{lastName}</span>
+                     </button>
                   )
                })}
                {overflowCount > 0 && (
-                  <div className="text-[10px] font-black text-teal-500 pl-1 mt-0.5">
-                     + {overflowCount} weitere
-                  </div>
+                  <span className="text-[10px] font-black text-teal-500 ml-1">
+                     + {overflowCount}
+                  </span>
                )}
             </div>
          )}
@@ -439,15 +465,6 @@ export default function MobileRoomCard({
                  })}
               </div>
            </div>
-
-           {/* SECTION C: BOTTOM ACTIONS (No Pricing!) */}
-           {!viewOnly && (
-              <div className="flex flex-col gap-2 mt-2 pt-4 border-t dark:border-white/10 border-slate-200">
-                 <button onClick={() => setConfirmDelete(true)} className={cn("w-full py-3 rounded-lg flex items-center justify-center gap-2 text-[12px] font-bold transition-all shadow-sm", dk ? "bg-red-500/10 text-red-400 hover:bg-red-500/20" : "bg-red-50 text-red-600 hover:bg-red-100")}>
-                    <Trash2 size={14} /> {lang === 'de' ? 'Zimmer löschen' : 'Delete Room'}
-                 </button>
-              </div>
-           )}
 
         </div>
       )}
