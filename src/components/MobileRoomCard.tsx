@@ -332,26 +332,36 @@ export default function MobileRoomCard({
             </div>
          </div>
 
-         {/* CLICKABLE EMPLOYEE PREVIEW (LAST NAME ONLY, NO DATES) */}
+         {/* CLICKABLE EMPLOYEE PREVIEW (NO DATES) */}
          {!isOpen && displayEmps.length > 0 && (
-            <div className="flex flex-col gap-1 px-11 pb-4">
+            <div className="flex flex-col gap-1.5 px-4 pb-4">
                {displayEmps.map(emp => {
-                  const shortName = emp.name ? emp.name.trim().split(' ').pop() : '---';
+                  const bColor = empBorderColor(emp, dk);
+                  const isPart = emp.checkIn > durationStart || emp.checkOut < durationEnd;
+                  const lastName = emp.name ? emp.name.trim().split(' ').pop() : '---';
+                  // Check if someone else was in this exact slot before them
+                  const isSub = employees.some((e:any) => e.slotIndex === emp.slotIndex && e.id !== emp.id && (e.checkIn || '') < (emp.checkIn || ''));
+
                   return (
-                    <div key={emp.id} className="flex items-center gap-1.5 text-[12px] truncate py-0.5">
-                       <CornerDownRight size={12} className={cn("shrink-0", dk ? "text-slate-600" : "text-slate-400")} />
-                       <button onClick={(e) => { 
-                           e.stopPropagation(); 
-                           setIsOpen(true); 
-                           setTimeout(() => window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id })), 50); 
-                       }} className={cn("font-bold truncate text-left transition-colors", !viewOnly ? "hover:underline" : "cursor-default", dk ? "text-slate-300 hover:text-white" : "text-slate-700 hover:text-black")}>
-                          {shortName}
-                       </button>
-                    </div>
-                  );
+                     <div key={emp.id} className="flex items-center gap-2 text-[12px] truncate py-0.5">
+                        {isSub ? <CornerDownRight size={12} className={cn("shrink-0", dk ? "text-slate-500" : "text-slate-400")} /> : null}
+                        
+                        <button onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setIsOpen(true); 
+                            setTimeout(() => window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id })), 50); 
+                        }} className={cn("px-2.5 py-1 rounded-full font-bold truncate text-left transition-colors border shadow-sm flex items-center gap-1.5", !viewOnly ? "hover:opacity-80" : "cursor-default", isPart ? "border-dashed" : "border-solid", bColor, dk ? "bg-[#1E293B] text-slate-200" : "bg-white text-slate-700")}>
+                           <span className="truncate max-w-[120px]">{lastName}</span>
+                        </button>
+                        
+                        <span className={cn("text-[10px] font-bold opacity-60 shrink-0", dk ? "text-slate-400" : "text-slate-500")}>
+                           {calculateNights(emp.checkIn||'', emp.checkOut||'')}N
+                        </span>
+                     </div>
+                  )
                })}
                {overflowCount > 0 && (
-                  <div className="text-[10px] font-black text-teal-500 mt-1">
+                  <div className="text-[10px] font-black text-teal-500 pl-1 mt-0.5">
                      + {overflowCount} weitere
                   </div>
                )}
