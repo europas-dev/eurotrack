@@ -950,7 +950,7 @@ export default function MobileHotelRow({ entry, index, isDarkMode: dk, lang = 'd
                   </div>
                   {localHotel.durations[activeDurationTab] && (
                      <div className="relative z-0 -mt-2">
-                        <DurationCard 
+                        <MobileDurationCard 
                           duration={localHotel.durations[activeDurationTab]} 
                           isDarkMode={dk} lang={lang} 
                           isMasterPricingActive={tabMath.isMasterActive} 
