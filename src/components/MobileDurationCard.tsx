@@ -128,6 +128,18 @@ export default function MobileDurationCard({
     patch({ endDate: newEnd });
   }
 
+  function togglePreset(days: number) {
+    if (!local.startDate || local.endDate || viewOnly) return;
+    patch({ endDate: addDays(local.startDate, days) });
+  }
+
+  function shiftEndDate(delta: number, unit: number) {
+    if (!local.endDate || viewOnly) return;
+    const shifted = addDays(local.endDate, delta * unit);
+    if (local.startDate && shifted < local.startDate) return;
+    patch({ endDate: shifted });
+  }
+
   function syncRoomCardsToParent(newCards: RoomCard[]) {
     const nextLocal = { ...local, roomCards: newCards } as Duration;
     setLocal(nextLocal);
@@ -247,8 +259,25 @@ export default function MobileDurationCard({
             </div>
          </div>
 
-         {/* Row 3: Room Summaries */}
-         {roomCards.length > 0 && (
+         {/* Row 3: Presets & Steppers */}
+         {!viewOnly && local.startDate && (
+            <div className="flex items-center gap-2 h-[38px] w-full">
+               {[ { label: '1W', days: 7 }, { label: '1M', days: 30 } ].map(p => (
+                  <div key={p.label} className="flex-1 flex items-center h-full shadow-sm rounded-lg overflow-hidden">
+                     <button type="button" onClick={() => togglePreset(p.days)} disabled={!!local.endDate} className={cn("flex-1 h-full text-[11px] font-black transition-all border-y border-l rounded-l-lg", local.endDate ? (dk ? "bg-white/5 border-white/10 text-slate-600 cursor-default" : "bg-slate-100 border-slate-200 text-slate-400 cursor-default") : (dk ? "bg-[#1E293B] border-white/10 text-teal-400 hover:bg-white/5" : "bg-white border-slate-200 text-teal-600 hover:bg-slate-50"))}>
+                        {p.label}
+                     </button>
+                     <div className={cn("flex flex-col h-full border rounded-r-lg w-[32px] shrink-0", dk ? "border-white/10" : "border-slate-300")}>
+                        <button type="button" disabled={!local.endDate} onClick={() => shiftEndDate(1, p.days)} className={cn("flex-1 flex items-center justify-center text-[10px] font-black border-b outline-none", !local.endDate ? (dk ? "text-slate-700 bg-white/5 border-white/5" : "text-slate-300 bg-slate-50 border-slate-200") : (dk ? "text-teal-400 bg-[#1E293B] border-white/10 hover:bg-white/10" : "text-teal-600 bg-white border-slate-200 hover:bg-slate-50"))}>+</button>
+                        <button type="button" disabled={!local.endDate} onClick={() => shiftEndDate(-1, p.days)} className={cn("flex-1 flex items-center justify-center text-[10px] font-black outline-none", !local.endDate ? (dk ? "text-slate-700 bg-white/5" : "text-slate-300 bg-slate-50") : (dk ? "text-teal-400 bg-[#1E293B] hover:bg-white/10" : "text-teal-600 bg-white hover:bg-slate-50"))}>−</button>
+                     </div>
+                  </div>
+               ))}
+            </div>
+         )}
+
+         {/* Row 4: Room Summaries (ONLY VISIBLE FOR VIEWERS) */}
+         {roomCards.length > 0 && viewOnly && (
             <div className="flex flex-wrap gap-1.5 mt-1 pl-1">
                {ROOM_TYPES.map(rt => {
                   const count = typeCount[rt] ?? 0;
@@ -259,7 +288,7 @@ export default function MobileDurationCard({
          )}
       </div>
 
-      {/* 2. ADD ROOM CONTROLS */}
+      {/* 2. ADD ROOM CONTROLS (Editors Only) */}
       {hasDates && !viewOnly && (
          <div className="flex items-center gap-2 p-3 pt-2 border-t dark:border-white/10 border-slate-100 overflow-x-auto no-scrollbar">
             {ROOM_TYPES.map(rt => {
