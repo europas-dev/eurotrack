@@ -101,69 +101,67 @@ function MobileBedSlot({
   }
 
   // --- EDIT MODE (Mobile Stacked, No Overlap) ---
-  if (editing || (!employee && editing)) {
-    return (
-      <div className={cn('flex flex-col gap-3 p-3 rounded-xl border shadow-md', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
-        <input disabled={viewOnly} autoFocus type="text" value={name} onChange={e => setName(e.target.value)} placeholder={lang === 'de' ? 'Name...' : 'Name...'} className={inputCls} list={`emp-list-${roomCardId}-${slotIndex}`} />
-        <datalist id={`emp-list-${roomCardId}-${slotIndex}`}>
-            {name.trim().length > 0 && employeeOptions?.map((opt: string) => <option key={opt} value={opt} />)}
-        </datalist>
+if (editing || (!employee && editing)) {
+  return (
+    <div className={cn('flex flex-col gap-3 p-3 rounded-xl border shadow-md', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
+      <input disabled={viewOnly} autoFocus type="text" value={name} onChange={e => setName(e.target.value)} placeholder={lang === 'de' ? 'Name...' : 'Name...'} className={inputCls} list={`emp-list-${roomCardId}-${slotIndex}`} />
+      <datalist id={`emp-list-${roomCardId}-${slotIndex}`}>
+          {name.trim().length > 0 && employeeOptions?.map((opt: string) => <option key={opt} value={opt} />)}
+      </datalist>
+      
+      <div className="relative flex items-center w-full">
+        <Phone size={14} className={cn("absolute left-3", dk ? "text-slate-500" : "text-slate-400")} />
+        <input disabled={viewOnly} type="text" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+49" className={cn(inputCls, 'pl-9')} />
+      </div>
+
+      {/* ✅ FIXED DATE INPUTS - Using Web Logic */}
+      <div className="flex items-center gap-2 w-full h-[42px] shrink-0">
+        {/* Check In */}
+        <div className="relative flex-1 h-full">
+           <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent px-3', viewOnly && "opacity-60")}>
+             <span className="text-[12px]">{fmtDateDe(checkIn)}</span>
+           </div>
+           <input 
+             type="date" 
+             disabled={viewOnly} 
+             value={checkIn || ''} 
+             min={effectiveIn} 
+             max={effectiveOut} 
+             onChange={e => setCheckIn(e.target.value)}
+             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0" 
+           />
+        </div>
         
-        <div className="relative flex items-center w-full">
-          <Phone size={14} className={cn("absolute left-3", dk ? "text-slate-500" : "text-slate-400")} />
-          <input disabled={viewOnly} type="text" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+49" className={cn(inputCls, 'pl-9')} />
-        </div>
-
-        <div className="flex items-center gap-2 w-full h-[42px] shrink-0">
-          <div className="relative flex-1 h-full">
-             <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent px-3', viewOnly && "opacity-60")}>
-               <span className="text-[12px]">{fmtDateDe(checkOut)}</span>
-             </div>
-             <input 
-               type="date" 
-               disabled={viewOnly} 
-               value={checkOut || ''} 
-               min={checkIn || effectiveIn} 
-               max={effectiveOut}  // ✅ This is correct - allows up to duration end
-               onChange={e => {
-                  const v = e.target.value;
-                  // Only prevent going BEFORE checkIn
-                  if (v && (checkIn || effectiveIn) && v < (checkIn || effectiveIn)) return;
-                  // ✅ REMOVED: The line that blocked selecting effectiveOut
-                  // if (v && effectiveOut && v > effectiveOut) return; 
-                  setCheckOut(v);
-               }} 
-               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0" 
-             />
-          </div>
-          <span className="text-slate-400 text-xs shrink-0">➔</span>
-          <div className="relative flex-1 h-full">
-             <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent px-3', viewOnly && "opacity-60")}>
-               <span className="text-[12px]">{fmtDateDe(checkOut)}</span>
-             </div>
-             <input type="date" disabled={viewOnly} value={checkOut || ''} min={checkIn || effectiveIn} max={effectiveOut} 
-                onChange={e => {
-                   const v = e.target.value;
-                   if (v && (checkIn || effectiveIn) && v < (checkIn || effectiveIn)) return; // Strict prevent
-                   if (v && effectiveOut && v > effectiveOut) return;
-                   setCheckOut(v);
-                }} 
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0" 
-             />
-          </div>
-        </div>
-
-        <div className="flex gap-2 w-full pt-1">
-           <button onClick={() => setEditing(false)} className={cn('flex-1 py-2.5 rounded-lg font-bold border transition-all text-sm', dk ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-500 hover:bg-slate-100')}>
-              {lang === 'de' ? 'Abbrechen' : 'Cancel'}
-           </button>
-           <button onClick={save} disabled={saving || !name.trim()} className="flex-1 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-sm">
-              {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={3} />} {lang === 'de' ? 'Speichern' : 'Save'}
-           </button>
+        <span className="text-slate-400 text-xs shrink-0">➔</span>
+        
+        {/* Check Out */}
+        <div className="relative flex-1 h-full">
+           <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent px-3', viewOnly && "opacity-60")}>
+             <span className="text-[12px]">{fmtDateDe(checkOut)}</span>
+           </div>
+           <input 
+             type="date" 
+             disabled={viewOnly} 
+             value={checkOut || ''} 
+             min={checkIn || effectiveIn} 
+             max={effectiveOut} 
+             onChange={e => setCheckOut(e.target.value)}
+             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0" 
+           />
         </div>
       </div>
-    )
-  }
+
+      <div className="flex gap-2 w-full pt-1">
+         <button onClick={() => setEditing(false)} className={cn('flex-1 py-2.5 rounded-lg font-bold border transition-all text-sm', dk ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-500 hover:bg-slate-100')}>
+            {lang === 'de' ? 'Abbrechen' : 'Cancel'}
+         </button>
+         <button onClick={save} disabled={saving || !name.trim()} className="flex-1 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-sm">
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={3} />} {lang === 'de' ? 'Speichern' : 'Save'}
+         </button>
+      </div>
+    </div>
+  )
+}
 
   // --- VIEW MODE (Mobile Vertical Layout) ---
   if (!editing && employee) {
