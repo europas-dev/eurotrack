@@ -26,10 +26,93 @@ function empBorderColor(emp: Employee | null, dk: boolean): string {
   return dk ? 'border-white/10' : 'border-slate-200'
 }
 
+// ✅ NEW: Get occupied date ranges for a specific slot (excluding current employee)
+function getOccupiedRanges(
+  slotIndex: number, 
+  employees: Employee[], 
+  currentEmployeeId?: string
+): { checkIn: string; checkOut: string }[] {
+  return employees
+    .filter(e => 
+      e.slotIndex === slotIndex && 
+      e.id !== currentEmployeeId && 
+      e.checkIn && 
+      e.checkOut
+    )
+    .map(e => ({ checkIn: e.checkIn!, checkOut: e.checkOut! }))
+    .sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+}
+
+// ✅ NEW: Check if a date range overlaps with any occupied ranges
+function hasOverlap(
+  newCheckIn: string, 
+  newCheckOut: string, 
+  occupiedRanges: { checkIn: string; checkOut: string }[]
+): boolean {
+  return occupiedRanges.some(range => {
+    // Overlap if: new starts before existing ends AND new ends after existing starts
+    return newCheckIn < range.checkOut && newCheckOut > range.checkIn;
+  });
+}
+
+// ✅ NEW: Get valid date range for this slot considering other employees
+function getValidDateRange(
+  slotIndex: number,
+  employees: Employee[],
+  durationStart: string,
+  durationEnd: string,
+  currentEmployeeId?: string,
+  gapStart?: string,
+  gapEnd?: string
+): { minDate: string; maxDate: string } {
+  // If it's a gap fill, use gap boundaries strictly
+  if (gapStart && gapEnd) {
+    return { minDate: gapStart, maxDate: gapEnd };
+  }
+  
+  const occupied = getOccupiedRanges(slotIndex, employees, currentEmployeeId);
+  
+  // For new employee or editing existing, find available space
+  let minDate = durationStart;
+  let maxDate = durationEnd;
+  
+  if (occupied.length > 0 && !currentEmployeeId) {
+    // For NEW employees, find the first available gap
+    const sortedOccupied = [...occupied].sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+    
+    // Check space before first occupied
+    if (minDate < sortedOccupied[0].checkIn) {
+      maxDate = sortedOccupied[0].checkIn;
+    } else {
+      // Find first gap between occupied ranges
+      for (let i = 0; i < sortedOccupied.length - 1; i++) {
+        const current = sortedOccupied[i];
+        const next = sortedOccupied[i + 1];
+        
+        if (current.checkOut < next.checkIn) {
+          minDate = current.checkOut;
+          maxDate = next.checkIn;
+          break;
+        }
+      }
+      
+      // If no gap found, use space after last occupied
+      if (minDate === durationStart) {
+        const last = sortedOccupied[sortedOccupied.length - 1];
+        minDate = last.checkOut;
+        maxDate = durationEnd;
+      }
+    }
+  }
+  
+  return { minDate, maxDate };
+}
+
 // --- VERTICAL MOBILE BED SLOT ---
 function MobileBedSlot({
   slotIndex, employee, durationStart, durationEnd, gapStart, gapEnd,
-  roomCardId, durationId, dk, lang, isSubstitute, onUpdated, viewOnly, employeeOptions
+  roomCardId, durationId, dk, lang, isSubstitute, onUpdated, viewOnly, employeeOptions,
+  allSlotEmployees // ✅ NEW: All employees in this slot for overlap detection
 }: any) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(employee?.name ?? '')
@@ -39,8 +122,32 @@ function MobileBedSlot({
   const [saving, setSaving] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
 
-  const effectiveIn = gapStart ?? durationStart
-  const effectiveOut = gapEnd ?? durationEnd
+  // ✅ NEW: Sync gap dates when they change (fixes gap date not updating)
+  useEffect(() => {
+    if (!employee && gapStart) {
+      setCheckIn(gapStart);
+    }
+  }, [gapStart, employee]);
+
+  useEffect(() => {
+    if (!employee && gapEnd) {
+      setCheckOut(gapEnd);
+    }
+  }, [gapEnd, employee]);
+
+  // ✅ NEW: Calculate valid date range considering other employees
+  const { minDate, maxDate } = getValidDateRange(
+    slotIndex,
+    allSlotEmployees || [],
+    durationStart,
+    durationEnd,
+    employee?.id,
+    gapStart,
+    gapEnd
+  );
+
+  const effectiveIn = gapStart ?? minDate;
+  const effectiveOut = gapEnd ?? maxDate;
   const nights = calculateNights(checkIn, checkOut)
   const status = employee ? getEmployeeStatus(employee.checkIn ?? '', employee.checkOut ?? '') : null
   const borderCls = empBorderColor(employee, dk)
@@ -53,7 +160,17 @@ function MobileBedSlot({
 
   async function save() {
     if (viewOnly) return; 
-    if (!name.trim()) return
+    if (!name.trim()) return;
+
+    // ✅ NEW: Validate no overlap before saving
+    const occupied = getOccupiedRanges(slotIndex, allSlotEmployees || [], employee?.id);
+    if (checkIn && checkOut && hasOverlap(checkIn, checkOut, occupied)) {
+      alert(lang === 'de' 
+        ? 'Dieser Zeitraum überschneidet sich mit einem anderen Mitarbeiter in diesem Bett!' 
+        : 'This period overlaps with another employee in this bed!');
+      return;
+    }
+
     setSaving(true)
     const cleanPhone = phone.trim() === '+49' ? '' : phone.trim();
     const finalIn = checkIn === '' ? null : checkIn;
@@ -101,67 +218,87 @@ function MobileBedSlot({
   }
 
   // --- EDIT MODE (Mobile Stacked, No Overlap) ---
-if (editing || (!employee && editing)) {
-  return (
-    <div className={cn('flex flex-col gap-3 p-3 rounded-xl border shadow-md', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
-      <input disabled={viewOnly} autoFocus type="text" value={name} onChange={e => setName(e.target.value)} placeholder={lang === 'de' ? 'Name...' : 'Name...'} className={inputCls} list={`emp-list-${roomCardId}-${slotIndex}`} />
-      <datalist id={`emp-list-${roomCardId}-${slotIndex}`}>
-          {name.trim().length > 0 && employeeOptions?.map((opt: string) => <option key={opt} value={opt} />)}
-      </datalist>
-      
-      <div className="relative flex items-center w-full">
-        <Phone size={14} className={cn("absolute left-3", dk ? "text-slate-500" : "text-slate-400")} />
-        <input disabled={viewOnly} type="text" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+49" className={cn(inputCls, 'pl-9')} />
-      </div>
-
-      {/* ✅ FIXED DATE INPUTS - Using Web Logic */}
-      <div className="flex items-center gap-2 w-full h-[42px] shrink-0">
-        {/* Check In */}
-        <div className="relative flex-1 h-full">
-           <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent px-3', viewOnly && "opacity-60")}>
-             <span className="text-[12px]">{fmtDateDe(checkIn)}</span>
-           </div>
-           <input 
-             type="date" 
-             disabled={viewOnly} 
-             value={checkIn || ''} 
-             min={effectiveIn} 
-             max={effectiveOut} 
-             onChange={e => setCheckIn(e.target.value)}
-             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0" 
-           />
-        </div>
+  if (editing || (!employee && editing)) {
+    return (
+      <div className={cn('flex flex-col gap-3 p-3 rounded-xl border shadow-md', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
+        <input disabled={viewOnly} autoFocus type="text" value={name} onChange={e => setName(e.target.value)} placeholder={lang === 'de' ? 'Name...' : 'Name...'} className={inputCls} list={`emp-list-${roomCardId}-${slotIndex}`} />
+        <datalist id={`emp-list-${roomCardId}-${slotIndex}`}>
+            {name.trim().length > 0 && employeeOptions?.map((opt: string) => <option key={opt} value={opt} />)}
+        </datalist>
         
-        <span className="text-slate-400 text-xs shrink-0">➔</span>
-        
-        {/* Check Out */}
-        <div className="relative flex-1 h-full">
-           <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent px-3', viewOnly && "opacity-60")}>
-             <span className="text-[12px]">{fmtDateDe(checkOut)}</span>
-           </div>
-           <input 
-             type="date" 
-             disabled={viewOnly} 
-             value={checkOut || ''} 
-             min={checkIn || effectiveIn} 
-             max={effectiveOut} 
-             onChange={e => setCheckOut(e.target.value)}
-             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0" 
-           />
+        <div className="relative flex items-center w-full">
+          <Phone size={14} className={cn("absolute left-3", dk ? "text-slate-500" : "text-slate-400")} />
+          <input disabled={viewOnly} type="text" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+49" className={cn(inputCls, 'pl-9')} />
+        </div>
+
+        {/* ✅ UPDATED: Date inputs with cross-browser validation */}
+        <div className="flex items-center gap-2 w-full h-[42px] shrink-0">
+          {/* Check In */}
+          <div className="relative flex-1 h-full">
+             <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent px-3', viewOnly && "opacity-60")}>
+               <span className="text-[12px]">{fmtDateDe(checkIn)}</span>
+             </div>
+             <input 
+               type="date" 
+               disabled={viewOnly} 
+               value={checkIn || ''} 
+               min={effectiveIn} 
+               max={effectiveOut} 
+               onChange={e => {
+                 const newVal = e.target.value;
+                 if (!newVal) { setCheckIn(''); return; }
+                 
+                 // ✅ Cross-browser validation
+                 if (newVal < effectiveIn) { setCheckIn(effectiveIn); return; }
+                 if (newVal > effectiveOut) { setCheckIn(effectiveOut); return; }
+                 if (checkOut && newVal > checkOut) { setCheckOut(newVal); } // Auto-adjust checkout
+                 
+                 setCheckIn(newVal);
+               }}
+               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0" 
+             />
+          </div>
+          
+          <span className="text-slate-400 text-xs shrink-0">➔</span>
+          
+          {/* Check Out */}
+          <div className="relative flex-1 h-full">
+             <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent px-3', viewOnly && "opacity-60")}>
+               <span className="text-[12px]">{fmtDateDe(checkOut)}</span>
+             </div>
+             <input 
+               type="date" 
+               disabled={viewOnly} 
+               value={checkOut || ''} 
+               min={checkIn || effectiveIn} 
+               max={effectiveOut} 
+               onChange={e => {
+                 const newVal = e.target.value;
+                 if (!newVal) { setCheckOut(''); return; }
+                 
+                 // ✅ Cross-browser validation
+                 const minCheckout = checkIn || effectiveIn;
+                 if (newVal < minCheckout) { setCheckOut(minCheckout); return; }
+                 if (newVal > effectiveOut) { setCheckOut(effectiveOut); return; }
+                 
+                 setCheckOut(newVal);
+               }}
+               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0" 
+             />
+          </div>
+        </div>
+
+        <div className="flex gap-2 w-full pt-1">
+           <button onClick={() => setEditing(false)} className={cn('flex-1 py-2.5 rounded-lg font-bold border transition-all text-sm', dk ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-500 hover:bg-slate-100')}>
+              {lang === 'de' ? 'Abbrechen' : 'Cancel'}
+           </button>
+           <button onClick={save} disabled={saving || !name.trim()} className="flex-1 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-sm">
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={3} />} {lang === 'de' ? 'Speichern' : 'Save'}
+           </button>
         </div>
       </div>
-
-      <div className="flex gap-2 w-full pt-1">
-         <button onClick={() => setEditing(false)} className={cn('flex-1 py-2.5 rounded-lg font-bold border transition-all text-sm', dk ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-500 hover:bg-slate-100')}>
-            {lang === 'de' ? 'Abbrechen' : 'Cancel'}
-         </button>
-         <button onClick={save} disabled={saving || !name.trim()} className="flex-1 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-sm">
-            {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={3} />} {lang === 'de' ? 'Speichern' : 'Save'}
-         </button>
-      </div>
-    </div>
-  )
-}
+    )
+  }
 
   // --- VIEW MODE (Mobile Vertical Layout) ---
   if (!editing && employee) {
@@ -446,6 +583,8 @@ export default function MobileRoomCard({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                  {Array.from({ length: beds }).map((_, i) => {
                     const slotE = employees.filter(e => (e.slotIndex ?? 0) === i).sort((a,b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
+                    const allSlotEmployees = employees.filter(e => (e.slotIndex ?? 0) === i); // ✅ NEW: All employees in this slot
+                    
                     return (
                       <div key={i} className="flex flex-col gap-2 relative">
                          {/* Bed Indicator */}
@@ -455,14 +594,67 @@ export default function MobileRoomCard({
                          </div>
                          
                          {slotE.length === 0 ? (
-                           <MobileBedSlot viewOnly={viewOnly} employeeOptions={employeeOptions} slotIndex={i} employee={null} durationStart={durationStart} durationEnd={durationEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} onUpdated={(idx:any, emp:any) => { const next = emp === null ? employees.filter(e => e.slotIndex !== idx) : employees.some(e => e.id === emp.id) ? employees.map(e => e.id === emp.id ? emp : e) : [...employees, emp]; onUpdate(card.id, { employees: next }); }} />
+                           <MobileBedSlot 
+                             viewOnly={viewOnly} 
+                             employeeOptions={employeeOptions} 
+                             slotIndex={i} 
+                             employee={null} 
+                             durationStart={durationStart} 
+                             durationEnd={durationEnd} 
+                             roomCardId={card.id} 
+                             durationId={card.durationId} 
+                             dk={dk} 
+                             lang={lang} 
+                             allSlotEmployees={allSlotEmployees} // ✅ NEW
+                             onUpdated={(idx:any, emp:any) => { 
+                               const next = emp === null ? employees.filter(e => e.slotIndex !== idx) : employees.some(e => e.id === emp.id) ? employees.map(e => e.id === emp.id ? emp : e) : [...employees, emp]; 
+                               onUpdate(card.id, { employees: next }); 
+                             }} 
+                           />
                          ) : (
                            slotE.map((emp, empIdx) => (
-                             <MobileBedSlot viewOnly={viewOnly} employeeOptions={employeeOptions} key={emp.id} slotIndex={i} employee={emp} durationStart={durationStart} durationEnd={durationEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} isSubstitute={empIdx > 0} onUpdated={(idx:any, e:any) => { const next = e === null ? employees.filter(empItem => empItem.id !== emp.id) : employees.map(empItem => empItem.id === e.id ? e : empItem); onUpdate(card.id, { employees: next }); }} />
+                             <MobileBedSlot 
+                               viewOnly={viewOnly} 
+                               employeeOptions={employeeOptions} 
+                               key={emp.id} 
+                               slotIndex={i} 
+                               employee={emp} 
+                               durationStart={durationStart} 
+                               durationEnd={durationEnd} 
+                               roomCardId={card.id} 
+                               durationId={card.durationId} 
+                               dk={dk} 
+                               lang={lang} 
+                               isSubstitute={empIdx > 0} 
+                               allSlotEmployees={allSlotEmployees} // ✅ NEW
+                               onUpdated={(idx:any, e:any) => { 
+                                 const next = e === null ? employees.filter(empItem => empItem.id !== emp.id) : employees.map(empItem => empItem.id === e.id ? e : empItem); 
+                                 onUpdate(card.id, { employees: next }); 
+                               }} 
+                             />
                            ))
                          )}
                          {getGapSlots(beds, employees, durationStart, durationEnd).filter(g => g.slotIndex === i).map((gap, gi) => (
-                           <MobileBedSlot viewOnly={viewOnly} employeeOptions={employeeOptions} key={`gap-${i}-${gi}`} slotIndex={i} employee={null} durationStart={durationStart} durationEnd={durationEnd} gapStart={gap.gapStart} gapEnd={gap.gapEnd} roomCardId={card.id} durationId={card.durationId} dk={dk} lang={lang} onUpdated={(idx:any, emp:any) => { const next = emp === null ? employees : [...employees, emp]; onUpdate(card.id, { employees: next }); }} />
+                           <MobileBedSlot 
+                             viewOnly={viewOnly} 
+                             employeeOptions={employeeOptions} 
+                             key={`gap-${i}-${gi}`} 
+                             slotIndex={i} 
+                             employee={null} 
+                             durationStart={durationStart} 
+                             durationEnd={durationEnd} 
+                             gapStart={gap.gapStart} 
+                             gapEnd={gap.gapEnd} 
+                             roomCardId={card.id} 
+                             durationId={card.durationId} 
+                             dk={dk} 
+                             lang={lang} 
+                             allSlotEmployees={allSlotEmployees} // ✅ NEW
+                             onUpdated={(idx:any, emp:any) => { 
+                               const next = emp === null ? employees : [...employees, emp]; 
+                               onUpdate(card.id, { employees: next }); 
+                             }} 
+                           />
                          ))}
                       </div>
                     )
