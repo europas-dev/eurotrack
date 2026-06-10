@@ -117,17 +117,23 @@ function MobileBedSlot({
         <div className="flex items-center gap-2 w-full h-[42px] shrink-0">
           <div className="relative flex-1 h-full">
              <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent px-3', viewOnly && "opacity-60")}>
-               <span className="text-[12px]">{fmtDateDe(checkIn)}</span>
+               <span className="text-[12px]">{fmtDateDe(checkOut)}</span>
              </div>
-             <input type="date" disabled={viewOnly} value={checkIn || ''} min={effectiveIn} max={effectiveOut} 
-                onChange={e => {
-                   const v = e.target.value;
-                   if (v && effectiveIn && v < effectiveIn) return;
-                   if (v && effectiveOut && v > effectiveOut) return;
-                   if (v && checkOut && v > checkOut) setCheckOut(v); // Auto-push checkout
-                   setCheckIn(v);
-                }} 
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0" 
+             <input 
+               type="date" 
+               disabled={viewOnly} 
+               value={checkOut || ''} 
+               min={checkIn || effectiveIn} 
+               max={effectiveOut}  // ✅ This is correct - allows up to duration end
+               onChange={e => {
+                  const v = e.target.value;
+                  // Only prevent going BEFORE checkIn
+                  if (v && (checkIn || effectiveIn) && v < (checkIn || effectiveIn)) return;
+                  // ✅ REMOVED: The line that blocked selecting effectiveOut
+                  // if (v && effectiveOut && v > effectiveOut) return; 
+                  setCheckOut(v);
+               }} 
+               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0" 
              />
           </div>
           <span className="text-slate-400 text-xs shrink-0">➔</span>
