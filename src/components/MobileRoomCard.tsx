@@ -14,7 +14,7 @@ function fmtDateDe(iso: string | null | undefined) {
   if (!iso) return '—'
   const [y, m, d] = iso.split('-')
   return `${d}.${m}.${y}`
-}
+}fconst [checkIn, setCheckIn] = useState(initialCheckIn)
 
 function empBorderColor(emp: Employee | null, dk: boolean): string {
   if (!emp) return dk ? 'border-white/10' : 'border-slate-200'
@@ -362,6 +362,14 @@ function MobileBedSlot({
   const [checkOut, setCheckOut] = useState(initialCheckOut)
   const [saving, setSaving] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
+
+  // ✅ ROCK-SOLID SYNC: Force local state to match main duration when not editing
+  useEffect(() => {
+    if (!editing && !employee) {
+      setCheckIn(gapStart ?? durationStart);
+      setCheckOut(gapEnd ?? durationEnd);
+    }
+  }, [durationStart, durationEnd, gapStart, gapEnd, editing, employee]);
 
 
 
@@ -723,9 +731,20 @@ useEffect(() => {
 
   if (changed) {
     onUpdate(card.id, { employees: newEmp });
-    changedEmployees.forEach(emp => {
-      enqueue({ type: 'updateEmployee', payload: { id: emp.id, checkIn: emp.checkIn, checkOut: emp.checkOut } });
-    });
+    
+    // ✅ DELAY BACKEND SYNC: Prevents enqueue promises from being swallowed during rapid UI re-renders
+    setTimeout(() => {
+      changedEmployees.forEach(async (emp) => {
+        try {
+          await enqueue({ 
+            type: 'updateEmployee', 
+            payload: { id: emp.id, checkIn: emp.checkIn, checkOut: emp.checkOut } 
+          });
+        } catch (err) {
+          console.error("Failed to sync auto-extension to backend:", err);
+        }
+      });
+    }, 150);
   }
 }, [durationStart, durationEnd, JSON.stringify(card.employees)]);
 
