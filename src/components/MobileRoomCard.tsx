@@ -123,7 +123,7 @@ function getValidDateRange(
   return { minDate: last.checkOut, maxDate: durationEnd };
 }
 
-// ✅ NEW: Custom Date Picker Component
+// ✅ NEW: Custom Date Picker Component with Mobile-Safe Positioning
 function CustomDatePicker({
   value,
   minDate,
@@ -227,7 +227,8 @@ function CustomDatePicker({
   }
 
   return (
-    <div className="relative w-full">
+    <>
+      {/* Date Input Button */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -237,13 +238,17 @@ function CustomDatePicker({
         <Calendar size={14} className="opacity-50" />
       </button>
 
+      {/* ✅ FIXED: Full-Screen Modal Overlay */}
       {isOpen && (
-        <>
-          {/* Backdrop */}
-          <div className="fixed inset-0 z-[100]" onClick={() => setIsOpen(false)} />
-          
-          {/* Calendar Popup */}
-          <div className={cn('absolute top-full left-0 mt-2 z-[101] rounded-xl border shadow-2xl p-4 w-[280px]', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
+        <div 
+          className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" 
+          onClick={() => setIsOpen(false)}
+        >
+          {/* ✅ Calendar Card - Centered & Mobile-Safe */}
+          <div 
+            className={cn('rounded-xl border shadow-2xl p-4 w-full max-w-[320px] animate-in zoom-in-95', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}
+            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
+          >
             {/* Header */}
             <div className="flex items-center justify-between mb-3">
               <button
@@ -310,9 +315,9 @@ function CustomDatePicker({
               {lang === 'de' ? 'Schließen' : 'Close'}
             </button>
           </div>
-        </>
+        </div>
       )}
-    </div>
+    </>
   );
 }
 
