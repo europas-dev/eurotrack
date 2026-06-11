@@ -245,18 +245,7 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
       console.error("Failed to delete room card:", e);
     }
   }
-  async function handleRemoveLastOfType(roomType: string) {
-    if (viewOnly) return;
-    const cards = roomCards.filter(c => c.roomType === roomType)
-    if (!cards.length) return
-    const last = cards[cards.length - 1]
-    try {
-      await enqueue({ type: 'deleteRoomCard', payload: { id: last.id } });
-      const n = roomCards.filter(c => c.id !== last.id);
-      setRoomCards(n);
-      syncRoomCardsToParent(n);
-    } catch (e) { console.error(e) }
-  }
+  
 
   function handleCardUpdate(id: string, p: Partial<RoomCard>) {
     if (viewOnly) return;
@@ -503,8 +492,7 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
                   }
                   return (
                     <div key={rt} className="flex items-center h-full shadow-sm rounded-lg overflow-hidden border shrink-0" style={{ borderColor: dk ? 'rgba(255,255,255,0.1)' : '#cbd5e1' }}>
-                      {!viewOnly && <button onClick={() => handleRemoveLastOfType(rt)} className={cn('px-2.5 h-full border-r transition-all', dk ? 'text-slate-400 hover:bg-red-900/20 hover:text-red-400' : 'text-slate-400 hover:bg-red-50 hover:text-red-600')}><Minus size={14} strokeWidth={3} /></button>}
-                      <div className={cn("flex items-center h-full px-2.5", dk ? "bg-[#1E293B]" : "bg-white")}>
+                       <div className={cn("flex items-center h-full px-2.5", dk ? "bg-[#1E293B]" : "bg-white")}>
                          <span className={cn('text-[13px] font-bold mr-1.5', dk ? 'text-slate-400' : 'text-slate-500')}>{rt}</span>
                          <span className={cn('text-[15px] font-black', dk ? 'text-teal-400' : 'text-teal-600')}>{count}</span>
                       </div>
