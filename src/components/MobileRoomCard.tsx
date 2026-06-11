@@ -364,19 +364,27 @@ function MobileBedSlot({
   const [confirmDel, setConfirmDel] = useState(false)
 
   // ✅ Sync dates when duration or gaps change (for unassigned slots)
+// ✅ FIX 1: Sync gap start date when it changes
 useEffect(() => {
-  if (!employee) {
-    if (gapStart && gapEnd) {
-      // Gap fill slot
-      if (checkIn !== gapStart) setCheckIn(gapStart);
-      if (checkOut !== gapEnd) setCheckOut(gapEnd);
-    } else {
-      // Empty slot - sync with duration
-      if (checkIn !== durationStart) setCheckIn(durationStart);
-      if (checkOut !== durationEnd) setCheckOut(durationEnd);
-    }
+  if (!employee && gapStart) {
+    setCheckIn(gapStart);
   }
-}, [durationStart, durationEnd, gapStart, gapEnd, employee, checkIn, checkOut]);
+}, [gapStart]); // ✅ Only depend on gapStart, remove employee dependency
+
+// ✅ FIX 2: Sync gap end date when it changes
+useEffect(() => {
+  if (!employee && gapEnd) {
+    setCheckOut(gapEnd);
+  }
+}, [gapEnd]); // ✅ Only depend on gapEnd, remove employee dependency
+
+// ✅ FIX 3: Sync duration for empty slots (no gap, no employee)
+useEffect(() => {
+  if (!employee && !gapStart && !gapEnd) {
+    setCheckIn(durationStart);
+    setCheckOut(durationEnd);
+  }
+}, [durationStart, durationEnd]); // ✅ Only depend on duration changes
 
   // ✅ Recalculate ranges when dependencies change
   const checkInRange = React.useMemo(() => getValidDateRange(
@@ -632,45 +640,101 @@ export default function MobileRoomCard({
   const nights = calculateNights(durationStart, durationEnd)
   const employees = card.employees ?? []
 
-  // Ensure employees are clamped to duration
-  useEffect(() => {
-    if (viewOnly) return; 
-    const currentEmps = card.employees ?? [];
-    if (!currentEmps.length) return;
-    
-    let changed = false;
-    const changedEmployees: any[] = [];
-    
-    const newEmp = currentEmps.map((emp: any) => {
-       let inD = emp.checkIn || '';
-       let outD = emp.checkOut || '';
-       let modified = false;
+  // ✅ Track previous duration to detect changes
+const [prevDuration, setPrevDuration] = useState({ start: durationStart, end: durationEnd });
 
-       if (inD && outD) {
-           if (outD <= durationStart || inD >= durationEnd) {
-              inD = ''; outD = ''; modified = true;
-           } else {
-              if (inD < durationStart) { inD = durationStart; modified = true; }
-              if (outD > durationEnd) { outD = durationEnd; modified = true; }
-           }
-       }
-       
-       if (modified) {
-           changed = true;
-           const updatedEmp = { ...emp, checkIn: inD === '' ? null : inD, checkOut: outD === '' ? null : outD };
-           changedEmployees.push(updatedEmp);
-           return updatedEmp;
-       }
-       return emp;
-    });
-
-    if (changed) {
-       onUpdate(card.id, { employees: newEmp });
-       changedEmployees.forEach(emp => {
-         enqueue({ type: 'updateEmployee', payload: { id: emp.id, checkIn: emp.checkIn, checkOut: emp.checkOut } });
-       });
+// ✅ ENHANCED: Clamp employees AND auto-extend edge employees when duration changes
+useEffect(() => {
+  if (viewOnly) return;
+  const currentEmps = card.employees ?? [];
+  if (!currentEmps.length) {
+    // Update tracked duration even with no employees
+    if (prevDuration.start !== durationStart || prevDuration.end !== durationEnd) {
+      setPrevDuration({ start: durationStart, end: durationEnd });
     }
-  }, [durationStart, durationEnd, JSON.stringify(card.employees)]);
+    return;
+  }
+
+  const oldStart = prevDuration.start;
+  const oldEnd = prevDuration.end;
+  const durationChanged = oldStart !== durationStart || oldEnd !== durationEnd;
+
+  if (!durationChanged) return;
+
+  let changed = false;
+  const changedEmployees: any[] = [];
+
+  // ✅ Find the LAST employee in each slot (the one whose checkout should follow duration end)
+  const slotLastEmployees = new Map<number, string>(); // slotIndex -> employeeId
+  const slotFirstEmployees = new Map<number, string>(); // slotIndex -> employeeId
+
+  const slotGroups: Record<number, any[]> = {};
+  currentEmps.forEach((emp: any) => {
+    const si = emp.slotIndex ?? 0;
+    if (!slotGroups[si]) slotGroups[si] = [];
+    slotGroups[si].push(emp);
+  });
+
+  Object.entries(slotGroups).forEach(([si, emps]) => {
+    const sorted = [...emps].sort((a, b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
+    if (sorted.length > 0) {
+      slotFirstEmployees.set(Number(si), sorted[0].id);
+      slotLastEmployees.set(Number(si), sorted[sorted.length - 1].id);
+    }
+  });
+
+  const newEmp = currentEmps.map((emp: any) => {
+    let inD = emp.checkIn || '';
+    let outD = emp.checkOut || '';
+    let modified = false;
+    const si = emp.slotIndex ?? 0;
+
+    if (inD && outD) {
+      // ✅ Rule 1: If this employee's checkout MATCHED the old duration end, extend/shrink to new duration end
+      const isLastInSlot = slotLastEmployees.get(si) === emp.id;
+      if (isLastInSlot && outD === oldEnd) {
+        outD = durationEnd;
+        modified = true;
+      }
+
+      // ✅ Rule 2: If this employee's checkin MATCHED the old duration start, extend/shrink to new duration start
+      const isFirstInSlot = slotFirstEmployees.get(si) === emp.id;
+      if (isFirstInSlot && inD === oldStart) {
+        inD = durationStart;
+        modified = true;
+      }
+
+      // ✅ Rule 3: Standard clamping - if completely outside new duration, clear dates
+      if (outD <= durationStart || inD >= durationEnd) {
+        inD = '';
+        outD = '';
+        modified = true;
+      } else {
+        // ✅ Rule 4: Clamp if partially outside
+        if (inD < durationStart) { inD = durationStart; modified = true; }
+        if (outD > durationEnd) { outD = durationEnd; modified = true; }
+      }
+    }
+
+    if (modified) {
+      changed = true;
+      const updatedEmp = { ...emp, checkIn: inD === '' ? null : inD, checkOut: outD === '' ? null : outD };
+      changedEmployees.push(updatedEmp);
+      return updatedEmp;
+    }
+    return emp;
+  });
+
+  // Update tracked duration
+  setPrevDuration({ start: durationStart, end: durationEnd });
+
+  if (changed) {
+    onUpdate(card.id, { employees: newEmp });
+    changedEmployees.forEach(emp => {
+      enqueue({ type: 'updateEmployee', payload: { id: emp.id, checkIn: emp.checkIn, checkOut: emp.checkOut } });
+    });
+  }
+}, [durationStart, durationEnd, JSON.stringify(card.employees)]);
 
   // --- RESTORED NAVIGATION ENGINE FOR MOBILE ---
   useEffect(() => {
