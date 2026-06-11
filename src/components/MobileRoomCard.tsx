@@ -560,9 +560,11 @@ function MobileBedSlot({
               <IconToUse size={18} className={cn("shrink-0", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} />
               <span onClick={() => { 
     if(!viewOnly) {
-        // ✅ INJECT CURRENT DATES ON CLICK
-        setCheckIn(employee.checkIn ?? gapStart ?? checkInRange.minDate); 
-        setCheckOut(employee.checkOut ?? gapEnd ?? checkOutRange.maxDate);
+        // ✅ INJECT EXACT WEB LOGIC ON CLICK
+        setName(employee.name);
+        setPhone(employee.phone || '+49 ');
+        setCheckIn(employee.checkIn ?? gapStart ?? durationStart); 
+        setCheckOut(employee.checkOut ?? gapEnd ?? durationEnd);
         setEditing(true); 
     } 
 }} className={cn('text-[15px] font-black truncate flex-1', !viewOnly ? "cursor-pointer" : "cursor-default", dk ? 'text-white' : 'text-slate-900')}>{employee.name}</span>  </div>
@@ -588,8 +590,8 @@ function MobileBedSlot({
 
   // --- EMPTY GAP SLOT ---
   const isGap = !!(gapStart || gapEnd)
-  const effectiveIn = gapStart ?? checkInRange.minDate;
-  const effectiveOut = gapEnd ?? checkOutRange.maxDate;
+  const effectiveIn = gapStart ?? durationStart;
+  const effectiveOut = gapEnd ?? durationEnd;
   
   return (
     <button disabled={viewOnly} onClick={() => { 
@@ -640,114 +642,46 @@ export default function MobileRoomCard({
   const nights = calculateNights(durationStart, durationEnd)
   const employees = card.employees ?? []
 
-// ✅ Track previous duration synchronously using useRef to prevent race conditions
-const prevDuration = useRef({ start: durationStart, end: durationEnd });
-
-// ✅ ENHANCED: Clamp employees AND auto-extend edge employees when duration changes
-useEffect(() => {
-  if (viewOnly) return;
-  const currentEmps = card.employees ?? [];
-  
-  // Read synchronously from the ref
-  const oldStart = prevDuration.current.start;
-  const oldEnd = prevDuration.current.end;
-  const durationChanged = oldStart !== durationStart || oldEnd !== durationEnd;
-
-  if (!currentEmps.length) {
-    if (durationChanged) {
-      prevDuration.current = { start: durationStart, end: durationEnd };
-    }
-    return;
-  }
-
-  if (!durationChanged) return;
-
-  let changed = false;
-  const changedEmployees: any[] = [];
-
-  // ✅ Find the LAST employee in each slot (the one whose checkout should follow duration end)
-  const slotLastEmployees = new Map<number, string>(); 
-  const slotFirstEmployees = new Map<number, string>(); 
-
-  const slotGroups: Record<number, any[]> = {};
-  currentEmps.forEach((emp: any) => {
-    const si = emp.slotIndex ?? 0;
-    if (!slotGroups[si]) slotGroups[si] = [];
-    slotGroups[si].push(emp);
-  });
-
-  Object.entries(slotGroups).forEach(([si, emps]) => {
-    const sorted = [...emps].sort((a, b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
-    if (sorted.length > 0) {
-      slotFirstEmployees.set(Number(si), sorted[0].id);
-      slotLastEmployees.set(Number(si), sorted[sorted.length - 1].id);
-    }
-  });
-
-  const newEmp = currentEmps.map((emp: any) => {
-    let inD = emp.checkIn || '';
-    let outD = emp.checkOut || '';
-    let modified = false;
-    const si = emp.slotIndex ?? 0;
-
-    if (inD && outD) {
-      // ✅ Rule 1: If this employee's checkout MATCHED the old duration end, extend/shrink to new duration end
-      const isLastInSlot = slotLastEmployees.get(si) === emp.id;
-      if (isLastInSlot && outD === oldEnd) {
-        outD = durationEnd;
-        modified = true;
-      }
-
-      // ✅ Rule 2: If this employee's checkin MATCHED the old duration start, extend/shrink to new duration start
-      const isFirstInSlot = slotFirstEmployees.get(si) === emp.id;
-      if (isFirstInSlot && inD === oldStart) {
-        inD = durationStart;
-        modified = true;
-      }
-
-      // ✅ Rule 3: Standard clamping - if completely outside new duration, clear dates
-      if (outD <= durationStart || inD >= durationEnd) {
-        inD = '';
-        outD = '';
-        modified = true;
-      } else {
-        // ✅ Rule 4: Clamp if partially outside
-        if (inD < durationStart) { inD = durationStart; modified = true; }
-        if (outD > durationEnd) { outD = durationEnd; modified = true; }
-      }
-    }
-
-    if (modified) {
-      changed = true;
-      const updatedEmp = { ...emp, checkIn: inD === '' ? null : inD, checkOut: outD === '' ? null : outD };
-      changedEmployees.push(updatedEmp);
-      return updatedEmp;
-    }
-    return emp;
-  });
-
-  // Update tracked duration synchronously
-  prevDuration.current = { start: durationStart, end: durationEnd };
-
-  if (changed) {
-    onUpdate(card.id, { employees: newEmp });
+// ✅ DATE BOUNDARY CLAMPING ENGINE (Exact Web Logic)
+  const employeesStr = JSON.stringify(card.employees ?? []);
+  useEffect(() => {
+    if (viewOnly) return; 
+    const currentEmps = card.employees ?? [];
+    if (!currentEmps.length) return;
     
-    // ✅ DELAY BACKEND SYNC: Prevents enqueue promises from being swallowed during rapid UI re-renders
-    setTimeout(() => {
-      changedEmployees.forEach(async (emp) => {
-        try {
-          await enqueue({ 
-            type: 'updateEmployee', 
-            payload: { id: emp.id, checkIn: emp.checkIn, checkOut: emp.checkOut } 
-          });
-        } catch (err) {
-          console.error("Failed to sync auto-extension to backend:", err);
-        }
-      });
-    }, 150);
-  }
-}, [durationStart, durationEnd, JSON.stringify(card.employees)]);
+    let changed = false;
+    const changedEmployees: any[] = [];
+    
+    const newEmp = currentEmps.map(emp => {
+       let inD = emp.checkIn || '';
+       let outD = emp.checkOut || '';
+       let modified = false;
 
+       if (inD && outD) {
+           if (outD <= durationStart || inD >= durationEnd) {
+              inD = ''; outD = ''; modified = true;
+           } else {
+              if (inD < durationStart) { inD = durationStart; modified = true; }
+              if (outD > durationEnd) { outD = durationEnd; modified = true; }
+           }
+       }
+       
+       if (modified) {
+           changed = true;
+           const updatedEmp = { ...emp, checkIn: inD === '' ? null : inD, checkOut: outD === '' ? null : outD };
+           changedEmployees.push(updatedEmp);
+           return updatedEmp;
+       }
+       return emp;
+    });
+
+    if (changed) {
+       onUpdate(card.id, { employees: newEmp });
+       changedEmployees.forEach(emp => {
+          enqueue({ type: 'updateEmployee', payload: { id: emp.id, checkIn: emp.checkIn, checkOut: emp.checkOut } });
+       });
+    }
+  }, [durationStart, durationEnd, employeesStr]);
 
   // --- RESTORED NAVIGATION ENGINE FOR MOBILE ---
   useEffect(() => {
