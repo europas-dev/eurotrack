@@ -1470,118 +1470,119 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    </div>
 
                    <div className="flex-1 overflow-y-auto max-h-[400px] relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
-                      {activeInvoice ? (
-                         activeInvoice.billingMode === 'total' ? (
-                            <div className="p-4">
-                               <div ref={totalRef} className={cn("flex flex-col p-4 rounded-2xl border shadow-sm animate-in fade-in slide-in-from-top-2 relative z-20", dk ? "bg-[#1E293B]" : "bg-white", editingTotal ? (dk ? "border-teal-500/50 shadow-xl bg-teal-900/20" : "border-teal-300 shadow-xl bg-teal-50") : (dk ? "border-slate-800" : "border-slate-100"))}>
-                                  {/* WIDTH FIX: Added gap-5 to prevent inputs from overlapping */}
-                                  <div className="flex items-center gap-5 w-full">
-                                     <div className="flex-1 flex items-center gap-2 min-w-[200px]">
-                                             <label className={labelCls}>Netto</label>
-                                             <input 
-                                                disabled={viewOnly || !editingTotal} 
+                      activeInvoice.billingMode === 'total' ? (() => {
+                             // ✅ CALCULATE LIVE DRAFTS FOR MUTUAL EXCLUSION
+                             const draftNetto = totalDraft?.totalNetto;
+                             const draftBrutto = totalDraft?.totalBrutto;
+                             const draftMwst = parseFloat(totalDraft?.totalMwst ?? (activeInvoice.totalMwst ?? 7)) || 0;
+                             
+                             const hasN = draftNetto != null && draftNetto !== '';
+                             const hasB = draftBrutto != null && draftBrutto !== '';
+                             
+                             const calcBrutto = hasN ? (parseFloat(draftNetto) * (1 + draftMwst / 100)).toFixed(2) : '';
+                             const calcNetto = hasB ? (parseFloat(draftBrutto) / (1 + draftMwst / 100)).toFixed(2) : '';
+
+                             return (
+                                <div className="p-4">
+                                   <div ref={totalRef} className={cn("flex flex-col p-4 rounded-2xl border shadow-sm animate-in fade-in slide-in-from-top-2 relative z-20", dk ? "bg-[#1E293B]" : "bg-white", editingTotal ? (dk ? "border-teal-500/50 shadow-xl bg-teal-900/20" : "border-teal-300 shadow-xl bg-teal-50") : (dk ? "border-slate-800" : "border-slate-100"))}>
+                                      <div className="flex items-center gap-5 w-full">
+                                         
+                                         {/* --- NETTO INPUT --- */}
+                                         <div className="flex-1 flex items-center gap-2 min-w-[200px]">
+                                            <label className={labelCls}>Netto</label>
+                                            <input 
+                                                disabled={viewOnly || !editingTotal || hasB} 
                                                 type="number" 
                                                 value={editingTotal ? (totalDraft?.totalNetto ?? '') : (activeInvoice.totalNetto ?? '')} 
-                                                onChange={e => {
-                                                    // Calculate Brutto dynamically when Netto changes
-                                                    const nVal = e.target.value;
-                                                    const m = parseFloat(totalDraft?.totalMwst || 0);
-                                                    if (nVal === '') {
-                                                        setTotalDraft({...totalDraft, totalNetto: '', totalBrutto: ''});
-                                                    } else {
-                                                        const b = (parseFloat(nVal) * (1 + m / 100)).toFixed(2);
-                                                        setTotalDraft({...totalDraft, totalNetto: nVal, totalBrutto: b});
-                                                    }
-                                                }} 
-                                                className={cn(inputCls, "w-[100px] disabled:opacity-30 text-right")} 
-                                                placeholder="0.00" 
-                                             />
-                                             {(!showTotalDiscount && editingTotal && !viewOnly) && <button onClick={() => { setShowTotalDiscount(true); if(!totalDraft?.discountType) setTotalDraft({...totalDraft, discountType: 'fixed'}); }} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 shrink-0"><Ticket size={14}/></button>}
-                                             {showTotalDiscount && (
-                                                 <div className="flex items-center w-[130px] shrink-0 animate-in fade-in slide-in-from-left-2 ml-1">
-                                                    <input disabled={!editingTotal} type="number" value={editingTotal ? (totalDraft?.discountValue ?? '') : (activeInvoice.discountValue ?? '')} onChange={e => setTotalDraft({...totalDraft, discountValue: e.target.value})} className={cn(inputCls, "rounded-r-none border-r-0 w-[65px] px-1.5 text-right placeholder:text-[10px]")} placeholder="Rabatt" />
-                                                    <button disabled={!editingTotal} onClick={() => setTotalDraft({...totalDraft, discountType: totalDraft?.discountType === 'percentage' ? 'fixed' : 'percentage'})} className={cn("w-[30px] h-[34px] border-y border-r text-[11px] font-bold transition-colors disabled:opacity-50", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{editingTotal ? (totalDraft?.discountType === 'percentage' ? '%' : '€') : (activeInvoice.discountType === 'percentage' ? '%' : '€')}</button>
-                                                    {editingTotal && <button onClick={() => { setShowTotalDiscount(false); setTotalDraft({...totalDraft, discountValue: null}); }} className={cn("w-[30px] h-[34px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>}
-                                                 </div>
-                                             )}
-                                          </div>
-                                          <div className="w-[100px] shrink-0 flex items-center gap-2">
-                                             <label className={labelCls}>MwSt</label>
-                                             {editingTotal && !viewOnly ? (
-                                                <MwstInput 
-                                                   value={totalDraft?.totalMwst} 
-                                                   onChange={(v:any) => {
-                                                       // Recalculate based on existing Netto or Brutto when Tax changes
-                                                       const m = parseFloat(v) || 0;
-                                                       let newDraft = { ...totalDraft, totalMwst: v };
-                                                       if (totalDraft?.totalNetto) {
-                                                           newDraft.totalBrutto = (parseFloat(totalDraft.totalNetto) * (1 + m / 100)).toFixed(2);
-                                                       } else if (totalDraft?.totalBrutto) {
-                                                           newDraft.totalNetto = (parseFloat(totalDraft.totalBrutto) / (1 + m / 100)).toFixed(2);
-                                                       }
-                                                       setTotalDraft(newDraft);
-                                                   }} 
-                                                   isDarkMode={dk} 
-                                                />
-                                             ) : (
-                                                <div className={cn(inputCls, "text-center border-transparent bg-transparent px-0 text-sm")}>{activeInvoice.totalMwst || 7}%</div>
-                                             )}
-                                          </div>
-                                          <div className="w-[160px] shrink-0 flex items-center gap-2">
-                                             <label className={labelCls}>Brutto</label>
-                                             <div className="relative flex-1">
-                                                 <input 
-                                                    disabled={viewOnly || !editingTotal} 
+                                                onChange={e => setTotalDraft({...totalDraft, totalNetto: e.target.value, totalBrutto: null})} 
+                                                className={cn(inputCls, "w-[100px] disabled:opacity-30 text-right", hasB && "disabled:opacity-100 disabled:bg-transparent font-black")} 
+                                                placeholder={editingTotal && hasB ? calcNetto : "0.00"} 
+                                            />
+                                            {(!showTotalDiscount && !hasB && editingTotal && !viewOnly) && <button onClick={() => { setShowTotalDiscount(true); if(!totalDraft?.discountType) setTotalDraft({...totalDraft, discountType: 'fixed'}); }} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 shrink-0"><Ticket size={14}/></button>}
+                                            {showTotalDiscount && !hasB && (
+                                                <div className="flex items-center w-[130px] shrink-0 animate-in fade-in slide-in-from-left-2 ml-1">
+                                                   <input disabled={!editingTotal} type="number" value={editingTotal ? (totalDraft?.discountValue ?? '') : (activeInvoice.discountValue ?? '')} onChange={e => setTotalDraft({...totalDraft, discountValue: e.target.value})} className={cn(inputCls, "rounded-r-none border-r-0 w-[65px] px-1.5 text-right placeholder:text-[10px]")} placeholder="Rabatt" />
+                                                   <button disabled={!editingTotal} onClick={() => setTotalDraft({...totalDraft, discountType: totalDraft?.discountType === 'percentage' ? 'fixed' : 'percentage'})} className={cn("w-[30px] h-[34px] border-y border-r text-[11px] font-bold transition-colors disabled:opacity-50", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{editingTotal ? (totalDraft?.discountType === 'percentage' ? '%' : '€') : (activeInvoice.discountType === 'percentage' ? '%' : '€')}</button>
+                                                   {editingTotal && <button onClick={() => { setShowTotalDiscount(false); setTotalDraft({...totalDraft, discountValue: null}); }} className={cn("w-[30px] h-[34px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>}
+                                                </div>
+                                            )}
+                                         </div>
+                                         
+                                         {/* --- MWST INPUT --- */}
+                                         <div className="w-[100px] shrink-0 flex items-center gap-2">
+                                            <label className={labelCls}>MwSt</label>
+                                            {editingTotal && !viewOnly ? (
+                                               <MwstInput value={totalDraft?.totalMwst} onChange={(v:any) => setTotalDraft({...totalDraft, totalMwst: v})} isDarkMode={dk} />
+                                            ) : (
+                                               <div className={cn(inputCls, "text-center border-transparent bg-transparent px-0 text-sm")}>{activeInvoice.totalMwst || 7}%</div>
+                                            )}
+                                         </div>
+
+                                         {/* --- BRUTTO INPUT --- */}
+                                         <div className="w-[160px] shrink-0 flex items-center gap-2">
+                                            <label className={labelCls}>Brutto</label>
+                                            <div className="relative flex-1">
+                                                <input 
+                                                    disabled={viewOnly || !editingTotal || hasN} 
                                                     type="number" 
                                                     value={editingTotal ? (totalDraft?.totalBrutto ?? '') : (activeInvoice.totalBrutto ?? '')} 
-                                                    onChange={e => {
-                                                        // Calculate Netto dynamically when Brutto changes
-                                                        const bVal = e.target.value;
-                                                        const m = parseFloat(totalDraft?.totalMwst || 0);
-                                                        if (bVal === '') {
-                                                            setTotalDraft({...totalDraft, totalNetto: '', totalBrutto: ''});
-                                                        } else {
-                                                            const n = (parseFloat(bVal) / (1 + m / 100)).toFixed(2);
-                                                            setTotalDraft({...totalDraft, totalBrutto: bVal, totalNetto: n});
-                                                        }
-                                                    }} 
+                                                    onChange={e => setTotalDraft({...totalDraft, totalBrutto: e.target.value, totalNetto: null})} 
                                                     className={cn(inputCls, "w-full disabled:opacity-100 disabled:bg-transparent disabled:border-transparent font-black text-sm text-right pr-2 placeholder-slate-900 dark:placeholder-white")} 
-                                                    placeholder="0.00" 
-                                                 />
-                                             </div>
-                                          </div>
-                                     {!viewOnly && (
-                                        <div className="w-max flex items-center justify-end gap-1.5 ml-3">
-                                           {editingTotal ? (
-                                              <>
-                                                <button onClick={() => {
-                                                    patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, ...totalDraft} : i) });
-                                                    setEditingTotal(false);
-                                                }} className="h-[34px] w-[34px] rounded-xl flex items-center justify-center font-bold transition-all shadow-sm bg-teal-500 hover:bg-teal-600 text-white">
-                                                   <Check size={16} strokeWidth={3} />
-                                                </button>
-                                                <button onClick={() => setEditingTotal(false)} className={cn("h-[34px] w-[34px] rounded-xl flex items-center justify-center font-bold transition-all border", dk ? "border-white/10 hover:bg-white/10 text-slate-400 hover:text-white" : "border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-800")}>
-                                                   <X size={16} strokeWidth={3} />
-                                                </button>
-                                              </>
-                                          ) : (
-                                              <button onClick={() => {
-                                                  setTotalDraft({ totalNetto: activeInvoice.totalNetto, totalBrutto: activeInvoice.totalBrutto, totalMwst: activeInvoice.totalMwst, discountValue: activeInvoice.discountValue, discountType: activeInvoice.discountType || 'fixed', note: activeInvoice.note });
-                                                  setShowTotalDiscount(parseFloat(activeInvoice.discountValue || 0) > 0);
-                                                  setEditingTotal(true);
-                                              }} className={cn("h-[34px] w-[34px] rounded-xl flex items-center justify-center font-bold transition-all shadow-sm", dk ? "bg-white/10 hover:bg-white/20 text-slate-300" : "bg-slate-100 hover:bg-slate-200 text-slate-700")}>
-                                                 <Edit3 size={14} />
-                                              </button>
-                                           )}
-                                        </div>
-                                     )}
-                                  </div>
-                                  <div className="w-full mt-3 border-t pt-3 dark:border-white/10 border-slate-100 animate-in fade-in">
-                                     <textarea disabled={!editingTotal} rows={1} value={editingTotal ? (totalDraft?.note || '') : (activeInvoice.note || '')} onChange={e => { e.target.style.height='34px'; e.target.style.height=`${e.target.scrollHeight}px`; setTotalDraft({...totalDraft, note: e.target.value}) }} className={cn(inputCls, "w-full text-[12px] font-medium resize-none overflow-hidden placeholder-opacity-50 min-h-[34px] disabled:bg-transparent disabled:border-transparent")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />
-                                  </div>
-                               </div>
-                            </div>
-                         ) : (
+                                                    placeholder={editingTotal && hasN ? calcBrutto : (activeInvoice.totalNetto ? formatCurrency(parseFloat(activeInvoice.totalNetto) * (1 + (parseFloat(activeInvoice.totalMwst)||0)/100)) : "0.00")} 
+                                                />
+                                            </div>
+                                         </div>
+
+                                         {/* --- SAVE / EDIT CONTROLS --- */}
+                                         {!viewOnly && (
+                                            <div className="w-max flex items-center justify-end gap-1.5 ml-3">
+                                               {editingTotal ? (
+                                                  <>
+                                                     <button onClick={() => {
+                                                         // Inject the calculated missing piece before saving!
+                                                         const finalNettoToSave = hasN ? totalDraft.totalNetto : calcNetto;
+                                                         const finalBruttoToSave = hasB ? totalDraft.totalBrutto : calcBrutto;
+                                                         patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, ...totalDraft, totalNetto: finalNettoToSave, totalBrutto: finalBruttoToSave} : i) });
+                                                         setEditingTotal(false);
+                                                     }} className="h-[34px] w-[34px] rounded-xl flex items-center justify-center font-bold transition-all shadow-sm bg-teal-500 hover:bg-teal-600 text-white">
+                                                        <Check size={16} strokeWidth={3} />
+                                                     </button>
+                                                     <button onClick={() => setEditingTotal(false)} className={cn("h-[34px] w-[34px] rounded-xl flex items-center justify-center font-bold transition-all border", dk ? "border-white/10 hover:bg-white/10 text-slate-400 hover:text-white" : "border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-800")}>
+                                                        <X size={16} strokeWidth={3} />
+                                                     </button>
+                                                  </>
+                                               ) : (
+                                                  <button onClick={() => {
+                                                      // Determine source of truth on Edit
+                                                      let initN = activeInvoice.totalNetto;
+                                                      let initB = activeInvoice.totalBrutto;
+                                                      if (initN && parseFloat(initN) > 0) { initB = null; } 
+                                                      else if (initB && parseFloat(initB) > 0) { initN = null; }
+
+                                                      setTotalDraft({ 
+                                                          totalNetto: initN, 
+                                                          totalBrutto: initB, 
+                                                          totalMwst: activeInvoice.totalMwst, 
+                                                          discountValue: activeInvoice.discountValue, 
+                                                          discountType: activeInvoice.discountType || 'fixed', 
+                                                          note: activeInvoice.note 
+                                                      });
+                                                      setShowTotalDiscount(parseFloat(activeInvoice.discountValue || 0) > 0);
+                                                      setEditingTotal(true);
+                                                  }} className={cn("h-[34px] w-[34px] rounded-xl flex items-center justify-center font-bold transition-all shadow-sm", dk ? "bg-white/10 hover:bg-white/20 text-slate-300" : "bg-slate-100 hover:bg-slate-200 text-slate-700")}>
+                                                     <Edit3 size={14} />
+                                                  </button>
+                                               )}
+                                            </div>
+                                         )}
+                                      </div>
+                                      <div className="w-full mt-3 border-t pt-3 dark:border-white/10 border-slate-100 animate-in fade-in">
+                                         <textarea disabled={!editingTotal} rows={1} value={editingTotal ? (totalDraft?.note || '') : (activeInvoice.note || '')} onChange={e => { e.target.style.height='34px'; e.target.style.height=`${e.target.scrollHeight}px`; setTotalDraft({...totalDraft, note: e.target.value}) }} className={cn(inputCls, "w-full text-[12px] font-medium resize-none overflow-hidden placeholder-opacity-50 min-h-[34px] disabled:bg-transparent disabled:border-transparent")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />
+                                      </div>
+                                   </div>
+                                </div>
+                             );
+                         })() : (
                             <div className="flex flex-col animate-in fade-in pb-5">
                                <div className={cn("sticky top-0 z-10 flex items-center px-3 py-2 gap-2 border-b mb-3 backdrop-blur-md", dk ? "bg-[#0B1224]/95 border-white/10" : "bg-slate-50/95 border-slate-200")}>
                                <div className="w-[220px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">{lang === 'de' ? 'Beschreibung' : 'Description'}</div>
