@@ -363,27 +363,20 @@ function MobileBedSlot({
   const [saving, setSaving] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
 
-  // ✅ NEW: Sync with duration changes when there's NO employee (empty slot)
-  useEffect(() => {
-    if (!employee && !gapStart && !gapEnd) {
+  // ✅ Sync dates when duration or gaps change (for unassigned slots)
+useEffect(() => {
+  if (!employee) {
+    if (gapStart && gapEnd) {
+      // Gap fill slot
+      if (checkIn !== gapStart) setCheckIn(gapStart);
+      if (checkOut !== gapEnd) setCheckOut(gapEnd);
+    } else {
       // Empty slot - sync with duration
-      setCheckIn(durationStart);
-      setCheckOut(durationEnd);
+      if (checkIn !== durationStart) setCheckIn(durationStart);
+      if (checkOut !== durationEnd) setCheckOut(durationEnd);
     }
-  }, [durationStart, durationEnd, employee, gapStart, gapEnd]);
-
-  // ✅ Sync gap dates when they change (for gap fills)
-  useEffect(() => {
-    if (!employee && gapStart) {
-      setCheckIn(gapStart);
-    }
-  }, [gapStart, employee]);
-
-  useEffect(() => {
-    if (!employee && gapEnd) {
-      setCheckOut(gapEnd);
-    }
-  }, [gapEnd, employee]);
+  }
+}, [durationStart, durationEnd, gapStart, gapEnd, employee, checkIn, checkOut]);
 
   // ✅ Recalculate ranges when dependencies change
   const checkInRange = React.useMemo(() => getValidDateRange(
