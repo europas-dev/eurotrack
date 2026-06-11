@@ -1470,7 +1470,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    </div>
 
                    <div className="flex-1 overflow-y-auto max-h-[400px] relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
-                      activeInvoice.billingMode === 'total' ? (() => {
+                      {activeInvoice ? (
+                         activeInvoice.billingMode === 'total' ? (() => {
                              // CALCULATE LIVE DRAFTS FOR MUTUAL EXCLUSION
                              const draftNetto = totalDraft?.totalNetto;
                              const draftBrutto = totalDraft?.totalBrutto;
