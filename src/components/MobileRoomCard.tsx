@@ -26,7 +26,7 @@ function empBorderColor(emp: Employee | null, dk: boolean): string {
   return dk ? 'border-white/10' : 'border-slate-200'
 }
 
-// ✅ NEW: Get occupied date ranges for a specific slot (excluding current employee)
+// ✅ Get occupied date ranges for a specific slot (excluding current employee)
 function getOccupiedRanges(
   slotIndex: number, 
   employees: Employee[], 
@@ -43,7 +43,7 @@ function getOccupiedRanges(
     .sort((a, b) => a.checkIn.localeCompare(b.checkIn));
 }
 
-// ✅ NEW: Check if a date range overlaps with any occupied ranges
+// ✅ Check if a date range overlaps with any occupied ranges
 function hasOverlap(
   newCheckIn: string, 
   newCheckOut: string, 
@@ -55,7 +55,7 @@ function hasOverlap(
   });
 }
 
-// ✅ UPDATED: Get valid date range dynamically
+// ✅ COMPLETELY REWRITTEN: Get valid date range for check-in AND check-out
 function getValidDateRange(
   slotIndex: number,
   employees: Employee[],
@@ -64,8 +64,9 @@ function getValidDateRange(
   currentEmployeeId?: string,
   gapStart?: string,
   gapEnd?: string,
-  currentCheckIn?: string, // ✅ NEW: Current checkIn to find available range after this date
-  isCheckOut?: boolean // ✅ NEW: Whether we're calculating range for checkout
+  isCheckIn?: boolean, // ✅ NEW: Are we calculating for check-in or check-out?
+  currentCheckIn?: string, // ✅ For check-out calculation
+  currentCheckOut?: string // ✅ For check-in calculation (to find where we can move start date)
 ): { minDate: string; maxDate: string } {
   // If it's a gap fill, use gap boundaries strictly
   if (gapStart && gapEnd) {
@@ -74,56 +75,70 @@ function getValidDateRange(
   
   const occupied = getOccupiedRanges(slotIndex, employees, currentEmployeeId);
   
-  // For check-out calculation with existing check-in
-  if (isCheckOut && currentCheckIn) {
+  // ✅ NEW: For CHECK-OUT calculation
+  if (!isCheckIn && currentCheckIn) {
     let maxDate = durationEnd;
     
-    // Find the next occupied range after currentCheckIn
+    // Find the next occupied range that starts AFTER or AT currentCheckIn
     const nextOccupied = occupied.find(range => range.checkIn >= currentCheckIn);
     if (nextOccupied) {
-      maxDate = nextOccupied.checkIn;
+      maxDate = nextOccupied.checkIn; // Can't checkout after next person checks in
     }
     
     return { minDate: currentCheckIn, maxDate };
   }
   
-  // For check-in calculation or new employee
-  let minDate = durationStart;
-  let maxDate = durationEnd;
-  
-  if (occupied.length === 0) {
-    return { minDate: durationStart, maxDate: durationEnd };
-  }
-  
-  // If editing existing employee, allow their current range
-  if (currentEmployeeId) {
-    return { minDate: durationStart, maxDate: durationEnd };
-  }
-  
-  // For NEW employees, find the first available gap
-  const sortedOccupied = [...occupied].sort((a, b) => a.checkIn.localeCompare(b.checkIn));
-  
-  // Check space before first occupied
-  if (durationStart < sortedOccupied[0].checkIn) {
-    return { minDate: durationStart, maxDate: sortedOccupied[0].checkIn };
-  }
-  
-  // Find first gap between occupied ranges
-  for (let i = 0; i < sortedOccupied.length - 1; i++) {
-    const current = sortedOccupied[i];
-    const next = sortedOccupied[i + 1];
-    
-    if (current.checkOut < next.checkIn) {
-      return { minDate: current.checkOut, maxDate: next.checkIn };
+  // ✅ NEW: For CHECK-IN calculation
+  if (isCheckIn) {
+    // For editing existing employee with a checkout date
+    if (currentEmployeeId && currentCheckOut) {
+      let minDate = durationStart;
+      let maxDate = currentCheckOut; // Can't check in after your own checkout
+      
+      // Find the previous occupied range that ends BEFORE or AT currentCheckOut
+      const prevOccupied = [...occupied]
+        .reverse()
+        .find(range => range.checkOut <= currentCheckOut);
+      
+      if (prevOccupied) {
+        minDate = prevOccupied.checkOut; // Can't check in before previous person checks out
+      }
+      
+      return { minDate, maxDate };
     }
+    
+    // For new employee, find first available gap
+    if (occupied.length === 0) {
+      return { minDate: durationStart, maxDate: durationEnd };
+    }
+    
+    const sortedOccupied = [...occupied].sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+    
+    // Check space before first occupied
+    if (durationStart < sortedOccupied[0].checkIn) {
+      return { minDate: durationStart, maxDate: sortedOccupied[0].checkIn };
+    }
+    
+    // Find first gap between occupied ranges
+    for (let i = 0; i < sortedOccupied.length - 1; i++) {
+      const current = sortedOccupied[i];
+      const next = sortedOccupied[i + 1];
+      
+      if (current.checkOut < next.checkIn) {
+        return { minDate: current.checkOut, maxDate: next.checkIn };
+      }
+    }
+    
+    // Space after last occupied
+    const last = sortedOccupied[sortedOccupied.length - 1];
+    return { minDate: last.checkOut, maxDate: durationEnd };
   }
   
-  // Space after last occupied
-  const last = sortedOccupied[sortedOccupied.length - 1];
-  return { minDate: last.checkOut, maxDate: durationEnd };
+  // Default fallback (shouldn't reach here)
+  return { minDate: durationStart, maxDate: durationEnd };
 }
 
-// ✅ NEW: Custom Date Picker Component with Mobile-Safe Positioning
+// ✅ Custom Date Picker Component
 function CustomDatePicker({
   value,
   minDate,
@@ -238,16 +253,16 @@ function CustomDatePicker({
         <Calendar size={14} className="opacity-50" />
       </button>
 
-      {/* ✅ FIXED: Full-Screen Modal Overlay */}
+      {/* ✅ Full-Screen Modal Overlay */}
       {isOpen && (
         <div 
           className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" 
           onClick={() => setIsOpen(false)}
         >
-          {/* ✅ Calendar Card - Centered & Mobile-Safe */}
+          {/* Calendar Card - Centered & Mobile-Safe */}
           <div 
             className={cn('rounded-xl border shadow-2xl p-4 w-full max-w-[320px] animate-in zoom-in-95', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}
-            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="flex items-center justify-between mb-3">
@@ -337,18 +352,18 @@ function MobileBedSlot({
 
   // ✅ Sync gap dates when they change
   useEffect(() => {
-    if (!employee && gapStart) {
+    if (!employee && gapStart && checkIn !== gapStart) {
       setCheckIn(gapStart);
     }
-  }, [gapStart, employee]);
+  }, [gapStart, employee, checkIn]);
 
   useEffect(() => {
-    if (!employee && gapEnd) {
+    if (!employee && gapEnd && checkOut !== gapEnd) {
       setCheckOut(gapEnd);
     }
-  }, [gapEnd, employee]);
+  }, [gapEnd, employee, checkOut]);
 
-  // ✅ UPDATED: Recalculate valid ranges dynamically when checkIn or allSlotEmployees change
+  // ✅ FIXED: Calculate ranges dynamically using current state values
   const checkInRange = getValidDateRange(
     slotIndex,
     allSlotEmployees || [],
@@ -357,8 +372,9 @@ function MobileBedSlot({
     employee?.id,
     gapStart,
     gapEnd,
+    true, // ✅ isCheckIn = true
     undefined,
-    false
+    checkOut // ✅ Pass current checkout so we know the upper bound
   );
 
   const checkOutRange = getValidDateRange(
@@ -369,8 +385,9 @@ function MobileBedSlot({
     employee?.id,
     gapStart,
     gapEnd,
+    false, // ✅ isCheckIn = false
     checkIn, // ✅ Pass current checkIn
-    true // ✅ Indicate this is for checkout
+    undefined
   );
 
   const nights = calculateNights(checkIn, checkOut)
@@ -721,8 +738,9 @@ export default function MobileRoomCard({
                   const isPart = emp.checkIn > durationStart || emp.checkOut < durationEnd;
                   const lastName = emp.name ? emp.name.trim().split(' ').pop() : '---';
                   
+                  // ✅ FIXED: Check if employee is replacement by comparing check-in with slot start
                   const slotMates = employees.filter((e:any) => e.slotIndex === emp.slotIndex).sort((a:any,b:any) => (a.checkIn || '').localeCompare(b.checkIn || ''));
-                  const isSub = slotMates.length > 1 && slotMates[0].id !== emp.id;
+                  const isSub = slotMates.length > 1 && slotMates[0].id !== emp.id; // ✅ Not the first employee in this slot
                   
                   const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
                   const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
@@ -825,7 +843,7 @@ export default function MobileRoomCard({
                                durationId={card.durationId} 
                                dk={dk} 
                                lang={lang} 
-                               isSubstitute={empIdx > 0} 
+                               isSubstitute={empIdx > 0} // ✅ FIXED: All non-first employees get arrow
                                allSlotEmployees={allSlotEmployees}
                                onUpdated={(idx:any, e:any) => { 
                                  const next = e === null ? employees.filter(empItem => empItem.id !== emp.id) : employees.map(empItem => empItem.id === e.id ? e : empItem); 
