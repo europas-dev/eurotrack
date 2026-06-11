@@ -1225,10 +1225,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             {activeTab === 'bookings' && (
               <div className="p-4 bg-white dark:bg-[#1E293B] rounded-b-2xl animate-in fade-in">
                 <div className={cn("flex items-end gap-1 flex-wrap mb-[3px]")}>
-                  {(localHotel.durations || []).map((d: any, i: number) => {
-                    const isActive = activeDurationTab === i;
+                  {/* ✅ FIX: Map over sortedDurations so the newest is always on the left */}
+                  {sortedDurations.map((d: any, sortedIdx: number) => {
+                    const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
+                    const isActive = activeDurationTab === trueIdx;
                     return (
-                      <button key={d.id || i} onClick={() => setActiveDurationTab(i)} className={cn('px-5 py-2 text-sm font-bold transition-all border', isActive ? (dk ? 'bg-[#0B1224] text-teal-400 border-white/10 border-b-0 rounded-t-xl z-10' : 'bg-slate-50 text-teal-700 border-slate-200 border-b-0 rounded-t-xl z-10') : (dk ? 'bg-black/20 text-slate-500 border-transparent hover:text-slate-300 rounded-lg' : 'bg-slate-100 text-slate-500 border-transparent hover:text-slate-700 rounded-lg'))} style={isActive ? { marginBottom: '-1px' } : {}}>
+                      <button key={d.id || sortedIdx} onClick={() => setActiveDurationTab(trueIdx)} className={cn('px-5 py-2 text-sm font-bold transition-all border', isActive ? (dk ? 'bg-[#0B1224] text-teal-400 border-white/10 border-b-0 rounded-t-xl z-10' : 'bg-slate-50 text-teal-700 border-slate-200 border-b-0 rounded-t-xl z-10') : (dk ? 'bg-black/20 text-slate-500 border-transparent hover:text-slate-300 rounded-lg' : 'bg-slate-100 text-slate-500 border-transparent hover:text-slate-700 rounded-lg'))} style={isActive ? { marginBottom: '-1px' } : {}}>
                         {getDurationTabLabel(d, lang)}
                       </button>
                     );
@@ -1245,8 +1247,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                   )}
                 </div>
                 {localHotel.durations[activeDurationTab] && (
-                  <div className={cn("relative z-0", activeDurationTab === 0 ? "[&>div]:rounded-tl-none" : "")}>
-                    <DurationCard 
+                  {/* ✅ FIX: Check if the currently active tab is the very first one rendered to remove the top-left rounding */}
+                  <div className={cn("relative z-0", sortedDurations.length > 0 && sortedDurations[0].id === localHotel.durations[activeDurationTab].id ? "[&>div]:rounded-tl-none" : "")}>
+                    <DurationCard
                       duration={localHotel.durations[activeDurationTab]} 
                       isDarkMode={dk} lang={lang} 
                       isMasterPricingActive={masterMath.isMasterActive} 
