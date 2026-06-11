@@ -27,6 +27,106 @@ function empBorderColor(emp: Employee | null, dk: boolean): string {
   return dk ? 'border-white/10' : 'border-slate-200'
 }
 
+// ✅ Get occupied date ranges for a specific slot
+function getOccupiedRanges(
+  slotIndex: number, 
+  employees: Employee[], 
+  currentEmployeeId?: string
+): { checkIn: string; checkOut: string }[] {
+  return employees
+    .filter(e => 
+      e.slotIndex === slotIndex && 
+      e.id !== currentEmployeeId && 
+      e.checkIn && 
+      e.checkOut
+    )
+    .map(e => ({ checkIn: e.checkIn!, checkOut: e.checkOut! }))
+    .sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+}
+
+// ✅ Check if a date range overlaps with any occupied ranges
+function hasOverlap(
+  newCheckIn: string, 
+  newCheckOut: string, 
+  occupiedRanges: { checkIn: string; checkOut: string }[]
+): boolean {
+  return occupiedRanges.some(range => {
+    return newCheckIn < range.checkOut && newCheckOut > range.checkIn;
+  });
+}
+
+// ✅ Get valid date range for check-in AND check-out
+function getValidDateRange(
+  slotIndex: number,
+  employees: Employee[],
+  durationStart: string,
+  durationEnd: string,
+  currentEmployeeId?: string,
+  gapStart?: string,
+  gapEnd?: string,
+  isCheckIn?: boolean,
+  currentCheckIn?: string,
+  currentCheckOut?: string
+): { minDate: string; maxDate: string } {
+  if (gapStart && gapEnd) {
+    return { minDate: gapStart, maxDate: gapEnd };
+  }
+  
+  const occupied = getOccupiedRanges(slotIndex, employees, currentEmployeeId);
+  const sortedOccupied = [...occupied].sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+  
+  if (isCheckIn) {
+    if (currentCheckOut) {
+      let minDate = durationStart;
+      let maxDate = currentCheckOut;
+      
+      for (const range of sortedOccupied) {
+        if (range.checkOut <= currentCheckOut) {
+          minDate = range.checkOut;
+        }
+      }
+      for (const range of sortedOccupied) {
+        if (range.checkIn > minDate && range.checkIn < currentCheckOut) {
+          maxDate = Math.min(maxDate, range.checkIn);
+        }
+      }
+      return { minDate, maxDate };
+    }
+    
+    if (sortedOccupied.length === 0) {
+      return { minDate: durationStart, maxDate: durationEnd };
+    }
+    
+    if (durationStart < sortedOccupied[0].checkIn) {
+      return { minDate: durationStart, maxDate: sortedOccupied[0].checkIn };
+    }
+    
+    for (let i = 0; i < sortedOccupied.length - 1; i++) {
+      const current = sortedOccupied[i];
+      const next = sortedOccupied[i + 1];
+      if (current.checkOut < next.checkIn) {
+        return { minDate: current.checkOut, maxDate: next.checkIn };
+      }
+    }
+    
+    const last = sortedOccupied[sortedOccupied.length - 1];
+    return { minDate: last.checkOut, maxDate: durationEnd };
+  }
+  
+  if (!isCheckIn && currentCheckIn) {
+    let maxDate = durationEnd;
+    for (const range of sortedOccupied) {
+      if (range.checkIn >= currentCheckIn) {
+        maxDate = range.checkIn;
+        break;
+      }
+    }
+    return { minDate: currentCheckIn, maxDate };
+  }
+  
+  return { minDate: durationStart, maxDate: durationEnd };
+}
+
 function MwstInput({ value, onChange, isDarkMode, disabled }: { value: string | null, onChange: (v: string | null) => void, isDarkMode: boolean, disabled?: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -91,7 +191,8 @@ function CompactEmployeePill({ emp, dk, durationStart, durationEnd, isSubstitute
 
 function BedSlot({
   slotIndex, employee, durationStart, durationEnd, gapStart, gapEnd,
-  roomCardId, durationId, dk, lang, isSubstitute, onUpdated, viewOnly, employeeOptions, isCompact
+  roomCardId, durationId, dk, lang, isSubstitute, onUpdated, viewOnly, employeeOptions, isCompact,
+  allSlotEmployees // ✅ ADDED PROP
 }: {
   slotIndex: number; employee: Employee | null; durationStart: string; durationEnd: string;
   gapStart?: string; gapEnd?: string; roomCardId: string; durationId: string;
@@ -100,6 +201,7 @@ function BedSlot({
   viewOnly?: boolean;
   employeeOptions?: string[];
   isCompact?: boolean;
+  allSlotEmployees?: Employee[]; // ✅ ADDED TYPE
 }) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(employee?.name ?? '')
@@ -109,6 +211,15 @@ function BedSlot({
   const [saving, setSaving] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // ✅ ADDED MEMOS FOR DATE RANGES
+  const checkInRange = React.useMemo(() => getValidDateRange(
+    slotIndex, allSlotEmployees || [], durationStart, durationEnd, employee?.id, gapStart, gapEnd, true, undefined, checkOut
+  ), [slotIndex, allSlotEmployees, durationStart, durationEnd, employee?.id, gapStart, gapEnd, checkOut]);
+
+  const checkOutRange = React.useMemo(() => getValidDateRange(
+    slotIndex, allSlotEmployees || [], durationStart, durationEnd, employee?.id, gapStart, gapEnd, false, checkIn, undefined
+  ), [slotIndex, allSlotEmployees, durationStart, durationEnd, employee?.id, gapStart, gapEnd, checkIn]);
 
   const effectiveIn = gapStart ?? durationStart
   const effectiveOut = gapEnd ?? durationEnd
@@ -125,11 +236,28 @@ function BedSlot({
   async function save() {
     if (viewOnly) return;
     if (!name.trim()) return;
+
+    // ✅ NEW: Strict validation against calculated ranges
+    if (checkIn < checkInRange.minDate || checkIn > checkInRange.maxDate) {
+      alert(lang === 'de' ? `Check-in muss zwischen ${fmtDateDe(checkInRange.minDate)} und ${fmtDateDe(checkInRange.maxDate)} liegen!` : `Check-in must be between ${fmtDateDe(checkInRange.minDate)} and ${fmtDateDe(checkInRange.maxDate)}!`);
+      return;
+    }
+    if (checkOut < checkOutRange.minDate || checkOut > checkOutRange.maxDate) {
+      alert(lang === 'de' ? `Check-out muss zwischen ${fmtDateDe(checkOutRange.minDate)} und ${fmtDateDe(checkOutRange.maxDate)} liegen!` : `Check-out must be between ${fmtDateDe(checkOutRange.minDate)} and ${fmtDateDe(checkOutRange.maxDate)}!`);
+      return;
+    }
+
+    // ✅ Validate no overlap before saving
+    const occupied = getOccupiedRanges(slotIndex, allSlotEmployees || [], employee?.id);
+    if (checkIn && checkOut && hasOverlap(checkIn, checkOut, occupied)) {
+      alert(lang === 'de' ? 'Dieser Zeitraum überschneidet sich mit einem anderen Mitarbeiter in diesem Bett!' : 'This period overlaps with another employee in this bed!');
+      return;
+    }
+
     setSaving(true);
     
     // Explicitly handle nulls and phone cleaning
     const cleanPhone = phone.trim() === '+49' ? '' : phone.trim();
-    // Using the current state directly ensures we save what the user sees
     const finalIn = checkIn === '' ? null : checkIn;
     const finalOut = checkOut === '' ? null : checkOut;
 
@@ -276,7 +404,7 @@ function BedSlot({
             <span className="text-[12px]">{fmtDateDe(checkIn)}</span>
             <Calendar size={12} className="opacity-40 group-hover:opacity-100 transition-opacity" />
           </div>
-          <input type="date" disabled={viewOnly} value={checkIn || ''} min={effectiveIn} max={effectiveOut} onChange={e => setCheckIn(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
+          <input type="date" disabled={viewOnly} value={checkIn || ''} min={checkInRange.minDate} max={checkInRange.maxDate} onChange={e => { setCheckIn(e.target.value); if (checkOut < e.target.value) setCheckOut(e.target.value); }} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
         </div>
         
         <span className="text-slate-400 text-xs hidden sm:block shrink-0">➔</span>
@@ -287,7 +415,7 @@ function BedSlot({
             <span className="text-[12px]">{fmtDateDe(checkOut)}</span>
             <Calendar size={12} className="opacity-40 group-hover:opacity-100 transition-opacity" />
           </div>
-          <input type="date" disabled={viewOnly} value={checkOut || ''} min={checkIn || effectiveIn} max={effectiveOut} onChange={e => setCheckOut(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
+          <input type="date" disabled={viewOnly} value={checkOut || ''} min={checkOutRange.minDate} max={checkOutRange.maxDate} onChange={e => setCheckOut(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
         </div>
 
         {/* Clear Dates Inline (Using RotateCcw) */}
@@ -900,6 +1028,7 @@ export default function RoomCard({
                            isCompact={beds > 2}
                            viewOnly={viewOnly} 
                            employeeOptions={employeeOptions}
+                           allSlotEmployees={slotE} // ✅ ADD THIS
                            slotIndex={i} 
                            employee={null} 
                            durationStart={durationStart} 
@@ -920,6 +1049,7 @@ export default function RoomCard({
                              isCompact={beds > 2}
                              viewOnly={viewOnly} 
                              employeeOptions={employeeOptions}
+                             allSlotEmployees={slotE} // ✅ ADD THIS
                              key={emp.id} 
                              slotIndex={i} 
                              employee={emp} 
@@ -944,6 +1074,7 @@ export default function RoomCard({
                            isCompact={beds > 2}
                            viewOnly={viewOnly} 
                            employeeOptions={employeeOptions}
+                           allSlotEmployees={slotE} // ✅ ADD THIS
                            key={`gap-${i}-${gi}`} 
                            slotIndex={i} 
                            employee={null} 
