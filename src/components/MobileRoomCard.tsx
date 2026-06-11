@@ -1,6 +1,6 @@
 // src/components/MobileRoomCard.tsx
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import {
   Bed, ChevronDown, ChevronUp, Loader2, Phone,
   Minus, Plus, Trash2, CornerDownRight, Moon, Check, Calendar, X
@@ -64,9 +64,9 @@ function getValidDateRange(
   currentEmployeeId?: string,
   gapStart?: string,
   gapEnd?: string,
-  isCheckIn?: boolean, // ✅ NEW: Are we calculating for check-in or check-out?
+  isCheckIn?: boolean, // ✅ Are we calculating for check-in or check-out?
   currentCheckIn?: string, // ✅ For check-out calculation
-  currentCheckOut?: string // ✅ For check-in calculation (to find where we can move start date)
+  currentCheckOut?: string // ✅ For check-in calculation
 ): { minDate: string; maxDate: string } {
   // If it's a gap fill, use gap boundaries strictly
   if (gapStart && gapEnd) {
@@ -75,66 +75,64 @@ function getValidDateRange(
   
   const occupied = getOccupiedRanges(slotIndex, employees, currentEmployeeId);
   
-  // ✅ NEW: For CHECK-OUT calculation
-  if (!isCheckIn && currentCheckIn) {
-    let maxDate = durationEnd;
-    
-    // Find the next occupied range that starts AFTER or AT currentCheckIn
-    const nextOccupied = occupied.find(range => range.checkIn >= currentCheckIn);
-    if (nextOccupied) {
-      maxDate = nextOccupied.checkIn; // Can't checkout after next person checks in
+  // No other employees in this slot
+  if (occupied.length === 0) {
+    if (isCheckIn && currentCheckOut) {
+      return { minDate: durationStart, maxDate: currentCheckOut };
     }
-    
-    return { minDate: currentCheckIn, maxDate };
+    if (!isCheckIn && currentCheckIn) {
+      return { minDate: currentCheckIn, maxDate: durationEnd };
+    }
+    return { minDate: durationStart, maxDate: durationEnd };
   }
   
-  // ✅ NEW: For CHECK-IN calculation
+  const sortedOccupied = [...occupied].sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+  
+  // ✅ FOR CHECK-IN CALCULATION
   if (isCheckIn) {
-    // For editing existing employee with a checkout date
+    // Editing existing employee
     if (currentEmployeeId && currentCheckOut) {
-      let minDate = durationStart;
-      let maxDate = currentCheckOut; // Can't check in after your own checkout
-      
-      // Find the previous occupied range that ends BEFORE or AT currentCheckOut
-      const prevOccupied = [...occupied]
+      // Find previous employee that ends before or at our checkout
+      const prevOccupied = [...sortedOccupied]
         .reverse()
         .find(range => range.checkOut <= currentCheckOut);
       
-      if (prevOccupied) {
-        minDate = prevOccupied.checkOut; // Can't check in before previous person checks out
-      }
+      const minDate = prevOccupied ? prevOccupied.checkOut : durationStart;
+      
+      // Find next employee that starts before our checkout
+      const nextOccupied = sortedOccupied.find(range => range.checkIn < currentCheckOut);
+      const maxDate = nextOccupied ? Math.min(nextOccupied.checkIn, currentCheckOut) : currentCheckOut;
       
       return { minDate, maxDate };
     }
     
-    // For new employee, find first available gap
-    if (occupied.length === 0) {
-      return { minDate: durationStart, maxDate: durationEnd };
-    }
-    
-    const sortedOccupied = [...occupied].sort((a, b) => a.checkIn.localeCompare(b.checkIn));
-    
-    // Check space before first occupied
+    // New employee - find first gap
     if (durationStart < sortedOccupied[0].checkIn) {
       return { minDate: durationStart, maxDate: sortedOccupied[0].checkIn };
     }
     
-    // Find first gap between occupied ranges
     for (let i = 0; i < sortedOccupied.length - 1; i++) {
       const current = sortedOccupied[i];
       const next = sortedOccupied[i + 1];
-      
       if (current.checkOut < next.checkIn) {
         return { minDate: current.checkOut, maxDate: next.checkIn };
       }
     }
     
-    // Space after last occupied
     const last = sortedOccupied[sortedOccupied.length - 1];
     return { minDate: last.checkOut, maxDate: durationEnd };
   }
   
-  // Default fallback (shouldn't reach here)
+  // ✅ FOR CHECK-OUT CALCULATION
+  if (!isCheckIn && currentCheckIn) {
+    // Find next employee that starts after or at our check-in
+    const nextOccupied = sortedOccupied.find(range => range.checkIn >= currentCheckIn);
+    const maxDate = nextOccupied ? nextOccupied.checkIn : durationEnd;
+    
+    return { minDate: currentCheckIn, maxDate };
+  }
+  
+  // Default fallback
   return { minDate: durationStart, maxDate: durationEnd };
 }
 
@@ -350,46 +348,46 @@ function MobileBedSlot({
   const [saving, setSaving] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
 
-  // ✅ Sync gap dates when they change
-  useEffect(() => {
-    if (!employee && gapStart && checkIn !== gapStart) {
-      setCheckIn(gapStart);
-    }
-  }, [gapStart, employee, checkIn]);
+  // ✅ Force update when gap dates change
+useEffect(() => {
+  if (!employee && gapStart) {
+    setCheckIn(gapStart);
+  }
+}, [gapStart, employee]);
 
-  useEffect(() => {
-    if (!employee && gapEnd && checkOut !== gapEnd) {
-      setCheckOut(gapEnd);
-    }
-  }, [gapEnd, employee, checkOut]);
+useEffect(() => {
+  if (!employee && gapEnd) {
+    setCheckOut(gapEnd);
+  }
+}, [gapEnd, employee]);
 
-  // ✅ FIXED: Calculate ranges dynamically using current state values
-  const checkInRange = getValidDateRange(
-    slotIndex,
-    allSlotEmployees || [],
-    durationStart,
-    durationEnd,
-    employee?.id,
-    gapStart,
-    gapEnd,
-    true, // ✅ isCheckIn = true
-    undefined,
-    checkOut // ✅ Pass current checkout so we know the upper bound
-  );
+  // ✅ FIXED: Calculate ranges dynamically - MUST recalculate when checkIn/checkOut changes
+const checkInRange = React.useMemo(() => getValidDateRange(
+  slotIndex,
+  allSlotEmployees || [],
+  durationStart,
+  durationEnd,
+  employee?.id,
+  gapStart,
+  gapEnd,
+  true, // isCheckIn
+  undefined,
+  checkOut // Current checkout to limit check-in range
+), [slotIndex, allSlotEmployees, durationStart, durationEnd, employee?.id, gapStart, gapEnd, checkOut]);
 
-  const checkOutRange = getValidDateRange(
-    slotIndex,
-    allSlotEmployees || [],
-    durationStart,
-    durationEnd,
-    employee?.id,
-    gapStart,
-    gapEnd,
-    false, // ✅ isCheckIn = false
-    checkIn, // ✅ Pass current checkIn
-    undefined
-  );
-
+const checkOutRange = React.useMemo(() => getValidDateRange(
+  slotIndex,
+  allSlotEmployees || [],
+  durationStart,
+  durationEnd,
+  employee?.id,
+  gapStart,
+  gapEnd,
+  false, // isCheckOut
+  checkIn, // Current check-in to set minimum checkout
+  undefined
+), [slotIndex, allSlotEmployees, durationStart, durationEnd, employee?.id, gapStart, gapEnd, checkIn]);
+  
   const nights = calculateNights(checkIn, checkOut)
   const status = employee ? getEmployeeStatus(employee.checkIn ?? '', employee.checkOut ?? '') : null
   const borderCls = empBorderColor(employee, dk)
