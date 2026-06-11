@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import {
   Bed, ChevronDown, ChevronUp, Loader2, Phone,
-  Minus, Plus, Trash2, CornerDownRight, Moon, Check
+  Minus, Plus, Trash2, CornerDownRight, Moon, Check, Calendar, X
 } from 'lucide-react'
 import { cn, calculateNights, getEmployeeStatus } from '../lib/utils'
 import { bedsForType } from '../lib/roomCardUtils'
@@ -55,7 +55,7 @@ function hasOverlap(
   });
 }
 
-// ✅ NEW: Get valid date range for this slot considering other employees
+// ✅ UPDATED: Get valid date range dynamically
 function getValidDateRange(
   slotIndex: number,
   employees: Employee[],
@@ -63,7 +63,9 @@ function getValidDateRange(
   durationEnd: string,
   currentEmployeeId?: string,
   gapStart?: string,
-  gapEnd?: string
+  gapEnd?: string,
+  currentCheckIn?: string, // ✅ NEW: Current checkIn to find available range after this date
+  isCheckOut?: boolean // ✅ NEW: Whether we're calculating range for checkout
 ): { minDate: string; maxDate: string } {
   // If it's a gap fill, use gap boundaries strictly
   if (gapStart && gapEnd) {
@@ -72,47 +74,253 @@ function getValidDateRange(
   
   const occupied = getOccupiedRanges(slotIndex, employees, currentEmployeeId);
   
-  // For new employee or editing existing, find available space
+  // For check-out calculation with existing check-in
+  if (isCheckOut && currentCheckIn) {
+    let maxDate = durationEnd;
+    
+    // Find the next occupied range after currentCheckIn
+    const nextOccupied = occupied.find(range => range.checkIn >= currentCheckIn);
+    if (nextOccupied) {
+      maxDate = nextOccupied.checkIn;
+    }
+    
+    return { minDate: currentCheckIn, maxDate };
+  }
+  
+  // For check-in calculation or new employee
   let minDate = durationStart;
   let maxDate = durationEnd;
   
-  if (occupied.length > 0 && !currentEmployeeId) {
-    // For NEW employees, find the first available gap
-    const sortedOccupied = [...occupied].sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+  if (occupied.length === 0) {
+    return { minDate: durationStart, maxDate: durationEnd };
+  }
+  
+  // If editing existing employee, allow their current range
+  if (currentEmployeeId) {
+    return { minDate: durationStart, maxDate: durationEnd };
+  }
+  
+  // For NEW employees, find the first available gap
+  const sortedOccupied = [...occupied].sort((a, b) => a.checkIn.localeCompare(b.checkIn));
+  
+  // Check space before first occupied
+  if (durationStart < sortedOccupied[0].checkIn) {
+    return { minDate: durationStart, maxDate: sortedOccupied[0].checkIn };
+  }
+  
+  // Find first gap between occupied ranges
+  for (let i = 0; i < sortedOccupied.length - 1; i++) {
+    const current = sortedOccupied[i];
+    const next = sortedOccupied[i + 1];
     
-    // Check space before first occupied
-    if (minDate < sortedOccupied[0].checkIn) {
-      maxDate = sortedOccupied[0].checkIn;
-    } else {
-      // Find first gap between occupied ranges
-      for (let i = 0; i < sortedOccupied.length - 1; i++) {
-        const current = sortedOccupied[i];
-        const next = sortedOccupied[i + 1];
-        
-        if (current.checkOut < next.checkIn) {
-          minDate = current.checkOut;
-          maxDate = next.checkIn;
-          break;
-        }
-      }
-      
-      // If no gap found, use space after last occupied
-      if (minDate === durationStart) {
-        const last = sortedOccupied[sortedOccupied.length - 1];
-        minDate = last.checkOut;
-        maxDate = durationEnd;
-      }
+    if (current.checkOut < next.checkIn) {
+      return { minDate: current.checkOut, maxDate: next.checkIn };
     }
   }
   
-  return { minDate, maxDate };
+  // Space after last occupied
+  const last = sortedOccupied[sortedOccupied.length - 1];
+  return { minDate: last.checkOut, maxDate: durationEnd };
+}
+
+// ✅ NEW: Custom Date Picker Component
+function CustomDatePicker({
+  value,
+  minDate,
+  maxDate,
+  onChange,
+  disabled,
+  dk,
+  lang,
+  label
+}: {
+  value: string;
+  minDate: string;
+  maxDate: string;
+  onChange: (date: string) => void;
+  disabled?: boolean;
+  dk: boolean;
+  lang: string;
+  label: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    if (value) return new Date(value);
+    if (minDate) return new Date(minDate);
+    return new Date();
+  });
+
+  // Generate calendar days
+  const generateCalendar = () => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+
+    const days: (number | null)[] = [];
+    
+    // Add empty cells for days before month starts
+    for (let i = 0; i < (startingDayOfWeek === 0 ? 6 : startingDayOfWeek - 1); i++) {
+      days.push(null);
+    }
+    
+    // Add days of month
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push(i);
+    }
+    
+    return days;
+  };
+
+  const isDateDisabled = (day: number | null) => {
+    if (!day) return true;
+    
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    
+    return dateStr < minDate || dateStr > maxDate;
+  };
+
+  const handleDateClick = (day: number | null) => {
+    if (!day || isDateDisabled(day)) return;
+    
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    
+    onChange(dateStr);
+    setIsOpen(false);
+  };
+
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    setCurrentMonth(prev => {
+      const newDate = new Date(prev);
+      if (direction === 'prev') {
+        newDate.setMonth(newDate.getMonth() - 1);
+      } else {
+        newDate.setMonth(newDate.getMonth() + 1);
+      }
+      return newDate;
+    });
+  };
+
+  const monthNames = lang === 'de' 
+    ? ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
+    : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+  const weekDays = lang === 'de' ? ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] : ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+
+  const days = generateCalendar();
+  const selectedDay = value ? new Date(value).getDate() : null;
+  const selectedMonth = value ? new Date(value).getMonth() : null;
+  const selectedYear = value ? new Date(value).getFullYear() : null;
+
+  if (disabled) {
+    return (
+      <div className={cn('px-3 py-2 rounded-lg text-sm outline-none border transition-all font-bold w-full h-[42px] flex items-center opacity-60', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
+        <span className="text-[12px]">{fmtDateDe(value)}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn('px-3 py-2 rounded-lg text-sm outline-none border transition-all font-bold w-full h-[42px] flex items-center justify-between', dk ? 'bg-[#1E293B] border-white/10 text-white hover:border-teal-500' : 'bg-white border-slate-200 text-slate-900 hover:border-teal-500')}
+      >
+        <span className="text-[12px]">{fmtDateDe(value)}</span>
+        <Calendar size={14} className="opacity-50" />
+      </button>
+
+      {isOpen && (
+        <>
+          {/* Backdrop */}
+          <div className="fixed inset-0 z-[100]" onClick={() => setIsOpen(false)} />
+          
+          {/* Calendar Popup */}
+          <div className={cn('absolute top-full left-0 mt-2 z-[101] rounded-xl border shadow-2xl p-4 w-[280px]', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3">
+              <button
+                type="button"
+                onClick={() => navigateMonth('prev')}
+                className={cn('p-1.5 rounded-lg transition-colors', dk ? 'hover:bg-white/10 text-slate-300' : 'hover:bg-slate-100 text-slate-700')}
+              >
+                <ChevronDown size={16} className="rotate-90" />
+              </button>
+              <span className={cn('text-sm font-black', dk ? 'text-white' : 'text-slate-900')}>
+                {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+              </span>
+              <button
+                type="button"
+                onClick={() => navigateMonth('next')}
+                className={cn('p-1.5 rounded-lg transition-colors', dk ? 'hover:bg-white/10 text-slate-300' : 'hover:bg-slate-100 text-slate-700')}
+              >
+                <ChevronDown size={16} className="-rotate-90" />
+              </button>
+            </div>
+
+            {/* Week Days */}
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {weekDays.map(day => (
+                <div key={day} className={cn('text-center text-[10px] font-black', dk ? 'text-slate-500' : 'text-slate-400')}>
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar Days */}
+            <div className="grid grid-cols-7 gap-1">
+              {days.map((day, idx) => {
+                const disabled = isDateDisabled(day);
+                const isSelected = day === selectedDay && 
+                                   currentMonth.getMonth() === selectedMonth && 
+                                   currentMonth.getFullYear() === selectedYear;
+                
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleDateClick(day)}
+                    disabled={disabled}
+                    className={cn(
+                      'h-8 rounded-lg text-xs font-bold transition-all',
+                      disabled && 'opacity-30 cursor-not-allowed',
+                      !disabled && !isSelected && (dk ? 'hover:bg-white/10 text-slate-300' : 'hover:bg-slate-100 text-slate-700'),
+                      isSelected && 'bg-teal-600 text-white shadow-md'
+                    )}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className={cn('w-full mt-3 py-2 rounded-lg text-xs font-bold transition-colors', dk ? 'bg-white/5 hover:bg-white/10 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700')}
+            >
+              {lang === 'de' ? 'Schließen' : 'Close'}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 // --- VERTICAL MOBILE BED SLOT ---
 function MobileBedSlot({
   slotIndex, employee, durationStart, durationEnd, gapStart, gapEnd,
   roomCardId, durationId, dk, lang, isSubstitute, onUpdated, viewOnly, employeeOptions,
-  allSlotEmployees // ✅ NEW: All employees in this slot for overlap detection
+  allSlotEmployees
 }: any) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(employee?.name ?? '')
@@ -122,7 +330,7 @@ function MobileBedSlot({
   const [saving, setSaving] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
 
-  // ✅ NEW: Sync gap dates when they change (fixes gap date not updating)
+  // ✅ Sync gap dates when they change
   useEffect(() => {
     if (!employee && gapStart) {
       setCheckIn(gapStart);
@@ -135,19 +343,31 @@ function MobileBedSlot({
     }
   }, [gapEnd, employee]);
 
-  // ✅ NEW: Calculate valid date range considering other employees
-  const { minDate, maxDate } = getValidDateRange(
+  // ✅ UPDATED: Recalculate valid ranges dynamically when checkIn or allSlotEmployees change
+  const checkInRange = getValidDateRange(
     slotIndex,
     allSlotEmployees || [],
     durationStart,
     durationEnd,
     employee?.id,
     gapStart,
-    gapEnd
+    gapEnd,
+    undefined,
+    false
   );
 
-  const effectiveIn = gapStart ?? minDate;
-  const effectiveOut = gapEnd ?? maxDate;
+  const checkOutRange = getValidDateRange(
+    slotIndex,
+    allSlotEmployees || [],
+    durationStart,
+    durationEnd,
+    employee?.id,
+    gapStart,
+    gapEnd,
+    checkIn, // ✅ Pass current checkIn
+    true // ✅ Indicate this is for checkout
+  );
+
   const nights = calculateNights(checkIn, checkOut)
   const status = employee ? getEmployeeStatus(employee.checkIn ?? '', employee.checkOut ?? '') : null
   const borderCls = empBorderColor(employee, dk)
@@ -162,12 +382,27 @@ function MobileBedSlot({
     if (viewOnly) return; 
     if (!name.trim()) return;
 
-    // ✅ NEW: Validate no overlap before saving
+    // ✅ Validate no overlap before saving
     const occupied = getOccupiedRanges(slotIndex, allSlotEmployees || [], employee?.id);
     if (checkIn && checkOut && hasOverlap(checkIn, checkOut, occupied)) {
       alert(lang === 'de' 
         ? 'Dieser Zeitraum überschneidet sich mit einem anderen Mitarbeiter in diesem Bett!' 
         : 'This period overlaps with another employee in this bed!');
+      return;
+    }
+
+    // ✅ Validate dates are within valid range
+    if (checkIn < checkInRange.minDate || checkIn > checkInRange.maxDate) {
+      alert(lang === 'de'
+        ? `Check-in muss zwischen ${fmtDateDe(checkInRange.minDate)} und ${fmtDateDe(checkInRange.maxDate)} liegen!`
+        : `Check-in must be between ${fmtDateDe(checkInRange.minDate)} and ${fmtDateDe(checkInRange.maxDate)}!`);
+      return;
+    }
+
+    if (checkOut < checkOutRange.minDate || checkOut > checkOutRange.maxDate) {
+      alert(lang === 'de'
+        ? `Check-out muss zwischen ${fmtDateDe(checkOutRange.minDate)} und ${fmtDateDe(checkOutRange.maxDate)} liegen!`
+        : `Check-out must be between ${fmtDateDe(checkOutRange.minDate)} and ${fmtDateDe(checkOutRange.maxDate)}!`);
       return;
     }
 
@@ -217,7 +452,7 @@ function MobileBedSlot({
     )
   }
 
-  // --- EDIT MODE (Mobile Stacked, No Overlap) ---
+  // --- EDIT MODE with Custom Date Pickers ---
   if (editing || (!employee && editing)) {
     return (
       <div className={cn('flex flex-col gap-3 p-3 rounded-xl border shadow-md', dk ? 'bg-[#0F172A] border-white/10' : 'bg-white border-slate-200')}>
@@ -227,65 +462,41 @@ function MobileBedSlot({
         </datalist>
         
         <div className="relative flex items-center w-full">
-          <Phone size={14} className={cn("absolute left-3", dk ? "text-slate-500" : "text-slate-400")} />
+          <Phone size={14} className={cn("absolute left-3 z-10", dk ? "text-slate-500" : "text-slate-400")} />
           <input disabled={viewOnly} type="text" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+49" className={cn(inputCls, 'pl-9')} />
         </div>
 
-        {/* ✅ UPDATED: Date inputs with cross-browser validation */}
-        <div className="flex items-center gap-2 w-full h-[42px] shrink-0">
-          {/* Check In */}
-          <div className="relative flex-1 h-full">
-             <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent px-3', viewOnly && "opacity-60")}>
-               <span className="text-[12px]">{fmtDateDe(checkIn)}</span>
-             </div>
-             <input 
-               type="date" 
-               disabled={viewOnly} 
-               value={checkIn || ''} 
-               min={effectiveIn} 
-               max={effectiveOut} 
-               onChange={e => {
-                 const newVal = e.target.value;
-                 if (!newVal) { setCheckIn(''); return; }
-                 
-                 // ✅ Cross-browser validation
-                 if (newVal < effectiveIn) { setCheckIn(effectiveIn); return; }
-                 if (newVal > effectiveOut) { setCheckIn(effectiveOut); return; }
-                 if (checkOut && newVal > checkOut) { setCheckOut(newVal); } // Auto-adjust checkout
-                 
-                 setCheckIn(newVal);
-               }}
-               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0" 
-             />
-          </div>
+        {/* ✅ CUSTOM DATE PICKERS */}
+        <div className="flex items-center gap-2 w-full">
+          <CustomDatePicker
+            value={checkIn}
+            minDate={checkInRange.minDate}
+            maxDate={checkInRange.maxDate}
+            onChange={(date) => {
+              setCheckIn(date);
+              // Auto-adjust checkout if it becomes invalid
+              if (checkOut < date) {
+                setCheckOut(date);
+              }
+            }}
+            disabled={viewOnly}
+            dk={dk}
+            lang={lang}
+            label="Check-in"
+          />
           
           <span className="text-slate-400 text-xs shrink-0">➔</span>
           
-          {/* Check Out */}
-          <div className="relative flex-1 h-full">
-             <div className={cn(inputCls, 'absolute inset-0 flex items-center justify-between pointer-events-none bg-transparent px-3', viewOnly && "opacity-60")}>
-               <span className="text-[12px]">{fmtDateDe(checkOut)}</span>
-             </div>
-             <input 
-               type="date" 
-               disabled={viewOnly} 
-               value={checkOut || ''} 
-               min={checkIn || effectiveIn} 
-               max={effectiveOut} 
-               onChange={e => {
-                 const newVal = e.target.value;
-                 if (!newVal) { setCheckOut(''); return; }
-                 
-                 // ✅ Cross-browser validation
-                 const minCheckout = checkIn || effectiveIn;
-                 if (newVal < minCheckout) { setCheckOut(minCheckout); return; }
-                 if (newVal > effectiveOut) { setCheckOut(effectiveOut); return; }
-                 
-                 setCheckOut(newVal);
-               }}
-               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0" 
-             />
-          </div>
+          <CustomDatePicker
+            value={checkOut}
+            minDate={checkOutRange.minDate}
+            maxDate={checkOutRange.maxDate}
+            onChange={setCheckOut}
+            disabled={viewOnly}
+            dk={dk}
+            lang={lang}
+            label="Check-out"
+          />
         </div>
 
         <div className="flex gap-2 w-full pt-1">
@@ -331,6 +542,9 @@ function MobileBedSlot({
 
   // --- EMPTY GAP SLOT ---
   const isGap = !!(gapStart || gapEnd)
+  const effectiveIn = gapStart ?? checkInRange.minDate;
+  const effectiveOut = gapEnd ?? checkOutRange.maxDate;
+  
   return (
     <button disabled={viewOnly} onClick={() => { if(!viewOnly) setEditing(true) }} className={cn('w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed text-sm font-bold transition-all h-full min-h-[50px]', isGap ? (dk ? 'border-amber-500/40 text-amber-400 bg-amber-500/5' : 'border-amber-400 text-amber-600 bg-amber-50') : (dk ? 'border-white/10 text-slate-500 hover:text-white' : 'border-slate-200 text-slate-400 hover:text-slate-700'), viewOnly && "opacity-60 cursor-default hover:bg-transparent pointer-events-none")}>
       {!viewOnly && <Plus size={16} />} {isGap ? `${lang === 'de' ? 'Lücke füllen' : 'Fill gap'} (${fmtDateDe(effectiveIn)} ➔ ${fmtDateDe(effectiveOut)})` : (lang === 'de' ? 'Bett zuweisen' : 'Assign bed')}
@@ -420,10 +634,8 @@ export default function MobileRoomCard({
       const hasEmp = employees.some((emp: any) => emp.id === targetId);
       if (!hasEmp) return;
 
-      // 1. Force the card open
       setIsOpen(true);
 
-      // 2. Wait for React to render the expanded view, then scroll to the exact BedSlot
       setTimeout(() => {
           const el = document.getElementById(`emp-slot-${targetId}`);
           if (el) {
@@ -483,14 +695,12 @@ export default function MobileRoomCard({
             </div>
             
             <div className="flex items-center gap-2">
-               {/* The Blue Pill Badge */}
                <div className={cn("flex items-center gap-2 px-2 py-1 rounded-lg border", dk ? "bg-blue-500/10 border-blue-500/20 text-blue-400" : "bg-blue-50 border-blue-200 text-blue-600")}>
                   <span className="flex items-center gap-1 font-black text-xs"><Moon size={12} /> {nights}</span>
                   <div className={cn("w-px h-3", dk ? "bg-blue-500/30" : "bg-blue-300")} /> 
                   <span className="flex items-center gap-1 font-black text-xs"><Bed size={12} /> {beds}</span>
                </div>
                
-               {/* Moved Delete Room to Header */}
                {!viewOnly && (
                   <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className={cn("p-1.5 rounded-lg transition-colors shrink-0", dk ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-slate-400 hover:text-red-500 hover:bg-red-50")}>
                      <Trash2 size={16} />
@@ -499,7 +709,6 @@ export default function MobileRoomCard({
             </div>
          </div>
 
-         {/* CLICKABLE EMPLOYEE PREVIEW (WRAPPED PILLS) */}
          {!isOpen && displayEmps.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5 px-3 pb-3 ml-8">
                {displayEmps.map(emp => {
@@ -507,11 +716,9 @@ export default function MobileRoomCard({
                   const isPart = emp.checkIn > durationStart || emp.checkOut < durationEnd;
                   const lastName = emp.name ? emp.name.trim().split(' ').pop() : '---';
                   
-                  // Web Logic: Evaluate if this employee is a replacement
                   const slotMates = employees.filter((e:any) => e.slotIndex === emp.slotIndex).sort((a:any,b:any) => (a.checkIn || '').localeCompare(b.checkIn || ''));
                   const isSub = slotMates.length > 1 && slotMates[0].id !== emp.id;
                   
-                  // Extract status color for dots/arrows
                   const status = getEmployeeStatus(emp.checkIn ?? '', emp.checkOut ?? '');
                   const dotColor = status === 'active' ? 'bg-emerald-500' : status === 'upcoming' ? 'bg-blue-500' : status === 'ending-soon' ? 'bg-red-500' : 'bg-slate-400';
                   const textColor = status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400';
@@ -522,28 +729,21 @@ export default function MobileRoomCard({
                          setIsOpen(true); 
                          setTimeout(() => window.dispatchEvent(new CustomEvent('open-emp-slot', { detail: emp.id })), 50); 
                      }} className={cn("px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5 transition-colors border shadow-sm", !viewOnly ? "hover:opacity-80" : "cursor-default", isPart ? "border-dashed" : "border-solid", bColor, dk ? "bg-[#1E293B] text-slate-200" : "bg-white text-slate-700")}>
-                        
-                        {/* Replacement Icon INSIDE the pill */}
                         {isSub ? <CornerDownRight size={11} className={textColor} /> : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", dotColor)} />}
-                        
                         <span className="truncate max-w-[90px]">{lastName}</span>
                      </button>
                   )
                })}
                {overflowCount > 0 && (
-                  <span className="text-[10px] font-black text-teal-500 ml-1">
-                     + {overflowCount}
-                  </span>
+                  <span className="text-[10px] font-black text-teal-500 ml-1">+ {overflowCount}</span>
                )}
             </div>
          )}
       </div>
 
-      {/* 2. EXPANDED BODY */}
       {isOpen && (
         <div className="flex flex-col p-4 gap-6">
            
-           {/* SECTION A: CONFIGURATION (Single Sleek Row) */}
            <div className="flex items-center gap-2 w-full">
               <div className="flex flex-col w-[60px] shrink-0">
                  <label className={labelCls}>{lang === 'de' ? 'Typ' : 'Type'}</label>
@@ -555,13 +755,10 @@ export default function MobileRoomCard({
               <div className="flex flex-col w-[80px] shrink-0">
                  <label className={labelCls}>{lang === 'de' ? 'Betten' : 'Beds'}</label>
                  <div className={cn("flex items-center h-[42px] rounded-lg border overflow-hidden", dk ? "border-white/10 bg-[#1E293B]" : "border-slate-200 bg-white")}>
-                    {/* Stepper buttons ONLY show if WG */}
                     {card.roomType === 'WG' && (
                         <button disabled={viewOnly} onClick={() => queueSave({ bedCount: Math.max(1, (card.bedCount || 1) - 1) })} className={cn("w-8 shrink-0 h-full font-black text-lg transition-colors border-r", dk ? "border-white/10 hover:bg-white/10" : "border-slate-200 hover:bg-slate-100", viewOnly && "opacity-50 cursor-not-allowed text-slate-500")}>−</button>
                     )}
-                    
                     <div className={cn("flex-1 h-full flex items-center justify-center font-black text-sm", dk ? "text-white" : "text-slate-900")}>{card.bedCount || 1}</div>
-                    
                     {card.roomType === 'WG' && (
                         <button disabled={viewOnly} onClick={() => queueSave({ bedCount: (card.bedCount || 1) + 1 })} className={cn("w-8 shrink-0 h-full font-black text-lg transition-colors border-l", dk ? "border-white/10 hover:bg-white/10" : "border-slate-200 hover:bg-slate-100", viewOnly && "opacity-50 cursor-not-allowed text-slate-500")}>+</button>
                     )}
@@ -578,16 +775,14 @@ export default function MobileRoomCard({
               </div>
            </div>
 
-           {/* SECTION B: EMPLOYEES & BEDS (TABLET RESPONSIVE GRID) */}
            <div className="flex flex-col gap-3 pt-4 border-t dark:border-white/10 border-slate-200">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                  {Array.from({ length: beds }).map((_, i) => {
                     const slotE = employees.filter(e => (e.slotIndex ?? 0) === i).sort((a,b) => (a.checkIn || '').localeCompare(b.checkIn || ''));
-                    const allSlotEmployees = employees.filter(e => (e.slotIndex ?? 0) === i); // ✅ NEW: All employees in this slot
+                    const allSlotEmployees = employees.filter(e => (e.slotIndex ?? 0) === i);
                     
                     return (
                       <div key={i} className="flex flex-col gap-2 relative">
-                         {/* Bed Indicator */}
                          <div className="flex items-center gap-2 mb-1">
                             <Bed size={14} className={dk ? "text-slate-500" : "text-slate-400"}/>
                             <span className={cn("text-[10px] font-black uppercase", dk ? "text-slate-500" : "text-slate-400")}>Bed {i + 1}</span>
@@ -605,7 +800,7 @@ export default function MobileRoomCard({
                              durationId={card.durationId} 
                              dk={dk} 
                              lang={lang} 
-                             allSlotEmployees={allSlotEmployees} // ✅ NEW
+                             allSlotEmployees={allSlotEmployees}
                              onUpdated={(idx:any, emp:any) => { 
                                const next = emp === null ? employees.filter(e => e.slotIndex !== idx) : employees.some(e => e.id === emp.id) ? employees.map(e => e.id === emp.id ? emp : e) : [...employees, emp]; 
                                onUpdate(card.id, { employees: next }); 
@@ -626,7 +821,7 @@ export default function MobileRoomCard({
                                dk={dk} 
                                lang={lang} 
                                isSubstitute={empIdx > 0} 
-                               allSlotEmployees={allSlotEmployees} // ✅ NEW
+                               allSlotEmployees={allSlotEmployees}
                                onUpdated={(idx:any, e:any) => { 
                                  const next = e === null ? employees.filter(empItem => empItem.id !== emp.id) : employees.map(empItem => empItem.id === e.id ? e : empItem); 
                                  onUpdate(card.id, { employees: next }); 
@@ -649,7 +844,7 @@ export default function MobileRoomCard({
                              durationId={card.durationId} 
                              dk={dk} 
                              lang={lang} 
-                             allSlotEmployees={allSlotEmployees} // ✅ NEW
+                             allSlotEmployees={allSlotEmployees}
                              onUpdated={(idx:any, emp:any) => { 
                                const next = emp === null ? employees : [...employees, emp]; 
                                onUpdate(card.id, { employees: next }); 
@@ -665,7 +860,6 @@ export default function MobileRoomCard({
         </div>
       )}
       
-      {/* DELETE CONFIRMATION OVERLAY */}
       {confirmDelete && (
         <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className={cn('w-full max-w-sm rounded-2xl border p-6 shadow-2xl animate-in zoom-in-95', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
