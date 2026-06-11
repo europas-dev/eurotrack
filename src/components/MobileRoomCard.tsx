@@ -14,7 +14,7 @@ function fmtDateDe(iso: string | null | undefined) {
   if (!iso) return '—'
   const [y, m, d] = iso.split('-')
   return `${d}.${m}.${y}`
-}fconst [checkIn, setCheckIn] = useState(initialCheckIn)
+}
 
 function empBorderColor(emp: Employee | null, dk: boolean): string {
   if (!emp) return dk ? 'border-white/10' : 'border-slate-200'
