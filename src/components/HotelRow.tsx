@@ -1471,7 +1471,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
                    <div className="flex-1 overflow-y-auto max-h-[400px] relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
                       activeInvoice.billingMode === 'total' ? (() => {
-                             // ✅ CALCULATE LIVE DRAFTS FOR MUTUAL EXCLUSION
+                             // CALCULATE LIVE DRAFTS FOR MUTUAL EXCLUSION
                              const draftNetto = totalDraft?.totalNetto;
                              const draftBrutto = totalDraft?.totalBrutto;
                              const draftMwst = parseFloat(totalDraft?.totalMwst ?? (activeInvoice.totalMwst ?? 7)) || 0;
@@ -1487,7 +1487,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                    <div ref={totalRef} className={cn("flex flex-col p-4 rounded-2xl border shadow-sm animate-in fade-in slide-in-from-top-2 relative z-20", dk ? "bg-[#1E293B]" : "bg-white", editingTotal ? (dk ? "border-teal-500/50 shadow-xl bg-teal-900/20" : "border-teal-300 shadow-xl bg-teal-50") : (dk ? "border-slate-800" : "border-slate-100"))}>
                                       <div className="flex items-center gap-5 w-full">
                                          
-                                         {/* --- NETTO INPUT --- */}
                                          <div className="flex-1 flex items-center gap-2 min-w-[200px]">
                                             <label className={labelCls}>Netto</label>
                                             <input 
@@ -1508,7 +1507,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                             )}
                                          </div>
                                          
-                                         {/* --- MWST INPUT --- */}
                                          <div className="w-[100px] shrink-0 flex items-center gap-2">
                                             <label className={labelCls}>MwSt</label>
                                             {editingTotal && !viewOnly ? (
@@ -1518,7 +1516,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                             )}
                                          </div>
 
-                                         {/* --- BRUTTO INPUT --- */}
                                          <div className="w-[160px] shrink-0 flex items-center gap-2">
                                             <label className={labelCls}>Brutto</label>
                                             <div className="relative flex-1">
@@ -1533,13 +1530,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                             </div>
                                          </div>
 
-                                         {/* --- SAVE / EDIT CONTROLS --- */}
                                          {!viewOnly && (
                                             <div className="w-max flex items-center justify-end gap-1.5 ml-3">
                                                {editingTotal ? (
                                                   <>
                                                      <button onClick={() => {
-                                                         // Inject the calculated missing piece before saving!
+                                                         // Inject the calculated missing piece before saving
                                                          const finalNettoToSave = hasN ? totalDraft.totalNetto : calcNetto;
                                                          const finalBruttoToSave = hasB ? totalDraft.totalBrutto : calcBrutto;
                                                          patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, ...totalDraft, totalNetto: finalNettoToSave, totalBrutto: finalBruttoToSave} : i) });
