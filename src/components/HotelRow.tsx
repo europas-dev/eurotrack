@@ -142,10 +142,10 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
                              <span className="w-[26px] text-center text-[11px] font-bold">{activeNights}</span>
                              <div className={cn("px-1 border-l h-full flex items-center", dk ? "border-white/10 text-slate-400" : "border-slate-200 text-slate-400")}><Calendar size={12}/></div>
                          </div>
-                         <div className="relative w-[100px] ml-1 shrink-0">
-                            <input type="number" disabled={hasBruttoInput} placeholder="0.00" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 text-left")} />
-                            {(!showDiscount && !hasBruttoInput) && <button onClick={() => { setShowDiscount(true); if(!draft.discountType) setDraft({...draft, discountType: 'fixed'}); }} className="absolute right-1 top-[5px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
-                         </div>
+                         <div className="relative w-full">
+                           <input type="number" placeholder="Netto" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full pr-6 text-left")} />
+                           {!showDiscount && <button onClick={() => { setShowDiscount(true); if(!draft.discountType) setDraft({...draft, discountType: 'fixed'}); }} className="absolute right-1 top-[5px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
+                       </div>
                      </div>
                      {showDiscount && !hasBruttoInput && (
                          <div className="flex items-center w-[130px] animate-in fade-in slide-in-from-top-1 mt-1">
@@ -200,13 +200,14 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
                <MwstInput value={draft.mwst} onChange={(v:any) => setDraft({ ...draft, mwst: v })} isDarkMode={dk} disabled={false} />
            </div>
 
-           <div className="w-[110px] shrink-0 pr-2 text-right">
-               <input type="number" disabled={hasNettoInput} placeholder={hasNettoInput ? formatCurrency(brutto) : "Brutto"} value={draft.brutto ?? ''} onChange={e => setDraft({ ...draft, brutto: e.target.value, netto: null })} className={cn(inputClass, "w-full text-left", hasNettoInput ? "disabled:opacity-100 disabled:bg-transparent disabled:border-transparent text-[13px] font-black px-1 placeholder-slate-900 dark:placeholder-white" : "")} />
+           <div className="w-[110px] shrink-0 pr-2 flex items-center justify-end">
+               <span className={cn("text-[13px] font-black", dk ? "text-white" : "text-slate-900")}>
+                   {formatCurrency(brutto)}
+               </span>
            </div>
 
-           {/* UX FIX: Removed Delete Button completely from Edit Mode. Replaced with clean Save/Cancel */}
            <div className="w-[75px] flex items-start justify-end gap-1.5 shrink-0">
-              <button onClick={() => onSave(draft)} className="p-1.5 h-[30px] w-[32px] flex items-center justify-center text-white bg-teal-500 hover:bg-teal-600 rounded transition-all shadow-sm shrink-0"><Check size={14} strokeWidth={3}/></button>
+              <button disabled={!draft.netto} onClick={() => onSave(draft)} className="p-1.5 h-[30px] w-[32px] flex items-center justify-center text-white bg-teal-500 hover:bg-teal-600 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:text-slate-400 rounded transition-all shadow-sm shrink-0"><Check size={14} strokeWidth={3}/></button>
               <button onClick={onCancel} className={cn("p-1.5 h-[30px] w-[32px] flex items-center justify-center rounded transition-all shadow-sm border shrink-0", dk ? "border-white/10 text-slate-300 hover:bg-white/10 hover:text-white" : "border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-900")}><X size={14} strokeWidth={3}/></button>
            </div>
         </div>
@@ -1625,7 +1626,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                  patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: i.items.map((it:any) => it.id === item.id ? savedDraft : it)} : i) });
                                                  setEditingItemId(null); 
                                              }}
-                                             onCancel={() => setEditingItemId(null)}
+                                             onCancel={() => { 
+                                                if (!item.netto) {
+                                                   patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: i.items.filter((it:any) => it.id !== item.id)} : i) });
+                                                }
+                                                setEditingItemId(null); 
+                                             }}
                                              onDelete={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, items: i.items.filter((it:any) => it.id !== item.id)} : i) }); setEditingItemId(null); }}
                                           />
                                ))}
