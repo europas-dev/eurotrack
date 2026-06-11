@@ -1225,7 +1225,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             {activeTab === 'bookings' && (
               <div className="p-4 bg-white dark:bg-[#1E293B] rounded-b-2xl animate-in fade-in">
                 <div className={cn("flex items-end gap-1 flex-wrap mb-[3px]")}>
-                  {/* ✅ FIX: Map over sortedDurations so the newest is always on the left */}
                   {sortedDurations.map((d: any, sortedIdx: number) => {
                     const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
                     const isActive = activeDurationTab === trueIdx;
@@ -1247,7 +1246,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                   )}
                 </div>
                 {localHotel.durations[activeDurationTab] && (
-                  {/* ✅ FIX: Check if the currently active tab is the very first one rendered to remove the top-left rounding */}
                   <div className={cn("relative z-0", sortedDurations.length > 0 && sortedDurations[0].id === localHotel.durations[activeDurationTab].id ? "[&>div]:rounded-tl-none" : "")}>
                     <DurationCard
                       duration={localHotel.durations[activeDurationTab]} 
