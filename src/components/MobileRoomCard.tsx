@@ -363,28 +363,7 @@ function MobileBedSlot({
   const [saving, setSaving] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
 
-  // ✅ Sync dates when duration or gaps change (for unassigned slots)
-// ✅ FIX 1: Sync gap start date when it changes
-useEffect(() => {
-  if (!employee && gapStart) {
-    setCheckIn(gapStart);
-  }
-}, [gapStart]); // ✅ Only depend on gapStart, remove employee dependency
 
-// ✅ FIX 2: Sync gap end date when it changes
-useEffect(() => {
-  if (!employee && gapEnd) {
-    setCheckOut(gapEnd);
-  }
-}, [gapEnd]); // ✅ Only depend on gapEnd, remove employee dependency
-
-// ✅ FIX 3: Sync duration for empty slots (no gap, no employee)
-useEffect(() => {
-  if (!employee && !gapStart && !gapEnd) {
-    setCheckIn(durationStart);
-    setCheckOut(durationEnd);
-  }
-}, [durationStart, durationEnd]); // ✅ Only depend on duration changes
 
   // ✅ Recalculate ranges when dependencies change
   const checkInRange = React.useMemo(() => getValidDateRange(
@@ -571,8 +550,14 @@ useEffect(() => {
          <div className="flex items-start justify-between w-full">
             <div className="flex items-center gap-2.5 flex-1 min-w-0">
               <IconToUse size={18} className={cn("shrink-0", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} />
-              <span onClick={() => { if(!viewOnly) setEditing(true) }} className={cn('text-[15px] font-black truncate flex-1', !viewOnly ? "cursor-pointer" : "cursor-default", dk ? 'text-white' : 'text-slate-900')}>{employee.name}</span>
-            </div>
+              <span onClick={() => { 
+    if(!viewOnly) {
+        // ✅ INJECT CURRENT DATES ON CLICK
+        setCheckIn(employee.checkIn ?? gapStart ?? checkInRange.minDate); 
+        setCheckOut(employee.checkOut ?? gapEnd ?? checkOutRange.maxDate);
+        setEditing(true); 
+    } 
+}} className={cn('text-[15px] font-black truncate flex-1', !viewOnly ? "cursor-pointer" : "cursor-default", dk ? 'text-white' : 'text-slate-900')}>{employee.name}</span>  </div>
             {!viewOnly && (
               <button onClick={() => setConfirmDel(true)} className={cn('p-1.5 rounded-lg shrink-0 transition-colors', dk ? 'text-red-400 hover:bg-red-900/20' : 'text-red-500 hover:bg-red-50')}><Trash2 size={16} /></button>
             )}
@@ -599,7 +584,14 @@ useEffect(() => {
   const effectiveOut = gapEnd ?? checkOutRange.maxDate;
   
   return (
-    <button disabled={viewOnly} onClick={() => { if(!viewOnly) setEditing(true) }} className={cn('w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed text-sm font-bold transition-all h-full min-h-[50px]', isGap ? (dk ? 'border-amber-500/40 text-amber-400 bg-amber-500/5' : 'border-amber-400 text-amber-600 bg-amber-50') : (dk ? 'border-white/10 text-slate-500 hover:text-white' : 'border-slate-200 text-slate-400 hover:text-slate-700'), viewOnly && "opacity-60 cursor-default hover:bg-transparent pointer-events-none")}>
+    <button disabled={viewOnly} onClick={() => { 
+        if(!viewOnly) { 
+            // ✅ INJECT FRESH DATES ON CLICK
+            setCheckIn(effectiveIn);
+            setCheckOut(effectiveOut);
+            setEditing(true);
+        } 
+    }} className={cn('w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed text-sm font-bold transition-all h-full min-h-[50px]', isGap ? (dk ? 'border-amber-500/40 text-amber-400 bg-amber-500/5' : 'border-amber-400 text-amber-600 bg-amber-50') : (dk ? 'border-white/10 text-slate-500 hover:text-white' : 'border-slate-200 text-slate-400 hover:text-slate-700'), viewOnly && "opacity-60 cursor-default hover:bg-transparent pointer-events-none")}>
       {!viewOnly && <Plus size={16} />} {isGap ? `${lang === 'de' ? 'Lücke füllen' : 'Fill gap'} (${fmtDateDe(effectiveIn)} ➔ ${fmtDateDe(effectiveOut)})` : (lang === 'de' ? 'Bett zuweisen' : 'Assign bed')}
     </button>
   )
@@ -640,24 +632,25 @@ export default function MobileRoomCard({
   const nights = calculateNights(durationStart, durationEnd)
   const employees = card.employees ?? []
 
-  // ✅ Track previous duration to detect changes
-const [prevDuration, setPrevDuration] = useState({ start: durationStart, end: durationEnd });
+// ✅ Track previous duration synchronously using useRef to prevent race conditions
+const prevDuration = useRef({ start: durationStart, end: durationEnd });
 
 // ✅ ENHANCED: Clamp employees AND auto-extend edge employees when duration changes
 useEffect(() => {
   if (viewOnly) return;
   const currentEmps = card.employees ?? [];
+  
+  // Read synchronously from the ref
+  const oldStart = prevDuration.current.start;
+  const oldEnd = prevDuration.current.end;
+  const durationChanged = oldStart !== durationStart || oldEnd !== durationEnd;
+
   if (!currentEmps.length) {
-    // Update tracked duration even with no employees
-    if (prevDuration.start !== durationStart || prevDuration.end !== durationEnd) {
-      setPrevDuration({ start: durationStart, end: durationEnd });
+    if (durationChanged) {
+      prevDuration.current = { start: durationStart, end: durationEnd };
     }
     return;
   }
-
-  const oldStart = prevDuration.start;
-  const oldEnd = prevDuration.end;
-  const durationChanged = oldStart !== durationStart || oldEnd !== durationEnd;
 
   if (!durationChanged) return;
 
@@ -665,8 +658,8 @@ useEffect(() => {
   const changedEmployees: any[] = [];
 
   // ✅ Find the LAST employee in each slot (the one whose checkout should follow duration end)
-  const slotLastEmployees = new Map<number, string>(); // slotIndex -> employeeId
-  const slotFirstEmployees = new Map<number, string>(); // slotIndex -> employeeId
+  const slotLastEmployees = new Map<number, string>(); 
+  const slotFirstEmployees = new Map<number, string>(); 
 
   const slotGroups: Record<number, any[]> = {};
   currentEmps.forEach((emp: any) => {
@@ -725,8 +718,8 @@ useEffect(() => {
     return emp;
   });
 
-  // Update tracked duration
-  setPrevDuration({ start: durationStart, end: durationEnd });
+  // Update tracked duration synchronously
+  prevDuration.current = { start: durationStart, end: durationEnd };
 
   if (changed) {
     onUpdate(card.id, { employees: newEmp });
@@ -735,6 +728,7 @@ useEffect(() => {
     });
   }
 }, [durationStart, durationEnd, JSON.stringify(card.employees)]);
+
 
   // --- RESTORED NAVIGATION ENGINE FOR MOBILE ---
   useEffect(() => {
