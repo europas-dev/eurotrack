@@ -4,7 +4,7 @@ import { supabase, deleteHotel, createHotel, updateHotel } from './lib/supabase'
 import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday, calculateNights, calcInvoiceItem, getEmployeeStatus } from './lib/utils';
 import { calcRoomCardNettoSum, calcRoomCardTotal } from './lib/roomCardUtils';
 import type { AccessLevel } from './lib/supabase';
-import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Star, Calendar, MapPin, Building, Building2, CloudOff, Globe, Trash2, Copy, Eye, EyeOff, ChevronDown, ChevronUp, Bed, Coins } from 'lucide-react';
+import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Star, Calendar, MapPin, Building, CloudOff, Globe, Trash2, Copy, Eye, EyeOff, ChevronDown, ChevronUp, Bed, Coins, Users } from 'lucide-react';
 import Header from './components/Header';
 import { HotelRow, ModernDropdown, CompanyMultiSelect, getCountryOptions } from './components/HotelRow';
 import ExportStudio from './components/ExportStudio';
@@ -1016,31 +1016,46 @@ finalFiltered.forEach(h => {
 </div>
 
 
-                {/* EMPLOYEE STATUS FILTER */}
-                <div className="relative" ref={empMenuRef}>
-                  <button onClick={() => { closeMenu(); setShowEmpMenu(!showEmpMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", activeEmpFilters.length > 0 ? btnActive : btnInactive)}>
-                    <Building2 size={16} /> 
-                  </button>
-                  {showEmpMenu && (
-                    <div className={cn(popupCls, 'w-[200px] p-2')}>
-                      <p className={sectionTitle}>{lang === 'de' ? 'Mitarbeiter Status' : 'Emp. Status'}</p>
-                      <div className="flex flex-col gap-1">
-                        {[
-                          { id: 'active', label: lang === 'de' ? 'Aktiv' : 'Active', color: 'bg-emerald-500' },
-                          { id: 'upcoming', label: lang === 'de' ? 'Bevorstehend' : 'Upcoming', color: 'bg-blue-500' },
-                          { id: 'ending-soon', label: lang === 'de' ? 'Endet bald' : 'Ending Soon', color: 'bg-red-500' },
-                          { id: 'completed', label: lang === 'de' ? 'Abgeschlossen' : 'Completed', color: 'bg-slate-400' }
-                        ].map(s => (
-                          <button key={s.id} onClick={() => setActiveEmpFilters(prev => prev.includes(s.id) ? prev.filter(i => i !== s.id) : [...prev, s.id])} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-all">
-                            <div className={cn("w-3 h-3 rounded-full", s.color, activeEmpFilters.includes(s.id) ? "opacity-100" : "opacity-30")} />
-                            <span className={cn("text-sm font-bold", activeEmpFilters.includes(s.id) ? "" : "opacity-50")}>{s.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                      <button onClick={() => setActiveEmpFilters([])} className="w-full mt-3 text-xs font-bold text-slate-400 hover:text-teal-500">{lang === 'de' ? 'Filter zurücksetzen' : 'Reset'}</button>
-                    </div>
-                  )}
-                </div>
+ {/* EMPLOYEE STATUS FILTER */}
+<div className="relative" ref={empMenuRef}>
+  <button 
+    onClick={() => { closeMenu(); setShowEmpMenu(!showEmpMenu); }} 
+    className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", activeEmpFilters.length > 0 ? btnActive : btnInactive)}
+  >
+    <Users size={16} /> 
+  </button>
+  {showEmpMenu && (
+    <div className={cn(popupCls, 'w-[200px] p-2')}>
+      <p className={sectionTitle}>{lang === 'de' ? 'Mitarbeiter Status' : 'Emp. Status'}</p>
+      <div className="flex flex-col gap-1">
+        {[
+          { id: 'active', label: lang === 'de' ? 'Aktiv' : 'Active', color: 'bg-emerald-500' },
+          { id: 'upcoming', label: lang === 'de' ? 'Bevorstehend' : 'Upcoming', color: 'bg-blue-500' },
+          { id: 'ending-soon', label: lang === 'de' ? 'Endet bald' : 'Ending Soon', color: 'bg-red-500' },
+          { id: 'completed', label: lang === 'de' ? 'Abgeschlossen' : 'Completed', color: 'bg-slate-400' }
+        ].map(s => {
+          const isSelected = activeEmpFilters.includes(s.id);
+          return (
+            <button 
+              key={s.id} 
+              onClick={() => setActiveEmpFilters(prev => isSelected ? prev.filter(i => i !== s.id) : [...prev, s.id])} 
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-lg transition-all border", 
+                isSelected 
+                  ? (dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400" : "bg-teal-50 border-teal-200 text-teal-700")
+                  : "border-transparent hover:bg-black/5 dark:hover:bg-white/5"
+              )}
+            >
+              <div className={cn("w-3 h-3 rounded-full", s.color)} />
+              <span className={cn("text-sm font-bold", isSelected ? "" : (dk ? "text-slate-300" : "text-slate-700"))}>{s.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      <button onClick={() => setActiveEmpFilters([])} className="w-full mt-3 text-xs font-bold text-slate-400 hover:text-teal-500">{lang === 'de' ? 'Filter zurücksetzen' : 'Reset'}</button>
+    </div>
+  )}
+</div>
 
                 {/* TIMELINE */}
                 <div className="relative">
