@@ -87,16 +87,13 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
   useEffect(() => { if (isEditing) setDraft(item); }, [isEditing, item]);
 
   useEffect(() => {
-    function handle(e: MouseEvent) {
-      if (isEditing && editRef.current && !editRef.current.contains(e.target as Node)) {
-        const target = e.target as HTMLElement;
-        if (!target.closest('.flatpickr-calendar')) onCancel();
-      }
+    function handleKey(e: KeyboardEvent) { 
+        if (isEditing && e.key === 'Escape') onCancel(); 
     }
-    function handleKey(e: KeyboardEvent) { if (isEditing && e.key === 'Escape') onCancel(); }
-    document.addEventListener('mousedown', handle);
     document.addEventListener('keydown', handleKey);
-    return () => { document.removeEventListener('mousedown', handle); document.removeEventListener('keydown', handleKey); }
+    return () => { 
+        document.removeEventListener('keydown', handleKey); 
+    }
   }, [isEditing, onCancel]);
 
   const currentItem = isEditing ? draft : item;
@@ -134,28 +131,28 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
 
            <div className="flex-1 flex flex-col items-end shrink-0 pr-3 relative">
                {draft.method === 'per_bed' && isPerBedAllowed ? (
-                 <div className="flex flex-col items-end gap-1.5 w-full">
+                 <div className="flex flex-col items-end gap-1.5 w-full relative">
                      <div className="flex items-center justify-end gap-1.5 w-full">
-                        <input type="number" title={lang === 'de' ? 'Betten' : 'Beds'} value={draft.beds ?? 1} onChange={e => setDraft({ ...draft, beds: e.target.value })} className={cn(inputClass, "w-[50px] pl-2 pr-0 text-left [appearance:auto] [&::-webkit-outer-spin-button]:appearance-auto [&::-webkit-inner-spin-button]:appearance-auto")} placeholder="1" />
-                       <span className="text-[12px] text-slate-400 font-black">×</span>
-                         <div className={cn("flex items-center rounded border h-[30px] cursor-pointer hover:border-teal-500 transition-colors", dk ? "bg-black/20 border-white/10 text-white" : "bg-white border-slate-200 text-slate-700")} onClick={() => setCalOpen(!calOpen)}>
+                        <input type="number" title={lang === 'de' ? 'Betten' : 'Beds'} value={draft.beds ?? 1} onChange={e => setDraft({ ...draft, beds: e.target.value })} className={cn(inputClass, "w-[40px] pl-2 pr-0 text-left [appearance:auto] [&::-webkit-outer-spin-button]:appearance-auto [&::-webkit-inner-spin-button]:appearance-auto")} placeholder="1" />
+                        <span className="text-[12px] text-slate-400 font-black">×</span>
+                         <div className={cn("flex items-center rounded border h-[30px] cursor-pointer hover:border-teal-500 transition-colors shrink-0", dk ? "bg-black/20 border-white/10 text-white" : "bg-white border-slate-200 text-slate-700")} onClick={() => setCalOpen(!calOpen)}>
                              <span className="w-[26px] text-center text-[11px] font-bold">{activeNights}</span>
                              <div className={cn("px-1 border-l h-full flex items-center", dk ? "border-white/10 text-slate-400" : "border-slate-200 text-slate-400")}><Calendar size={12}/></div>
                          </div>
-                         <div className="relative w-full">
-                           <input type="number" placeholder="Netto" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full pr-6 text-left")} />
-                           {!showDiscount && <button onClick={() => { setShowDiscount(true); if(!draft.discountType) setDraft({...draft, discountType: 'fixed'}); }} className="absolute right-1 top-[5px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
-                       </div>
-                     </div>
-                     {showDiscount && !hasBruttoInput && (
-                         <div className="flex items-center w-[130px] animate-in fade-in slide-in-from-top-1 mt-1">
-                            <input type="number" value={draft.discountValue ?? ''} onChange={e => setDraft({ ...draft, discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-[65px] px-1.5 text-right placeholder:text-[10px]")} placeholder="Rabatt" />
-                            <button onClick={() => setDraft({ ...draft, discountType: draft.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[30px] h-[30px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{draft.discountType === 'percentage' ? '%' : '€'}</button>
-                            <button onClick={() => { setShowDiscount(false); setDraft({ ...draft, discountValue: null }); }} className={cn("w-[30px] h-[30px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
+                         <div className="relative w-[80px] ml-1 shrink-0">
+                            <input type="number" placeholder="0.00" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full text-left pr-6")} />
+                            {!showDiscount && <button onClick={() => { setShowDiscount(true); if(!draft.discountType) setDraft({...draft, discountType: 'fixed'}); }} className="absolute right-1 top-[5px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
                          </div>
-                     )}
+                         {showDiscount && !hasBruttoInput && (
+                             <div className="flex items-center w-[115px] shrink-0 animate-in fade-in slide-in-from-left-2">
+                                <input type="number" value={draft.discountValue ?? ''} onChange={e => setDraft({ ...draft, discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-[55px] px-1.5 text-right placeholder:text-[10px]")} placeholder="Rabatt" />
+                                <button onClick={() => setDraft({ ...draft, discountType: draft.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[30px] h-[30px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{draft.discountType === 'percentage' ? '%' : '€'}</button>
+                                <button onClick={() => { setShowDiscount(false); setDraft({ ...draft, discountValue: null }); }} className={cn("w-[30px] h-[30px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
+                             </div>
+                         )}
+                     </div>
                      {calOpen && (
-                         <div className={cn("absolute top-full right-0 mt-2 p-3 rounded-xl border shadow-2xl z-[9999] flex flex-col gap-3 w-[260px]", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+                         <div className={cn("absolute bottom-full right-0 mb-2 p-3 rounded-xl border shadow-2xl z-[9999] flex flex-col gap-3 w-[260px]", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
                             <div className="flex items-center gap-2 w-full">
                                 <div className="flex-1 flex flex-col gap-1">
                                    <label className="text-[9px] font-bold text-slate-500 uppercase">Start</label>
@@ -175,16 +172,16 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
                )}
            </div>
 
-           <div className="w-[100px] flex items-center justify-end shrink-0 relative">
+           <div className={cn("flex items-center justify-end shrink-0 relative", showDiscount && !hasBruttoInput ? "w-[205px]" : "w-[100px]")}>
                {draft.method === 'total' || !isPerBedAllowed ? (
-                   <div className="flex flex-col items-end gap-1.5 w-full">
-                       <div className="relative w-full">
-                           <input type="number" disabled={hasBruttoInput} placeholder="Netto" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full disabled:opacity-30 pr-6 text-left")} />
-                           {(!showDiscount && !hasBruttoInput) && <button onClick={() => { setShowDiscount(true); if(!draft.discountType) setDraft({...draft, discountType: 'fixed'}); }} className="absolute right-1 top-[5px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
+                   <div className="flex items-center justify-end gap-1.5 w-full">
+                       <div className="relative flex-1 min-w-[80px]">
+                           <input type="number" placeholder="Netto" value={draft.netto ?? ''} onChange={e => setDraft({ ...draft, netto: e.target.value, brutto: null })} className={cn(inputClass, "w-full pr-6 text-left")} />
+                           {!showDiscount && <button onClick={() => { setShowDiscount(true); if(!draft.discountType) setDraft({...draft, discountType: 'fixed'}); }} className="absolute right-1 top-[5px] p-1 text-slate-400 hover:text-teal-500 rounded"><Ticket size={12}/></button>}
                        </div>
                        {showDiscount && !hasBruttoInput && (
-                           <div className="flex items-center w-[130px] animate-in fade-in slide-in-from-top-1 mt-1">
-                            <input type="number" value={draft.discountValue ?? ''} onChange={e => setDraft({ ...draft, discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-[65px] px-1.5 text-right placeholder:text-[10px]")} placeholder="Rabatt" />
+                           <div className="flex items-center w-[115px] shrink-0 animate-in fade-in slide-in-from-left-2">
+                            <input type="number" value={draft.discountValue ?? ''} onChange={e => setDraft({ ...draft, discountValue: e.target.value })} className={cn(inputClass, "rounded-r-none border-r-0 w-[55px] px-1.5 text-right placeholder:text-[10px]")} placeholder="Rabatt" />
                             <button onClick={() => setDraft({ ...draft, discountType: draft.discountType === 'percentage' ? 'fixed' : 'percentage' })} className={cn("w-[30px] h-[30px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{draft.discountType === 'percentage' ? '%' : '€'}</button>
                             <button onClick={() => { setShowDiscount(false); setDraft({ ...draft, discountValue: null }); }} className={cn("w-[30px] h-[30px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
                          </div>
