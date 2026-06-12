@@ -1171,6 +1171,10 @@ finalFiltered.forEach(h => {
                   )}
                 </div>
 
+                <button onClick={() => setShowBookmarks(!showBookmarks)} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", showBookmarks ? btnActive : btnInactive)}>
+                  <Star size={16} className={showBookmarks ? 'fill-white' : ''} /> {lang === 'de' ? 'Lesezeichen' : 'Bookmarks'}
+                </button>
+
                 {/* EMPLOYEE STATUS FILTER */}
                 <div className="relative" ref={empMenuRef}>
                   <button 
@@ -1211,10 +1215,6 @@ finalFiltered.forEach(h => {
                     </div>
                   )}
                 </div>
-
-                <button onClick={() => setShowBookmarks(!showBookmarks)} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", showBookmarks ? btnActive : btnInactive)}>
-                  <Star size={16} className={showBookmarks ? 'fill-white' : ''} /> {lang === 'de' ? 'Lesezeichen' : 'Bookmarks'}
-                </button>
                 
                 {/* ACTION BUTTONS */}
                 <div className="flex items-center gap-3 ml-4 border-l pl-4 dark:border-white/10 border-slate-200">
