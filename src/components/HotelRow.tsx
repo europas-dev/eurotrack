@@ -1558,7 +1558,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                           }
                                                       }} 
                                                       className={cn(inputCls, "w-[100px] text-right font-black disabled:opacity-40")} 
-                                                      placeholder={totalDraft?.lastEdited === 'brutto' ? calcNetto : "0.00"} 
+                                                      placeholder="0.00" 
                                                   />
                                                   {!showTotalDiscount && totalDraft?.lastEdited !== 'brutto' && <button onClick={() => { setShowTotalDiscount(true); if(!totalDraft?.discountType) setTotalDraft({...totalDraft, discountType: 'fixed'}); }} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 shrink-0"><Ticket size={14}/></button>}
                                                   {showTotalDiscount && totalDraft?.lastEdited !== 'brutto' && (
@@ -1646,7 +1646,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                               }
                                                           }} 
                                                           className={cn(inputCls, "w-full text-right pr-2 font-black disabled:opacity-40")} 
-                                                          placeholder={totalDraft?.lastEdited === 'netto' ? calcBrutto : "0.00"} 
+                                                          placeholder="0.00" 
                                                       />
                                                   </div>
                                               </div>
