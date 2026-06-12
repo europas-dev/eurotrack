@@ -60,6 +60,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   // --- SELECTION SYSTEM STATE ---
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [expandedHotelId, setExpandedHotelId] = useState<string | null>(null);  // ADD THIS LINE
+  const [activeEmpFilters, setActiveEmpFilters] = useState<string[]>([]);
+  const [showEmpMenu, setShowEmpMenu] = useState(false);
+  const empMenuRef = useRef<HTMLDivElement>(null);
 
   // MENU VISIBILITY
   const [showFilterMenu, setShowFilterMenu] = useState(false);
@@ -494,6 +497,19 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
          if (!hasFree) return false;
       }
 
+    // EMPLOYEE STATUS FILTER
+      if (activeEmpFilters.length > 0) {
+        const hasMatch = (h.durations || []).some((d: any) => 
+            (d.roomCards || []).some((rc: any) => 
+                (rc.employees || []).some((e: any) => {
+                    const status = getEmployeeStatus(e.checkIn, e.checkOut);
+                    return activeEmpFilters.includes(status);
+                })
+            )
+        );
+        if (!hasMatch) return false;
+      }
+      
      return true;
     }).sort((a, b) => {
       let va: any; let vb: any;
@@ -987,6 +1003,33 @@ finalFiltered.forEach(h => {
   )}
 </div>
 
+
+                {/* EMPLOYEE STATUS FILTER */}
+                <div className="relative" ref={empMenuRef}>
+                  <button onClick={() => { closeMenu(); setShowEmpMenu(!showEmpMenu); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", activeEmpFilters.length > 0 ? btnActive : btnInactive)}>
+                    <Building2 size={16} /> 
+                  </button>
+                  {showEmpMenu && (
+                    <div className={cn(popupCls, 'w-[200px] p-2')}>
+                      <p className={sectionTitle}>{lang === 'de' ? 'Mitarbeiter Status' : 'Emp. Status'}</p>
+                      <div className="flex flex-col gap-1">
+                        {[
+                          { id: 'active', label: lang === 'de' ? 'Aktiv' : 'Active', color: 'bg-emerald-500' },
+                          { id: 'upcoming', label: lang === 'de' ? 'Bevorstehend' : 'Upcoming', color: 'bg-blue-500' },
+                          { id: 'ending-soon', label: lang === 'de' ? 'Endet bald' : 'Ending Soon', color: 'bg-red-500' },
+                          { id: 'completed', label: lang === 'de' ? 'Abgeschlossen' : 'Completed', color: 'bg-slate-400' }
+                        ].map(s => (
+                          <button key={s.id} onClick={() => setActiveEmpFilters(prev => prev.includes(s.id) ? prev.filter(i => i !== s.id) : [...prev, s.id])} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-all">
+                            <div className={cn("w-3 h-3 rounded-full", s.color, activeEmpFilters.includes(s.id) ? "opacity-100" : "opacity-30")} />
+                            <span className={cn("text-sm font-bold", activeEmpFilters.includes(s.id) ? "" : "opacity-50")}>{s.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <button onClick={() => setActiveEmpFilters([])} className="w-full mt-3 text-xs font-bold text-slate-400 hover:text-teal-500">{lang === 'de' ? 'Filter zurücksetzen' : 'Reset'}</button>
+                    </div>
+                  )}
+                </div>
+
                 {/* TIMELINE */}
                 <div className="relative">
                   <button onClick={() => { closeMenu(); setShowTimelineMenu(!showTimelineMenu); setShowYearMenu(false); setShowMonthMenu(false); }} className={cn("px-4 py-2.5 rounded-xl border text-sm font-medium flex items-center gap-2", tlType !== 'all' ? btnActive : btnInactive)}><Calendar size={16} /> {lang === 'de' ? 'Zeitraum' : 'Timeline'}</button>
@@ -1166,8 +1209,8 @@ finalFiltered.forEach(h => {
                     <button onClick={af.clear} className="hover:text-red-500 ml-1 transition-colors"><X size={12} strokeWidth={3} /></button>
                   </span>
                 ))}
-                <button onClick={() => { setTlType('all'); setFbType('all'); setFilterPaid('all'); setFilterDue('all'); setFilterDeposit('all'); setGroupBy('none'); setSortBy('created_at'); setSortDir('desc'); setShowBookmarks(false); }} className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-white ml-2 transition-all hover:underline">
-                  {lang === 'de' ? 'Alle löschen' : 'Clear All'}
+                <button onClick={() => { setTlType('all'); setFbType('all'); setFilterPaid('all'); setFilterDue('all'); setFilterDeposit('all'); setGroupBy('none'); setSortBy('created_at'); setSortDir('desc'); setShowBookmarks(false); setActiveEmpFilters([]); }} className="text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-white ml-2 transition-all hover:underline">
+                {lang === 'de' ? 'Alle löschen' : 'Clear All'}
                 </button>
               </div>
             )}
