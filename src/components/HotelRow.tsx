@@ -951,8 +951,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           : (dk ? 'bg-[#1E293B] border-white/5 hover:border-white/10' : 'bg-white border-slate-200 hover:border-slate-300'))}>  
         <div className={cn("absolute right-0 top-0 bottom-0 w-[4px] rounded-r-xl transition-colors z-[60]", masterMath.totalUnpaid > 0 ? "bg-red-500" : (masterMath.totalPaid > 0 ? "bg-emerald-500" : "bg-transparent border-l border-slate-200 dark:border-white/10"))} />
 
-        <div className={cn('flex items-center cursor-pointer py-1 px-2 pr-2 group', dk ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/70', isOpen && 'border-b', isOpen && (dk ? 'border-white/5 bg-black/20' : 'border-slate-100 bg-slate-50/50'))} onClick={onToggle}>
-          
+       <div className={cn('flex items-center cursor-pointer py-1.5 min-h-[56px] px-2 pr-2 group', dk ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/70', isOpen && 'border-b', isOpen && (dk ? 'border-white/5 bg-black/20' : 'border-slate-100 bg-slate-50/50'))} onClick={onToggle}>   
           <div className="flex items-center justify-center w-10 shrink-0">
             {isOpen ? <ChevronDown size={18} className="text-teal-500" /> : <ChevronRight size={18} className="text-slate-500" />}
           </div>
@@ -1240,8 +1239,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                   <button onClick={(e) => e.stopPropagation()} className="p-0.5 rounded text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"><Clock size={12} /></button>
                   <div className={cn("absolute right-full mr-2 top-1/2 -translate-y-1/2 w-max px-2 py-1 text-[9px] font-bold rounded opacity-0 group-hover/time:opacity-100 z-[99999] whitespace-nowrap pointer-events-none shadow-xl border", dk ? "bg-slate-700 text-white border-white/20" : "bg-white text-slate-800 border-slate-300")}>{formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}</div>
                </div>
-               {!viewOnly && (
+               {!viewOnly ? (
                  <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-0.5 rounded text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
+               ) : (
+                 <div className="w-[16px] h-[16px] shrink-0" />
                )}
           </div>
         </div>
