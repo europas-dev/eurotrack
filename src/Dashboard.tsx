@@ -556,7 +556,12 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
               let p = 0;
               (hotel.invoices || []).filter((i:any) => i.isPaid).forEach((inv: any) => {
                   if (inv.billingMode === 'total') {
-                     p += (parseFloat(inv.totalNetto)||0) * (1 + (parseFloat(inv.totalMwst)||0)/100);
+                     const baseN = parseFloat(inv.totalNetto) || 0;
+                     const m = parseFloat(inv.totalMwst) || 0;
+                     const disc = parseFloat(inv.discountValue) || 0;
+                     const isPct = inv.discountType === 'percentage';
+                     const finalN = Math.max(0, baseN - (isPct ? baseN * (disc/100) : disc));
+                     p += finalN * (1 + m / 100);
                   } else {
                      const defN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
                      p += (inv.items || []).reduce((s:number, it:any) => s + (calcInvoiceItem(it, defN)?.brutto || 0), 0);
@@ -659,14 +664,17 @@ finalFiltered.forEach(h => {
     if (selectedMonth !== null && d.getMonth() !== selectedMonth) return;
 
     let invBrutto = 0;
-    if (inv.billingMode === 'total') {
-      const n = parseFloat(inv.totalNetto) || 0;
-      const m = parseFloat(inv.totalMwst) || 0;
-      const b = n * (1 + m / 100);
-      finalNetto += n;
-      finalBrutto += b;
-      invBrutto += b;
-    } else {
+        if (inv.billingMode === 'total') {
+          const baseN = parseFloat(inv.totalNetto) || 0;
+          const m = parseFloat(inv.totalMwst) || 0;
+          const disc = parseFloat(inv.discountValue) || 0;
+          const isPct = inv.discountType === 'percentage';
+          const n = Math.max(0, baseN - (isPct ? baseN * (disc/100) : disc));
+          const b = n * (1 + m / 100);
+          finalNetto += n;
+          finalBrutto += b;
+          invBrutto += b;
+        } else {
       const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
       (inv.items || []).forEach((item: any) => {
         const mwst = item.mwst != null ? parseFloat(item.mwst) : 0;
