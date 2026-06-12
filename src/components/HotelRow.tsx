@@ -1514,18 +1514,34 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                       <button onClick={() => {
                                                           let initN = activeInvoice.totalNetto;
                                                           let initB = activeInvoice.totalBrutto;
-                                                          if (initN && parseFloat(initN) > 0) { initB = null; } 
-                                                          else if (initB && parseFloat(initB) > 0) { initN = null; }
+                                                          const m = parseFloat(activeInvoice.totalMwst ?? 7);
+                                                          const dVal = parseFloat(activeInvoice.discountValue ?? 0);
+                                                          const dType = activeInvoice.discountType || 'fixed';
+                                                          
+                                                          if (initN && !initB) {
+                                                              const baseN = parseFloat(initN);
+                                                              const discAmt = dType === 'percentage' ? baseN * (dVal/100) : dVal;
+                                                              const finalN = Math.max(0, baseN - discAmt);
+                                                              initB = (finalN * (1 + m / 100)).toFixed(2);
+                                                          } else if (initB && !initN) {
+                                                              const b = parseFloat(initB);
+                                                              const finalN = b / (1 + m / 100);
+                                                              let baseN = 0;
+                                                              if (dType === 'fixed') { baseN = finalN + dVal; } 
+                                                              else { const r = 1 - (dVal/100); baseN = r > 0 ? finalN / r : 0; }
+                                                              initN = baseN.toFixed(2);
+                                                          }
+
                                                           setTotalDraft({ 
                                                               totalNetto: initN, 
                                                               totalBrutto: initB, 
-                                                              totalMwst: activeInvoice.totalMwst, 
+                                                              totalMwst: activeInvoice.totalMwst ?? 7, 
                                                               discountValue: activeInvoice.discountValue, 
-                                                              discountType: activeInvoice.discountType || 'fixed', 
+                                                              discountType: dType, 
                                                               note: activeInvoice.note,
-                                                              lastEdited: activeInvoice.lastEdited || (initB ? 'brutto' : (initN ? 'netto' : null))
+                                                              lastEdited: activeInvoice.lastEdited || (initB ? 'brutto' : 'netto')
                                                           });
-                                                          setShowTotalDiscount(parseFloat(activeInvoice.discountValue || 0) > 0);
+                                                          setShowTotalDiscount(dVal > 0);
                                                           setEditingTotal(true);
                                                       }} className={cn("h-[30px] w-[30px] rounded-lg flex items-center justify-center font-bold transition-all shadow-sm", dk ? "bg-white/10 hover:bg-white/20 text-slate-300" : "bg-slate-100 hover:bg-slate-200 text-slate-700")}>
                                                           <Edit3 size={13} />
@@ -1560,8 +1576,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                       className={cn(inputCls, "w-[100px] text-right font-black disabled:opacity-40")} 
                                                       placeholder="0.00" 
                                                   />
-                                                  {!showTotalDiscount && totalDraft?.lastEdited !== 'brutto' && <button onClick={() => { setShowTotalDiscount(true); if(!totalDraft?.discountType) setTotalDraft({...totalDraft, discountType: 'fixed'}); }} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 shrink-0"><Ticket size={14}/></button>}
-                                                  {showTotalDiscount && totalDraft?.lastEdited !== 'brutto' && (
+                                                  {!showTotalDiscount && <button onClick={() => { setShowTotalDiscount(true); if(!totalDraft?.discountType) setTotalDraft({...totalDraft, discountType: 'fixed'}); }} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 shrink-0"><Ticket size={14}/></button>}
+                                                  {showTotalDiscount && (
                                                       <div className="flex items-center w-[130px] shrink-0 animate-in fade-in slide-in-from-left-2 ml-1">
                                                           <input type="number" value={totalDraft?.discountValue ?? ''} onChange={e => {
                                                               const nDisc = e.target.value;
