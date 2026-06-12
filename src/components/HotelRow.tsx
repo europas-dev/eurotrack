@@ -113,7 +113,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
 
   if (isEditing && !viewOnly) {
     return (
-      <div ref={editRef} className={cn("flex flex-col p-2 border-b transition-all w-full relative z-20 shadow-xl", dk ? "bg-teal-900/20 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
+      <div ref={editRef} className={cn("flex flex-col p-2 border-b transition-all w-full relative z-[100] shadow-xl", dk ? "bg-teal-900/20 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
         <div className="flex items-start w-full gap-2">
            {/* WIDTH FIX: Expanded to 220px to prevent dropdowns from choking */}
            <div className="w-[220px] flex items-center gap-1.5 shrink-0">
@@ -152,7 +152,7 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
                          )}
                      </div>
                      {calOpen && (
-                         <div className={cn("absolute bottom-full right-0 mb-2 p-3 rounded-xl border shadow-2xl z-[9999] flex flex-col gap-3 w-[260px]", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+                         <div className={cn("absolute top-full right-0 mt-2 p-3 rounded-xl border shadow-2xl z-[99999] flex flex-col gap-3 w-[260px]", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
                             <div className="flex items-center gap-2 w-full">
                                 <div className="flex-1 flex flex-col gap-1">
                                    <label className="text-[9px] font-bold text-slate-500 uppercase">Start</label>
@@ -1467,7 +1467,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                       )}
                    </div>
 
-                   <div className="flex-1 overflow-y-auto max-h-[400px] relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
+                   <div className="flex-1 overflow-y-auto max-h-[400px] pb-48 relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
                       {activeInvoice ? (
                          activeInvoice.billingMode === 'total' ? (() => {
                              return (
