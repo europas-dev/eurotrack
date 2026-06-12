@@ -1,7 +1,7 @@
 // src/Dashboard.tsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase, deleteHotel, createHotel, updateHotel } from './lib/supabase';
-import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday, calculateNights, calcInvoiceItem } from './lib/utils';
+import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday, calculateNights, calcInvoiceItem, getEmployeeStatus } from './lib/utils';
 import { calcRoomCardNettoSum, calcRoomCardTotal } from './lib/roomCardUtils';
 import type { AccessLevel } from './lib/supabase';
 import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Star, Calendar, MapPin, Building, Building2, CloudOff, Globe, Trash2, Copy, Eye, EyeOff, ChevronDown, ChevronUp, Bed, Coins } from 'lucide-react';
@@ -478,7 +478,19 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           });
           if (!hasTimelineOverlap) return false;
       }
-      
+      // --- ADD THIS BLOCK HERE ---
+      // EMPLOYEE STATUS FILTER
+      if (activeEmpFilters.length > 0) {
+        const hasMatch = (h.durations || []).some((d: any) => 
+            (d.roomCards || []).some((rc: any) => 
+                (rc.employees || []).some((e: any) => {
+                    const status = getEmployeeStatus(e.checkIn, e.checkOut);
+                    return activeEmpFilters.includes(status);
+                })
+            )
+        );
+        if (!hasMatch) return false;
+      }
       if (fbType !== 'all') {
          let targetDate = new Date().toISOString().split('T')[0];
          if (fbType === 'tomorrow') { const d = new Date(); d.setDate(d.getDate()+1); targetDate = d.toISOString().split('T')[0]; }
