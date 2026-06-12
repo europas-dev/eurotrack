@@ -14,7 +14,7 @@ import {
   User, Lock, UserPlus, ChevronDown,
   ChevronRight, Pencil, Shield, Minus, Plus,
   Mail, KeyRound, AtSign, Eye, EyeOff, HelpCircle,
-  FileText, Info, Wifi, WifiOff, Upload, EyeIcon, EyeOffIcon
+  FileText, Info, Wifi, WifiOff, Upload, EyeIcon, EyeOffIcon, LogOut
 } from 'lucide-react';
 
 const AVATARS = [
@@ -358,9 +358,17 @@ export default function Header({
             <Settings size={18} />
           </button>
 
-          <button onClick={onSignOut} className="ml-2 px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white font-black rounded-lg text-sm transition-all shadow-md">
-            {isDe ? 'Abmelden' : 'Sign Out'}
-          </button>
+          <button 
+          onClick={onSignOut} 
+          title={lang === 'de' ? 'Abmelden' : 'Sign Out'}
+          className={cn(
+            "p-2 rounded-lg transition-all flex items-center justify-center",
+            dk ? "bg-white/5 text-slate-400 hover:bg-red-500/20 hover:text-red-400" 
+               : "bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-600"
+          )}
+        >
+          <LogOut size={18} />
+        </button>
         </div>
       </div>
 
