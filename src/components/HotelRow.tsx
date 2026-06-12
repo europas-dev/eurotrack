@@ -693,8 +693,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     invoicesToScan.forEach((inv: any) => {
        let invBrutto = 0;
        if (inv.billingMode === 'total') {
-          const n = parseFloat(inv.totalNetto) || 0;
+          const baseN = parseFloat(inv.totalNetto) || 0;
           const m = parseFloat(inv.totalMwst) || 0;
+          const disc = parseFloat(inv.discountValue) || 0;
+          const isPct = inv.discountType === 'percentage';
+          const n = Math.max(0, baseN - (isPct ? baseN * (disc/100) : disc));
           const b = n * (1 + m/100);
           finalNetto += n;
           finalBrutto += b;
@@ -728,8 +731,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     let activeNetto = 0; let activeBrutto = 0; let activeBuckets: Record<string, number> = {};
     if (activeInvoice) {
        if (activeInvoice.billingMode === 'total') {
-          const n = parseFloat(activeInvoice.totalNetto) || 0;
+          const baseN = parseFloat(activeInvoice.totalNetto) || 0;
           const m = parseFloat(activeInvoice.totalMwst) || 0;
+          const disc = parseFloat(activeInvoice.discountValue) || 0;
+          const isPct = activeInvoice.discountType === 'percentage';
+          const n = Math.max(0, baseN - (isPct ? baseN * (disc/100) : disc));
           activeBrutto = n * (1 + m/100);
           activeNetto = n;
           if (n > 0 && m !== null) activeBuckets[m] = n * (m/100);
@@ -1470,132 +1476,227 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    <div className="flex-1 overflow-y-auto max-h-[400px] pb-48 relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
                       {activeInvoice ? (
                          activeInvoice.billingMode === 'total' ? (() => {
+                             const draftNetto = totalDraft?.totalNetto;
+                             const draftBrutto = totalDraft?.totalBrutto;
+                             const draftMwst = parseFloat(totalDraft?.totalMwst ?? (activeInvoice.totalMwst ?? 7)) || 0;
+                             const draftDiscVal = parseFloat(totalDraft?.discountValue ?? (activeInvoice.discountValue ?? 0)) || 0;
+                             const draftDiscType = totalDraft?.discountType ?? (activeInvoice.discountType ?? 'fixed');
+                             
+                             const hasN = draftNetto != null && draftNetto !== '';
+                             const hasB = draftBrutto != null && draftBrutto !== '';
+                             
+                             let calcBrutto = '';
+                             if (hasN) {
+                                 const baseN = parseFloat(draftNetto);
+                                 const discAmt = draftDiscType === 'percentage' ? baseN * (draftDiscVal/100) : draftDiscVal;
+                                 const finalN = Math.max(0, baseN - discAmt);
+                                 calcBrutto = (finalN * (1 + draftMwst / 100)).toFixed(2);
+                             }
+                             
+                             let calcNetto = '';
+                             if (hasB) {
+                                 const b = parseFloat(draftBrutto);
+                                 const finalN = b / (1 + draftMwst / 100);
+                                 let baseN = 0;
+                                 if (draftDiscType === 'fixed') {
+                                     baseN = finalN + draftDiscVal;
+                                 } else {
+                                     const ratio = 1 - (draftDiscVal/100);
+                                     baseN = ratio > 0 ? finalN / ratio : 0;
+                                 }
+                                 calcNetto = baseN.toFixed(2);
+                             }
+                             
+                             const viewBaseN = parseFloat(activeInvoice.totalNetto) || 0;
+                             const viewDiscVal = parseFloat(activeInvoice.discountValue) || 0;
+                             const viewDiscType = activeInvoice.discountType || 'fixed';
+                             const viewDiscAmt = viewDiscType === 'percentage' ? viewBaseN * (viewDiscVal/100) : viewDiscVal;
+                             const viewFinalN = Math.max(0, viewBaseN - viewDiscAmt);
+                             const viewMwst = parseFloat(activeInvoice.totalMwst) || 7;
+                             const viewBrutto = viewFinalN * (1 + viewMwst/100);
+
                              return (
                                 <div className="p-4">
-                                   <div ref={totalRef} className={cn("flex flex-col p-4 rounded-2xl border shadow-sm animate-in fade-in slide-in-from-top-2 relative z-20", dk ? "bg-[#1E293B]" : "bg-white", editingTotal ? (dk ? "border-teal-500/50 shadow-xl bg-teal-900/20" : "border-teal-300 shadow-xl bg-teal-50") : (dk ? "border-slate-800" : "border-slate-100"))}>
-                                      <div className="flex items-center gap-5 w-full">
-                                         
-                                         <div className="flex-1 flex items-center gap-2 min-w-[200px]">
-                                            <label className={labelCls}>Netto</label>
-                                            <input 
-                                                disabled={viewOnly || !editingTotal} 
-                                                type="number" 
-                                                value={editingTotal ? (totalDraft?.totalNetto ?? '') : (activeInvoice.totalNetto ?? '')} 
-                                                onFocus={() => {
-                                                    if (editingTotal) setTotalDraft({...totalDraft, lastEdited: 'netto'});
-                                                }}
-                                                onChange={e => {
-                                                    const nVal = e.target.value;
-                                                    const m = parseFloat(totalDraft?.totalMwst || 0);
-                                                    if (nVal === '') {
-                                                        setTotalDraft({...totalDraft, totalNetto: '', totalBrutto: '', lastEdited: 'netto'});
-                                                    } else {
-                                                        const b = (parseFloat(nVal) * (1 + m / 100)).toFixed(2);
-                                                        setTotalDraft({...totalDraft, totalNetto: nVal, totalBrutto: b, lastEdited: 'netto'});
-                                                    }
-                                                }} 
-                                                className={cn(inputCls, "w-[100px] disabled:opacity-30 text-right")} 
-                                                placeholder="0.00" 
-                                            />
-                                            {(!showTotalDiscount && editingTotal && !viewOnly) && <button onClick={() => { setShowTotalDiscount(true); if(!totalDraft?.discountType) setTotalDraft({...totalDraft, discountType: 'fixed'}); }} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 shrink-0"><Ticket size={14}/></button>}
-                                            {showTotalDiscount && (
-                                                <div className="flex items-center w-[130px] shrink-0 animate-in fade-in slide-in-from-left-2 ml-1">
-                                                   <input disabled={!editingTotal} type="number" value={editingTotal ? (totalDraft?.discountValue ?? '') : (activeInvoice.discountValue ?? '')} onChange={e => setTotalDraft({...totalDraft, discountValue: e.target.value})} className={cn(inputCls, "rounded-r-none border-r-0 w-[65px] px-1.5 text-right placeholder:text-[10px]")} placeholder="Rabatt" />
-                                                   <button disabled={!editingTotal} onClick={() => setTotalDraft({...totalDraft, discountType: totalDraft?.discountType === 'percentage' ? 'fixed' : 'percentage'})} className={cn("w-[30px] h-[34px] border-y border-r text-[11px] font-bold transition-colors disabled:opacity-50", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{editingTotal ? (totalDraft?.discountType === 'percentage' ? '%' : '€') : (activeInvoice.discountType === 'percentage' ? '%' : '€')}</button>
-                                                   {editingTotal && <button onClick={() => { setShowTotalDiscount(false); setTotalDraft({...totalDraft, discountValue: null}); }} className={cn("w-[30px] h-[34px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>}
-                                                </div>
-                                            )}
-                                         </div>
-                                         
-                                         <div className="w-[100px] shrink-0 flex items-center gap-2">
-                                            <label className={labelCls}>MwSt</label>
-                                            {editingTotal && !viewOnly ? (
-                                               <MwstInput 
-                                                  value={totalDraft?.totalMwst} 
-                                                  onChange={(v:any) => {
-                                                      const m = parseFloat(v) || 0;
-                                                      let newDraft = { ...totalDraft, totalMwst: v };
-                                                      
-                                                      // If the user last touched Brutto, keep Brutto locked and calculate Netto
-                                                      if (totalDraft?.lastEdited === 'brutto' && totalDraft?.totalBrutto) {
-                                                          newDraft.totalNetto = (parseFloat(totalDraft.totalBrutto) / (1 + m / 100)).toFixed(2);
-                                                      } 
-                                                      // Otherwise default to keeping Netto locked and calculate Brutto
-                                                      else if (totalDraft?.totalNetto) {
-                                                          newDraft.totalBrutto = (parseFloat(totalDraft.totalNetto) * (1 + m / 100)).toFixed(2);
-                                                      }
-                                                      setTotalDraft(newDraft);
-                                                  }} 
-                                                  isDarkMode={dk} 
-                                               />
-                                            ) : (
-                                               <div className={cn(inputCls, "text-center border-transparent bg-transparent px-0 text-sm")}>{activeInvoice.totalMwst || 7}%</div>
-                                            )}
-                                         </div>
+                                   <div ref={totalRef} className={cn("flex flex-col p-4 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-2 relative", editingTotal ? "z-[100] shadow-2xl" : "z-20 shadow-sm", dk ? "bg-[#1E293B]" : "bg-white", editingTotal ? (dk ? "border-teal-500/50 bg-teal-900/20" : "border-teal-300 bg-teal-50") : (dk ? "border-slate-800" : "border-slate-100"))}>
+                                      
+                                      {!editingTotal ? (
+                                          <div className="flex items-center gap-4 px-2 w-full text-[13px]">
+                                              <div className="flex items-center gap-2">
+                                                  <span className="font-bold text-slate-500 uppercase tracking-widest text-[10px]">Netto</span>
+                                                  <span className={cn("font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(viewBaseN)}</span>
+                                                  {viewDiscVal > 0 && (
+                                                      <div className="flex items-center gap-1.5 ml-1">
+                                                          <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[11px]">- {viewDiscType === 'percentage' ? `${viewDiscVal}%` : formatCurrency(viewDiscVal)}</span>
+                                                          <span className="text-teal-500 font-bold">➔</span>
+                                                          <span className="text-teal-500 font-black">{formatCurrency(viewFinalN)}</span>
+                                                      </div>
+                                                  )}
+                                              </div>
+                                              <div className="w-px h-4 bg-slate-200 dark:bg-white/10" />
+                                              <div className="flex items-center gap-2">
+                                                  <span className="font-bold text-slate-500 uppercase tracking-widest text-[10px]">MwSt</span>
+                                                  <span className={cn("font-black", dk ? "text-slate-300" : "text-slate-700")}>{viewMwst}%</span>
+                                              </div>
+                                              <div className="w-px h-4 bg-slate-200 dark:bg-white/10" />
+                                              <div className="flex items-center gap-2">
+                                                  <span className="font-bold text-slate-500 uppercase tracking-widest text-[10px]">Brutto</span>
+                                                  <span className={cn("font-black text-[14px]", dk ? "text-white" : "text-slate-900")}>{formatCurrency(viewBrutto)}</span>
+                                              </div>
+                                              {!viewOnly && (
+                                                  <div className="ml-auto flex items-center gap-2">
+                                                      <button onClick={() => {
+                                                          let initN = activeInvoice.totalNetto;
+                                                          let initB = activeInvoice.totalBrutto;
+                                                          if (initN && parseFloat(initN) > 0) { initB = null; } 
+                                                          else if (initB && parseFloat(initB) > 0) { initN = null; }
+                                                          setTotalDraft({ 
+                                                              totalNetto: initN, 
+                                                              totalBrutto: initB, 
+                                                              totalMwst: activeInvoice.totalMwst, 
+                                                              discountValue: activeInvoice.discountValue, 
+                                                              discountType: activeInvoice.discountType || 'fixed', 
+                                                              note: activeInvoice.note,
+                                                              lastEdited: 'netto' 
+                                                          });
+                                                          setShowTotalDiscount(parseFloat(activeInvoice.discountValue || 0) > 0);
+                                                          setEditingTotal(true);
+                                                      }} className={cn("h-[30px] w-[30px] rounded-lg flex items-center justify-center font-bold transition-all shadow-sm", dk ? "bg-white/10 hover:bg-white/20 text-slate-300" : "bg-slate-100 hover:bg-slate-200 text-slate-700")}>
+                                                          <Edit3 size={13} />
+                                                      </button>
+                                                  </div>
+                                              )}
+                                          </div>
+                                      ) : (
+                                          <div className="flex items-center gap-5 w-full">
+                                              <div className="flex-1 flex items-center gap-2 min-w-[200px]">
+                                                  <label className={labelCls}>Netto</label>
+                                                  <input 
+                                                      type="number" 
+                                                      value={totalDraft?.totalNetto ?? ''} 
+                                                      disabled={hasB}
+                                                      onFocus={() => setTotalDraft({...totalDraft, lastEdited: 'netto'})}
+                                                      onChange={e => {
+                                                          const nVal = e.target.value;
+                                                          if (nVal === '') {
+                                                              setTotalDraft({...totalDraft, totalNetto: '', totalBrutto: '', lastEdited: 'netto'});
+                                                          } else {
+                                                              const discAmt = draftDiscType === 'percentage' ? parseFloat(nVal) * (draftDiscVal/100) : draftDiscVal;
+                                                              const finalN = Math.max(0, parseFloat(nVal) - discAmt);
+                                                              const b = (finalN * (1 + draftMwst / 100)).toFixed(2);
+                                                              setTotalDraft({...totalDraft, totalNetto: nVal, totalBrutto: b, lastEdited: 'netto'});
+                                                          }
+                                                      }} 
+                                                      className={cn(inputCls, "w-[100px] text-right", hasB ? "opacity-100 bg-transparent border-transparent font-black" : "")} 
+                                                      placeholder={hasB ? calcNetto : "0.00"} 
+                                                  />
+                                                  {(!showTotalDiscount && !hasB) && <button onClick={() => { setShowTotalDiscount(true); if(!totalDraft?.discountType) setTotalDraft({...totalDraft, discountType: 'fixed'}); }} className="p-1.5 rounded text-slate-400 hover:text-teal-500 bg-black/5 dark:bg-white/5 shrink-0"><Ticket size={14}/></button>}
+                                                  {showTotalDiscount && !hasB && (
+                                                      <div className="flex items-center w-[130px] shrink-0 animate-in fade-in slide-in-from-left-2 ml-1">
+                                                          <input type="number" value={totalDraft?.discountValue ?? ''} onChange={e => {
+                                                              const nDisc = e.target.value;
+                                                              const dVal = parseFloat(nDisc) || 0;
+                                                              const nVal = parseFloat(totalDraft?.totalNetto) || 0;
+                                                              const discAmt = totalDraft?.discountType === 'percentage' ? nVal * (dVal/100) : dVal;
+                                                              const finalN = Math.max(0, nVal - discAmt);
+                                                              const b = (finalN * (1 + draftMwst / 100)).toFixed(2);
+                                                              setTotalDraft({...totalDraft, discountValue: nDisc, totalBrutto: b});
+                                                          }} className={cn(inputCls, "rounded-r-none border-r-0 w-[65px] px-1.5 text-right placeholder:text-[10px]")} placeholder="Rabatt" />
+                                                          <button onClick={() => {
+                                                              const nType = totalDraft?.discountType === 'percentage' ? 'fixed' : 'percentage';
+                                                              const dVal = parseFloat(totalDraft?.discountValue) || 0;
+                                                              const nVal = parseFloat(totalDraft?.totalNetto) || 0;
+                                                              const discAmt = nType === 'percentage' ? nVal * (dVal/100) : dVal;
+                                                              const finalN = Math.max(0, nVal - discAmt);
+                                                              const b = (finalN * (1 + draftMwst / 100)).toFixed(2);
+                                                              setTotalDraft({...totalDraft, discountType: nType, totalBrutto: b});
+                                                          }} className={cn("w-[30px] h-[34px] border-y border-r text-[11px] font-bold transition-colors", dk ? "bg-white/10 hover:bg-white/20 border-white/10 text-white" : "bg-slate-200 hover:bg-slate-300 border-slate-200 text-slate-700")}>{totalDraft?.discountType === 'percentage' ? '%' : '€'}</button>
+                                                          <button onClick={() => { setShowTotalDiscount(false); 
+                                                              const nVal = parseFloat(totalDraft?.totalNetto) || 0;
+                                                              const b = (nVal * (1 + draftMwst / 100)).toFixed(2);
+                                                              setTotalDraft({...totalDraft, discountValue: null, totalBrutto: b}); 
+                                                          }} className={cn("w-[30px] h-[34px] rounded-r border-y border-r flex items-center justify-center transition-colors text-slate-400 hover:text-red-500", dk ? "bg-black/20 border-white/10" : "bg-white border-slate-200")}><X size={14}/></button>
+                                                      </div>
+                                                  )}
+                                              </div>
+                                              
+                                              <div className="w-[100px] shrink-0 flex items-center gap-2">
+                                                  <label className={labelCls}>MwSt</label>
+                                                  <MwstInput 
+                                                      value={totalDraft?.totalMwst} 
+                                                      onChange={(v:any) => {
+                                                          const m = parseFloat(v) || 0;
+                                                          let newDraft = { ...totalDraft, totalMwst: v };
+                                                          if (totalDraft?.lastEdited === 'brutto' && totalDraft?.totalBrutto) {
+                                                              const b = parseFloat(totalDraft.totalBrutto);
+                                                              const finalN = b / (1 + m / 100);
+                                                              const dVal = parseFloat(totalDraft?.discountValue) || 0;
+                                                              const dType = totalDraft?.discountType || 'fixed';
+                                                              let baseN = 0;
+                                                              if (dType === 'fixed') { baseN = finalN + dVal; } 
+                                                              else { const r = 1 - (dVal/100); baseN = r > 0 ? finalN / r : 0; }
+                                                              newDraft.totalNetto = baseN.toFixed(2);
+                                                          } 
+                                                          else if (totalDraft?.totalNetto) {
+                                                              const baseN = parseFloat(totalDraft.totalNetto);
+                                                              const dVal = parseFloat(totalDraft?.discountValue) || 0;
+                                                              const dType = totalDraft?.discountType || 'fixed';
+                                                              const discAmt = dType === 'percentage' ? baseN * (dVal/100) : dVal;
+                                                              const finalN = Math.max(0, baseN - discAmt);
+                                                              newDraft.totalBrutto = (finalN * (1 + m / 100)).toFixed(2);
+                                                          }
+                                                          setTotalDraft(newDraft);
+                                                      }} 
+                                                      isDarkMode={dk} 
+                                                  />
+                                              </div>
 
-                                         <div className="w-[160px] shrink-0 flex items-center gap-2">
-                                            <label className={labelCls}>Brutto</label>
-                                            <div className="relative flex-1">
-                                                <input 
-                                                    disabled={viewOnly || !editingTotal} 
-                                                    type="number" 
-                                                    value={editingTotal ? (totalDraft?.totalBrutto ?? '') : (activeInvoice.totalBrutto ?? '')} 
-                                                    onFocus={() => {
-                                                        if (editingTotal) setTotalDraft({...totalDraft, lastEdited: 'brutto'});
-                                                    }}
-                                                    onChange={e => {
-                                                        const bVal = e.target.value;
-                                                        const m = parseFloat(totalDraft?.totalMwst || 0);
-                                                        if (bVal === '') {
-                                                            setTotalDraft({...totalDraft, totalNetto: '', totalBrutto: '', lastEdited: 'brutto'});
-                                                        } else {
-                                                            const n = (parseFloat(bVal) / (1 + m / 100)).toFixed(2);
-                                                            setTotalDraft({...totalDraft, totalBrutto: bVal, totalNetto: n, lastEdited: 'brutto'});
-                                                        }
-                                                    }} 
-                                                    className={cn(inputCls, "w-full disabled:opacity-100 disabled:bg-transparent disabled:border-transparent font-black text-sm text-right pr-2 placeholder-slate-900 dark:placeholder-white")} 
-                                                    placeholder="0.00" 
-                                                />
-                                            </div>
-                                         </div>
+                                              <div className="w-[160px] shrink-0 flex items-center gap-2">
+                                                  <label className={labelCls}>Brutto</label>
+                                                  <div className="relative flex-1">
+                                                      <input 
+                                                          type="number" 
+                                                          value={totalDraft?.totalBrutto ?? ''} 
+                                                          disabled={hasN}
+                                                          onFocus={() => setTotalDraft({...totalDraft, lastEdited: 'brutto'})}
+                                                          onChange={e => {
+                                                              const bVal = e.target.value;
+                                                              if (bVal === '') {
+                                                                  setTotalDraft({...totalDraft, totalNetto: '', totalBrutto: '', lastEdited: 'brutto'});
+                                                              } else {
+                                                                  const finalN = parseFloat(bVal) / (1 + draftMwst / 100);
+                                                                  let baseN = 0;
+                                                                  if (draftDiscType === 'fixed') { baseN = finalN + draftDiscVal; } 
+                                                                  else { const r = 1 - (draftDiscVal/100); baseN = r > 0 ? finalN / r : 0; }
+                                                                  setTotalDraft({...totalDraft, totalBrutto: bVal, totalNetto: baseN.toFixed(2), lastEdited: 'brutto'});
+                                                              }
+                                                          }} 
+                                                          className={cn(inputCls, "w-full text-right pr-2 placeholder-slate-900 dark:placeholder-white", hasN ? "opacity-100 bg-transparent border-transparent font-black" : "")} 
+                                                          placeholder={hasN ? calcBrutto : "0.00"} 
+                                                      />
+                                                  </div>
+                                              </div>
 
-                                         {!viewOnly && (
-                                            <div className="w-max flex items-center justify-end gap-1.5 ml-3">
-                                               {editingTotal ? (
-                                                  <>
-                                                     <button onClick={() => {
-                                                         patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, ...totalDraft} : i) });
-                                                         setEditingTotal(false);
-                                                     }} className="h-[34px] w-[34px] rounded-xl flex items-center justify-center font-bold transition-all shadow-sm bg-teal-500 hover:bg-teal-600 text-white">
-                                                        <Check size={16} strokeWidth={3} />
-                                                     </button>
-                                                     <button onClick={() => setEditingTotal(false)} className={cn("h-[34px] w-[34px] rounded-xl flex items-center justify-center font-bold transition-all border", dk ? "border-white/10 hover:bg-white/10 text-slate-400 hover:text-white" : "border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-800")}>
-                                                        <X size={16} strokeWidth={3} />
-                                                     </button>
-                                                  </>
-                                               ) : (
+                                              <div className="w-max flex items-center justify-end gap-1.5 ml-3">
                                                   <button onClick={() => {
-                                                      setTotalDraft({ 
-                                                          totalNetto: activeInvoice.totalNetto, 
-                                                          totalBrutto: activeInvoice.totalBrutto, 
-                                                          totalMwst: activeInvoice.totalMwst, 
-                                                          discountValue: activeInvoice.discountValue, 
-                                                          discountType: activeInvoice.discountType || 'fixed', 
-                                                          note: activeInvoice.note,
-                                                          lastEdited: 'netto' 
-                                                      });
-                                                      setShowTotalDiscount(parseFloat(activeInvoice.discountValue || 0) > 0);
-                                                      setEditingTotal(true);
-                                                  }} className={cn("h-[34px] w-[34px] rounded-xl flex items-center justify-center font-bold transition-all shadow-sm", dk ? "bg-white/10 hover:bg-white/20 text-slate-300" : "bg-slate-100 hover:bg-slate-200 text-slate-700")}>
-                                                     <Edit3 size={14} />
+                                                      const finalNettoToSave = hasN ? totalDraft.totalNetto : calcNetto;
+                                                      const finalBruttoToSave = hasB ? totalDraft.totalBrutto : calcBrutto;
+                                                      patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, ...totalDraft, totalNetto: finalNettoToSave, totalBrutto: finalBruttoToSave} : i) });
+                                                      setEditingTotal(false);
+                                                  }} className="h-[34px] w-[34px] rounded-xl flex items-center justify-center font-bold transition-all shadow-sm bg-teal-500 hover:bg-teal-600 text-white">
+                                                      <Check size={16} strokeWidth={3} />
                                                   </button>
-                                               )}
-                                            </div>
-                                         )}
-                                      </div>
-                                      <div className="w-full mt-3 border-t pt-3 dark:border-white/10 border-slate-100 animate-in fade-in">
-                                         <textarea disabled={!editingTotal} rows={1} value={editingTotal ? (totalDraft?.note || '') : (activeInvoice.note || '')} onChange={e => { e.target.style.height='34px'; e.target.style.height=`${e.target.scrollHeight}px`; setTotalDraft({...totalDraft, note: e.target.value}) }} className={cn(inputCls, "w-full text-[12px] font-medium resize-none overflow-hidden placeholder-opacity-50 min-h-[34px] disabled:bg-transparent disabled:border-transparent")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />
-                                      </div>
+                                                  <button onClick={() => setEditingTotal(false)} className={cn("h-[34px] w-[34px] rounded-xl flex items-center justify-center font-bold transition-all border", dk ? "border-white/10 hover:bg-white/10 text-slate-400 hover:text-white" : "border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-800")}>
+                                                      <X size={16} strokeWidth={3} />
+                                                  </button>
+                                              </div>
+                                          </div>
+                                      )}
+
+                                      {(editingTotal || activeInvoice.note) && (
+                                          <div className="w-full mt-3 border-t pt-3 dark:border-white/10 border-slate-100 animate-in fade-in">
+                                             <textarea disabled={!editingTotal} rows={1} value={editingTotal ? (totalDraft?.note || '') : (activeInvoice.note || '')} onChange={e => { e.target.style.height='34px'; e.target.style.height=`${e.target.scrollHeight}px`; setTotalDraft({...totalDraft, note: e.target.value}) }} className={cn(inputCls, "w-full text-[12px] font-medium resize-none overflow-hidden placeholder-opacity-50 min-h-[34px] disabled:bg-transparent disabled:border-transparent disabled:opacity-70 disabled:px-0")} placeholder={lang === 'de' ? "Notiz (Optional)..." : "Note (Optional)..."} />
+                                          </div>
+                                      )}
                                    </div>
                                 </div>
                              );
@@ -1672,16 +1773,32 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                   </button>
                                   {isExpanded && (
                                     <div className="pl-6 pt-1 animate-in fade-in slide-in-from-top-1">
-                                      {inv.billingMode === 'total' ? (
-                                         <div className="flex items-center px-2 py-2 gap-2 border-b border-slate-100 dark:border-white/5">
-                                            <div className="w-[220px] shrink-0 text-[12px] font-bold text-slate-600 dark:text-slate-300">{lang === 'de' ? 'Gesamtbetrag' : 'Total'}</div>
-                                            <div className="flex-1 text-[11px] italic text-slate-400 opacity-50 text-right pr-3">--</div>
-                                            <div className="w-[100px] shrink-0 text-[12px] font-bold text-slate-700 dark:text-slate-300 text-right"><HighlightText text={formatCurrency(parseFloat(inv.totalNetto)||0)} query={itemSearchQuery} /></div>
-                                            <div className="w-[75px] shrink-0 text-[12px] font-bold text-slate-500 text-center px-2">{inv.totalMwst}%</div>
-                                            <div className="w-[110px] shrink-0 text-[12px] font-black text-slate-900 dark:text-white text-right pr-2"><HighlightText text={formatCurrency(invBrutto)} query={itemSearchQuery} /></div>
-                                            <div className="w-[75px] shrink-0"></div>
-                                         </div>
-                                      ) : (
+                                      {inv.billingMode === 'total' ? (() => {
+                                         const histBaseN = parseFloat(inv.totalNetto) || 0;
+                                         const histDiscVal = parseFloat(inv.discountValue) || 0;
+                                         const histDiscType = inv.discountType || 'fixed';
+                                         const histDiscAmt = histDiscType === 'percentage' ? histBaseN * (histDiscVal/100) : histDiscVal;
+                                         const histFinalN = Math.max(0, histBaseN - histDiscAmt);
+                                         const histMwst = parseFloat(inv.totalMwst) || 7;
+                                         return (
+                                            <div className="flex items-center px-2 py-2 gap-4 border-b border-slate-100 dark:border-white/5">
+                                               <div className="w-[220px] shrink-0 text-[12px] font-bold text-slate-600 dark:text-slate-300">{lang === 'de' ? 'Gesamtbetrag' : 'Total'}</div>
+                                               <div className="flex-1 flex items-center justify-end gap-2 text-[12px]">
+                                                  <span className={cn("font-bold", dk ? "text-slate-300" : "text-slate-700")}><HighlightText text={formatCurrency(histBaseN)} query={itemSearchQuery} /></span>
+                                                  {histDiscVal > 0 && (
+                                                      <div className="flex items-center gap-1.5 ml-1">
+                                                          <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[10px]">- {histDiscType === 'percentage' ? `${histDiscVal}%` : formatCurrency(histDiscVal)}</span>
+                                                          <span className="text-teal-500 font-bold text-[10px]">➔</span>
+                                                          <span className="text-teal-500 font-black"><HighlightText text={formatCurrency(histFinalN)} query={itemSearchQuery} /></span>
+                                                      </div>
+                                                  )}
+                                               </div>
+                                               <div className="w-[75px] shrink-0 text-[12px] font-bold text-slate-500 text-center px-2">{histMwst}%</div>
+                                               <div className="w-[110px] shrink-0 text-[12px] font-black text-slate-900 dark:text-white text-right pr-2"><HighlightText text={formatCurrency(invBrutto)} query={itemSearchQuery} /></div>
+                                               <div className="w-[75px] shrink-0"></div>
+                                            </div>
+                                         )
+                                      })() : (
                                          <div className="flex flex-col">
                                             {(inv.items || []).map((item: any) => {
                                                const { finalNetto, mwst, brutto } = calcInvoiceItem(item, defaultN);
