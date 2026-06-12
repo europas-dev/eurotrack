@@ -1583,7 +1583,14 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                               const nDisc = e.target.value;
                                                               const dVal = parseFloat(nDisc) || 0;
                                                               let newDraft = { ...totalDraft, discountValue: nDisc };
-                                                              if (totalDraft?.totalNetto) {
+                                                              if (totalDraft?.lastEdited === 'brutto' && totalDraft?.totalBrutto) {
+                                                                  const b = parseFloat(totalDraft.totalBrutto);
+                                                                  const finalN = b / (1 + draftMwst / 100);
+                                                                  let baseN = 0;
+                                                                  if (draftDiscType === 'fixed') { baseN = finalN + dVal; } 
+                                                                  else { const r = 1 - (dVal/100); baseN = r > 0 ? finalN / r : 0; }
+                                                                  newDraft.totalNetto = baseN.toFixed(2);
+                                                              } else if (totalDraft?.lastEdited === 'netto' && totalDraft?.totalNetto) {
                                                                   const baseN = parseFloat(totalDraft.totalNetto);
                                                                   const discAmt = draftDiscType === 'percentage' ? baseN * (dVal/100) : dVal;
                                                                   const finalN = Math.max(0, baseN - discAmt);
@@ -1594,7 +1601,14 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                           <button onClick={() => {
                                                               const nType = draftDiscType === 'percentage' ? 'fixed' : 'percentage';
                                                               let newDraft = { ...totalDraft, discountType: nType };
-                                                              if (totalDraft?.totalNetto) {
+                                                              if (totalDraft?.lastEdited === 'brutto' && totalDraft?.totalBrutto) {
+                                                                  const b = parseFloat(totalDraft.totalBrutto);
+                                                                  const finalN = b / (1 + draftMwst / 100);
+                                                                  let baseN = 0;
+                                                                  if (nType === 'fixed') { baseN = finalN + draftDiscVal; } 
+                                                                  else { const r = 1 - (draftDiscVal/100); baseN = r > 0 ? finalN / r : 0; }
+                                                                  newDraft.totalNetto = baseN.toFixed(2);
+                                                              } else if (totalDraft?.lastEdited === 'netto' && totalDraft?.totalNetto) {
                                                                   const baseN = parseFloat(totalDraft.totalNetto);
                                                                   const discAmt = nType === 'percentage' ? baseN * (draftDiscVal/100) : draftDiscVal;
                                                                   const finalN = Math.max(0, baseN - discAmt);
@@ -1605,7 +1619,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                           <button onClick={() => { 
                                                               setShowTotalDiscount(false); 
                                                               let newDraft = { ...totalDraft, discountValue: null };
-                                                              if (totalDraft?.totalNetto) {
+                                                              if (totalDraft?.lastEdited === 'brutto' && totalDraft?.totalBrutto) {
+                                                                  const b = parseFloat(totalDraft.totalBrutto);
+                                                                  const finalN = b / (1 + draftMwst / 100);
+                                                                  newDraft.totalNetto = finalN.toFixed(2);
+                                                              } else if (totalDraft?.lastEdited === 'netto' && totalDraft?.totalNetto) {
                                                                   const baseN = parseFloat(totalDraft.totalNetto);
                                                                   newDraft.totalBrutto = (baseN * (1 + draftMwst / 100)).toFixed(2);
                                                               }
