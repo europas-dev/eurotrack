@@ -1540,7 +1540,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                   <span className={cn("font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(viewBaseN)}</span>
                                                   {viewDiscVal > 0 && (
                                                       <div className="flex items-center gap-1.5 ml-1">
-                                                          <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[11px]">- {viewDiscType === 'percentage' ? `${viewDiscVal}%` : formatCurrency(viewDiscVal)}</span>
+                                                          <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[11px] whitespace-nowrap shrink-0">- {viewDiscType === 'percentage' ? `${viewDiscVal}%` : formatCurrency(viewDiscVal)}</span>
                                                           <span className="text-teal-500 font-bold">➔</span>
                                                           <span className="text-teal-500 font-black">{formatCurrency(viewFinalN)}</span>
                                                       </div>
@@ -1851,7 +1851,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                   <span className={cn("font-bold", dk ? "text-slate-300" : "text-slate-700")}><HighlightText text={formatCurrency(histBaseN)} query={itemSearchQuery} /></span>
                                                   {histDiscVal > 0 && (
                                                       <div className="flex items-center gap-1.5 ml-1">
-                                                          <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[10px]">- {histDiscType === 'percentage' ? `${histDiscVal}%` : formatCurrency(histDiscVal)}</span>
+                                                          <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[10px] whitespace-nowrap shrink-0">- {histDiscType === 'percentage' ? `${histDiscVal}%` : formatCurrency(histDiscVal)}</span>
                                                           <span className="text-teal-500 font-bold text-[10px]">➔</span>
                                                           <span className="text-teal-500 font-black"><HighlightText text={formatCurrency(histFinalN)} query={itemSearchQuery} /></span>
                                                       </div>
@@ -1888,7 +1888,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                                    <span className={cn("text-[12px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}><HighlightText text={formatCurrency(viewBaseNetto)} query={itemSearchQuery} /></span>
                                                                    {hasDisc && (
                                                                       <div className="flex items-center gap-1.5 mt-1">
-                                                                          <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[10px]">- {discStr}</span>
+                                                                          <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[10px] whitespace-nowrap shrink-0">- {discStr}</span>
                                                                           <span className="text-teal-500 font-bold text-[10px]">➔</span>
                                                                           <span className="text-teal-500 font-black text-[11px]"><HighlightText text={formatCurrency(discountedBaseNetto)} query={itemSearchQuery} /></span>
                                                                       </div>
@@ -1911,7 +1911,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                                    <span className={cn("text-[12px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}><HighlightText text={formatCurrency(viewBaseNetto)} query={itemSearchQuery} /></span>
                                                                    {hasDisc && (
                                                                       <div className="flex items-center gap-1.5 mt-1">
-                                                                          <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[10px]">- {discStr}</span>
+                                                                          <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[10px] whitespace-nowrap shrink-0">- {discStr}</span>
                                                                           <span className="text-teal-500 font-bold text-[10px]">➔</span>
                                                                           <span className="text-teal-500 font-black text-[11px]"><HighlightText text={formatCurrency(discountedBaseNetto)} query={itemSearchQuery} /></span>
                                                                       </div>
