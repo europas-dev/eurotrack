@@ -1378,7 +1378,17 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                            }
 
                            const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
-                           let invBrutto = inv.billingMode === 'total' ? (parseFloat(inv.totalNetto)||0) * (1 + (parseFloat(inv.totalMwst)||0)/100) : (inv.items||[]).reduce((sum:number, it:any) => sum + calcInvoiceItem(it, defaultN).brutto, 0);
+                           let invBrutto = 0;
+                           if (inv.billingMode === 'total') {
+                              const baseN = parseFloat(inv.totalNetto) || 0;
+                              const m = parseFloat(inv.totalMwst) || 0;
+                              const disc = parseFloat(inv.discountValue) || 0;
+                              const isPct = inv.discountType === 'percentage';
+                              const finalN = Math.max(0, baseN - (isPct ? baseN * (disc/100) : disc));
+                              invBrutto = finalN * (1 + m/100);
+                           } else {
+                              invBrutto = (inv.items||[]).reduce((sum:number, it:any) => sum + calcInvoiceItem(it, defaultN).brutto, 0);
+                           }
 
                            return (
                               <div key={inv.id} onClick={() => { setSelectedInvoiceId(isActiveSelection ? null : inv.id); setEditingItemId(null); setEditingTotal(false); }} className={cn("group relative flex items-center justify-between p-2 rounded-xl transition-all cursor-pointer border shadow-sm hover:shadow-md", isActiveSelection ? (dk ? "bg-teal-900/40 border-teal-500/60 shadow-md" : "bg-teal-50 border-teal-300 shadow-md") : (dk ? "bg-[#242d41] border-white/10 hover:border-white/20" : "bg-white border-slate-200 hover:border-slate-300"))}>
@@ -1763,7 +1773,17 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                             {filteredMasterInvoices.length > 0 ? filteredMasterInvoices.map((inv: any) => {
                                const isExpanded = expandedInvoices.includes(inv.id);
                                const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
-                               let invBrutto = inv.billingMode === 'total' ? (parseFloat(inv.totalNetto)||0) * (1 + (parseFloat(inv.totalMwst)||0)/100) : (inv.items||[]).reduce((sum:number, it:any) => sum + calcInvoiceItem(it, defaultN).brutto, 0);
+                               let invBrutto = 0;
+                               if (inv.billingMode === 'total') {
+                                  const baseN = parseFloat(inv.totalNetto) || 0;
+                                  const m = parseFloat(inv.totalMwst) || 0;
+                                  const disc = parseFloat(inv.discountValue) || 0;
+                                  const isPct = inv.discountType === 'percentage';
+                                  const finalN = Math.max(0, baseN - (isPct ? baseN * (disc/100) : disc));
+                                  invBrutto = finalN * (1 + m/100);
+                               } else {
+                                  invBrutto = (inv.items||[]).reduce((sum:number, it:any) => sum + calcInvoiceItem(it, defaultN).brutto, 0);
+                               }
                                return (
                                <div key={inv.id} className="flex flex-col mb-3 px-3">
                                   {/* ... expand button remains same ... */}
