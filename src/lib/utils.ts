@@ -161,15 +161,19 @@ export function calcHotelTotalCost(hotel: any, selectedMonth?: number | null, se
               itemNetto = parseFloat(item.brutto) / (1 + mwst / 100);
           } else {
               let baseNetto = parseFloat(item.netto) || 0;
+              let discountedBaseNetto = baseNetto;
+              
+              if (item.discountValue && parseFloat(item.discountValue) > 0) {
+                const dVal = parseFloat(item.discountValue);
+                discountedBaseNetto = item.discountType === 'percentage' ? baseNetto * (1 - dVal/100) : Math.max(0, baseNetto - dVal);
+              }
+
               if (item.method === 'per_bed') {
                 const beds = parseFloat(item.beds) || 1;
                 const nights = parseFloat(item.nights) || defaultN; // Use actual nights
-                baseNetto = baseNetto * beds * nights;
-              }
-              itemNetto = baseNetto;
-              if (item.discountValue && parseFloat(item.discountValue) > 0) {
-                const dVal = parseFloat(item.discountValue);
-                itemNetto = item.discountType === 'percentage' ? baseNetto * (1 - dVal/100) : Math.max(0, baseNetto - dVal);
+                itemNetto = discountedBaseNetto * beds * nights;
+              } else {
+                itemNetto = discountedBaseNetto;
               }
           }
           finalNetto += itemNetto;
@@ -472,21 +476,25 @@ export function calcInvoiceItem(item: any, defaultNights: number = 1) {
   let brutto = 0;
 
   if (item.brutto != null && item.brutto !== '') {
-      brutto = parseFloat(item.brutto);
-      finalNetto = brutto / (1 + mwst / 100);
-  } else {
-      let baseNetto = parseFloat(item.netto) || 0;
-      if (item.method === 'per_bed') {
-        const beds = parseFloat(item.beds) || 1;
-        const nights = parseFloat(item.nights) || defaultNights;
-        baseNetto = baseNetto * beds * nights;
+          brutto = parseFloat(item.brutto);
+          finalNetto = brutto / (1 + mwst / 100);
+      } else {
+          let baseNetto = parseFloat(item.netto) || 0;
+          let discountedBaseNetto = baseNetto;
+          
+          if (item.discountValue && parseFloat(item.discountValue) > 0) {
+            const dVal = parseFloat(item.discountValue);
+            discountedBaseNetto = item.discountType === 'percentage' ? baseNetto * (1 - dVal/100) : Math.max(0, baseNetto - dVal);
+          }
+
+          if (item.method === 'per_bed') {
+            const beds = parseFloat(item.beds) || 1;
+            const nights = parseFloat(item.nights) || defaultNights;
+            finalNetto = discountedBaseNetto * beds * nights;
+          } else {
+            finalNetto = discountedBaseNetto;
+          }
+          brutto = finalNetto * (1 + mwst / 100);
       }
-      finalNetto = baseNetto;
-      if (item.discountValue && parseFloat(item.discountValue) > 0) {
-        const dVal = parseFloat(item.discountValue);
-        finalNetto = item.discountType === 'percentage' ? baseNetto * (1 - dVal/100) : Math.max(0, baseNetto - dVal);
-      }
-      brutto = finalNetto * (1 + mwst / 100);
-  }
   return { finalNetto, mwst, brutto };
 }
