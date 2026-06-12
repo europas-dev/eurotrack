@@ -677,25 +677,7 @@ finalFiltered.forEach(h => {
         } else {
       const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
       (inv.items || []).forEach((item: any) => {
-        const mwst = item.mwst != null ? parseFloat(item.mwst) : 0;
-        let itemNetto = 0;
-
-        if (item.brutto != null && item.brutto !== '') {
-          itemNetto = parseFloat(item.brutto) / (1 + mwst / 100);
-        } else {
-          let baseNetto = parseFloat(item.netto) || 0;
-          if (item.method === 'per_bed') {
-            const beds = parseFloat(item.beds) || 1;
-            const nights = parseFloat(item.nights) || defaultN;
-            baseNetto = baseNetto * beds * nights;
-          }
-          itemNetto = baseNetto;
-          if (item.discountValue && parseFloat(item.discountValue) > 0) {
-            const dVal = parseFloat(item.discountValue);
-            itemNetto = item.discountType === 'percentage' ? baseNetto * (1 - dVal/100) : Math.max(0, baseNetto - dVal);
-          }
-        }
-        const itemB = itemNetto * (1 + mwst / 100);
+        const { finalNetto: itemNetto, brutto: itemB } = calcInvoiceItem(item, defaultN);
         finalNetto += itemNetto;
         finalBrutto += itemB;
         invBrutto += itemB;
