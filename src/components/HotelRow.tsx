@@ -719,9 +719,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       tFree += calcDurationFreeBeds(d, today);
     });
 
-    const invoicesToScan = activeInvoice ? [activeInvoice] : mathInvoices;
-
-    invoicesToScan.forEach((inv: any) => {
+    mathInvoices.forEach((inv: any) => {
        let invBrutto = 0;
        if (inv.billingMode === 'total') {
           const baseN = parseFloat(inv.totalNetto) || 0;
