@@ -246,10 +246,10 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
                  <>
                     <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(viewBaseNetto)}</span>
                     {hasDisc && (
-                       <div className="flex items-center gap-1.5 mt-1">
-                           <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[10px]">- {discStr}</span>
-                           <span className="text-teal-500 font-bold text-[10px]">➔</span>
-                           <span className="text-teal-500 font-black text-[11px]">{formatCurrency(discountedBaseNetto)}</span>
+                       <div className="flex items-center gap-1.5 mt-1 w-max">
+                           <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[10px] whitespace-nowrap shrink-0">- {discStr}</span>
+                           <span className="text-teal-500 font-bold shrink-0">➔</span>
+                           <span className="text-teal-500 font-black text-[11px] whitespace-nowrap shrink-0">{formatCurrency(discountedBaseNetto)}</span>
                        </div>
                     )}
                  </>
@@ -271,13 +271,13 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
              return (
                   <>
                     <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(viewBaseNetto)}</span>
-                  {hasDisc && (
-                                                                      <div className="flex items-center gap-1.5 mt-1 w-max">
-                                                                          <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[10px] whitespace-nowrap shrink-0">- {discStr}</span>
-                                                                          <span className="text-teal-500 font-bold text-[10px] shrink-0">➔</span>
-                                                                          <span className="text-teal-500 font-black text-[11px] whitespace-nowrap shrink-0"><HighlightText text={formatCurrency(discountedBaseNetto)} query={itemSearchQuery} /></span>
-                                                                      </div>
-                                                                   )}
+                    {hasDisc && (
+                       <div className="flex items-center gap-1.5 mt-1 w-max">
+                           <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[10px] whitespace-nowrap shrink-0">- {discStr}</span>
+                           <span className="text-teal-500 font-bold shrink-0">➔</span>
+                           <span className="text-teal-500 font-black text-[11px] whitespace-nowrap shrink-0">{formatCurrency(discountedBaseNetto)}</span>
+                       </div>
+                    )}
                   </>
              );
           })() : (
@@ -1876,52 +1876,56 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                         {item.note && <span className="text-[10px] italic text-slate-400 mt-1 whitespace-pre-wrap"><HighlightText text={item.note} query={itemSearchQuery} /></span>}
                                                      </div>
                                                      <div className="flex-1 flex flex-col items-end justify-start pr-3">
-                                                        {item.method === 'per_bed' ? (() => {
-                                                            const viewBaseNetto = parseFloat(item.netto) || 0;
-                                                            const viewDiscVal = parseFloat(item.discountValue) || 0;
-                                                            const hasBruttoInput = item.brutto != null && item.brutto !== '';
-                                                            const hasDisc = viewDiscVal > 0 && !hasBruttoInput;
-                                                            const discStr = item.discountType === 'percentage' ? `${viewDiscVal}%` : formatCurrency(viewDiscVal);
-                                                            const discountedBaseNetto = hasDisc ? (item.discountType === 'percentage' ? viewBaseNetto * (1 - viewDiscVal/100) : Math.max(0, viewBaseNetto - viewDiscVal)) : viewBaseNetto;
-                                                            return (
-                                                                <>
-                                                                   <span className={cn("text-[12px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}><HighlightText text={formatCurrency(viewBaseNetto)} query={itemSearchQuery} /></span>
-                                                                   {hasDisc && (
-                                                                      <div className="flex items-center gap-1.5 mt-1 w-max">
-                                                                          <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[10px] whitespace-nowrap shrink-0">- {discStr}</span>
-                                                                          <span className="text-teal-500 font-bold text-[10px] shrink-0">➔</span>
-                                                                          <span className="text-teal-500 font-black text-[11px] whitespace-nowrap shrink-0"><HighlightText text={formatCurrency(discountedBaseNetto)} query={itemSearchQuery} /></span>
-                                                                      </div>
-                                                                   )}
-                                                                </>
-                                                            );
-                                                        })() : <span className="opacity-50 text-[11px] italic pt-0.5">--</span>}
-                                                     </div>
-                                                     <div className="w-[100px] shrink-0 flex flex-col items-end">
-                                                        {item.brutto != null && item.brutto !== '' ? (
-                                                            <span className={cn("text-[12px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>{lang === 'de' ? 'Auto' : 'Auto'}</span>
-                                                        ) : item.method === 'total' ? (() => {
-                                                            const viewBaseNetto = parseFloat(item.netto) || 0;
-                                                            const viewDiscVal = parseFloat(item.discountValue) || 0;
-                                                            const hasDisc = viewDiscVal > 0;
-                                                            const discStr = item.discountType === 'percentage' ? `${viewDiscVal}%` : formatCurrency(viewDiscVal);
-                                                            const discountedBaseNetto = hasDisc ? (item.discountType === 'percentage' ? viewBaseNetto * (1 - viewDiscVal/100) : Math.max(0, viewBaseNetto - viewDiscVal)) : viewBaseNetto;
-                                                            return (
-                                                                <>
-                                                                   <span className={cn("text-[12px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}><HighlightText text={formatCurrency(viewBaseNetto)} query={itemSearchQuery} /></span>
-                                                                   {hasDisc && (
-                                                                      <div className="flex items-center gap-1.5 mt-1 w-max">
-                                                                          <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[10px] whitespace-nowrap shrink-0">- {discStr}</span>
-                                                                          <span className="text-teal-500 font-bold text-[10px] shrink-0">➔</span>
-                                                                          <span className="text-teal-500 font-black text-[11px] whitespace-nowrap shrink-0"><HighlightText text={formatCurrency(discountedBaseNetto)} query={itemSearchQuery} /></span>
-                                                                      </div>
-                                                                   )}
-                                                                </>
-                                                            );
-                                                        })() : (
-                                                            <span className={cn("text-[12px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}><HighlightText text={formatCurrency(finalNetto)} query={itemSearchQuery} /></span>
-                                                        )}
-                                                     </div>
+          {currentItem.method === 'per_bed' ? (() => {
+             const viewBaseNetto = parseFloat(currentItem.netto) || 0;
+             const viewDiscVal = parseFloat(currentItem.discountValue) || 0;
+             const hasDisc = viewDiscVal > 0 && !hasBruttoInput;
+             const discStr = currentItem.discountType === 'percentage' ? `${viewDiscVal}%` : formatCurrency(viewDiscVal);
+             const discountedBaseNetto = hasDisc ? (currentItem.discountType === 'percentage' ? viewBaseNetto * (1 - viewDiscVal/100) : Math.max(0, viewBaseNetto - viewDiscVal)) : viewBaseNetto;
+             return (
+                 <>
+                    <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(viewBaseNetto)}</span>
+                    {hasDisc && (
+                       <div className="flex items-center gap-1.5 mt-1 w-max">
+                           <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[10px] whitespace-nowrap shrink-0">- {discStr}</span>
+                           <span className="text-teal-500 font-bold shrink-0">➔</span>
+                           <span className="text-teal-500 font-black text-[11px] whitespace-nowrap shrink-0">{formatCurrency(discountedBaseNetto)}</span>
+                       </div>
+                    )}
+                 </>
+             );
+          })() : (
+             <span className="text-[11px] italic text-slate-400 opacity-50 w-[75px] text-right pt-0.5">--</span>
+          )}
+       </div>
+
+       <div className="w-[100px] shrink-0 flex flex-col items-end">
+          {hasBruttoInput ? (
+              <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>{lang === 'de' ? 'Auto' : 'Auto'}</span>
+          ) : currentItem.method === 'total' ? (() => {
+             const viewBaseNetto = parseFloat(currentItem.netto) || 0;
+             const viewDiscVal = parseFloat(currentItem.discountValue) || 0;
+             const hasDisc = viewDiscVal > 0;
+             const discStr = currentItem.discountType === 'percentage' ? `${viewDiscVal}%` : formatCurrency(viewDiscVal);
+             const discountedBaseNetto = hasDisc ? (currentItem.discountType === 'percentage' ? viewBaseNetto * (1 - viewDiscVal/100) : Math.max(0, viewBaseNetto - viewDiscVal)) : viewBaseNetto;
+             return (
+                  <>
+                    <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(viewBaseNetto)}</span>
+                    {hasDisc && (
+                       <div className="flex items-center gap-1.5 mt-1 w-max">
+                           <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[10px] whitespace-nowrap shrink-0">- {discStr}</span>
+                           <span className="text-teal-500 font-bold shrink-0">➔</span>
+                           <span className="text-teal-500 font-black text-[11px] whitespace-nowrap shrink-0">{formatCurrency(discountedBaseNetto)}</span>
+                       </div>
+                    )}
+                  </>
+             );
+          })() : (
+              <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>
+                 {formatCurrency(finalNetto)}
+              </span>
+          )}
+       </div>
                                                      <div className="w-[75px] shrink-0 text-[12px] font-bold text-slate-500 pt-0.5 text-center px-2">{mwst}%</div>
                                                      <div className="w-[110px] shrink-0 text-[12px] font-black text-slate-900 dark:text-white pt-0.5 text-right pr-2"><HighlightText text={formatCurrency(brutto)} query={itemSearchQuery} /></div>
                                                      <div className="w-[75px] shrink-0"></div>
