@@ -271,13 +271,13 @@ export function InvoiceLineItem({ item, isEditing, onEdit, onSave, onCancel, onD
              return (
                   <>
                     <span className={cn("text-[13px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(viewBaseNetto)}</span>
-                    {hasDisc && (
-                       <div className="flex items-center gap-1.5 mt-1">
-                           <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[10px]">- {discStr}</span>
-                           <span className="text-teal-500 font-bold text-[10px]">➔</span>
-                           <span className="text-teal-500 font-black text-[11px]">{formatCurrency(discountedBaseNetto)}</span>
-                       </div>
-                    )}
+                  {hasDisc && (
+                                                                      <div className="flex items-center gap-1.5 mt-1 w-max">
+                                                                          <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[10px] whitespace-nowrap shrink-0">- {discStr}</span>
+                                                                          <span className="text-teal-500 font-bold text-[10px] shrink-0">➔</span>
+                                                                          <span className="text-teal-500 font-black text-[11px] whitespace-nowrap shrink-0"><HighlightText text={formatCurrency(discountedBaseNetto)} query={itemSearchQuery} /></span>
+                                                                      </div>
+                                                                   )}
                   </>
              );
           })() : (
@@ -1887,10 +1887,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                                 <>
                                                                    <span className={cn("text-[12px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}><HighlightText text={formatCurrency(viewBaseNetto)} query={itemSearchQuery} /></span>
                                                                    {hasDisc && (
-                                                                      <div className="flex items-center gap-1.5 mt-1">
+                                                                      <div className="flex items-center gap-1.5 mt-1 w-max">
                                                                           <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[10px] whitespace-nowrap shrink-0">- {discStr}</span>
-                                                                          <span className="text-teal-500 font-bold text-[10px]">➔</span>
-                                                                          <span className="text-teal-500 font-black text-[11px]"><HighlightText text={formatCurrency(discountedBaseNetto)} query={itemSearchQuery} /></span>
+                                                                          <span className="text-teal-500 font-bold text-[10px] shrink-0">➔</span>
+                                                                          <span className="text-teal-500 font-black text-[11px] whitespace-nowrap shrink-0"><HighlightText text={formatCurrency(discountedBaseNetto)} query={itemSearchQuery} /></span>
                                                                       </div>
                                                                    )}
                                                                 </>
@@ -1910,10 +1910,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                                                 <>
                                                                    <span className={cn("text-[12px] font-bold pt-0.5", dk ? "text-slate-300" : "text-slate-700")}><HighlightText text={formatCurrency(viewBaseNetto)} query={itemSearchQuery} /></span>
                                                                    {hasDisc && (
-                                                                      <div className="flex items-center gap-1.5 mt-1">
+                                                                      <div className="flex items-center gap-1.5 mt-1 w-max">
                                                                           <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[10px] whitespace-nowrap shrink-0">- {discStr}</span>
-                                                                          <span className="text-teal-500 font-bold text-[10px]">➔</span>
-                                                                          <span className="text-teal-500 font-black text-[11px]"><HighlightText text={formatCurrency(discountedBaseNetto)} query={itemSearchQuery} /></span>
+                                                                          <span className="text-teal-500 font-bold text-[10px] shrink-0">➔</span>
+                                                                          <span className="text-teal-500 font-black text-[11px] whitespace-nowrap shrink-0"><HighlightText text={formatCurrency(discountedBaseNetto)} query={itemSearchQuery} /></span>
                                                                       </div>
                                                                    )}
                                                                 </>
