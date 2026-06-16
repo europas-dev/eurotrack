@@ -2036,25 +2036,25 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     <div className="p-5 bg-white dark:bg-[#0B1224] rounded-b-2xl border-t border-slate-200 dark:border-white/5 animate-in fade-in">
       <div className="grid grid-cols-12 gap-x-4 gap-y-5">
         
-        {/* ROW 1 */}
-        <div className="col-span-3 flex flex-col">
+        {/* ROW 1: Hotel Name (3), Adresse (4), Stadt (3), Land (2) = 12 */}
+        <div className="col-span-3">
           <label className={cn(labelCls, 'mb-1.5')}><Building size={12}/> {lang === 'de' ? 'Hotelname' : 'Hotel Name'}</label>
-          <input disabled={viewOnly} value={localHotel.name || ''} onChange={e => patchHotel({ name: e.target.value })} className={seamlessInput} placeholder="..." />
+          <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(v:any) => patchHotel({ name: v })} placeholder="..." textClass={cn('text-sm font-bold', dk ? 'text-white' : 'text-slate-900')} />
         </div>
-        <div className="col-span-4 flex flex-col">
+        <div className="col-span-4">
           <label className={cn(labelCls, 'mb-1.5')}><MapPin size={12}/> {lang === 'de' ? 'Adresse' : 'Address'}</label>
           <input disabled={viewOnly} value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} className={seamlessInput} placeholder="..." />
         </div>
-        <div className="col-span-3 flex flex-col">
+        <div className="col-span-3">
           <label className={cn(labelCls, 'mb-1.5')}><MapPin size={12}/> {lang === 'de' ? 'Stadt' : 'City'}</label>
-          <input disabled={viewOnly} value={localHotel.city || ''} onChange={e => patchHotel({ city: e.target.value })} className={seamlessInput} placeholder="..." />
+          <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(v:any) => patchHotel({ city: v })} placeholder="..." textClass={cn('text-sm font-bold', dk ? 'text-white' : 'text-slate-900')} />
         </div>
-        <div className="col-span-2 flex flex-col">
+        <div className="col-span-2">
           <label className={cn(labelCls, 'mb-1.5')}><Globe size={12}/> {lang === 'de' ? 'Land' : 'Country'}</label>
           <ModernDropdown disabled={viewOnly} value={localHotel.country || 'Germany'} options={getCountryOptions()} onChange={(v:string) => patchHotel({ country: v })} isDarkMode={dk} lang={lang} onOpenChange={setIsDropdownActive} />
         </div>
 
-        {/* ROW 2 */}
+        {/* ROW 2: Notiz/Contact (3), Telefon (3), Email (3), Website (3) = 12 */}
         <div className="col-span-3 flex items-end gap-2">
             <div className="flex flex-col">
                 <label className={cn(labelCls, 'mb-1.5')}>{lang === 'de' ? 'Notiz' : 'Note'}</label>
@@ -2068,7 +2068,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             </div>
         </div>
         
-        <div className="col-span-4 flex flex-col">
+        <div className="col-span-3 flex flex-col">
           <label className={cn(labelCls, 'mb-1.5')}><Phone size={12}/> {lang === 'de' ? 'Telefon' : 'Phone'}</label>
           <div className={cn('flex items-center rounded-lg border border-transparent overflow-hidden h-[34px] transition-colors focus-within:border-teal-500', dk ? 'bg-transparent hover:bg-white/5 focus-within:bg-[#1E293B]' : 'bg-transparent hover:bg-slate-50 focus-within:bg-white')}>
              <span className={cn("px-2.5 text-xs font-bold border-r border-transparent h-full flex items-center shrink-0 opacity-50", dk ? "text-slate-400" : "text-slate-500")}>{getCountryCode(localHotel.country || 'Germany')}</span>
@@ -2084,7 +2084,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
         </div>
         
-        <div className="col-span-2 flex flex-col">
+        <div className="col-span-3 flex flex-col">
           <label className={cn(labelCls, 'mb-1.5')}><Globe size={12}/> {lang === 'de' ? 'Webseite' : 'Website'}</label>
           <div className="relative flex items-center group">
              <input disabled={viewOnly} value={localHotel.website || ''} onChange={e => patchHotel({ website: e.target.value })} className={cn(seamlessInput, 'pr-8')} placeholder="..." />
