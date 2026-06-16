@@ -1217,13 +1217,13 @@ finalFiltered.forEach(h => {
                 </div>
                 
                 {/* ACTION BUTTONS */}
-                <div className="flex items-center gap-3 ml-4 border-l pl-4 dark:border-white/10 border-slate-200">
-                    {!isStrictViewer && (
-                    <button onClick={() => setAddingHotel(true)} className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl flex items-center gap-2 text-sm transition-all shadow-md active:scale-95">
-                        <Plus size={18} strokeWidth={2.5} /> {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
-                    </button>
-                    )}
-                </div>
+                {!isStrictViewer && (
+                  <div className="flex items-center gap-3 ml-4 border-l pl-4 dark:border-white/10 border-slate-200">
+                      <button onClick={() => setAddingHotel(true)} className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl flex items-center gap-2 text-sm transition-all shadow-md active:scale-95">
+                          <Plus size={18} strokeWidth={2.5} /> {lang === 'de' ? 'Hotel hinzufügen' : 'Add Hotel'}
+                      </button>
+                  </div>
+                )}
               </div>
             </div>
 
