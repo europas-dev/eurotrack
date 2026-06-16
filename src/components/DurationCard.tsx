@@ -353,9 +353,9 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
   }
   
   function forceDMY(isoString: string | null | undefined) {
-    if (!isoString) return 'dd/mm/yyyy';
+    if (!isoString) return 'dd.mm.yyyy';
     const [y, m, d] = isoString.split('-');
-    return `${d}/${m}/${y}`;
+    return `${d}.${m}.${y}`;
   }
   function openPicker(ref: React.RefObject<HTMLInputElement>) { 
     if (viewOnly) return; 
