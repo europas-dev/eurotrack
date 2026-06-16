@@ -2057,7 +2057,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         {/* ROW 2 */}
         <div className="col-span-3 flex items-end gap-2">
             <div className="flex flex-col">
-                <label className={cn(labelCls, 'mb-1.5')}><StickyNote size={12}/> {lang === 'de' ? 'Notiz' : 'Note'}</label>
+                <label className={cn(labelCls, 'mb-1.5')}>{lang === 'de' ? 'Notiz' : 'Note'}</label>
                 <button onClick={() => setShowNotes(!showNotes)} className={cn("w-[34px] h-[34px] rounded-lg border flex items-center justify-center shrink-0 transition-all", localHotel.notes ? "bg-teal-500/10 border-teal-500/30 text-teal-500" : dk ? "border-transparent text-slate-500 hover:bg-white/5" : "border-transparent text-slate-400 hover:bg-slate-50")}>
                     <StickyNote size={16} />
                 </button>
