@@ -1332,6 +1332,7 @@ finalFiltered.forEach(h => {
                     <div className="w-8 shrink-0"></div>
                   </div>
                 )}
+              </div>
             </div> {/* END OF STICKY CONTROL STACK */}
 
               {/* THE DATA ROWS */}
