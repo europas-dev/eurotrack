@@ -144,8 +144,8 @@ export default function Header({
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [isGhostMode, setIsGhostMode] = useState(false);
 
-  const [fontFamily, setFontFamilyState] = useState('sans');
-  const [fontSize, setFontSizeState] = useState(16);
+  const [fontFamily, setFontFamilyState] = useState('poppins');
+  const [fontSize, setFontSizeState] = useState(14);
   const [savingPersonalize, setSavingPersonalize] = useState(false);
   const [personalizeMsg, setPersonalizeMsg] = useState('');
 
@@ -197,7 +197,7 @@ export default function Header({
       setProfile(p); setEditName(p.fullName || p.full_name || ''); setNewUsername(p.username || '');
       setSelectedAvatar(p.avatar ?? null);
       setIsGhostMode(p.invisible ?? p.is_ghost ?? false);
-      const fam = p.fontFamily ?? 'sans'; const size = p.fontSize ?? 16;
+      const fam = p.fontFamily ?? 'poppins'; const size = p.fontSize ?? 14;
       setFontFamilyState(fam); setFontSizeState(size); applyFont(fam, size);
     }).catch(() => { }).finally(() => setProfileLoading(false));
   }, []);
