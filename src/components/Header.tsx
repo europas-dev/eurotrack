@@ -297,7 +297,7 @@ export default function Header({
   return (
     <>
       <div className="flex-1 flex items-center h-full min-w-0">
-        <div className="flex-1 relative flex items-center max-w-[400px]">
+        <div className="flex-1 relative flex items-center max-w-[550px]">
           <div className={cn('flex items-center rounded-lg border transition-all focus-within:ring-2 focus-within:ring-blue-500/50 w-full',
             dk ? 'bg-[#1E293B] border-white/10' : 'bg-white border-slate-200'
           )}>
