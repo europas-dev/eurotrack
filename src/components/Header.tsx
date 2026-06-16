@@ -485,7 +485,17 @@ export default function Header({
                         <Accordion title="FAQ" icon={HelpCircle} dk={dk}><p>{isDe ? 'Bei Fragen wenden Sie sich bitte an: s.hossain@europasgmbh.de' : 'For any FAQs, please contact: s.hossain@europasgmbh.de'}</p></Accordion>
                         <Accordion title={isDe ? 'Datenschutz' : 'Privacy Policy'} icon={FileText} dk={dk}><p>{isDe ? 'Die Daten werden sicher im Dashboard gespeichert und anhand von Benutzerdaten entsprechend den verschiedenen Zugriffsebenen authentifiziert. Bitte geben Sie Ihre persönlichen Anmelde- oder Kontodaten nicht an Dritte weiter. ' : 'The data is stored securely in the dashboard and authenticated by user credentials based on different access levels. Please do not share personal log in or account credentials with others. '}</p></Accordion>
                         <Accordion title={isDe ? 'Über EuroTrack' : 'About EuroTrack'} icon={Info} dk={dk}><p>{isDe ? 'EuroTrack ist ein internes Management-Tool zur Erfassung von Hotels, Mitarbeitern, freien Betten und Kostenübersichten, das in erster Linie für die Europas GmbH entwickelt wurde. ' : 'EuroTrack is internal management tool to track hotels, employees, free beds and cost summary, mainly developed for Europas GmbH. '}</p></Accordion>
-                        <button onClick={onSignOut} className="ml-2 px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white font-black rounded-lg text-sm transition-all shadow-md">{isDe ? 'Abmelden' : 'Sign Out'}</button>
+                        <button 
+                          onClick={onSignOut} 
+                          className={cn(
+                            "px-4 py-2.5 rounded-xl border transition-all flex items-center justify-center gap-2 text-sm font-bold",
+                            dk ? "bg-white/5 border-white/10 text-slate-400 hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-400" 
+                               : "bg-white border-slate-200 text-slate-600 hover:bg-red-50 hover:border-red-200 hover:text-red-600"
+                          )}
+                        >
+                          <LogOut size={18} />
+                          <span>{lang === 'de' ? 'Abmelden' : 'Sign Out'}</span>
+                        </button>
                       </div>
                     </>
                   )}
