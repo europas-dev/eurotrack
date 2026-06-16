@@ -677,3 +677,6 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
     </div>
   </div>
 )}
+</div> // <--- THIS IS THE MAIN CONTAINER CLOSING TAG
+  )
+}
