@@ -2055,7 +2055,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           <ModernDropdown disabled={viewOnly} value={localHotel.country || 'Germany'} options={getCountryOptions()} onChange={(v:string) => patchHotel({ country: v })} isDarkMode={dk} lang={lang} />
         </div>
 
-        {/* ROW 2 - Aligned precisely with Col Spans above */}
+       {/* ROW 2: Contact & Details */}
+        
         {/* NOTIZ BLOCK (Column 1 - Span 3) */}
         <div className="col-span-3 flex flex-col">
             {/* Label in Row 1 position */}
@@ -2072,25 +2073,24 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             </button>
         </div>
         
-        <div className="col-span-4">
+        <div className="col-span-3 flex flex-col">
+          <label className={cn(labelCls, 'mb-1.5')}><User size={12}/> {lang === 'de' ? 'Ansprechpartner' : 'Contact'}</label>
+          <input disabled={viewOnly} value={localHotel.contactPerson || ''} onChange={e => patchHotel({ contactPerson: e.target.value })} className={seamlessInput} placeholder="..." />
+        </div>
+        
+        <div className="col-span-3 flex flex-col">
           <label className={cn(labelCls, 'mb-1.5')}><Phone size={12}/> {lang === 'de' ? 'Telefon' : 'Phone'}</label>
           <div className={cn('flex items-center rounded-lg border border-transparent overflow-hidden h-[34px] transition-colors focus-within:border-teal-500', dk ? 'bg-transparent hover:bg-white/5 focus-within:bg-[#1E293B]' : 'bg-transparent hover:bg-slate-50 focus-within:bg-white')}>
              <span className={cn("px-2.5 text-xs font-bold border-r border-transparent h-full flex items-center shrink-0 opacity-50", dk ? "text-slate-400" : "text-slate-500")}>{getCountryCode(localHotel.country || 'Germany')}</span>
              <input disabled={viewOnly} value={localHotel.phone || ''} onChange={e => patchHotel({ phone: e.target.value })} className="w-full px-2 py-1.5 text-sm font-bold outline-none bg-transparent h-full" placeholder="..." />
           </div>
         </div>
-        <div className="col-span-3">
+        
+        <div className="col-span-3 flex flex-col">
           <label className={cn(labelCls, 'mb-1.5')}><Mail size={12}/> Email</label>
           <div className="relative flex items-center group">
              <input disabled={viewOnly} value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })} className={cn(seamlessInput, 'pr-8')} placeholder="..." />
              {localHotel.email && <a href={`mailto:${localHotel.email}`} className="absolute right-1 p-1 bg-teal-600 text-white rounded hover:bg-teal-500 opacity-0 group-hover:opacity-100 transition-opacity"><Mail size={12} /></a>}
-          </div>
-        </div>
-        <div className="col-span-2">
-          <label className={cn(labelCls, 'mb-1.5')}><Globe size={12}/> {lang === 'de' ? 'Webseite' : 'Website'}</label>
-          <div className="relative flex items-center group">
-             <input disabled={viewOnly} value={localHotel.website || ''} onChange={e => patchHotel({ website: e.target.value })} className={cn(seamlessInput, 'pr-8')} placeholder="..." />
-             {localHotel.website && <a href={localHotel.website.startsWith('http') ? localHotel.website : `https://${localHotel.website}`} target="_blank" rel="noreferrer" className="absolute right-1 p-1 bg-teal-600 text-white rounded hover:bg-teal-500 opacity-0 group-hover:opacity-100 transition-opacity"><ExternalLink size={12} /></a>}
           </div>
         </div>
 
