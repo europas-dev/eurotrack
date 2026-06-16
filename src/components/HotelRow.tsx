@@ -2079,11 +2079,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         <div className="col-span-3">
           <label className={cn(labelCls, 'mb-1.5')}><Mail size={12}/> Email</label>
           <input disabled={viewOnly} value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })} onKeyDown={handleEnterBlur} className={seamlessInput} placeholder="..." />
+          {localHotel.email && <a href={`mailto:${localHotel.email}`} className="absolute right-1 p-1 bg-teal-600 text-white rounded hover:bg-teal-500 opacity-0 group-hover:opacity-100 transition-opacity"><Mail size={12} /></a>}
         </div>
         
         <div className="col-span-3">
           <label className={cn(labelCls, 'mb-1.5')}><Globe size={12}/> {lang === 'de' ? 'Webseite' : 'Website'}</label>
           <input disabled={viewOnly} value={localHotel.website || ''} onChange={e => patchHotel({ website: e.target.value })} onKeyDown={handleEnterBlur} className={seamlessInput} placeholder="..." />
+          {localHotel.website && <a href={localHotel.website.startsWith('http') ? localHotel.website : `https://${localHotel.website}`} target="_blank" rel="noreferrer" className="absolute right-1 p-1 bg-teal-600 text-white rounded hover:bg-teal-500 opacity-0 group-hover:opacity-100 transition-opacity"><ExternalLink size={12} /></a>}
         </div>
         
         {/* ROW 3: Note TextArea - Note: Enter doesn't usually blur a textarea, but we can prevent it from creating new lines if you prefer */}
