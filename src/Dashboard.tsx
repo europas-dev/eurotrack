@@ -1311,9 +1311,16 @@ finalFiltered.forEach(h => {
                     </div>
                   </div>
                 )}
-{/* DESKTOP HEADER ROW */}
+              
+            {/* DESKTOP HEADER ROW */}
                 {!loading && finalFiltered.length > 0 && (
-                  <div className="hidden lg:flex items-center px-8 pt-2 text-[10px] font-black uppercase tracking-widest text-slate-400" style={{ margin: '0 -32px' }}>
+                  <div 
+                    className={cn(
+                      "hidden lg:flex items-center px-8 py-2.5 mb-3 text-[10px] font-black uppercase tracking-widest border-b",
+                      dk ? "bg-white/5 border-white/10 text-slate-400" : "bg-slate-100 border-slate-300 text-slate-500"
+                    )} 
+                    style={{ marginLeft: '-32px', marginRight: '-32px' }}
+                  >
                     <div className="w-10 shrink-0"></div>
                     <div className="w-[200px] shrink-0 pr-4">{lang === 'de' ? 'Hotel' : 'Hotel'}</div>
                     <div className="w-[140px] shrink-0 pr-6">{lang === 'de' ? 'Firma' : 'Company'}</div>
@@ -1325,7 +1332,6 @@ finalFiltered.forEach(h => {
                     <div className="w-8 shrink-0"></div>
                   </div>
                 )}
-              </div>
             </div> {/* END OF STICKY CONTROL STACK */}
 
               {/* THE DATA ROWS */}
