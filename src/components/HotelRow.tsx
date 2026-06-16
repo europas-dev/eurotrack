@@ -2046,8 +2046,17 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           <input disabled={viewOnly} value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} onKeyDown={handleEnterBlur} className={seamlessInput} placeholder="..." />
         </div>
         <div className="col-span-3">
-          <label className={cn(labelCls, 'mb-1.5')}><MapPin size={12}/> {lang === 'de' ? 'Stadt' : 'City'}</label>
-          <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(v:any) => patchHotel({ city: v })} placeholder="..." textClass={cn('text-sm font-bold', dk ? 'text-white' : 'text-slate-900')} />
+        <label className={cn(labelCls, 'mb-1.5')}><MapPin size={12}/> {lang === 'de' ? 'Stadt' : 'City'}</label>
+        <SeamlessInput 
+          disabled={viewOnly} 
+          value={localHotel.city} 
+          options={cityOptions} 
+          isDarkMode={dk} 
+          onChange={(v:any) => patchHotel({ city: v })} 
+          placeholder="..." 
+          // FIX: Add 'leading-[34px]' here to center the text vertically
+          textClass={cn('text-sm font-bold leading-[34px]', dk ? 'text-white' : 'text-slate-900')} 
+        />
         </div>
         <div className="col-span-3">
           <label className={cn(labelCls, 'mb-1.5')}><Globe size={12}/> {lang === 'de' ? 'Land' : 'Country'}</label>
@@ -2077,16 +2086,20 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         </div>
         
         <div className="col-span-3">
-          <label className={cn(labelCls, 'mb-1.5')}><Mail size={12}/> Email</label>
-          <input disabled={viewOnly} value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })} onKeyDown={handleEnterBlur} className={seamlessInput} placeholder="..." />
+        <label className={cn(labelCls, 'mb-1.5')}><Mail size={12}/> Email</label>
+        <div className="relative flex items-center group">
+          <input disabled={viewOnly} value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })} onKeyDown={handleEnterBlur} className={cn(seamlessInput, 'pr-8')} placeholder="..." />
           {localHotel.email && <a href={`mailto:${localHotel.email}`} className="absolute right-1 p-1 bg-teal-600 text-white rounded hover:bg-teal-500 opacity-0 group-hover:opacity-100 transition-opacity"><Mail size={12} /></a>}
         </div>
-        
-        <div className="col-span-3">
-          <label className={cn(labelCls, 'mb-1.5')}><Globe size={12}/> {lang === 'de' ? 'Webseite' : 'Website'}</label>
-          <input disabled={viewOnly} value={localHotel.website || ''} onChange={e => patchHotel({ website: e.target.value })} onKeyDown={handleEnterBlur} className={seamlessInput} placeholder="..." />
+      </div>
+
+      <div className="col-span-3">
+        <label className={cn(labelCls, 'mb-1.5')}><Globe size={12}/> {lang === 'de' ? 'Webseite' : 'Website'}</label>
+        <div className="relative flex items-center group">
+          <input disabled={viewOnly} value={localHotel.website || ''} onChange={e => patchHotel({ website: e.target.value })} onKeyDown={handleEnterBlur} className={cn(seamlessInput, 'pr-8')} placeholder="..." />
           {localHotel.website && <a href={localHotel.website.startsWith('http') ? localHotel.website : `https://${localHotel.website}`} target="_blank" rel="noreferrer" className="absolute right-1 p-1 bg-teal-600 text-white rounded hover:bg-teal-500 opacity-0 group-hover:opacity-100 transition-opacity"><ExternalLink size={12} /></a>}
         </div>
+      </div>
         
         {/* ROW 3: Note TextArea - Note: Enter doesn't usually blur a textarea, but we can prevent it from creating new lines if you prefer */}
         {showNotes && (
