@@ -461,16 +461,16 @@ export default function Header({
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <p className={cn('text-xs font-bold mb-1.5', dk ? 'text-slate-400' : 'text-slate-600')}>{isDe ? 'Sprache' : 'Language'}</p>
-                            <div className="flex rounded-lg border overflow-hidden">
-                              <button onClick={() => setLang('de')} className={cn('flex-1 py-1.5 text-xs font-bold', lang === 'de' ? 'bg-blue-600 text-white' : 'opacity-50')}>DE</button>
-                              <button onClick={() => setLang('en')} className={cn('flex-1 py-1.5 text-xs font-bold', lang === 'en' ? 'bg-blue-600 text-white' : 'opacity-50')}>EN</button>
+                            <div className={cn('flex rounded-lg border overflow-hidden', dk ? 'border-white/10' : 'border-slate-200')}>
+                              <button onClick={() => setLang('de')} className={cn('flex-1 py-1.5 text-xs font-bold transition-all', lang === 'de' ? 'bg-blue-600 text-white' : (dk ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'))}>DE</button>
+                              <button onClick={() => setLang('en')} className={cn('flex-1 py-1.5 text-xs font-bold transition-all', lang === 'en' ? 'bg-blue-600 text-white' : (dk ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'))}>EN</button>
                             </div>
                           </div>
                           <div>
                             <p className={cn('text-xs font-bold mb-1.5', dk ? 'text-slate-400' : 'text-slate-600')}>{isDe ? 'Erscheinungsbild' : 'Appearance'}</p>
-                            <div className="flex rounded-lg border overflow-hidden">
-                              <button onClick={toggleTheme} className={cn('flex-1 py-1.5 flex justify-center', dk ? 'bg-blue-600 text-white' : 'opacity-50')}><Moon size={14} /></button>
-                              <button onClick={toggleTheme} className={cn('flex-1 py-1.5 flex justify-center', !dk ? 'bg-blue-600 text-white' : 'opacity-50')}><Sun size={14} /></button>
+                            <div className={cn('flex rounded-lg border overflow-hidden', dk ? 'border-white/10' : 'border-slate-200')}>
+                              <button onClick={toggleTheme} className={cn('flex-1 py-1.5 flex justify-center transition-all', dk ? 'bg-blue-600 text-white' : (dk ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'))}><Moon size={14} /></button>
+                              <button onClick={toggleTheme} className={cn('flex-1 py-1.5 flex justify-center transition-all', !dk ? 'bg-blue-600 text-white' : (dk ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'))}><Sun size={14} /></button>
                             </div>
                           </div>
                         </div>
