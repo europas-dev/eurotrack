@@ -586,6 +586,18 @@ export default function Header({
           -webkit-font-feature-settings: "lnum", "tnum";
           font-feature-settings: "lnum", "tnum";
         }
+        
+        /* Crisp font rendering for modern UI */
+        body {
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* TAME POPPINS: Shift Tailwind's heavy classes down one weight tier */
+        body[style*="Poppins"] .font-black { font-weight: 700 !important; }
+        body[style*="Poppins"] .font-bold { font-weight: 600 !important; }
+        body[style*="Poppins"] .font-medium { font-weight: 500 !important; }
+
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0.6; } to { transform: translateX(0); opacity: 1; } }
       `}</style>
     </>
