@@ -815,10 +815,14 @@ finalFiltered.forEach(h => {
            <div className="flex items-center gap-8 shrink-0">
              
              {/* Freie Betten */}
-             <div className="flex items-center gap-2.5" title={lang === 'de' ? 'Freie Betten' : 'Free Beds'}>
-               <Bed size={22} className={dk ? "text-slate-500" : "text-slate-400"} strokeWidth={2.5} />
+             <button 
+               onClick={() => setFbType(prev => prev === 'today' ? 'all' : 'today')}
+               className="flex items-center gap-2.5 cursor-pointer transition-opacity hover:opacity-80 outline-none" 
+               title={lang === 'de' ? 'Nur Hotels mit freien Betten anzeigen' : 'Show only hotels with free beds'}
+             >
+               <Bed size={22} className={fbType === 'today' ? "text-red-500" : (dk ? "text-slate-500" : "text-slate-400")} strokeWidth={2.5} />
                <span className={cn('text-[22px] font-black leading-none mt-0.5', freeBedsTotal > 0 ? 'text-red-500' : 'text-slate-400')}>{freeBedsTotal}</span>
-             </div>
+             </button>
 
              {/* Hotels */}
              <div className="flex items-center gap-2.5" title="Hotels">
@@ -921,7 +925,7 @@ finalFiltered.forEach(h => {
              <Loader2 size={48} className="animate-spin text-teal-500 opacity-50" />
           </div>
         ) : (
-          <main className="flex-1 overflow-y-auto px-8 pb-64 relative no-scrollbar">
+          <main className="flex-1 overflow-y-auto px-8 pb-64 relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             
             {/* STICKY CONTROL STACK */}
             <div 
