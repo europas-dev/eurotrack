@@ -336,7 +336,7 @@ export default function Header({
           </div>
         </div>
 
-        <div className="flex items-center gap-3 ml-auto mr-11.5 shrink-0">
+        <div className="flex items-center gap-3 ml-auto mr-[46px] shrink-0">
           {children}
           <button onClick={onPrint} className={iconBtn} title="Export">
             <Upload size={18} className="text-teal-500" />
