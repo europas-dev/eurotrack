@@ -1188,7 +1188,7 @@ finalFiltered.forEach(h => {
                     <Users size={16} /> 
                   </button>
                   {showEmpMenu && (
-                    <div className={cn(popupCls, 'w-[200px] p-2')}>
+                    <div className={cn(popupCls, 'w-[175px] p-3 right-0 lg:right-0')}>
                       <p className={sectionTitle}>{lang === 'de' ? 'Mitarbeiter Status' : 'Emp. Status'}</p>
                       <div className="flex flex-col gap-1">
                         {[
