@@ -33,10 +33,10 @@ const AVATARS = [
 ];
 
 const FONT_STYLES = [
-  { id: 'sans', label: 'Default', family: 'ui-sans-serif, system-ui, sans-serif' },
+  { id: 'poppins', label: 'Default', family: '"Poppins", sans-serif' },
   { id: 'serif', label: 'Serif', family: 'Georgia, "Times New Roman", serif' },
   { id: 'mono', label: 'Mono', family: 'ui-monospace, Menlo, Monaco, monospace' },
-  { id: 'poppins', label: 'Poppins', family: '"Poppins", sans-serif' },
+  { id: 'sans', label: 'Sans', family: 'ui-sans-serif, system-ui, sans-serif' },
   { id: 'trebuchet', label: 'Trebuchet', family: '"Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", sans-serif' },
   { id: 'tahoma', label: 'Tahoma', family: 'Tahoma, Verdana, Segoe, sans-serif' },
 ];
