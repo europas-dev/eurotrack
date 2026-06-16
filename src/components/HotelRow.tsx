@@ -2056,15 +2056,20 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         </div>
 
         {/* ROW 2 - Aligned precisely with Col Spans above */}
-        <div className="col-span-3 flex items-center gap-2">
-            <label className={cn(labelCls, 'mb-1.5')}>{lang === 'de' ? 'Notiz' : 'Note'}</label>
-            <button onClick={() => setShowNotes(!showNotes)} className={cn("w-[34px] h-[34px] mt-6 rounded-lg border flex items-center justify-center shrink-0", localHotel.notes ? "bg-teal-500/10 border-teal-500/30 text-teal-500" : dk ? "border-transparent text-slate-500 hover:bg-white/5" : "border-transparent text-slate-400 hover:bg-slate-50")}>
+        {/* NOTIZ BLOCK (Column 1 - Span 3) */}
+        <div className="col-span-3 flex flex-col">
+            {/* Label in Row 1 position */}
+            <label className={cn(labelCls, 'mb-1.5')}><StickyNote size={12}/> {lang === 'de' ? 'Notiz' : 'Note'}</label>
+            {/* Toggle Button aligned to input height below */}
+            <button 
+                onClick={() => setShowNotes(!showNotes)} 
+                className={cn(
+                    "w-[34px] h-[34px] rounded-lg border flex items-center justify-center transition-all", 
+                    localHotel.notes ? "bg-teal-500/10 border-teal-500/30 text-teal-500 shadow-sm" : dk ? "border-transparent text-slate-500 hover:text-white hover:bg-white/5" : "border-transparent text-slate-400 hover:text-slate-800 hover:bg-slate-50"
+                )}
+            >
                 <StickyNote size={16} />
             </button>
-            <div className="flex-1">
-                <label className={cn(labelCls, 'mb-1.5')}><User size={12}/> {lang === 'de' ? 'Ansprechpartner' : 'Contact'}</label>
-                <input disabled={viewOnly} value={localHotel.contactPerson || ''} onChange={e => patchHotel({ contactPerson: e.target.value })} className={seamlessInput} placeholder="..." />
-            </div>
         </div>
         
         <div className="col-span-4">
