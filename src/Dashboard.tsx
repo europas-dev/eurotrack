@@ -4,7 +4,7 @@ import { supabase, deleteHotel, createHotel, updateHotel } from './lib/supabase'
 import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday, calculateNights, calcInvoiceItem, getEmployeeStatus } from './lib/utils';
 import { calcRoomCardNettoSum, calcRoomCardTotal } from './lib/roomCardUtils';
 import type { AccessLevel } from './lib/supabase';
-import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Star, Calendar, MapPin, Building, Building2, CloudOff, Globe, Trash2, Copy, Eye, EyeOff, ChevronDown, ChevronUp, Bed, Coins, Users } from 'lucide-react';
+import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Star, Calendar, MapPin, Building, Building2, CloudOff, Globe, Trash2, Copy, Eye, EyeOff, ChevronDown, ChevronUp, Bed, Coins, Users, ArrowDownNarrowWide, ArrowDownWideNarrow } from 'lucide-react';
 import Header from './components/Header';
 import { HotelRow, ModernDropdown, CompanyMultiSelect, getCountryOptions } from './components/HotelRow';
 import ExportStudio from './components/ExportStudio';
@@ -1155,13 +1155,13 @@ finalFiltered.forEach(h => {
                       
                       <div className="grid grid-cols-2 gap-3 mb-6">
                         <button onClick={() => setSortDir('asc')} className={cn("py-3 px-4 rounded-lg border text-left transition-all", sortDir === 'asc' ? btnActive : btnInactive)}>
-                          <span className="block text-sm font-bold">{lang === 'de' ? 'Aufsteigend' : 'Ascending'}</span>
+                          <span className="block text-sm font-bold"> {lang === 'de' ? 'Aufsteigend' : 'Ascending'} <ArrowDownNarrowWide size={10} className="inline mr-1"/> </span>
                           <span className={cn("block text-[10px] mt-1 font-normal", sortDir === 'asc' ? 'opacity-90' : 'opacity-50')}>
                             {lang === 'de' ? 'Low to High, A-Z, Günstigste' : 'Low to High, A-Z, Oldest'}
                           </span>
                         </button>
                         <button onClick={() => setSortDir('desc')} className={cn("py-3 px-4 rounded-lg border text-left transition-all", sortDir === 'desc' ? btnActive : btnInactive)}>
-                          <span className="block text-sm font-bold">{lang === 'de' ? 'Absteigend' : 'Descending'}</span>
+                          <span className="block text-sm font-bold">{lang === 'de' ? 'Absteigend' : 'Descending'} <ArrowDownWideNarrow size={10} className="inline mr-1"/> </span>
                           <span className={cn("block text-[10px] mt-1 font-normal", sortDir === 'desc' ? 'opacity-90' : 'opacity-50')}>
                             {lang === 'de' ? 'High to Low, Z-A, Neueste' : 'High to Low, Z-A, Newest'}
                           </span>
