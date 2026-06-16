@@ -551,7 +551,7 @@ export function MonthFilterDropdown({ selectedMonth, localMonthFilter, setLocalM
   );
 }
 
-export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onRenameCompanyOption, onAddOption, viewOnly, isSelected = false, onSelect = () => {}, isBulkActive = false, isOpen = false, onToggle = () => {}, showGlobalFinancials = false, activeSort = 'created_at', activeFilterDue, activeFilterDeposit }: any) {
+export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onRenameCompanyOption, onAddOption, viewOnly, isSelected = false, onSelect = () => {}, isBulkActive = false, isOpen = false, onToggle = () => {}, showGlobalFinancials = false, activeSort = 'created_at', activeFilterDue, activeFilterDeposit, isModalOpen, setIsModalOpen }: any) {
  const [activeTab, setActiveTab] = useState<'bookings'|'billing'|'info'>('bookings');
   
   const [showNotes, setShowNotes] = useState(false);
@@ -580,6 +580,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [saving, setSaving] = useState(false);
   const [creatingDuration, setCreatingDuration] = useState(false);
   const saveTimer = useRef<any>(null);
+
+  // Update the parent's modal status when this row's modal changes
+  useEffect(() => {
+    setIsModalOpen(confirmDelete);
+  }, [confirmDelete, setIsModalOpen]);
 
   useEffect(() => {
       function handleTotalKey(e: KeyboardEvent) {
@@ -945,17 +950,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         </div>
       )}
 
-         <div className={cn('rounded-xl border transition-all duration-200 shadow-sm relative overflow-visible', 
-    // If confirmDelete is true, force the neutral background
-    confirmDelete 
-        ? (dk ? 'bg-[#1E293B] border-white/5' : 'bg-white border-slate-200')
-        : isSelected 
-            ? (dk ? 'bg-teal-500/10 border-teal-500/50' : 'bg-teal-50 border-teal-500/40')
-            : isOpen 
-                ? (dk ? 'bg-[#1E293B] border-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'bg-white border-teal-400/60 shadow-[0_0_15px_rgba(20,184,166,0.15)]')
-                : (dk ? 'bg-[#1E293B] border-white/5 hover:border-white/10' : 'bg-white border-slate-200 hover:border-slate-300')
-)}>
-           <div className={cn("absolute right-0 top-0 bottom-0 w-[4px] rounded-r-xl transition-colors z-[60]", masterMath.totalUnpaid > 0 ? "bg-red-500" : (masterMath.totalPaid > 0 ? "bg-emerald-500" : "bg-transparent border-l border-slate-200 dark:border-white/10"))} />
+      <div className={cn('rounded-xl border transition-all duration-200 shadow-sm relative overflow-visible', 
+      (isModalOpen && !confirmDelete) ? (dk ? 'bg-[#1E293B] border-white/5' : 'bg-white border-slate-200') // Neutralize if other modals are open
+      : isSelected ? (dk ? 'bg-teal-500/10 border-teal-500/50' : 'bg-teal-50 border-teal-500/40') 
+      : isOpen ? (dk ? 'bg-[#1E293B] border-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'bg-white border-teal-400/60 shadow-[0_0_15px_rgba(20,184,166,0.15)]') 
+      : (dk ? 'bg-[#1E293B] border-white/5 hover:border-white/10' : 'bg-white border-slate-200 hover:border-slate-300'))}>
+      <div className={cn("absolute right-0 top-0 bottom-0 w-[4px] rounded-r-xl transition-colors z-[60]", masterMath.totalUnpaid > 0 ? "bg-red-500" : (masterMath.totalPaid > 0 ? "bg-emerald-500" : "bg-transparent border-l border-slate-200 dark:border-white/10"))} />
 
        <div className={cn('flex items-center cursor-pointer py-1.5 min-h-[56px] px-2 pr-2 group', dk ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/70', isOpen && 'border-b', isOpen && (dk ? 'border-white/5 bg-black/20' : 'border-slate-100 bg-slate-50/50'))} onClick={onToggle}>   
           <div className="flex items-center justify-center w-10 shrink-0">
