@@ -63,6 +63,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [activeEmpFilters, setActiveEmpFilters] = useState<string[]>([]);
   const [showEmpMenu, setShowEmpMenu] = useState(false);
   const empMenuRef = useRef<HTMLDivElement>(null);
+  const [isAnyModalOpen, setIsAnyModalOpen] = useState(false);
 
   // MENU VISIBILITY
   const [showFilterMenu, setShowFilterMenu] = useState(false);
@@ -1362,6 +1363,8 @@ finalFiltered.forEach(h => {
                         selectedMonth={selectedMonth}
                         selectedYear={selectedYear}
                         isOpen={expandedHotelId === h.id}
+                        isModalOpen={isAnyModalOpen}
+                        setIsModalOpen={setIsAnyModalOpen}
                         onToggle={() => setExpandedHotelId(prev => prev === h.id ? null : h.id)}
                         showGlobalFinancials={showGlobalFinancials}
                         activeSort={sortBy}
@@ -1402,6 +1405,8 @@ finalFiltered.forEach(h => {
                     selectedMonth={selectedMonth}
                     selectedYear={selectedYear}
                     isOpen={expandedHotelId === hotel.id}
+                    isModalOpen={isAnyModalOpen}
+                    setIsModalOpen={setIsAnyModalOpen}
                     onToggle={() => setExpandedHotelId(prev => prev === hotel.id ? null : hotel.id)}
                     showGlobalFinancials={showGlobalFinancials}
                     activeSort={sortBy}
