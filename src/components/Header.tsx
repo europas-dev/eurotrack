@@ -336,7 +336,7 @@ export default function Header({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 ml-auto shrink-0">
+        <div className="flex items-center gap-3 ml-auto mr-6 shrink-0">
           {children}
           <button onClick={onPrint} className={iconBtn} title="Export">
             <Upload size={18} className="text-teal-500" />
@@ -359,16 +359,16 @@ export default function Header({
           </button>
 
           <button 
-          onClick={onSignOut} 
-          title={lang === 'de' ? 'Abmelden' : 'Sign Out'}
-          className={cn(
-            "p-2 rounded-lg transition-all flex items-center justify-center",
-            dk ? "bg-white/5 text-slate-400 hover:bg-red-500/20 hover:text-red-400" 
-               : "bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-600"
-          )}
-        >
-          <LogOut size={18} />
-        </button>
+            onClick={onSignOut} 
+            title={lang === 'de' ? 'Abmelden' : 'Sign Out'}
+            className={cn(
+              "p-2.5 rounded-xl border transition-all flex items-center justify-center",
+              dk ? "bg-white/5 border-white/10 text-slate-400 hover:bg-red-500/20 hover:border-red-500/30 hover:text-red-400" 
+                 : "bg-white border-slate-200 text-slate-600 hover:bg-red-50 hover:border-red-200 hover:text-red-600"
+            )}
+          >
+            <LogOut size={18} />
+          </button>
         </div>
       </div>
 
