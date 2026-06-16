@@ -2036,7 +2036,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     <div className="p-5 bg-white dark:bg-[#0B1224] rounded-b-2xl border-t border-slate-200 dark:border-white/5 animate-in fade-in">
       <div className="grid grid-cols-12 gap-x-4 gap-y-5">
         
-        {/* ROW 1 */}
+        {/* ROW 1: Hotel Name, Adresse, Stadt, Land */}
         <div className="col-span-3 flex flex-col">
           <label className={cn(labelCls, 'mb-1.5')}><Building size={12}/> {lang === 'de' ? 'Hotelname' : 'Hotel Name'}</label>
           <input disabled={viewOnly} value={localHotel.name || ''} onChange={e => patchHotel({ name: e.target.value })} className={seamlessInput} placeholder="..." />
@@ -2054,8 +2054,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           <ModernDropdown disabled={viewOnly} value={localHotel.country || 'Germany'} options={getCountryOptions()} onChange={(v:string) => patchHotel({ country: v })} isDarkMode={dk} lang={lang} />
         </div>
 
-        {/* ROW 2 */}
+        {/* ROW 2: Note Toggle, Ansprechpartner, Telefon, Email, Website */}
         <div className="col-span-1 flex flex-col items-center justify-end">
+          <label className={cn(labelCls, 'mb-1.5 opacity-0')}>N</label>
           <button onClick={() => setShowNotes(!showNotes)} className={cn("w-[34px] h-[34px] rounded-lg border flex items-center justify-center transition-all", localHotel.notes ? "bg-teal-500/10 border-teal-500/30 text-teal-500 shadow-sm" : dk ? "border-transparent text-slate-500 hover:text-white hover:bg-white/5" : "border-transparent text-slate-400 hover:text-slate-800 hover:bg-slate-50")}>
             <StickyNote size={16} />
           </button>
@@ -2086,7 +2087,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
         </div>
 
-        {/* NOTES (Full width) */}
+        {/* ROW 3: Notes (Full width) */}
         {showNotes && (
           <div className="col-span-12 animate-in fade-in slide-in-from-top-2 duration-200">
             <textarea disabled={viewOnly} value={localHotel.notes || ''} onChange={e => patchHotel({ notes: e.target.value })} className={cn('w-full px-3 py-3 rounded-lg text-sm font-bold outline-none border transition-all min-h-[80px] h-auto resize-y', dk ? 'bg-[#0F172A] border-white/10 text-white placeholder-slate-600 focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-500')} placeholder={lang === 'de' ? "Private Notizen hier eintragen..." : "Write private notes here..."} />
