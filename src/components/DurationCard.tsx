@@ -374,7 +374,8 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
           {/* DATE PICKERS */}
           <div className={cn("flex items-center rounded-lg border h-[42px] px-2 shrink-0 shadow-sm", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
               <CalendarDays size={16} className="mr-2 opacity-50" />
-              <div className={cn("relative w-[90px] h-full", viewOnly ? "cursor-default" : "cursor-pointer")} onClick={() => openPicker(inDateRef)}>
+              {/* FIX: Increased width from 90px to 110px to accommodate wider fonts like Poppins */}
+              <div className={cn("relative w-[110px] h-full", viewOnly ? "cursor-default" : "cursor-pointer")} onClick={() => openPicker(inDateRef)}>
                   <input disabled={viewOnly} ref={inDateRef} type="date" value={local.startDate || ''} onChange={e => handleStartDateChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                   <div className="absolute inset-0 flex items-center pointer-events-none">
                       <span className={cn("text-[15px] font-bold", local.startDate ? (dk ? 'text-white' : 'text-slate-900') : 'text-slate-400')}>{forceDMY(local.startDate)}</span>
@@ -383,9 +384,10 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
               
               <ArrowRight size={14} className="mx-2 opacity-30" />
               
+              {/* FIX: Increased width from 90px to 110px to accommodate wider fonts like Poppins */}
               <div 
                 className={cn(
-                  "relative w-[90px] h-full", 
+                  "relative w-[110px] h-full", 
                   (viewOnly || !local.startDate) ? "cursor-default opacity-50" : "cursor-pointer"
                 )} 
                 onClick={() => local.startDate && openPicker(outDateRef)}
