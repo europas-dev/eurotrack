@@ -1272,7 +1272,7 @@ finalFiltered.forEach(h => {
                     <div className="flex flex-wrap lg:flex-nowrap items-end gap-4 w-full">
                       
                       <div className="flex-1 min-w-[200px]">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block">{lang === 'de' ? 'Hotelname' : 'Hotel Name'}</label>
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5 block"><Building size={10} className="inline mr-1"/>{lang === 'de' ? 'Hotelname' : 'Hotel Name'}</label>
                         <input autoFocus list="hotel-suggestions" className={cn('w-full h-[38px] px-3 rounded-lg border outline-none text-sm font-bold transition-all focus:border-teal-500', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-slate-50 border-slate-200')} value={newHotelName} onChange={e => setNewHotelName(e.target.value)} placeholder="Riveria..." />
                         <datalist id="hotel-suggestions">
                            {newHotelName.trim().length > 0 && uniqueHotelNames.map(n => <option key={n} value={n} />)}
