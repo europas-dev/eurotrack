@@ -2057,6 +2057,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
         {/* ROW 2 - Aligned precisely with Col Spans above */}
         <div className="col-span-3 flex items-center gap-2">
+            <label className={cn(labelCls, 'mb-1.5')}>{lang === 'de' ? 'Notiz' : 'Note'}</label>
             <button onClick={() => setShowNotes(!showNotes)} className={cn("w-[34px] h-[34px] mt-6 rounded-lg border flex items-center justify-center shrink-0", localHotel.notes ? "bg-teal-500/10 border-teal-500/30 text-teal-500" : dk ? "border-transparent text-slate-500 hover:bg-white/5" : "border-transparent text-slate-400 hover:bg-slate-50")}>
                 <StickyNote size={16} />
             </button>
