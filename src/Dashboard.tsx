@@ -1155,13 +1155,13 @@ finalFiltered.forEach(h => {
                       
                       <div className="grid grid-cols-2 gap-3 mb-6">
                         <button onClick={() => setSortDir('asc')} className={cn("py-3 px-4 rounded-lg border text-left transition-all", sortDir === 'asc' ? btnActive : btnInactive)}>
-                          <span className="block text-sm font-bold"> {lang === 'de' ? 'Aufsteigend' : 'Ascending'} <ArrowDownNarrowWide size={10} className="inline mr-1"/> </span>
+                          <span className="block text-sm font-bold"> {lang === 'de' ? 'Aufsteigend' : 'Ascending'} <ArrowDownNarrowWide size={16} className="inline mr-1"/> </span>
                           <span className={cn("block text-[10px] mt-1 font-normal", sortDir === 'asc' ? 'opacity-90' : 'opacity-50')}>
                             {lang === 'de' ? 'Low to High, A-Z, Günstigste' : 'Low to High, A-Z, Oldest'}
                           </span>
                         </button>
                         <button onClick={() => setSortDir('desc')} className={cn("py-3 px-4 rounded-lg border text-left transition-all", sortDir === 'desc' ? btnActive : btnInactive)}>
-                          <span className="block text-sm font-bold">{lang === 'de' ? 'Absteigend' : 'Descending'} <ArrowDownWideNarrow size={10} className="inline mr-1"/> </span>
+                          <span className="block text-sm font-bold">{lang === 'de' ? 'Absteigend' : 'Descending'} <ArrowDownWideNarrow size={16} className="inline mr-1"/> </span>
                           <span className={cn("block text-[10px] mt-1 font-normal", sortDir === 'desc' ? 'opacity-90' : 'opacity-50')}>
                             {lang === 'de' ? 'High to Low, Z-A, Neueste' : 'High to Low, Z-A, Newest'}
                           </span>
