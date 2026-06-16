@@ -650,16 +650,30 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
       </div>
 
       {confirmDelete && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 p-4">
-          <div className={cn('w-full max-w-md rounded-2xl border p-6', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
-            <h3 className="text-xl font-black mb-4">Löschen?</h3>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setConfirm(false)} className="px-4 py-2 font-bold opacity-50">Abbrechen</button>
-              <button onClick={() => { onDelete(local.id); setConfirm(false); }} className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold">Löschen</button>
-            </div>
-          </div>
-        </div>
-      )}
+  <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div className={cn('w-full max-w-md rounded-2xl border p-6 shadow-2xl', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
+      <h3 className="text-xl font-black mb-2">
+        {lang === 'de' ? 'Buchungszeitraum löschen?' : 'Delete booking period?'}
+      </h3>
+      <p className="text-sm font-bold text-slate-500 mb-6">
+        {lang === 'de' 
+          ? 'Diese Aktion kann nicht rückgängig gemacht werden. Möchten Sie die Löschung wirklich durchführen?' 
+          : 'This action cannot be undone. Proceed to deletion?'}
+      </p>
+      <div className="flex justify-end gap-3">
+        <button 
+          onClick={() => setConfirm(false)} 
+          className="px-4 py-2 font-bold opacity-50 hover:opacity-100 transition-opacity"
+        >
+          {lang === 'de' ? 'Abbrechen' : 'Cancel'}
+        </button>
+        <button 
+          onClick={() => { onDelete(local.id); setConfirm(false); }} 
+          className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors"
+        >
+          {lang === 'de' ? 'Löschen' : 'Delete'}
+        </button>
+      </div>
     </div>
-  )
-}
+  </div>
+)}
