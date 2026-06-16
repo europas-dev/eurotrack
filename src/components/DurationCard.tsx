@@ -622,10 +622,23 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
           )}
           
           {!viewOnly && (
-            <button onClick={() => setConfirm(true)} className={cn("p-2 rounded-xl flex items-center justify-center transition-colors shrink-0", dk ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" : "text-slate-400 hover:text-red-500 hover:bg-red-50")}>
-              <Trash2 size={20} />
-            </button>
-          )}
+          <button 
+            onClick={() => {
+              // 1. Set our local confirm state
+              setConfirm(true); 
+              // 2. If you added the modal-tracking prop, trigger it here:
+              if (typeof props.setIsModalOpen === 'function') {
+                props.setIsModalOpen(true);
+              }
+            }} 
+            className={cn("p-2 rounded-xl flex items-center justify-center transition-colors shrink-0", 
+              dk ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" 
+                 : "text-slate-400 hover:text-red-500 hover:bg-red-50"
+            )}
+          >
+            <Trash2 size={20} />
+          </button>
+        )}
         </div>
       </div>
 
