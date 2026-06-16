@@ -2030,81 +2030,63 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
             {/* TAB 3: HOTEL INFO */}
             {activeTab === 'info' && (() => {
-               // Seamless styling: Transparent borders until hovered or focused
-               const seamlessInput = cn('w-full px-2 py-1.5 rounded-lg text-sm font-bold outline-none border border-transparent transition-all h-[34px]', dk ? 'bg-transparent text-white hover:bg-white/5 focus:bg-[#1E293B] focus:border-teal-500 placeholder-slate-600' : 'bg-transparent text-slate-900 hover:bg-slate-50 focus:bg-white focus:border-teal-500 placeholder-slate-400', viewOnly && "opacity-60 cursor-default");
-               
-               return (
-                 <div className="p-5 bg-white dark:bg-[#0B1224] rounded-b-2xl border-t border-slate-200 dark:border-white/5 animate-in fade-in">
-                    <div className="grid grid-cols-12 gap-x-6 gap-y-5">
-                       
-                       {/* ROW 1 */}
-                       {/* Column 1: Adresse (Span 5) */}
-                       <div className="col-span-5 flex flex-col">
-                          <label className={cn(labelCls, 'mb-1.5')}><MapPin size={12}/> {lang === 'de' ? 'Adresse' : 'Address'}</label>
-                          <input disabled={viewOnly} autoComplete="off" value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} onKeyDown={handleEnterBlur} className={seamlessInput} placeholder="..." />
-                       </div>
-                       
-                       {/* Column 2: Ansprechpartner (Span 4) */}
-                       <div className="col-span-4 flex flex-col">
-                          <label className={cn(labelCls, 'mb-1.5')}><User size={12}/> {lang === 'de' ? 'Ansprechpartner' : 'Contact'}</label>
-                          <input disabled={viewOnly} autoComplete="off" value={localHotel.contactPerson || ''} onChange={e => patchHotel({ contactPerson: e.target.value })} onKeyDown={handleEnterBlur} className={seamlessInput} placeholder="..." />
-                       </div>
-                       
-                       {/* Column 3: Telefon (Span 3) */}
-                       <div className="col-span-3 flex flex-col">
-                          <label className={cn(labelCls, 'mb-1.5')}><Phone size={12}/> {lang === 'de' ? 'Telefon' : 'Phone'}</label>
-                          <div className={cn('flex items-center rounded-lg border border-transparent overflow-hidden h-[34px] transition-colors focus-within:border-teal-500', dk ? 'bg-transparent hover:bg-white/5 focus-within:bg-[#1E293B]' : 'bg-transparent hover:bg-slate-50 focus-within:bg-white')}>
-                             <span className={cn("px-2.5 text-xs font-bold border-r border-transparent h-full flex items-center shrink-0 opacity-50", dk ? "text-slate-400" : "text-slate-500")}>{getCountryCode(localHotel.country || 'Germany')}</span>
-                             <input disabled={viewOnly} autoComplete="off" value={localHotel.phone || ''} onChange={e => patchHotel({ phone: e.target.value })} onKeyDown={handleEnterBlur} className="w-full px-2 py-1.5 text-sm font-bold outline-none bg-transparent h-full" placeholder="..." />
-                          </div>
-                       </div>
-
-                       {/* ROW 2 */}
-                       {/* Column 1: Note Toggle + Email (Span 5) */}
-                       <div className="col-span-5 flex items-end gap-3">
-                          <div className="shrink-0 flex flex-col">
-                             <label className={cn(labelCls, 'mb-1.5')}><StickyNote size={12}/> {lang === 'de' ? 'Notiz' : 'Note'}</label>
-                             <button onClick={() => setShowNotes(!showNotes)} className={cn("w-[34px] h-[34px] rounded-lg border flex items-center justify-center transition-all", localHotel.notes ? "bg-teal-500/10 border-teal-500/30 text-teal-500 shadow-sm" : dk ? "border-transparent text-slate-400 hover:text-white hover:bg-white/5" : "border-transparent text-slate-400 hover:text-slate-800 hover:bg-slate-50")}>
-                                <StickyNote size={16} />
-                             </button>
-                          </div>
-                          <div className="flex-1 flex flex-col">
-                             <label className={cn(labelCls, 'mb-1.5')}><Mail size={12}/> Email</label>
-                             <div className="relative flex items-center group">
-                                <input disabled={viewOnly} autoComplete="off" value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })} onKeyDown={handleEnterBlur} className={cn(seamlessInput, 'pr-8')} placeholder="..." />
-                                {localHotel.email && <a href={`mailto:${localHotel.email}`} className="absolute right-1 p-1 bg-teal-600 text-white rounded hover:bg-teal-500 opacity-0 group-hover:opacity-100 transition-opacity"><Mail size={12} /></a>}
-                             </div>
-                          </div>
-                       </div>
-
-                       {/* Column 2: Webseite (Span 4) */}
-                       <div className="col-span-4 flex flex-col">
-                          <label className={cn(labelCls, 'mb-1.5')}><Globe size={12}/> {lang === 'de' ? 'Webseite' : 'Website'}</label>
-                          <div className="relative flex items-center group">
-                             <input disabled={viewOnly} autoComplete="off" value={localHotel.website || ''} onChange={e => patchHotel({ website: e.target.value })} onKeyDown={handleEnterBlur} className={cn(seamlessInput, 'pr-8')} placeholder="..." />
-                             {localHotel.website && <a href={localHotel.website.startsWith('http') ? localHotel.website : `https://${localHotel.website}`} target="_blank" rel="noreferrer" className="absolute right-1 p-1 bg-teal-600 text-white rounded hover:bg-teal-500 opacity-0 group-hover:opacity-100 transition-opacity"><ExternalLink size={12} /></a>}
-                          </div>
-                       </div>
-
-                       {/* Column 3: Land (Span 3) */}
-                       <div className="col-span-3 flex flex-col">
-                          <label className={cn(labelCls, 'mb-1.5')}><Building size={12}/> {lang === 'de' ? 'Land' : 'Country'}</label>
-                          {/* FIX: Passes onOpenChange to secure the z-index */}
-                          <div className={cn("rounded-lg border border-transparent transition-all", dk ? "hover:border-white/10 hover:bg-white/5" : "hover:border-slate-200 hover:bg-slate-50")}>
-                             <ModernDropdown disabled={viewOnly} value={localHotel.country || 'Germany'} options={getCountryOptions()} onChange={(v:string) => patchHotel({ country: v })} isDarkMode={dk} lang={lang} onOpenChange={setIsDropdownActive} />
-                          </div>
-                       </div>
-
-                       {/* ROW 3: TEXTAREA */}
-                       {showNotes && (
-                         <div className="col-span-12 animate-in fade-in slide-in-from-top-2 duration-200 pt-2">
-                           <textarea disabled={viewOnly} autoComplete="off" autoFocus value={localHotel.notes || ''} onChange={e => patchHotel({ notes: e.target.value })} className={cn('w-full px-3 py-3 rounded-lg text-sm font-bold outline-none border transition-all min-h-[80px] h-auto resize-y', dk ? 'bg-[#1E293B] border-white/10 text-white placeholder-slate-600 focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-teal-500')} placeholder={lang === 'de' ? "Private Notizen hier eintragen..." : "Write private notes here..."} />
-                         </div>
-                       )}
+            const seamlessInput = cn('w-full px-2 py-1.5 rounded-lg text-sm font-bold outline-none border border-transparent transition-all h-[34px]', dk ? 'bg-transparent text-white hover:bg-white/5 focus:bg-[#1E293B] focus:border-teal-500 placeholder-slate-600' : 'bg-transparent text-slate-900 hover:bg-slate-50 focus:bg-white focus:border-teal-500 placeholder-slate-400', viewOnly && "opacity-60 cursor-default");
+            
+            return (
+              <div className="p-5 bg-white dark:bg-[#0B1224] rounded-b-2xl border-t border-slate-200 dark:border-white/5 animate-in fade-in">
+                <div className="grid grid-cols-12 gap-x-4 gap-y-5">
+                  
+                  {/* ROW 1: Identity & Location */}
+                  <div className="col-span-3 flex flex-col">
+                    <label className={cn(labelCls, 'mb-1.5')}>{lang === 'de' ? 'Hotelname' : 'Hotel Name'}</label>
+                    <input disabled={viewOnly} value={localHotel.name || ''} onChange={e => patchHotel({ name: e.target.value })} className={seamlessInput} placeholder="..." />
+                  </div>
+                  <div className="col-span-4 flex flex-col">
+                    <label className={cn(labelCls, 'mb-1.5')}><MapPin size={12}/> {lang === 'de' ? 'Adresse' : 'Address'}</label>
+                    <input disabled={viewOnly} value={localHotel.address || ''} onChange={e => patchHotel({ address: e.target.value })} className={seamlessInput} placeholder="..." />
+                  </div>
+                  <div className="col-span-3 flex flex-col">
+                    <label className={cn(labelCls, 'mb-1.5')}>{lang === 'de' ? 'Stadt' : 'City'}</label>
+                    <input disabled={viewOnly} value={localHotel.city || ''} onChange={e => patchHotel({ city: e.target.value })} className={seamlessInput} placeholder="..." />
+                  </div>
+                  <div className="col-span-2 flex flex-col">
+                    <label className={cn(labelCls, 'mb-1.5')}><Globe size={12}/> {lang === 'de' ? 'Land' : 'Country'}</label>
+                    <ModernDropdown disabled={viewOnly} value={localHotel.country || 'Germany'} options={getCountryOptions()} onChange={(v:string) => patchHotel({ country: v })} isDarkMode={dk} lang={lang} onOpenChange={setIsDropdownActive} />
+                  </div>
+          
+                  {/* ROW 2: Contact & Details */}
+                  <div className="col-span-1 flex flex-col items-center justify-end">
+                    <button onClick={() => setShowNotes(!showNotes)} className={cn("w-[34px] h-[34px] rounded-lg border flex items-center justify-center transition-all", localHotel.notes ? "bg-teal-500/10 border-teal-500/30 text-teal-500 shadow-sm" : dk ? "border-transparent text-slate-500 hover:text-white hover:bg-white/5" : "border-transparent text-slate-400 hover:text-slate-800 hover:bg-slate-50")}>
+                      <StickyNote size={16} />
+                    </button>
+                  </div>
+                  <div className="col-span-3 flex flex-col">
+                    <label className={cn(labelCls, 'mb-1.5')}><User size={12}/> {lang === 'de' ? 'Ansprechpartner' : 'Contact'}</label>
+                    <input disabled={viewOnly} value={localHotel.contactPerson || ''} onChange={e => patchHotel({ contactPerson: e.target.value })} className={seamlessInput} placeholder="..." />
+                  </div>
+                  <div className="col-span-3 flex flex-col">
+                    <label className={cn(labelCls, 'mb-1.5')}><Phone size={12}/> {lang === 'de' ? 'Telefon' : 'Phone'}</label>
+                    <input disabled={viewOnly} value={localHotel.phone || ''} onChange={e => patchHotel({ phone: e.target.value })} className={seamlessInput} placeholder="..." />
+                  </div>
+                  <div className="col-span-3 flex flex-col">
+                    <label className={cn(labelCls, 'mb-1.5')}><Mail size={12}/> Email</label>
+                    <input disabled={viewOnly} value={localHotel.email || ''} onChange={e => patchHotel({ email: e.target.value })} className={seamlessInput} placeholder="..." />
+                  </div>
+                  <div className="col-span-2 flex flex-col">
+                    <label className={cn(labelCls, 'mb-1.5')}><Globe size={12}/> {lang === 'de' ? 'Webseite' : 'Website'}</label>
+                    <input disabled={viewOnly} value={localHotel.website || ''} onChange={e => patchHotel({ website: e.target.value })} className={seamlessInput} placeholder="..." />
+                  </div>
+          
+                  {/* ROW 3: Notes (Full width) */}
+                  {showNotes && (
+                    <div className="col-span-12 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <textarea disabled={viewOnly} value={localHotel.notes || ''} onChange={e => patchHotel({ notes: e.target.value })} className={cn('w-full px-3 py-3 rounded-lg text-sm font-bold outline-none border transition-all min-h-[80px] resize-y', dk ? 'bg-[#0F172A] border-white/10 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-teal-500')} placeholder={lang === 'de' ? "Private Notizen hier eintragen..." : "Write private notes here..."} />
                     </div>
-                 </div>
-               );
-            })()}
+                  )}
+                </div>
+              </div>
+            );
+          })()}
           </div>
         )}
       </div>
