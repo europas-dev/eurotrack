@@ -762,7 +762,7 @@ finalFiltered.forEach(h => {
     const fmt = (iso:string) => { if(!iso) return ''; const [y,m,d] = iso.split('-'); return `${d}.${m}.${y}`; };
     
     // Translation Maps
-    const timeLabels: any = { today: lang === 'de' ? 'Heute' : 'Today', tomorrow: lang === 'de' ? 'Morgen' : 'Tomorrow', '3days': lang === 'de' ? '3 Tage' : '3 Days', '7days': lang === 'de' ? '7 Tage' : '7 Days' };
+    const timeLabels: any = { today: lang === 'de' ? 'Heute' : 'Today', tomorrow: lang === 'de' ? 'Morgen' : 'Tomorrow', '3days': lang === 'de' ? 'in 3 Tagen' : 'in 3 Days', '7days': lang === 'de' ? 'in 7 Tagen' : 'in 7 Days' };
     const grpLabels: any = { hotel: 'Hotel', company: lang === 'de' ? 'Firma' : 'Company', city: lang === 'de' ? 'Stadt' : 'City', country: lang === 'de' ? 'Land' : 'Country' };
     
     if (tlType !== 'all') badges.push({ id: 'tl', label: lang === 'de' ? 'Zeitraum' : 'Timeline', val: tlType === 'range' ? `${fmt(tlStart)} ➔ ${fmt(tlEnd)}` : timeLabels[tlType], clear: () => { setTlType('all'); setTlStart(''); setTlEnd(''); } });
