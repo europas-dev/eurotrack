@@ -1316,10 +1316,10 @@ finalFiltered.forEach(h => {
                 {!loading && finalFiltered.length > 0 && (
                   <div 
                     className={cn(
-                      "hidden lg:flex items-center px-8 py-2.5 mb-3 text-[10px] font-black uppercase tracking-widest border-b",
-                      dk ? "bg-white/5 border-white/10 text-slate-400" : "bg-slate-100 border-slate-300 text-slate-500"
+                      "hidden lg:flex items-center px-8 py-2.5 text-[10px] font-black uppercase tracking-widest",
+                      dk ? "bg-white/5 text-slate-400" : "bg-slate-200/60 text-slate-500"
                     )} 
-                    style={{ marginLeft: '-32px', marginRight: '-32px' }}
+                    style={{ marginLeft: '-32px', marginRight: '-32px', marginBottom: '-12px' }}
                   >
                     <div className="w-10 shrink-0"></div>
                     <div className="w-[200px] shrink-0 pr-4">{lang === 'de' ? 'Hotel' : 'Hotel'}</div>
