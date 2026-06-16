@@ -1321,7 +1321,7 @@ finalFiltered.forEach(h => {
                     )} 
                     style={{ marginLeft: '-32px', marginRight: '-32px', marginBottom: '-12px' }}
                   >
-                    <div className="w-10 shrink-0"></div>
+                    <div className="w-14 shrink-0"></div>
                     <div className="w-[200px] shrink-0 pr-4">{lang === 'de' ? 'Hotel' : 'Hotel'}</div>
                     <div className="w-[140px] shrink-0 pr-6">{lang === 'de' ? 'Firma' : 'Company'}</div>
                     <div className="w-[380px] shrink-0 pr-6">{lang === 'de' ? 'Buchungen' : 'Bookings'}</div>
