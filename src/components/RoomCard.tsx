@@ -1115,7 +1115,7 @@ export default function RoomCard({
       )}
 
       {confirmDelete && (
-        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/50 p-4 transition-all">
           <div className={cn('w-full max-w-sm rounded-3xl border p-6 shadow-2xl', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
             <h3 className="text-xl font-black mb-3">{lang === 'de' ? 'Zimmer löschen?' : 'Delete Room?'}</h3>
             <p className="text-sm mb-6 opacity-60">{lang === 'de' ? 'Das kann nicht rückgängig gemacht werden.' : 'This cannot be undone.'}</p>
