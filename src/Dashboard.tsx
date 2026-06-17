@@ -1373,6 +1373,19 @@ finalFiltered.forEach(h => {
               </div>
             </div> {/* END OF STICKY CONTROL STACK */}
 
+            {/* --- SAFELY INJECTED STATISTICS VIEW --- */}
+            {viewMode === 'stats' && (
+              <StatisticsDashboard 
+                hotels={finalFiltered} 
+                selectedYear={selectedYear} 
+                lang={lang} 
+                dk={dk} 
+              />
+            )}
+
+            {/* --- LIST ENVELOPE: CONTAINS UNTOUCHED DATA ROWS --- */}
+            <div style={{ display: viewMode === 'list' ? 'block' : 'none' }}>
+
            {/* --- NEW: STATS DASHBOARD --- */}
             {viewMode === 'stats' && (
               <StatisticsDashboard 
