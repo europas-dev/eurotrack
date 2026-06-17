@@ -552,7 +552,7 @@ export function MonthFilterDropdown({ selectedMonth, localMonthFilter, setLocalM
   );
 }
 
-export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onRenameCompanyOption, onAddOption, viewOnly, isSelected = false, onSelect = () => {}, isBulkActive = false, isOpen = false, onToggle = () => {}, showGlobalFinancials = false, activeSort = 'created_at', activeFilterDue, activeFilterDeposit, isModalOpen, setIsModalOpen }: any) {
+export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onRenameCompanyOption, onAddOption, viewOnly, isSelected = false, onSelect = () => {}, isBulkActive = false, isOpen = false, onToggle = () => {}, showGlobalFinancials = false, activeSort = 'created_at', activeFilterDue, activeFilterDeposit, isModalOpen, setIsModalOpen, isBookmarked, onToggleBookmark }: any) {
  
   const [isChildModalOpen, setIsChildModalOpen] = useState(false);
 
@@ -616,10 +616,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         setItemSearchQuery('');
      }
   }, [isOpen]);
-
-  const [isBookmarked, setIsBookmarked] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]').includes(entry.id); } catch { return false; }
-  });
 
   const [localHotel, setLocalHotel] = useState({
     ...entry,
@@ -922,23 +918,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       finally { setSaving(false); }
     }, 400);
   }
-
-  const handleBookmarkToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      const current = JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]');
-      if (isBookmarked) {
-        const next = current.filter((id: string) => id !== localHotel.id);
-        localStorage.setItem('eurotrack_bookmarks', JSON.stringify(next));
-        setIsBookmarked(false);
-      } else {
-        current.push(localHotel.id);
-        localStorage.setItem('eurotrack_bookmarks', JSON.stringify(current));
-        setIsBookmarked(true);
-      }
-      window.dispatchEvent(new Event('storage'));
-    } catch {}
-  };
 
   const handleEnterBlur = (e: React.KeyboardEvent) => { if (e.key === 'Enter') (e.target as HTMLElement).blur(); };
   const labelCls = cn('flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500', dk && 'text-slate-400');
@@ -1259,8 +1238,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </div>
 
           <div className="w-8 shrink-0 flex flex-col items-center justify-center gap-0.5 pl-2">
-               <button onClick={handleBookmarkToggle} className={cn("p-0.5 rounded transition-colors", isBookmarked ? "text-yellow-500" : "text-slate-400 hover:text-slate-800 dark:hover:text-white")}><Star size={12} className={isBookmarked ? "fill-yellow-500" : ""} /></button>
-               <div className="relative group/time">
+            <button onClick={(e) => { e.stopPropagation(); onToggleBookmark(); }} className={cn("p-0.5 rounded transition-colors", isBookmarked ? "text-yellow-500" : "text-slate-400 hover:text-slate-800 dark:hover:text-white")}><Star size={12} className={isBookmarked ? "fill-yellow-500" : ""} /></button>
+            <div className="relative group/time">
                   <button onClick={(e) => e.stopPropagation()} className="p-0.5 rounded text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"><Clock size={12} /></button>
                   <div className={cn("absolute right-full mr-2 top-1/2 -translate-y-1/2 w-max px-2 py-1 text-[9px] font-bold rounded opacity-0 group-hover/time:opacity-100 z-[99999] whitespace-nowrap pointer-events-none shadow-xl border", dk ? "bg-slate-700 text-white border-white/20" : "bg-white text-slate-800 border-slate-300")}>{formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}</div>
                </div>
