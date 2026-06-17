@@ -966,9 +966,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       )}
 
       <div className={cn('rounded-xl border transition-all duration-200 shadow-sm relative overflow-visible', 
-  (isSelected && !isChildModalOpen && !confirmDelete) ? (dk ? 'bg-teal-500/10 border-teal-500/50' : 'bg-teal-50 border-teal-500/40') 
-  : (isOpen && !isChildModalOpen && !confirmDelete) ? (dk ? 'bg-[#1E293B] border-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'bg-white border-teal-400/60 shadow-[0_0_15px_rgba(20,184,166,0.15)]') 
-  : (dk ? 'bg-[#1E293B] border-white/5 hover:border-white/10' : 'bg-white border-slate-200 hover:border-slate-300')
+  confirmDelete 
+    ? (dk ? 'border-red-500 ring-2 ring-red-500 bg-red-950/20 z-[9999]' : 'border-red-500 ring-2 ring-red-500 bg-red-50 z-[9999]')
+    : (isSelected && !isChildModalOpen) 
+        ? (dk ? 'bg-teal-500/10 border-teal-500/50' : 'bg-teal-50 border-teal-500/40') 
+        : (isOpen && !isChildModalOpen) 
+            ? (dk ? 'bg-[#1E293B] border-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'bg-white border-teal-400/60 shadow-[0_0_15px_rgba(20,184,166,0.15)]') 
+            : (dk ? 'bg-[#1E293B] border-white/5 hover:border-white/10' : 'bg-white border-slate-200 hover:border-slate-300')
 )}>
       <div className={cn("absolute right-0 top-0 bottom-0 w-[4px] rounded-r-xl transition-colors z-[60]", masterMath.totalUnpaid > 0 ? "bg-red-500" : (masterMath.totalPaid > 0 ? "bg-emerald-500" : "bg-transparent border-l border-slate-200 dark:border-white/10"))} />
 
@@ -1261,7 +1265,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                   <div className={cn("absolute right-full mr-2 top-1/2 -translate-y-1/2 w-max px-2 py-1 text-[9px] font-bold rounded opacity-0 group-hover/time:opacity-100 z-[99999] whitespace-nowrap pointer-events-none shadow-xl border", dk ? "bg-slate-700 text-white border-white/20" : "bg-white text-slate-800 border-slate-300")}>{formatLastUpdated(localHotel.last_updated_by || localHotel.lastUpdatedBy, localHotel.last_updated_at || localHotel.lastUpdatedAt, lang)}</div>
                </div>
                {!viewOnly ? (
-                 <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className="p-0.5 rounded text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
+                 <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); window.dispatchEvent(new Event('child-modal-open')); }} className="p-0.5 rounded text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
                ) : (
                  <div className="w-[16px] h-[16px] shrink-0" />
                )}
@@ -1424,8 +1428,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                     </div>
                                     <textarea value={draft.note || ''} onChange={e => setInvoiceDraft({...draft, note: e.target.value})} className="w-full text-[11px] font-medium border-none bg-transparent outline-none p-0 mt-2 text-slate-500 focus:ring-0 placeholder:italic placeholder:opacity-50 resize-none h-10" placeholder={lang === 'de' ? "Notiz hinzufügen..." : "Add note..."} />
                                     <div className="flex items-center justify-between mt-1 pt-2 border-t border-slate-200 dark:border-white/10">
-                                       <button onClick={(e) => { e.stopPropagation(); setInvoiceToDelete(inv.id); }} className="p-1.5 text-slate-400 hover:text-red-500 rounded-md"><Trash2 size={14} /></button>
-                                       <div className="flex items-center gap-2">
+                                            <button onClick={(e) => { e.stopPropagation(); setInvoiceToDelete(inv.id); window.dispatchEvent(new Event('child-modal-open')); }} className="p-1.5 text-slate-400 hover:text-red-500 rounded-md"><Trash2 size={14} /></button>
+                                            <div className="flex items-center gap-2">
                                           <button onClick={() => { setEditingInvoiceId(null); setInvoiceDraft(null); }} className="p-1.5 text-slate-500 hover:text-slate-800 dark:hover:text-white rounded-md"><X size={16} /></button>
                                           <button disabled={!draft.number || !draft.startDate || !draft.endDate || (draft.isPaid && !draft.paymentDate)} onClick={(e) => { e.stopPropagation(); patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === inv.id ? { ...i, number: draft.number, startDate: draft.startDate, endDate: draft.endDate, dueDate: draft.dueDate, paymentDate: draft.paymentDate, isPaid: draft.isPaid, note: draft.note } : i) }); setEditingInvoiceId(null); setInvoiceDraft(null); }} className="p-1.5 px-3 text-white bg-teal-500 hover:bg-teal-600 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:text-slate-500 rounded-md transition-all"><Check size={16} strokeWidth={3} /></button>
                                        </div>
@@ -2137,13 +2141,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       </div>
 
       {confirmDelete && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 pointer-events-auto">
-          <div className={cn('w-full max-w-md rounded-3xl border p-8 shadow-2xl animate-in zoom-in-95', dk ? 'bg-[#1E293B] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200')}>
-            <h3 className="text-2xl font-black mb-2">{lang === 'de' ? 'Hotel löschen?' : 'Delete hotel?'}</h3>
-            <p className="text-sm font-bold text-slate-500 mb-6">{lang === 'de' ? 'Diese Aktion kann nicht rückgängig gemacht werden.' : 'This action cannot be undone.'}</p>
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/50 p-4 transition-all pointer-events-auto">
+          <div className={cn('w-full max-w-md rounded-3xl border p-8 shadow-2xl animate-in zoom-in-95', dk ? 'bg-[#0F172A] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200')}>
+            <h3 className="text-xl font-black mb-2">{lang === 'de' ? 'Hotel löschen?' : 'Delete hotel?'}</h3>
+            <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">{lang === 'de' ? 'Diese Aktion kann nicht rückgängig gemacht werden. Möchten Sie die Löschung wirklich durchführen?' : 'This action cannot be undone. Proceed to deletion?'}</p>
             <div className="flex justify-end gap-3">
-              <button onClick={() => setConfirmDelete(false)} className={cn("px-6 py-2.5 font-bold rounded-xl border transition-all", dk ? "border-white/10 hover:bg-white/10 text-white" : "border-slate-200 hover:bg-slate-100 text-slate-700")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
-              <button onClick={async () => { await deleteHotel(localHotel.id); onDelete(localHotel.id); setConfirmDelete(false); }} className="px-6 py-2.5 font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all shadow-md">{lang === 'de' ? 'Löschen' : 'Delete'}</button>
+              <button onClick={() => { setConfirmDelete(false); window.dispatchEvent(new Event('child-modal-closed')); }} className={cn("px-6 py-2.5 text-sm font-bold rounded-xl border transition-all", dk ? "border-white/10 hover:bg-white/5 text-slate-300" : "border-slate-200 hover:bg-slate-50 text-slate-700")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
+              <button onClick={async () => { await deleteHotel(localHotel.id); onDelete(localHotel.id); setConfirmDelete(false); window.dispatchEvent(new Event('child-modal-closed')); }} className="px-6 py-2.5 text-sm font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all shadow-md">{lang === 'de' ? 'Löschen' : 'Delete'}</button>
             </div>
           </div>
         </div>,
@@ -2151,13 +2155,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       )}
 
       {invoiceToDelete && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 pointer-events-auto">
-          <div className={cn('w-full max-w-sm rounded-3xl border p-6 shadow-2xl animate-in zoom-in-95', dk ? 'bg-[#1E293B] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200')}>
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/50 p-4 transition-all pointer-events-auto">
+          <div className={cn('w-full max-w-sm rounded-3xl border p-6 shadow-2xl animate-in zoom-in-95', dk ? 'bg-[#0F172A] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200')}>
             <div className="flex items-center gap-3 mb-2 text-red-500"><AlertTriangle size={24} /><h3 className="text-xl font-black">{lang === 'de' ? 'Rechnung löschen?' : 'Delete invoice?'}</h3></div>
-            <p className="text-sm font-bold text-slate-500 mb-6 mt-2">{lang === 'de' ? 'Diese Aktion kann nicht rückgängig gemacht werden.' : 'This action cannot be undone.'}</p>
+            <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 mb-6 mt-2 leading-relaxed">{lang === 'de' ? 'Diese Aktion kann nicht rückgängig gemacht werden. Möchten Sie die Löschung wirklich durchführen?' : 'This action cannot be undone. Proceed to deletion?'}</p>
             <div className="flex justify-end gap-3">
-              <button onClick={() => setInvoiceToDelete(null)} className={cn("px-5 py-2 font-bold rounded-xl border transition-all", dk ? "border-white/10 hover:bg-white/10 text-white" : "border-slate-200 hover:bg-slate-100 text-slate-700")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
-              <button onClick={() => { patchHotel({ invoices: localHotel.invoices.filter((i: any) => i.id !== invoiceToDelete) }); setEditingInvoiceId(null); setInvoiceDraft(null); setInvoiceToDelete(null); }} className="px-5 py-2 font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all shadow-md">{lang === 'de' ? 'Löschen' : 'Delete'}</button>
+              <button onClick={() => { setInvoiceToDelete(null); window.dispatchEvent(new Event('child-modal-closed')); }} className={cn("px-5 py-2.5 text-sm font-bold rounded-xl border transition-all", dk ? "border-white/10 hover:bg-white/5 text-slate-300" : "border-slate-200 hover:bg-slate-50 text-slate-700")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
+              <button onClick={() => { patchHotel({ invoices: localHotel.invoices.filter((i: any) => i.id !== invoiceToDelete) }); setEditingInvoiceId(null); setInvoiceDraft(null); setInvoiceToDelete(null); window.dispatchEvent(new Event('child-modal-closed')); }} className="px-5 py-2.5 text-sm font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all shadow-md">{lang === 'de' ? 'Löschen' : 'Delete'}</button>
             </div>
           </div>
         </div>,
