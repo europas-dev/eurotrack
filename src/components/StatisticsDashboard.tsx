@@ -185,22 +185,21 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         <Card title={lang === 'de' ? 'Total Bezahlt' : 'Total Paid'} value={formatCurrency(stats.totalPaid)} icon={ShieldCheck} colorCls="text-emerald-500" bgCls="bg-emerald-500/10" />
         
         {/* CUSTOM SPLIT CARD FOR TOTAL DUE */}
-        <div className={cn("p-4 rounded-2xl border flex flex-col gap-2 shadow-sm transition-all hover:shadow-md", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
-          <div className="flex items-center justify-between">
+        <div className={cn("p-5 rounded-2xl border flex items-center justify-between gap-4 shadow-sm transition-all hover:shadow-md", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
+          <div className="flex flex-col gap-2.5">
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500"><Clock size={14} strokeWidth={2.5} /></div>
+              <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500"><Clock size={16} strokeWidth={2.5} /></div>
               <span className={cn("text-xs font-black uppercase tracking-widest", dk ? "text-slate-400" : "text-slate-500")}>{lang === 'de' ? 'Total Offen' : 'Total Due'}</span>
             </div>
-            <span className={cn("text-xl font-black truncate", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalUnpaid)}</span>
+            <span className={cn("text-2xl lg:text-3xl font-black truncate", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalUnpaid)}</span>
           </div>
-          <div className="flex items-center gap-2 pt-2 mt-auto border-t border-slate-100 dark:border-white/5">
-            <div className="flex-1 flex flex-col">
-              <span className="text-[9px] font-black uppercase text-amber-500 tracking-wider mb-0.5">{lang === 'de' ? 'Ausstehend' : 'Pending'}</span>
+          <div className="flex flex-col gap-2 pl-4 border-l border-slate-200 dark:border-white/10">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase text-amber-500 tracking-wider">{lang === 'de' ? 'Ausstehend' : 'Pending'}</span>
               <span className={cn("text-sm font-bold truncate", dk ? "text-slate-300" : "text-slate-600")}>{formatCurrency(Math.max(0, stats.totalUnpaid - stats.totalOverdue))}</span>
             </div>
-            <div className="w-px h-6 bg-slate-200 dark:bg-white/10"></div>
-            <div className="flex-1 flex flex-col">
-              <span className="text-[9px] font-black uppercase text-red-500 tracking-wider mb-0.5">{lang === 'de' ? 'Überfällig' : 'Overdue'}</span>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase text-red-500 tracking-wider">{lang === 'de' ? 'Überfällig' : 'Overdue'}</span>
               <span className={cn("text-sm font-bold truncate", dk ? "text-slate-300" : "text-slate-600")}>{formatCurrency(stats.totalOverdue)}</span>
             </div>
           </div>
@@ -248,63 +247,69 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
             </div>
           ) : (
             // --- DONUT CHART (SPECIFIC MONTH) ---
-            <div className="flex-1 flex items-center justify-center gap-10 h-[280px] mt-4 animate-in fade-in zoom-in-95 duration-500">
+            <div className="flex-1 flex flex-wrap items-center justify-center gap-10 h-[280px] mt-4 animate-in fade-in zoom-in-95 duration-500">
                {(() => {
                  const paidPct = stats.totalSpend > 0 ? (stats.totalPaid / stats.totalSpend) * 100 : 0;
                  const overduePct = stats.totalSpend > 0 ? (stats.totalOverdue / stats.totalSpend) * 100 : 0;
                  const pendingPct = stats.totalSpend > 0 ? Math.max(0, 100 - paidPct - overduePct) : 0;
+                 const pendingVal = Math.max(0, stats.totalUnpaid - stats.totalOverdue);
                  
                  return (
                    <>
-                     {/* LARGER DONUT */}
-                     <div className="relative w-60 h-60 rounded-full flex items-center justify-center shadow-inner" style={{ 
-                       background: stats.totalSpend > 0 
-                         ? `conic-gradient(#10b981 0% ${paidPct}%, #f59e0b ${paidPct}% ${paidPct + pendingPct}%, #ef4444 ${paidPct + pendingPct}% 100%)` 
-                         : (dk ? '#1E293B' : '#f1f5f9') 
+                     {/* LARGER DONUT WITH TOOLTIP */}
+                     <div 
+                       className="relative w-56 h-56 rounded-full flex items-center justify-center shadow-inner cursor-help" 
+                       title={lang === 'de' ? `Bezahlt: ${formatCurrency(stats.totalPaid)} | Ausstehend: ${formatCurrency(pendingVal)} | Überfällig: ${formatCurrency(stats.totalOverdue)}` : `Paid: ${formatCurrency(stats.totalPaid)} | Pending: ${formatCurrency(pendingVal)} | Overdue: ${formatCurrency(stats.totalOverdue)}`}
+                       style={{ 
+                         background: stats.totalSpend > 0 
+                           ? `conic-gradient(#10b981 0% ${paidPct}%, #f59e0b ${paidPct}% ${paidPct + pendingPct}%, #ef4444 ${paidPct + pendingPct}% 100%)` 
+                           : (dk ? '#1E293B' : '#f1f5f9') 
                      }}>
-                       <div className={cn("w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-sm z-10", dk ? "bg-[#0F172A]" : "bg-white")}>
+                       <div className={cn("w-36 h-36 rounded-full flex flex-col items-center justify-center shadow-sm z-10", dk ? "bg-[#0F172A]" : "bg-white")}>
                          <span className={cn("text-xs font-black uppercase tracking-widest", dk ? "text-slate-500" : "text-slate-400")}>{labels[selectedMonth]}</span>
                          <span className={cn("text-xl font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalSpend)}</span>
                        </div>
                      </div>
                      
-                     {/* HIERARCHICAL LEGEND */}
-                     <div className="flex flex-col gap-3 min-w-[200px]">
+                     {/* VERTICAL HIERARCHICAL LEGEND */}
+                     <div className="flex flex-col gap-4 min-w-[220px]">
+                       
                        {/* Paid Box */}
-                       <div className={cn("flex items-center gap-3 p-2.5 rounded-xl border", dk ? "bg-emerald-500/5 border-emerald-500/10" : "bg-emerald-50 border-emerald-200")}>
-                         <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 shadow-sm" />
-                         <div className="flex flex-col">
-                           <span className={cn("text-[11px] font-bold uppercase tracking-wider", dk ? "text-emerald-400/80" : "text-emerald-600/80")}>{lang === 'de' ? 'Bezahlt' : 'Paid'} ({paidPct.toFixed(1)}%)</span>
-                           <span className={cn("text-sm font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalPaid)}</span>
+                       <div className={cn("flex flex-col p-3 rounded-xl border shadow-sm", dk ? "bg-emerald-500/10 border-emerald-500/20" : "bg-emerald-50 border-emerald-200")}>
+                         <div className="flex items-center gap-2 mb-1">
+                           <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm" />
+                           <span className={cn("text-[11px] font-black uppercase tracking-wider", dk ? "text-emerald-400" : "text-emerald-600")}>{lang === 'de' ? 'Bezahlt' : 'Paid'}</span>
                          </div>
+                         <span className={cn("text-lg font-black pl-4.5", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalPaid)}</span>
                        </div>
                        
                        {/* Total Due Box (Contains Pending + Overdue) */}
-                       <div className={cn("flex flex-col p-2.5 rounded-xl border", dk ? "bg-amber-500/5 border-amber-500/10" : "bg-amber-50 border-amber-200")}>
-                         <div className="flex items-center justify-between mb-2 pb-2 border-b border-amber-500/20">
-                           <div className="flex items-center gap-1.5">
-                             <Clock size={14} className="text-amber-500" />
-                             <span className={cn("text-[11px] font-black uppercase tracking-wider", dk ? "text-amber-500/90" : "text-amber-700/90")}>{lang === 'de' ? 'Total Offen' : 'Total Due'}</span>
-                           </div>
-                           <span className={cn("text-sm font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalUnpaid)}</span>
+                       <div className={cn("flex flex-col p-3 rounded-xl border shadow-sm", dk ? "bg-amber-500/10 border-amber-500/20" : "bg-amber-50 border-amber-200")}>
+                         <div className="flex items-center gap-2 mb-1">
+                           <Clock size={12} className="text-amber-500" strokeWidth={3} />
+                           <span className={cn("text-[11px] font-black uppercase tracking-wider", dk ? "text-amber-500" : "text-amber-600")}>{lang === 'de' ? 'Total Offen' : 'Total Due'}</span>
                          </div>
-                         <div className="flex justify-between gap-4">
+                         <span className={cn("text-lg font-black pl-5 mb-3", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalUnpaid)}</span>
+                         
+                         {/* Internal Vertical Split */}
+                         <div className="flex flex-col gap-2 pl-4 border-l-2 border-amber-500/30 ml-1">
                            <div className="flex flex-col">
-                             <div className="flex items-center gap-1.5 mb-0.5">
-                               <div className="w-2 h-2 rounded-full bg-amber-500" />
-                               <span className={cn("text-[9px] font-bold uppercase", dk ? "text-slate-400" : "text-slate-600")}>{lang === 'de' ? 'Ausstehend' : 'Pending'} ({pendingPct.toFixed(1)}%)</span>
+                             <div className="flex items-center gap-1.5">
+                               <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                               <span className={cn("text-[10px] font-bold uppercase", dk ? "text-slate-300" : "text-slate-600")}>{lang === 'de' ? 'Ausstehend' : 'Pending'}</span>
                              </div>
-                             <span className={cn("text-xs font-bold pl-3.5", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(Math.max(0, stats.totalUnpaid - stats.totalOverdue))}</span>
+                             <span className={cn("text-sm font-bold pl-3", dk ? "text-white" : "text-slate-800")}>{formatCurrency(pendingVal)}</span>
                            </div>
-                           <div className="flex flex-col">
-                             <div className="flex items-center gap-1.5 mb-0.5">
-                               <div className="w-2 h-2 rounded-full bg-red-500" />
-                               <span className={cn("text-[9px] font-bold uppercase", dk ? "text-slate-400" : "text-slate-600")}>{lang === 'de' ? 'Überfällig' : 'Overdue'} ({overduePct.toFixed(1)}%)</span>
+                           <div className="flex flex-col mt-1">
+                             <div className="flex items-center gap-1.5">
+                               <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                               <span className={cn("text-[10px] font-bold uppercase", dk ? "text-slate-300" : "text-slate-600")}>{lang === 'de' ? 'Überfällig' : 'Overdue'}</span>
                              </div>
-                             <span className={cn("text-xs font-bold pl-3.5", dk ? "text-slate-300" : "text-slate-700")}>{formatCurrency(stats.totalOverdue)}</span>
+                             <span className={cn("text-sm font-bold pl-3", dk ? "text-white" : "text-slate-800")}>{formatCurrency(stats.totalOverdue)}</span>
                            </div>
                          </div>
                        </div>
+
                      </div>
                    </>
                  );
