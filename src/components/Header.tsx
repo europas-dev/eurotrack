@@ -376,12 +376,14 @@ export default function Header({
             {(!isOnline || offlineMode) ? <WifiOff size={18} /> : <Wifi size={18} className="text-emerald-500" />}
           </button>
 
-          {/* LANGUAGE TOGGLE: Fixed width, larger font, shows opposite language */}
           <button 
             onClick={() => setLang(lang === 'de' ? 'en' : 'de')} 
             className={cn(
-              iconBtn, 
-              'text-xs font-black px-0 min-w-[38px] flex items-center justify-center transition-all'
+              "flex items-center justify-center transition-all", // Flex to center text
+              "w-[38px] h-[38px]",                             // Forces it to be a perfect square
+              dk ? "bg-white/5 border border-white/10 text-slate-400 hover:bg-white/10" // Matches your other button styles
+                 : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50",
+              "rounded-xl text-[12px] font-black"             // Larger text size
             )}
           >
             {lang === 'de' ? 'EN' : 'DE'}
