@@ -1501,7 +1501,6 @@ finalFiltered.forEach(h => {
               </div>
             )}
             </div>
-          </div>
           </main>
         )}
 
