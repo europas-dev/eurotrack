@@ -98,9 +98,19 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   const [showBookmarks, setShowBookmarks] = useState(false);
-  const [bookmarks, setBookmarks] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]'); } catch { return []; }
-  });
+  
+  // --- USER SPECIFIC BOOKMARKS ---
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [bookmarks, setBookmarks] = useState<string[]>([]);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setCurrentUser(user);
+        try { setBookmarks(JSON.parse(localStorage.getItem(`eurotrack_bookmarks_${user.id}`) || '[]')); } catch {}
+      }
+    });
+  }, []);
   
   const [history, setHistory] = useState<any[][]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -131,13 +141,25 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   }, []);
 
   useEffect(() => {
+    if (!currentUser) return;
+    const key = `eurotrack_bookmarks_${currentUser.id}`;
     const handleStorage = () => {
-      try { setBookmarks(JSON.parse(localStorage.getItem('eurotrack_bookmarks') || '[]')); } catch {}
+      try { setBookmarks(JSON.parse(localStorage.getItem(key) || '[]')); } catch {}
     };
     window.addEventListener('storage', handleStorage);
     const interval = setInterval(handleStorage, 1000); 
     return () => { window.removeEventListener('storage', handleStorage); clearInterval(interval); };
-  }, []);
+  }, [currentUser]);
+
+  const toggleBookmark = (hotelId: string) => {
+    if (!currentUser) return;
+    const key = `eurotrack_bookmarks_${currentUser.id}`;
+    setBookmarks(prev => {
+      const next = prev.includes(hotelId) ? prev.filter(id => id !== hotelId) : [...prev, hotelId];
+      localStorage.setItem(key, JSON.stringify(next));
+      return next;
+    });
+  };
 
   // Dropdown dismiss logic
   useEffect(() => {
@@ -1400,6 +1422,8 @@ finalFiltered.forEach(h => {
                         onAddOption={handleAddGlobalCompany} 
                         hotelOptions={uniqueHotelNames}
                         employeeOptions={uniqueEmployeeNames}
+                        isBookmarked={bookmarks.includes(h.id)} // For the second map use hotel.id instead of h.id
+                        onToggleBookmark={() => toggleBookmark(h.id)} // For the second map use hotel.id instead of h.id
                       />
                     ))}
                   </div>
@@ -1443,6 +1467,8 @@ finalFiltered.forEach(h => {
                     onAddOption={handleAddGlobalCompany} 
                     hotelOptions={uniqueHotelNames}
                     employeeOptions={uniqueEmployeeNames}
+                    isBookmarked={bookmarks.includes(h.id)} // For the second map use hotel.id instead of h.id
+                    onToggleBookmark={() => toggleBookmark(h.id)} // For the second map use hotel.id instead of h.id
                   />
                 ))}
               </div>
