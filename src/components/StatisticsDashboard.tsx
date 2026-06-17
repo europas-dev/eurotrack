@@ -311,6 +311,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                })()}
             </div>
           )}
+        </div>
 
         {/* RIGHT: AUTONOMIC ALIGNED LEADERBOARD */}
         <div className={cn("p-6 rounded-2xl border shadow-sm flex flex-col", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
