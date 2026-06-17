@@ -872,7 +872,11 @@ export default function RoomCard({
   }, [employees]);
 
   return (
-    <div className={cn('rounded-xl border transition-all shadow-sm flex flex-col w-full', dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')}>
+    <div className={cn('rounded-xl border transition-all shadow-sm flex flex-col w-full relative', 
+      confirmDelete 
+        ? (dk ? 'border-red-500 ring-2 ring-red-500 bg-red-950/20 z-[9999]' : 'border-red-500 ring-2 ring-red-500 bg-red-50 z-[9999]') 
+        : (dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')
+    )}>
   
   {/* HEADER: COMPACT LAYOUT */}
       <div className={cn("flex items-center gap-4 px-4 py-3 cursor-pointer w-full", isOpen && (dk ? "border-b border-white/10" : "border-b border-slate-100"))} onClick={(e) => { if (!['INPUT','BUTTON','SELECT'].includes((e.target as HTMLElement).tagName)) setIsOpen(!isOpen) }}>
@@ -966,7 +970,11 @@ export default function RoomCard({
           
           <div className="shrink-0 pl-4">
             {!viewOnly && (
-              <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} className={cn('p-2 rounded transition-all', dk ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-red-500 hover:bg-red-50')}><Trash2 size={18} /></button>
+              <button onClick={(e) => { 
+                e.stopPropagation(); 
+                setConfirmDelete(true); 
+                window.dispatchEvent(new Event('child-modal-open')); 
+              }} className={cn('p-2 rounded transition-all', dk ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' : 'text-slate-400 hover:text-red-500 hover:bg-red-50')}><Trash2 size={18} /></button>
             )}
           </div>
              
@@ -1107,7 +1115,7 @@ export default function RoomCard({
       )}
 
       {confirmDelete && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className={cn('w-full max-w-sm rounded-3xl border p-6 shadow-2xl', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
             <h3 className="text-xl font-black mb-3">{lang === 'de' ? 'Zimmer löschen?' : 'Delete Room?'}</h3>
             <p className="text-sm mb-6 opacity-60">{lang === 'de' ? 'Das kann nicht rückgängig gemacht werden.' : 'This cannot be undone.'}</p>
