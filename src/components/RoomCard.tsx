@@ -1000,7 +1000,11 @@ export default function RoomCard({
              <div className="flex items-center shrink-0 gap-2">
                {!viewOnly && (
                  <button 
-                   onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} 
+                   onClick={(e) => { 
+                     e.stopPropagation(); 
+                     setConfirmDelete(true); 
+                     window.dispatchEvent(new Event('child-modal-open'));
+                   }} 
                    className="p-2 text-slate-400 hover:text-red-500 shrink-0"
                  >
                    <Trash2 size={18} />
@@ -1108,12 +1112,13 @@ export default function RoomCard({
             <h3 className="text-xl font-black mb-3">{lang === 'de' ? 'Zimmer löschen?' : 'Delete Room?'}</h3>
             <p className="text-sm mb-6 opacity-60">{lang === 'de' ? 'Das kann nicht rückgängig gemacht werden.' : 'This cannot be undone.'}</p>
             <div className="flex justify-end gap-3">
-              <button onClick={() => setConfirmDelete(false)} className={cn('px-5 py-2.5 rounded-lg border text-sm font-bold', dk ? 'border-white/10 text-slate-300' : 'border-slate-200 text-slate-700')}>
+              <button onClick={() => { setConfirmDelete(false); window.dispatchEvent(new Event('child-modal-closed')); }} className={cn('px-5 py-2.5 rounded-lg border text-sm font-bold', dk ? 'border-white/10 text-slate-300' : 'border-slate-200 text-slate-700')}>
                 {lang === 'de' ? 'Abbrechen' : 'Cancel'}
               </button>
-              <button onClick={async () => { await enqueue({ type: 'deleteRoomCard', payload: { id: card.id } }); onDelete(card.id); setConfirmDelete(false); }} className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold">
+              <button onClick={async () => { await enqueue({ type: 'deleteRoomCard', payload: { id: card.id } }); onDelete(card.id); setConfirmDelete(false); window.dispatchEvent(new Event('child-modal-closed')); }} className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold">
                 {lang === 'de' ? 'Löschen' : 'Delete'}
               </button>
+            </div>
             </div>
           </div>
         </div>
