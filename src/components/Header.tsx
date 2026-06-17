@@ -14,7 +14,7 @@ import {
   User, Lock, UserPlus, ChevronDown,
   ChevronRight, Pencil, Shield, Minus, Plus,
   Mail, KeyRound, AtSign, Eye, EyeOff, HelpCircle,
-  FileText, Info, Wifi, WifiOff, Upload, EyeIcon, EyeOffIcon, LogOut
+  FileText, Info, Wifi, WifiOff, Upload, EyeIcon, EyeOffIcon, LogOut, LayoutList, BarChart3
 } from 'lucide-react';
 
 const AVATARS = [
@@ -93,6 +93,8 @@ interface HeaderProps {
   lang: 'de' | 'en';
   toggleTheme: () => void;
   setLang: (l: 'de' | 'en') => void;
+  viewMode?: 'list' | 'stats';
+  setViewMode?: (v: 'list' | 'stats') => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   searchScope: string;
@@ -108,7 +110,7 @@ interface HeaderProps {
 }
 
 export default function Header({
-  theme, lang, toggleTheme, setLang,
+  theme, lang, toggleTheme, setLang, viewMode = 'list', setViewMode,
   searchQuery, setSearchQuery, searchScope, setSearchScope,
   onSignOut, onPrint,
   viewOnly = false, userRole = 'viewer',
@@ -342,6 +344,30 @@ export default function Header({
         {/* Action Buttons Container */}
         <div className="flex items-center gap-3 ml-auto mr-8 shrink-0">
           {children}
+          {setViewMode && (
+            <div className={cn("flex items-center p-1 rounded-xl border transition-all h-[38px] mr-2", dk ? "bg-black/20 border-white/10" : "bg-slate-100 border-slate-200")}>
+              <button 
+                onClick={() => setViewMode('list')} 
+                className={cn("flex items-center justify-center gap-1.5 h-full px-3 text-[11px] font-black rounded-lg transition-all", 
+                  viewMode === 'list'
+                    ? (dk ? "bg-white/15 text-white shadow-sm" : "bg-white text-slate-800 shadow-sm border border-slate-200/60") 
+                    : (dk ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600")
+                )}
+              >
+                <LayoutList size={14} strokeWidth={2.5} /> <span className="hidden xl:inline">{isDe ? 'Liste' : 'List'}</span>
+              </button>
+              <button 
+                onClick={() => setViewMode('stats')} 
+                className={cn("flex items-center justify-center gap-1.5 h-full px-3 text-[11px] font-black rounded-lg transition-all", 
+                  viewMode === 'stats'
+                    ? (dk ? "bg-white/15 text-white shadow-sm" : "bg-white text-slate-800 shadow-sm border border-slate-200/60") 
+                    : (dk ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600")
+                )}
+              >
+                <BarChart3 size={14} strokeWidth={2.5} /> <span className="hidden xl:inline">Stats</span>
+              </button>
+            </div>
+          )}
           <button onClick={onPrint} className={iconBtn} title="Export">
             <Upload size={18} className="text-teal-500" />
           </button>
