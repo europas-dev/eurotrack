@@ -1467,8 +1467,8 @@ finalFiltered.forEach(h => {
                     onAddOption={handleAddGlobalCompany} 
                     hotelOptions={uniqueHotelNames}
                     employeeOptions={uniqueEmployeeNames}
-                    isBookmarked={bookmarks.includes(h.id)} // For the second map use hotel.id instead of h.id
-                    onToggleBookmark={() => toggleBookmark(h.id)} // For the second map use hotel.id instead of h.id
+                    isBookmarked={bookmarks.includes(hotel.id)}
+                    onToggleBookmark={() => toggleBookmark(hotel.id)}
                   />
                 ))}
               </div>
