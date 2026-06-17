@@ -1,7 +1,7 @@
 //src/components/StatisticsDashboard.tsx
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { cn, formatCurrency, calculateNights, calcInvoiceItem } from '../lib/utils';
-import { TrendingUp, CreditCard, AlertCircle, ShieldCheck, Clock, Trophy, BedDouble, Building2, MapPin, Building } from 'lucide-react';
+import { TrendingUp, CreditCard, AlertCircle, ShieldCheck, Clock, Trophy, BedDouble, Building2, MapPin, Building, ArrowDownWideNarrow, ArrowUpNarrowWide } from 'lucide-react';
 
 interface Props {
   hotels: any[];
@@ -14,8 +14,13 @@ interface Props {
 
 export default function StatisticsDashboard({ hotels, selectedYear, selectedMonth, groupBy, lang, dk }: Props) {
   
-  // Resolve active grouping tier automatically from the main dashboard filter toggle
-  const currentGroupBy = groupBy === 'none' ? 'hotel' : groupBy;
+  const [localGroup, setLocalGroup] = useState<'hotel' | 'company' | 'city' | 'country'>(groupBy === 'none' ? 'hotel' : (groupBy as any));
+  const [sortAsc, setSortAsc] = useState(false);
+
+  // Auto-sync with parent dashboard if the parent filter changes
+  useEffect(() => {
+    setLocalGroup(groupBy === 'none' ? 'hotel' : (groupBy as any));
+  }, [groupBy]);
 
   // --- RE-ENGINEERED INDESTRUCTIBLE METRICS ENGINE ---
   const stats = useMemo(() => {
@@ -145,22 +150,27 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       // Group dynamic data keys based on active state criteria
       if (finalTotal > 0 || (selectedMonth === null && hasInvoicesInContext)) {
         let groupKey = 'Unknown';
-        if (currentGroupBy === 'hotel') groupKey = h.name || 'Unnamed Hotel';
-        else if (currentGroupBy === 'company') groupKey = (h.companyTag && h.companyTag.length > 0) ? h.companyTag[0] : (lang === 'de' ? 'Ohne Firma' : 'Unassigned');
-        else if (currentGroupBy === 'city') groupKey = h.city || (lang === 'de' ? 'Unbekannte Stadt' : 'Unknown City');
-        else if (currentGroupBy === 'country') groupKey = h.country || (lang === 'de' ? 'Unbekanntes Land' : 'Unknown Country');
+        if (localGroup === 'hotel') groupKey = h.name || 'Unnamed Hotel';
+        else if (localGroup === 'company') groupKey = (h.companyTag && h.companyTag.length > 0) ? h.companyTag[0] : (lang === 'de' ? 'Ohne Firma' : 'Unassigned');
+        else if (localGroup === 'city') groupKey = h.city || (lang === 'de' ? 'Unbekannte Stadt' : 'Unknown City');
+        else if (localGroup === 'country') groupKey = h.country || (lang === 'de' ? 'Unbekanntes Land' : 'Unknown Country');
 
         groupedTotals[groupKey] = (groupedTotals[groupKey] || 0) + finalTotal;
       }
     });
 
     const maxMonth = Math.max(...months.map(m => m.total), 1);
-    const sortedGroups = Object.entries(groupedTotals).sort((a, b) => b[1] - a[1]);
-    const maxGroupValue = sortedGroups.length > 0 ? sortedGroups[0][1] : 1;
+    
+    // Support sorting both High-to-Low and Low-to-High
+    const sortedGroups = Object.entries(groupedTotals).sort((a, b) => sortAsc ? a[1] - b[1] : b[1] - a[1]);
+    
+    // Find the actual maximum value for the visual bar scaling
+    const maxGroupValue = Math.max(...sortedGroups.map(g => g[1]), 1);
+    
     const avgBedPrice = bedPriceCount > 0 ? bedPriceSum / bedPriceCount : 0;
 
     return { totalSpend, totalPaid, totalUnpaid, totalOverdue, totalDeposits, months, maxMonth, sortedGroups, maxGroupValue, mostBooked, avgBedPrice };
-  }, [hotels, selectedYear, selectedMonth, currentGroupBy, lang]);
+  }, [hotels, selectedYear, selectedMonth, localGroup, sortAsc, lang]);
 
   const monthLabelsDe = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
   const monthLabelsEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -345,22 +355,53 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
           )}
         </div>
 
-        {/* RIGHT: AUTONOMIC ALIGNED LEADERBOARD */}
+        {/* RIGHT: LEADERBOARD WIDGET */}
         <div className={cn("p-6 rounded-2xl border shadow-sm flex flex-col", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
-          <div className="flex items-center justify-between mb-6">
-            <h3 className={cn("text-sm font-black uppercase tracking-widest flex items-center gap-2", dk ? "text-slate-300" : "text-slate-700")}>
-              {currentGroupBy === 'hotel' && <Building size={16} className="text-blue-500" />}
-              {currentGroupBy === 'company' && <Building2 size={16} className="text-blue-500" />}
-              {currentGroupBy === 'city' && <MapPin size={16} className="text-blue-500" />}
-              {currentGroupBy === 'country' && <MapPin size={16} className="text-blue-500" />}
-              {lang === 'de' 
-                ? `Top ${currentGroupBy === 'city' ? 'Städte' : currentGroupBy === 'company' ? 'Firmen' : currentGroupBy === 'country' ? 'Länder' : 'Hotels'} nach Kosten` 
-                : `Top ${currentGroupBy === 'city' ? 'Cities' : currentGroupBy === 'company' ? 'Companies' : currentGroupBy === 'country' ? 'Countries' : 'Hotels'} by Cost`}
-            </h3>
-            <span className="text-[9px] font-black uppercase bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded tracking-tighter">Live Auto Sync</span>
+          
+          {/* HEADER & CHIP & SORT */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <h3 className={cn("text-sm font-black uppercase tracking-widest", dk ? "text-slate-300" : "text-slate-700")}>
+                Leaderboard
+              </h3>
+              <span className="text-[9px] font-black uppercase bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded tracking-tighter">
+                {localGroup === 'city' ? (lang === 'de' ? 'Städte' : 'Cities') : 
+                 localGroup === 'company' ? (lang === 'de' ? 'Firmen' : 'Companies') : 
+                 localGroup === 'country' ? (lang === 'de' ? 'Länder' : 'Countries') : 
+                 (lang === 'de' ? 'Hotels' : 'Hotels')}
+              </span>
+            </div>
+            <button 
+              onClick={() => setSortAsc(!sortAsc)} 
+              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors text-slate-500 dark:text-slate-400"
+              title={lang === 'de' ? 'Sortierung ändern' : 'Toggle Sort'}
+            >
+              {sortAsc ? <ArrowUpNarrowWide size={16} strokeWidth={2.5} /> : <ArrowDownWideNarrow size={16} strokeWidth={2.5} />}
+            </button>
           </div>
 
-          <div className="flex flex-col gap-5 overflow-y-auto pr-2 custom-scrollbar" style={{ maxHeight: '280px' }}>
+          {/* INTERACTIVE GROUP TABS */}
+          <div className={cn("flex p-1 rounded-xl mb-5", dk ? "bg-black/20" : "bg-slate-100")}>
+            {[
+              { id: 'hotel', icon: Building, label: lang === 'de' ? 'Hotel' : 'Hotel' },
+              { id: 'company', icon: Building2, label: lang === 'de' ? 'Firma' : 'Company' },
+              { id: 'city', icon: MapPin, label: lang === 'de' ? 'Stadt' : 'City' }
+            ].map(g => (
+              <button 
+                key={g.id} 
+                onClick={() => setLocalGroup(g.id as any)}
+                className={cn("flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all", 
+                  localGroup === g.id 
+                    ? (dk ? "bg-blue-600 text-white shadow-sm" : "bg-white text-blue-600 shadow-sm") 
+                    : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}
+              >
+                <g.icon size={12} strokeWidth={2.5} /> {g.label}
+              </button>
+            ))}
+          </div>
+
+          {/* LIST WITH CUSTOM SCROLLBAR & EXTRA PADDING */}
+          <div className="flex flex-col gap-5 overflow-y-auto pr-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full" style={{ maxHeight: '220px' }}>
             {stats.sortedGroups.length === 0 ? (
                <div className="h-full flex items-center justify-center text-slate-400 text-sm font-bold italic py-12">{lang === 'de' ? 'Keine Daten in dieser Ansicht verfügbar' : 'No data available in this view'}</div>
             ) : stats.sortedGroups.map(([name, total], i) => {
