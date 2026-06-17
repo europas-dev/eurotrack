@@ -14,137 +14,144 @@ interface Props {
 
 export default function StatisticsDashboard({ hotels, selectedYear, selectedMonth, groupBy, lang, dk }: Props) {
   
+  // --- RE-ENGINEERED INDESTRUCTIBLE METRICS ENGINE ---
   const stats = useMemo(() => {
-    // 1. Core Totals (Matches Dashboard top-bar exactly)
     let totalSpend = 0;
     let totalPaid = 0;
     let totalUnpaid = 0;
     let totalOverdue = 0;
     let totalDeposits = 0;
 
-    // 2. Chart Accumulators
     let months = Array.from({ length: 12 }, (_, i) => ({ month: i, total: 0 }));
-    let leaderboard: Record<string, number> = {};
+    let groupedTotals: Record<string, number> = {};
     
-    // 3. Highlight Helpers
     let mostBooked = { name: '-', count: 0 };
     let bedPriceSum = 0;
     let bedPriceCount = 0;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    hotels.forEach(h => {
-      // --- REPLICATING DASHBOARD.TSX MATH LOGIC ---
-      let hotelFinalNetto = 0;
-      let hotelFinalBrutto = 0;
-      let hotelRawPaid = 0;
-      let hotelRawUnpaid = 0;
-      let hotelRawOverdue = 0;
-
-      // Track deposits only for hotels currently in the filtered list
-      totalDeposits += (h.depositEnabled && h.depositAmount) ? (parseFloat(h.depositAmount) || 0) : 0;
+    (hotels || []).forEach(h => {
+      if (!h) return;
       
-      // Most Booked Logic
+      let hotelBruttoBeforeDiscount = 0;
+      let rawPaid = 0;
+      let rawUnpaid = 0;
+      let rawOverdue = 0;
+      let hasInvoicesInContext = false;
+
+      // Safe parse for deposits (checking both camelCase and snake_case)
+      const isDepEnabled = h.depositEnabled ?? h.deposit_enabled;
+      const depAmt = h.depositAmount ?? h.deposit_amount;
+      if (isDepEnabled && depAmt) {
+         totalDeposits += parseFloat(depAmt) || 0;
+      }
+      
       const dCount = (h.durations || []).length;
-      if (dCount > mostBooked.count) mostBooked = { name: h.name, count: dCount };
+      if (dCount > mostBooked.count) {
+        mostBooked = { name: h.name || 'Unnamed', count: dCount };
+      }
+
+      const bedOverride = h.override_price_per_bed ?? h.overridePricePerBed;
+      if (bedOverride != null) {
+        bedPriceSum += parseFloat(bedOverride) || 0;
+        bedPriceCount++;
+      }
 
       (h.invoices || []).forEach((inv: any) => {
+        if (!inv) return;
         const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
         if (!dateStr) return;
         const d = new Date(dateStr);
         
-        // Match Global Year Filter
         if (d.getFullYear() !== selectedYear) return;
-
-        // Calculate Invoice Value
+        
         let invBrutto = 0;
         if (inv.billingMode === 'total') {
           const baseN = parseFloat(inv.totalNetto) || 0;
           const m = parseFloat(inv.totalMwst) || 0;
           const disc = parseFloat(inv.discountValue) || 0;
           const isPct = inv.discountType === 'percentage';
-          const n = Math.max(0, baseN - (isPct ? baseN * (disc / 100) : disc));
-          invBrutto = n * (1 + m / 100);
-          hotelFinalNetto += n;
+          invBrutto = Math.max(0, baseN - (isPct ? baseN * (disc / 100) : disc)) * (1 + m / 100);
         } else {
-          const defN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
+          const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
           (inv.items || []).forEach((item: any) => {
-            const { finalNetto: itemN, brutto: itemB } = calcInvoiceItem(item, defN);
-            invBrutto += itemB;
-            hotelFinalNetto += itemN;
-
+            if (!item) return;
+            invBrutto += calcInvoiceItem(item, defaultN)?.brutto || 0;
             if (item.type === 'room' && item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 0) {
-               bedPriceSum += parseFloat(item.netto);
+               bedPriceSum += parseFloat(item.netto) || 0;
                bedPriceCount++;
             }
           });
         }
 
-        // Add to month breakdown (This shows the whole year regardless of month filter)
+        invBrutto = isNaN(invBrutto) ? 0 : invBrutto;
+        
+        // ALWAYS add to the month array so the whole year chart works
         months[d.getMonth()].total += invBrutto;
 
-        // Apply Month Filter for the 5 Top KPI Cards
+        // Apply specific month filter for top KPIs
         if (selectedMonth !== null && d.getMonth() !== selectedMonth) return;
+        
+        hasInvoicesInContext = true;
+        hotelBruttoBeforeDiscount += invBrutto;
 
-        hotelFinalBrutto += invBrutto;
-        if (inv.isPaid) hotelRawPaid += invBrutto;
-        else {
-          hotelRawUnpaid += invBrutto;
-          if (inv.dueDate && new Date(inv.dueDate) < today) hotelRawOverdue += invBrutto;
+        if (inv.isPaid) {
+          rawPaid += invBrutto;
+        } else {
+          rawUnpaid += invBrutto;
+          if (inv.dueDate && new Date(inv.dueDate) < today) {
+            rawOverdue += invBrutto;
+          }
         }
       });
 
-      // Handle Global Discounts
-      let discountedBrutto = hotelFinalBrutto;
-      if (h.has_global_discount && h.global_discount_value) {
-        const gVal = parseFloat(h.global_discount_value);
-        const isFixed = h.global_discount_type === 'fixed';
-        const target = h.global_discount_target || 'netto';
-        if (target === 'netto') {
-          let ratio = isFixed ? (gVal / hotelFinalNetto) : (gVal / 100);
-          if (!isFinite(ratio)) ratio = 0;
-          discountedBrutto = Math.max(0, hotelFinalBrutto - (hotelFinalBrutto * ratio));
-        } else {
-          discountedBrutto = Math.max(0, hotelFinalBrutto - (isFixed ? gVal : hotelFinalBrutto * (gVal / 100)));
-        }
+      let discountedBrutto = hotelBruttoBeforeDiscount;
+      const hasGlobDisc = h.has_global_discount ?? h.hasGlobalDiscount;
+      if (hasGlobDisc) {
+        const gVal = parseFloat(h.global_discount_value ?? h.globalDiscountValue) || 0;
+        const gType = h.global_discount_type ?? h.globalDiscountType;
+        discountedBrutto = Math.max(0, hotelBruttoBeforeDiscount - (gType === 'fixed' ? gVal : hotelBruttoBeforeDiscount * (gVal / 100)));
       }
 
-      // Apply Override (Only if no month is selected, matching Dashboard behavior)
       let finalTotal = discountedBrutto;
-      if (h.override_total_brutto != null && selectedMonth === null) {
-        finalTotal = parseFloat(h.override_total_brutto);
+      const overrideTotal = h.override_total_brutto ?? h.overrideTotalBrutto;
+      if (overrideTotal != null && selectedMonth === null) {
+        finalTotal = parseFloat(overrideTotal) || 0;
       }
 
-      // Final Aggregation
+      finalTotal = isNaN(finalTotal) ? 0 : finalTotal;
       totalSpend += finalTotal;
-      const rawSum = hotelRawPaid + hotelRawUnpaid;
-      if (rawSum > 0) {
-        totalPaid += finalTotal * (hotelRawPaid / rawSum);
-        totalUnpaid += finalTotal * (hotelRawUnpaid / rawSum);
-        totalOverdue += finalTotal * (hotelRawOverdue / rawSum);
+
+      const rawTotal = rawPaid + rawUnpaid;
+      if (rawTotal > 0) {
+        totalPaid += finalTotal * (rawPaid / rawTotal);
+        totalUnpaid += finalTotal * (rawUnpaid / rawTotal);
+        totalOverdue += finalTotal * (rawOverdue / rawTotal);
       } else if (finalTotal > 0 && selectedMonth === null) {
-        if (h.isPaid) totalPaid += finalTotal; else totalUnpaid += finalTotal;
+        const isHotelPaid = h.isPaid ?? h.is_paid;
+        if (isHotelPaid) totalPaid += finalTotal;
+        else totalUnpaid += finalTotal;
       }
 
-      // Leaderboard Key Mapping
-      let key = h.name || 'Unknown';
-      if (groupBy === 'company') key = h.companyTag?.[0] || (lang === 'de' ? 'Nicht zugeordnet' : 'Unassigned');
-      else if (groupBy === 'city') key = h.city || 'Other';
-      else if (groupBy === 'country') key = h.country || 'Other';
-      
-      leaderboard[key] = (leaderboard[key] || 0) + finalTotal;
+      if (finalTotal > 0 || (selectedMonth === null && hasInvoicesInContext)) {
+        let groupKey = 'Unknown';
+        if (currentGroupBy === 'hotel') groupKey = h.name || 'Unnamed Hotel';
+        else if (currentGroupBy === 'company') groupKey = (h.companyTag && h.companyTag.length > 0) ? h.companyTag[0] : (lang === 'de' ? 'Ohne Firma' : 'Unassigned');
+        else if (currentGroupBy === 'city') groupKey = h.city || (lang === 'de' ? 'Unbekannte Stadt' : 'Unknown City');
+
+        groupedTotals[groupKey] = (groupedTotals[groupKey] || 0) + finalTotal;
+      }
     });
 
     const maxMonth = Math.max(...months.map(m => m.total), 1);
-    const sortedLeaderboard = Object.entries(leaderboard).sort((a, b) => b[1] - a[1]).slice(0, 10);
-    const maxLeader = sortedLeaderboard.length > 0 ? sortedLeaderboard[0][1] : 1;
+    const sortedGroups = Object.entries(groupedTotals).sort((a, b) => b[1] - a[1]);
+    const maxGroupValue = sortedGroups.length > 0 ? sortedGroups[0][1] : 1;
+    const avgBedPrice = bedPriceCount > 0 ? bedPriceSum / bedPriceCount : 0;
 
-    return { 
-      totalSpend, totalPaid, totalUnpaid, totalOverdue, totalDeposits, 
-      months, maxMonth, sortedLeaderboard, maxLeader, mostBooked, 
-      avgBedPrice: bedPriceCount > 0 ? bedPriceSum / bedPriceCount : 0 
-    };
-  }, [hotels, selectedYear, selectedMonth, groupBy, lang]);
+    return { totalSpend, totalPaid, totalUnpaid, totalOverdue, totalDeposits, months, maxMonth, sortedGroups, maxGroupValue, mostBooked, avgBedPrice };
+  }, [hotels, selectedYear, selectedMonth, currentGroupBy, lang]);
 
   const Card = ({ title, value, icon: Icon, colorCls, bgCls }: any) => (
     <div className={cn("p-5 rounded-2xl border flex flex-col gap-3 shadow-sm", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
@@ -173,24 +180,89 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       {/* 2. CHARTS ROW */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         
-        {/* LEFT: MONTHLY BREAKDOWN */}
+        {/* LEFT: CONDITIONAL CHART (MONTHLY BARS OR MONTH DONUT) */}
         <div className={cn("p-6 rounded-2xl border shadow-sm flex flex-col", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
-          <h3 className={cn("text-xs font-black uppercase tracking-widest mb-8", dk ? "text-slate-400" : "text-slate-500")}>{lang === 'de' ? 'Monatliche Ausgaben' : 'Monthly Breakdown'}</h3>
-          <div className="flex-1 flex items-end gap-2 h-64 relative">
-            {stats.months.map((m, i) => {
-              const height = (m.total / stats.maxMonth) * 100;
-              const isSelected = selectedMonth === i;
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center justify-end gap-3 h-full">
-                  <div className="w-full flex items-end justify-center h-full group relative">
-                    <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-[10px] font-bold py-1 px-2 rounded whitespace-nowrap z-50">{formatCurrency(m.total)}</div>
-                    <div className={cn("w-full max-w-[32px] rounded-t-sm transition-all duration-500", isSelected ? "bg-teal-500" : m.total > 0 ? "bg-teal-500/30 group-hover:bg-teal-500/50" : "bg-transparent")} style={{ height: `${Math.max(height, 2)}%` }} />
+          <h3 className={cn("text-sm font-black uppercase tracking-widest mb-6", dk ? "text-slate-300" : "text-slate-700")}>
+            {selectedMonth === null 
+              ? (lang === 'de' ? 'Monatliche Ausgaben' : 'Monthly Breakdown')
+              : (lang === 'de' ? `Finanzstatus: ${labels[selectedMonth]}` : `Financial Status: ${labels[selectedMonth]}`)
+            }
+          </h3>
+          
+          {selectedMonth === null ? (
+            // --- BAR CHART (ALL MONTHS) ---
+            <div className="flex-1 flex items-end gap-2 h-[280px] relative mt-4">
+              <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10 dark:opacity-5">
+                 <div className="w-full h-px bg-slate-900 dark:bg-white"></div>
+                 <div className="w-full h-px bg-slate-900 dark:bg-white"></div>
+                 <div className="w-full h-px bg-slate-900 dark:bg-white"></div>
+                 <div className="w-full h-px bg-slate-900 dark:bg-white"></div>
+              </div>
+              {stats.months.map((m, i) => {
+                const heightPct = (m.total / stats.maxMonth) * 100;
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center justify-end gap-3 group h-full relative z-10">
+                    <div className="w-full flex items-end justify-center h-full relative">
+                       <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-[11px] font-bold py-1.5 px-2.5 rounded-lg pointer-events-none z-50 whitespace-nowrap shadow-xl">
+                         {formatCurrency(m.total)}
+                         <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-slate-800"></div>
+                       </div>
+                       <div className={cn("w-full max-w-[40px] rounded-t-md transition-all duration-700 ease-out", m.total > 0 ? "bg-teal-500 group-hover:bg-teal-400" : "bg-transparent")} style={{ height: `${Math.max(heightPct, 1)}%` }} />
+                    </div>
+                    <span className={cn("text-[10px] font-bold uppercase", dk ? "text-slate-500" : "text-slate-400")}>{labels[i]}</span>
                   </div>
-                  <span className={cn("text-[9px] font-bold", isSelected ? "text-teal-500" : "text-slate-400")}>{monthLabels[i]}</span>
-                </div>
-              );
-            })}
-          </div>
+                )
+              })}
+            </div>
+          ) : (
+            // --- DONUT CHART (SPECIFIC MONTH) ---
+            <div className="flex-1 flex items-center justify-center gap-8 h-[280px] mt-4 animate-in fade-in zoom-in-95 duration-500">
+               {(() => {
+                 const paidPct = stats.totalSpend > 0 ? (stats.totalPaid / stats.totalSpend) * 100 : 0;
+                 const overduePct = stats.totalSpend > 0 ? (stats.totalOverdue / stats.totalSpend) * 100 : 0;
+                 const pendingPct = stats.totalSpend > 0 ? Math.max(0, 100 - paidPct - overduePct) : 0;
+                 
+                 return (
+                   <>
+                     <div className="relative w-48 h-48 rounded-full flex items-center justify-center shadow-inner" style={{ 
+                       background: stats.totalSpend > 0 
+                         ? `conic-gradient(#10b981 0% ${paidPct}%, #f59e0b ${paidPct}% ${paidPct + pendingPct}%, #ef4444 ${paidPct + pendingPct}% 100%)` 
+                         : (dk ? '#1E293B' : '#f1f5f9') 
+                     }}>
+                       <div className={cn("w-32 h-32 rounded-full flex flex-col items-center justify-center shadow-sm z-10", dk ? "bg-[#0F172A]" : "bg-white")}>
+                         <span className={cn("text-[10px] font-black uppercase tracking-widest", dk ? "text-slate-500" : "text-slate-400")}>{labels[selectedMonth]}</span>
+                         <span className={cn("text-lg font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalSpend)}</span>
+                       </div>
+                     </div>
+                     
+                     <div className="flex flex-col gap-4">
+                       <div className="flex items-center gap-3">
+                         <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 shadow-sm" />
+                         <div className="flex flex-col">
+                           <span className={cn("text-[11px] font-bold uppercase", dk ? "text-slate-400" : "text-slate-500")}>{lang === 'de' ? 'Bezahlt' : 'Paid'} ({paidPct.toFixed(1)}%)</span>
+                           <span className={cn("text-sm font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalPaid)}</span>
+                         </div>
+                       </div>
+                       <div className="flex items-center gap-3">
+                         <div className="w-3.5 h-3.5 rounded-full bg-amber-500 shadow-sm" />
+                         <div className="flex flex-col">
+                           <span className={cn("text-[11px] font-bold uppercase", dk ? "text-slate-400" : "text-slate-500")}>{lang === 'de' ? 'Ausstehend (Nicht fällig)' : 'Pending'} ({pendingPct.toFixed(1)}%)</span>
+                           <span className={cn("text-sm font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(Math.max(0, stats.totalUnpaid - stats.totalOverdue))}</span>
+                         </div>
+                       </div>
+                       <div className="flex items-center gap-3">
+                         <div className="w-3.5 h-3.5 rounded-full bg-red-500 shadow-sm" />
+                         <div className="flex flex-col">
+                           <span className={cn("text-[11px] font-bold uppercase", dk ? "text-slate-400" : "text-slate-500")}>{lang === 'de' ? 'Überfällig' : 'Overdue'} ({overduePct.toFixed(1)}%)</span>
+                           <span className={cn("text-sm font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalOverdue)}</span>
+                         </div>
+                       </div>
+                     </div>
+                   </>
+                 );
+               })()}
+            </div>
+          )}
         </div>
 
         {/* RIGHT: LEADERBOARD */}
