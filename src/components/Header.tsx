@@ -422,12 +422,12 @@ export default function Header({
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 group">
                               {editingName ? (
-                                 <div className="flex items-center gap-2 w-full max-w-[200px] animate-in fade-in" onClick={e => e.stopPropagation()}>
-                                    <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSaveProfile()} className="w-full bg-transparent border-b-2 border-blue-500 outline-none text-sm font-black text-blue-500 py-0.5" />
-                                    <button onClick={handleSaveProfile} disabled={savingProfile} className="p-1 text-white bg-blue-500 hover:bg-blue-600 rounded shadow-sm"><Check size={12} strokeWidth={3}/></button>
-                                    <button onClick={() => { setEditingName(false); setEditName(profile?.fullName || profile?.full_name || ''); }} className="p-1 text-slate-500 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded"><X size={12} strokeWidth={3}/></button>
-                                 </div>
-                              ) : (
+                              <div className="flex items-center gap-2 w-full max-w-[200px] animate-in fade-in" onClick={e => e.stopPropagation()}>
+                                 <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSaveProfile()} className="w-full bg-transparent border-b-2 border-blue-500 outline-none text-sm font-black text-blue-500 py-0.5" />
+                                 <button onClick={() => handleSaveProfile()} disabled={savingProfile} className="p-1 text-white bg-blue-500 hover:bg-blue-600 rounded shadow-sm"><Check size={12} strokeWidth={3}/></button>
+                                 <button onClick={() => { setEditingName(false); setEditName(profile?.fullName || profile?.full_name || ''); }} className="p-1 text-slate-500 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded"><X size={12} strokeWidth={3}/></button>
+                              </div>
+                           ) : (
                                  <>
                                    <span className={cn('text-sm font-black truncate', dk ? 'text-white' : 'text-slate-900')}>{profile?.fullName || profile?.full_name || '—'}</span>
                                    <button onClick={() => setEditingName(true)} className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-blue-500 transition-opacity"><Pencil size={12} /></button>
