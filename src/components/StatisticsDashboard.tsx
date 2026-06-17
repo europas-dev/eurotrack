@@ -17,7 +17,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
   // Resolve active grouping tier automatically from the main dashboard filter toggle
   const currentGroupBy = groupBy === 'none' ? 'hotel' : groupBy;
 
-  // --- RE-ENGINEERED SYNC MATHEMATICS ---
+  // --- RE-ENGINEERED INDESTRUCTIBLE METRICS ENGINE ---
   const stats = useMemo(() => {
     let totalSpend = 0;
     let totalPaid = 0;
@@ -35,24 +35,30 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    hotels.forEach(h => {
+    (hotels || []).forEach(h => {
+      if (!h) return;
+      
       let hotelBruttoBeforeDiscount = 0;
       let rawPaid = 0;
       let rawUnpaid = 0;
       let rawOverdue = 0;
       let hasInvoicesInContext = false;
 
-      totalDeposits += h.depositEnabled && h.depositAmount ? parseFloat(h.depositAmount) : 0;
-      mostBooked = (h.durations || []).length > mostBooked.count 
-        ? { name: h.name || 'Unnamed', count: (h.durations || []).length } 
-        : mostBooked;
+      // Safe parse for deposits
+      totalDeposits += h.depositEnabled && h.depositAmount ? (parseFloat(h.depositAmount) || 0) : 0;
+      
+      const dCount = (h.durations || []).length;
+      if (dCount > mostBooked.count) {
+        mostBooked = { name: h.name || 'Unnamed', count: dCount };
+      }
 
       if (h.override_price_per_bed) {
-        bedPriceSum += parseFloat(h.override_price_per_bed);
+        bedPriceSum += parseFloat(h.override_price_per_bed) || 0;
         bedPriceCount++;
       }
 
       (h.invoices || []).forEach((inv: any) => {
+        if (!inv) return;
         const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
         if (!dateStr) return;
         const d = new Date(dateStr);
@@ -70,15 +76,19 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         } else {
           const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
           (inv.items || []).forEach((item: any) => {
-            invBrutto += calcInvoiceItem(item, defaultN).brutto;
+            if (!item) return;
+            const itemBrutto = calcInvoiceItem(item, defaultN)?.brutto || 0;
+            invBrutto += itemBrutto;
+            
             if (item.type === 'room' && item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 0) {
-               bedPriceSum += parseFloat(item.netto);
+               bedPriceSum += parseFloat(item.netto) || 0;
                bedPriceCount++;
             }
           });
         }
 
-        // Fill dynamic month array matrix
+        // Safeguard against NaN values poisoning the month matrix
+        invBrutto = isNaN(invBrutto) ? 0 : invBrutto;
         months[d.getMonth()].total += invBrutto;
 
         // Apply real-time month context check
@@ -100,16 +110,17 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       // Mirror global discount evaluation architecture
       let discountedBrutto = hotelBruttoBeforeDiscount;
       if (h.has_global_discount && h.global_discount_value) {
-        const gVal = parseFloat(h.global_discount_value);
+        const gVal = parseFloat(h.global_discount_value) || 0;
         discountedBrutto = Math.max(0, hotelBruttoBeforeDiscount - (h.global_discount_type === 'fixed' ? gVal : hotelBruttoBeforeDiscount * (gVal / 100)));
       }
 
       let finalTotal = discountedBrutto;
       if (h.override_total_brutto != null && selectedMonth === null) {
-        finalTotal = parseFloat(h.override_total_brutto);
+        finalTotal = parseFloat(h.override_total_brutto) || 0;
       }
 
-      // Accumulate primary financials
+      // Final sanitize check before sums
+      finalTotal = isNaN(finalTotal) ? 0 : finalTotal;
       totalSpend += finalTotal;
 
       const rawTotal = rawPaid + rawUnpaid;
@@ -175,6 +186,14 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
             {lang === 'de' ? 'Monatliche Ausgaben' : 'Monthly Breakdown'}
           </h3>
           <div className="flex-1 flex items-end gap-2 h-[280px] relative mt-4">
+            {/* Background Grid Lines */}
+            <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10 dark:opacity-5">
+               <div className="w-full h-px bg-slate-900 dark:bg-white"></div>
+               <div className="w-full h-px bg-slate-900 dark:bg-white"></div>
+               <div className="w-full h-px bg-slate-900 dark:bg-white"></div>
+               <div className="w-full h-px bg-slate-900 dark:bg-white"></div>
+            </div>
+
             {stats.months.map((m, i) => {
               const heightPct = (m.total / stats.maxMonth) * 100;
               const isMonthFiltered = selectedMonth !== null;
