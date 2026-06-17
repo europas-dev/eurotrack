@@ -1391,6 +1391,8 @@ finalFiltered.forEach(h => {
               <StatisticsDashboard 
                 hotels={finalFiltered} 
                 selectedYear={selectedYear} 
+                selectedMonth={selectedMonth}
+                groupBy={groupBy}
                 lang={lang} 
                 dk={dk} 
               />
