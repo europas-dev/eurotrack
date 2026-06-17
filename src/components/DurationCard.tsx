@@ -364,8 +364,10 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
 
   return (
     <div className={cn(
-      'rounded-b-2xl rounded-tr-2xl border relative -mt-[1px]',
-      dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200'
+      'rounded-b-2xl rounded-tr-2xl border relative -mt-[1px] transition-all',
+      confirmDelete 
+        ? (dk ? 'border-red-500 ring-2 ring-red-500 bg-red-950/20 z-[9999]' : 'border-red-500 ring-2 ring-red-500 bg-red-50 z-[9999]')
+        : (dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')
     )}>
       <div className="flex flex-wrap items-center justify-between gap-3 p-3">
         
@@ -662,13 +664,13 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
   <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/50 p-4 transition-all">
     <div className={cn('w-full max-w-md rounded-2xl border p-6 shadow-2xl', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
       <h3 className="text-xl font-black mb-2">
-        {lang === 'de' ? 'Buchungszeitraum löschen?' : 'Delete booking period?'}
-      </h3>
-      <p className="text-sm font-bold text-slate-500 mb-6">
-        {lang === 'de' 
-          ? 'Diese Aktion kann nicht rückgängig gemacht werden. Möchten Sie die Löschung wirklich durchführen?' 
-          : 'This action cannot be undone. Proceed to deletion?'}
-      </p>
+              {lang === 'de' ? 'Buchungszeitraum löschen?' : 'Delete booking period?'}
+            </h3>
+            <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+              {lang === 'de' 
+                ? 'Diese Aktion kann nicht rückgängig gemacht werden. Möchten Sie die Löschung wirklich durchführen?' 
+                : 'This action cannot be undone. Proceed to deletion?'}
+            </p>
       <div className="flex justify-end gap-3">
         <button 
           onClick={() => { setConfirm(false); window.dispatchEvent(new Event('child-modal-closed')); }} 
