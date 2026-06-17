@@ -11,19 +11,6 @@ import DurationCard from './DurationCard';
 export const DEFAULT_COUNTRIES = ['Germany', 'Switzerland', 'Austria', 'Netherlands', 'Poland', 'Belgium', 'France', 'Luxembourg'];
 export function getCountryOptions() { return DEFAULT_COUNTRIES; }
 
-const [isChildModalOpen, setIsChildModalOpen] = useState(false);
-
-  useEffect(() => {
-    const handleOpen = () => setIsChildModalOpen(true);
-    const handleClose = () => setIsChildModalOpen(false);
-    window.addEventListener('child-modal-open', handleOpen);
-    window.addEventListener('child-modal-closed', handleClose);
-    return () => {
-      window.removeEventListener('child-modal-open', handleOpen);
-      window.removeEventListener('child-modal-closed', handleClose);
-    };
-  }, []);
-
 
 const getCountryCode = (country: string) => {
   const codes: any = { 'Germany': '+49', 'Switzerland': '+41', 'Austria': '+43', 'Netherlands': '+31', 'Poland': '+48', 'Belgium': '+32', 'France': '+33', 'Luxembourg': '+352' };
@@ -566,7 +553,21 @@ export function MonthFilterDropdown({ selectedMonth, localMonthFilter, setLocalM
 }
 
 export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuery = '', searchScope = 'all', selectedMonth = null, selectedYear = null, companyOptions = [], cityOptions = [], hotelOptions = [], employeeOptions = [], onDelete, onUpdate, onDeleteCompanyOption, onRenameCompanyOption, onAddOption, viewOnly, isSelected = false, onSelect = () => {}, isBulkActive = false, isOpen = false, onToggle = () => {}, showGlobalFinancials = false, activeSort = 'created_at', activeFilterDue, activeFilterDeposit, isModalOpen, setIsModalOpen }: any) {
- const [activeTab, setActiveTab] = useState<'bookings'|'billing'|'info'>('bookings');
+ 
+  const [isChildModalOpen, setIsChildModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpen = () => setIsChildModalOpen(true);
+    const handleClose = () => setIsChildModalOpen(false);
+    window.addEventListener('child-modal-open', handleOpen);
+    window.addEventListener('child-modal-closed', handleClose);
+    return () => {
+      window.removeEventListener('child-modal-open', handleOpen);
+      window.removeEventListener('child-modal-closed', handleClose);
+    };
+  }, []);
+  
+  const [activeTab, setActiveTab] = useState<'bookings'|'billing'|'info'>('bookings');
   
   const [showNotes, setShowNotes] = useState(false);
   const [editingOBrutto, setEditingOBrutto] = useState(false);
