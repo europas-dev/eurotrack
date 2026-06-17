@@ -376,8 +376,15 @@ export default function Header({
             {(!isOnline || offlineMode) ? <WifiOff size={18} /> : <Wifi size={18} className="text-emerald-500" />}
           </button>
 
-          <button onClick={() => setLang(isDe ? 'en' : 'de')} className={cn(iconBtn, 'text-xs font-black px-3')}>
-            {lang.toUpperCase()}
+          {/* LANGUAGE TOGGLE: Fixed width, larger font, shows opposite language */}
+          <button 
+            onClick={() => setLang(lang === 'de' ? 'en' : 'de')} 
+            className={cn(
+              iconBtn, 
+              'text-xs font-black px-0 min-w-[38px] flex items-center justify-center transition-all'
+            )}
+          >
+            {lang === 'de' ? 'EN' : 'DE'}
           </button>
 
           <button onClick={toggleTheme} className={iconBtn}>
