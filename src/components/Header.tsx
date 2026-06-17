@@ -376,7 +376,7 @@ export default function Header({
             {(!isOnline || offlineMode) ? <WifiOff size={18} /> : <Wifi size={18} className="text-emerald-500" />}
           </button>
 
-          <button onClick={() => setLang(isDe ? 'de' : 'en')} className={cn(iconBtn, 'text-xs font-black px-4')}>
+          <button onClick={() => setLang(isDe ? 'en' : 'de')} className={cn(iconBtn, 'text-xs font-black px-3')}>
             {lang.toUpperCase()}
           </button>
 
