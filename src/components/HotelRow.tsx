@@ -11,6 +11,20 @@ import DurationCard from './DurationCard';
 export const DEFAULT_COUNTRIES = ['Germany', 'Switzerland', 'Austria', 'Netherlands', 'Poland', 'Belgium', 'France', 'Luxembourg'];
 export function getCountryOptions() { return DEFAULT_COUNTRIES; }
 
+const [isChildModalOpen, setIsChildModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpen = () => setIsChildModalOpen(true);
+    const handleClose = () => setIsChildModalOpen(false);
+    window.addEventListener('child-modal-open', handleOpen);
+    window.addEventListener('child-modal-closed', handleClose);
+    return () => {
+      window.removeEventListener('child-modal-open', handleOpen);
+      window.removeEventListener('child-modal-closed', handleClose);
+    };
+  }, []);
+
+
 const getCountryCode = (country: string) => {
   const codes: any = { 'Germany': '+49', 'Switzerland': '+41', 'Austria': '+43', 'Netherlands': '+31', 'Poland': '+48', 'Belgium': '+32', 'France': '+33', 'Luxembourg': '+352' };
   return codes[country] || '+49';
@@ -951,10 +965,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       )}
 
       <div className={cn('rounded-xl border transition-all duration-200 shadow-sm relative overflow-visible', 
-      (isModalOpen && !confirmDelete) ? (dk ? 'bg-[#1E293B] border-white/5' : 'bg-white border-slate-200') // Neutralize if other modals are open
-      : isSelected ? (dk ? 'bg-teal-500/10 border-teal-500/50' : 'bg-teal-50 border-teal-500/40') 
-      : isOpen ? (dk ? 'bg-[#1E293B] border-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'bg-white border-teal-400/60 shadow-[0_0_15px_rgba(20,184,166,0.15)]') 
-      : (dk ? 'bg-[#1E293B] border-white/5 hover:border-white/10' : 'bg-white border-slate-200 hover:border-slate-300'))}>
+  (isSelected && !isChildModalOpen && !confirmDelete) ? (dk ? 'bg-teal-500/10 border-teal-500/50' : 'bg-teal-50 border-teal-500/40') 
+  : (isOpen && !isChildModalOpen && !confirmDelete) ? (dk ? 'bg-[#1E293B] border-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'bg-white border-teal-400/60 shadow-[0_0_15px_rgba(20,184,166,0.15)]') 
+  : (dk ? 'bg-[#1E293B] border-white/5 hover:border-white/10' : 'bg-white border-slate-200 hover:border-slate-300')
+)}>
       <div className={cn("absolute right-0 top-0 bottom-0 w-[4px] rounded-r-xl transition-colors z-[60]", masterMath.totalUnpaid > 0 ? "bg-red-500" : (masterMath.totalPaid > 0 ? "bg-emerald-500" : "bg-transparent border-l border-slate-200 dark:border-white/10"))} />
 
        <div className={cn('flex items-center cursor-pointer py-1.5 min-h-[56px] px-2 pr-2 group', dk ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/70', isOpen && 'border-b', isOpen && (dk ? 'border-white/5 bg-black/20' : 'border-slate-100 bg-slate-50/50'))} onClick={onToggle}>   
