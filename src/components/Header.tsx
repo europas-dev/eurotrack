@@ -350,9 +350,29 @@ export default function Header({
             {(!isOnline || offlineMode) ? <WifiOff size={18} /> : <Wifi size={18} className="text-emerald-500" />}
           </button>
 
-          <button onClick={() => setLang(isDe ? 'en' : 'de')} className={cn(iconBtn, 'text-xs font-black px-3')}>
-            {lang.toUpperCase()}
-          </button>
+          {/* PREMIUM SEGMENTED LANGUAGE TOGGLE */}
+          <div className={cn("flex items-center p-1 rounded-xl border transition-all h-[38px]", dk ? "bg-black/20 border-white/10" : "bg-slate-100 border-slate-200")}>
+            <button 
+              onClick={() => setLang('de')} 
+              className={cn("flex items-center justify-center h-full px-3 text-[11px] font-black rounded-lg transition-all", 
+                isDe 
+                  ? (dk ? "bg-white/15 text-white shadow-sm" : "bg-white text-slate-800 shadow-sm border border-slate-200/60") 
+                  : (dk ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600")
+              )}
+            >
+              DE
+            </button>
+            <button 
+              onClick={() => setLang('en')} 
+              className={cn("flex items-center justify-center h-full px-3 text-[11px] font-black rounded-lg transition-all", 
+                !isDe 
+                  ? (dk ? "bg-white/15 text-white shadow-sm" : "bg-white text-slate-800 shadow-sm border border-slate-200/60") 
+                  : (dk ? "text-slate-500 hover:text-slate-300" : "text-slate-400 hover:text-slate-600")
+              )}
+            >
+              EN
+            </button>
+          </div>
 
           <button onClick={toggleTheme} className={iconBtn}>
             {dk ? <Sun size={18} /> : <Moon size={18} />}
