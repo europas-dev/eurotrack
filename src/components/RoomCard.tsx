@@ -1117,8 +1117,12 @@ export default function RoomCard({
       {confirmDelete && (
         <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/50 p-4 transition-all">
           <div className={cn('w-full max-w-sm rounded-3xl border p-6 shadow-2xl', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
-            <h3 className="text-xl font-black mb-3">{lang === 'de' ? 'Zimmer löschen?' : 'Delete Room?'}</h3>
-            <p className="text-sm mb-6 opacity-60">{lang === 'de' ? 'Das kann nicht rückgängig gemacht werden.' : 'This cannot be undone.'}</p>
+            <h3 className="text-xl font-black mb-2">{lang === 'de' ? 'Zimmer löschen?' : 'Delete Room?'}</h3>
+            <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+              {lang === 'de' 
+                ? 'Diese Aktion kann nicht rückgängig gemacht werden. Möchten Sie die Löschung wirklich durchführen?' 
+                : 'This action cannot be undone. Proceed to deletion?'}
+            </p>
             <div className="flex justify-end gap-3">
               <button onClick={() => { setConfirmDelete(false); window.dispatchEvent(new Event('child-modal-closed')); }} className={cn('px-5 py-2.5 rounded-lg border text-sm font-bold', dk ? 'border-white/10 text-slate-300' : 'border-slate-200 text-slate-700')}>
                 {lang === 'de' ? 'Abbrechen' : 'Cancel'}
