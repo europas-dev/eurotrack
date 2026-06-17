@@ -624,12 +624,8 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
           {!viewOnly && (
           <button 
             onClick={() => {
-              // 1. Set our local confirm state
               setConfirm(true); 
-              // 2. If you added the modal-tracking prop, trigger it here:
-              if (typeof props.setIsModalOpen === 'function') {
-                props.setIsModalOpen(true);
-              }
+              window.dispatchEvent(new Event('child-modal-open')); 
             }} 
             className={cn("p-2 rounded-xl flex items-center justify-center transition-colors shrink-0", 
               dk ? "text-slate-500 hover:text-red-400 hover:bg-red-500/10" 
@@ -675,13 +671,13 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
       </p>
       <div className="flex justify-end gap-3">
         <button 
-          onClick={() => setConfirm(false)} 
+          onClick={() => { setConfirm(false); window.dispatchEvent(new Event('child-modal-closed')); }} 
           className="px-4 py-2 font-bold opacity-50 hover:opacity-100 transition-opacity"
         >
           {lang === 'de' ? 'Abbrechen' : 'Cancel'}
         </button>
         <button 
-          onClick={() => { onDelete(local.id); setConfirm(false); }} 
+          onClick={() => { onDelete(local.id); setConfirm(false); window.dispatchEvent(new Event('child-modal-closed')); }} 
           className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors"
         >
           {lang === 'de' ? 'Löschen' : 'Delete'}
