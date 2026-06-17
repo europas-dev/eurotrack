@@ -1119,7 +1119,6 @@ export default function RoomCard({
                 {lang === 'de' ? 'Löschen' : 'Delete'}
               </button>
             </div>
-            </div>
           </div>
         </div>
       )}
