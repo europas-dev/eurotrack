@@ -65,6 +65,18 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const empMenuRef = useRef<HTMLDivElement>(null);
   const [isAnyModalOpen, setIsAnyModalOpen] = useState(false);
 
+  // --- ADD THIS LISTENER ---
+  useEffect(() => {
+    const handleOpen = () => setIsAnyModalOpen(true);
+    const handleClose = () => setIsAnyModalOpen(false);
+    window.addEventListener('child-modal-open', handleOpen);
+    window.addEventListener('child-modal-closed', handleClose);
+    return () => {
+      window.removeEventListener('child-modal-open', handleOpen);
+      window.removeEventListener('child-modal-closed', handleClose);
+    };
+  }, []);
+
   // MENU VISIBILITY
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showTimelineMenu, setShowTimelineMenu] = useState(false);
@@ -809,10 +821,10 @@ finalFiltered.forEach(h => {
     <div className={cn('flex h-screen overflow-hidden', dk ? 'bg-[#0F172A]' : 'bg-slate-50')}>
       
       <div className={cn("flex-1 flex flex-col min-w-0 overflow-hidden relative", isStrictViewer ? "pt-4" : "")}>
-        
         {/* MEGA-ROW: APP HEADER + STATS */}
-       <div className={cn("flex items-center w-full border-b shrink-0 h-[64px] pl-6 pr-2 transition-colors z-[60] hover:z-[999999] focus-within:z-[999999]", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-200")}>  
-           {/* Stats Block (Icons only, pushed to absolute far left) */}
+       <div className={cn("flex items-center w-full border-b shrink-0 h-[64px] pl-6 pr-2 transition-colors", isAnyModalOpen ? "z-0" : "z-[60] hover:z-[999999] focus-within:z-[999999]", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-200")}>
+       
+        {/* Stats Block (Icons only, pushed to absolute far left) */}
            <div className="flex items-center gap-8 shrink-0">
              
              {/* Freie Betten */}
@@ -894,8 +906,8 @@ finalFiltered.forEach(h => {
 
         {/* BULK ACTIONS & OFFLINE ALERTS */}
         {selectedIds.size > 0 && (
-          <div className={cn("sticky top-0 z-[1000] w-full border-b flex items-center justify-between px-8 py-3 animate-in slide-in-from-top duration-300", dk ? "bg-[#1E293B]/95 border-teal-500/30 text-white backdrop-blur-md" : "bg-teal-600 border-teal-700 text-white shadow-lg")}>
-            <div className="flex items-center gap-6">
+          <div className={cn("sticky top-0 w-full border-b flex items-center justify-between px-8 py-3 animate-in slide-in-from-top duration-300", isAnyModalOpen ? "z-0" : "z-[1000]", dk ? "bg-[#1E293B]/95 border-teal-500/30 text-white backdrop-blur-md" : "bg-teal-600 border-teal-700 text-white shadow-lg")}>
+         <div className="flex items-center gap-6">
               <div className="flex items-center gap-3">
                 <input type="checkbox" checked={isAllSelected} onChange={toggleSelectAll} className="w-5 h-5 rounded border-white/20 accent-white cursor-pointer" />
                 <span className="font-black text-sm uppercase tracking-widest">{selectedIds.size} {lang === 'de' ? 'Ausgewählt' : 'Selected'}</span>
@@ -931,8 +943,8 @@ finalFiltered.forEach(h => {
             {/* STICKY CONTROL STACK */}
             <div 
               className={cn("sticky top-0 pt-4 pb-3 -mx-8 px-8 mb-4 border-b-2 shadow-sm", dk ? "bg-[#0F172A]/95 border-white/10 backdrop-blur-md" : "bg-slate-50/95 border-slate-300 backdrop-blur-md")}
-              style={{ zIndex: (showYearMenu || showMonthMenu || showFilterMenu || showTimelineMenu || showSortMenu) ? 999999 : 1000 }}
-            ><div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative" style={{ zIndex: 999998 }}>
+              style={{ zIndex: isAnyModalOpen ? 0 : (showYearMenu || showMonthMenu || showFilterMenu || showTimelineMenu || showSortMenu) ? 999999 : 1000 }}
+            ><div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative" style={{ zIndex: isAnyModalOpen ? 0 : 999998 }}>
               <h2 className="text-xl font-black tracking-tight">{displayTitle}</h2>
               
               <div className="flex items-center gap-2">
