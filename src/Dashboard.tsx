@@ -8,6 +8,7 @@ import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Star, Calendar, MapPin, B
 import Header from './components/Header';
 import { HotelRow, ModernDropdown, CompanyMultiSelect, getCountryOptions } from './components/HotelRow';
 import ExportStudio from './components/ExportStudio';
+import StatisticsDashboard from './components/StatisticsDashboard';
 
 // --- SYSTEM COMPANIES API ---
 async function getSystemCompanies(): Promise<string[]> {
@@ -47,6 +48,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchScope, setSearchScope] = useState('all');
   const [showStudio, setShowStudio] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'stats'>('list');
 
   // --- UI TOGGLES ---
   const [showGlobalFinancials, setShowGlobalFinancials] = useState(false);
@@ -899,6 +901,7 @@ finalFiltered.forEach(h => {
            <div className="flex-1 min-w-0 h-full">
            <Header 
                theme={theme} lang={lang} toggleTheme={toggleTheme} setLang={setLang} 
+               viewMode={viewMode} setViewMode={setViewMode}
                searchQuery={searchQuery} setSearchQuery={setSearchQuery} 
                searchScope={searchScope} setSearchScope={setSearchScope} 
                onSignOut={onSignOut} onPrint={() => setShowStudio(true)}
@@ -1370,6 +1373,20 @@ finalFiltered.forEach(h => {
               </div>
             </div> {/* END OF STICKY CONTROL STACK */}
 
+           {/* --- NEW: STATS DASHBOARD --- */}
+            {viewMode === 'stats' && (
+              <StatisticsDashboard 
+                hotels={finalFiltered} 
+                selectedYear={selectedYear} 
+                lang={lang} 
+                dk={dk} 
+              />
+            )}
+
+            {/* --- EXISTING: LIST VIEW --- */}
+            <div style={{ display: viewMode === 'list' ? 'block' : 'none' }}>
+            
+
               {/* THE DATA ROWS */}
             {groupBy !== 'none' && groupData ? (
               (activeGroupTab && groupData[activeGroupTab]) ? (
@@ -1481,6 +1498,7 @@ finalFiltered.forEach(h => {
                 <p className="text-sm">{lang === 'de' ? 'Versuchen Sie, Ihre Filter anzupassen oder ein neues hinzuzufügen.' : 'Try adjusting your filters or adding a new one.'}</p>
               </div>
             )}
+            </div>
           </main>
         )}
 
