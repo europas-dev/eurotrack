@@ -276,16 +276,6 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
     </div>
   );
 
-  const Card = ({ title, value, icon: Icon, colorCls, bgCls }: any) => (
-    <div className={cn("p-5 rounded-2xl border flex flex-col gap-3 shadow-sm transition-all hover:shadow-md", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
-      <div className="flex items-center gap-2">
-        <div className={cn("p-2 rounded-lg", bgCls, colorCls)}><Icon size={16} strokeWidth={2.5} /></div>
-        <span className={cn("text-xs font-black uppercase tracking-widest", dk ? "text-slate-400" : "text-slate-500")}>{title}</span>
-      </div>
-      <span className={cn("text-2xl lg:text-3xl font-black truncate", dk ? "text-white" : "text-slate-900")}>{value}</span>
-    </div>
-  );
-
   // --- NEW HELPER COMPONENTS (Safely inside the room!) ---
   const HighlightChip = ({ text, colorCls }: { text: string; colorCls: string }) => (
     <span className={cn("inline-flex items-center gap-1.5 text-[11px] font-black px-3 py-1 rounded-full whitespace-nowrap tracking-tight shadow-inner mt-2", colorCls)}>
@@ -649,5 +639,6 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
               <PriceCard title={lang === 'de' ? 'Höchster Preis pro Bett' : 'Highest Price per Bed'} price={stats.maxBedPrice.price} chipContent={stats.maxBedPrice.hotelName} iconColorCls="text-indigo-500" />
           </div>
       </div>
+    </div>
   );
 }
