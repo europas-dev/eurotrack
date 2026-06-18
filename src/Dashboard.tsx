@@ -1286,7 +1286,7 @@ finalFiltered.forEach(h => {
             )}
 
             {/* HORIZONTAL GROUP TABS */}
-            {groupBy !== 'none' && groupData && (
+            {groupBy !== 'none' && groupData && viewMode !== 'stats' && (
               <div className="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar border-b border-slate-200 dark:border-white/10">
                 {Object.keys(groupData).map(g => (
                   <button 
@@ -1351,7 +1351,7 @@ finalFiltered.forEach(h => {
                 )}
               
             {/* DESKTOP HEADER ROW */}
-                {!loading && finalFiltered.length > 0 && (
+                {!loading && finalFiltered.length > 0 && viewMode !== 'stats' && (
                   <div 
                     className={cn(
                       "hidden lg:flex items-center px-8 py-2.5 text-[10px] font-black uppercase tracking-widest",
