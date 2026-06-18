@@ -18,6 +18,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
   
   const [localGroup, setLocalGroup] = useState<'hotel' | 'company' | 'city' | 'country' | 'employee'>(groupBy === 'none' ? 'hotel' : (groupBy as any));
   const [sortAsc, setSortAsc] = useState(false);
+  const [chartTab, setChartTab] = useState<'all' | 'total' | 'paid' | 'unpaid'>('all'); 
 
   // Auto-sync with parent dashboard if the parent filter changes
   useEffect(() => {
@@ -39,7 +40,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
     let totalOverdue = 0;
     let totalDeposits = 0;
 
-    let months = Array.from({ length: 12 }, (_, i) => ({ month: i, total: 0 }));
+    let months = Array.from({ length: 12 }, (_, i) => ({ month: i, total: 0, paid: 0, unpaid: 0, pending: 0, overdue: 0 }));
     let groupedTotals: Record<string, number> = {};
     
     let mostBooked = { name: '-', count: 0 };
@@ -108,13 +109,18 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         invBrutto = isNaN(invBrutto) ? 0 : invBrutto;
         
         // ALWAYS add to the month array so the whole year chart works
-        months[d.getMonth()].total += invBrutto;
+        const mIdx = d.getMonth();
+        months[mIdx].total += invBrutto;
+        if (inv.isPaid) {
+          months[mIdx].paid += invBrutto;
+        } else {
+          months[mIdx].unpaid += invBrutto;
+          if (inv.dueDate && new Date(inv.dueDate) < today) months[mIdx].overdue += invBrutto;
+          else months[mIdx].pending += invBrutto;
+        }
 
         // Apply specific month filter for top KPIs
         if (selectedMonth !== null && d.getMonth() !== selectedMonth) return;
-        
-        hasInvoicesInContext = true;
-        hotelBruttoBeforeDiscount += invBrutto;
 
         if (inv.isPaid) {
           rawPaid += invBrutto;
@@ -205,6 +211,8 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
     });
 
     const maxMonth = Math.max(...months.map(m => m.total), 1);
+    const maxPaid = Math.max(...months.map(m => m.paid), 1);
+    const maxUnpaid = Math.max(...months.map(m => m.unpaid), 1);
     
     // Support sorting both High-to-Low and Low-to-High
     const sortedGroups = Object.entries(groupedTotals).sort((a, b) => sortAsc ? a[1] - b[1] : b[1] - a[1]);
@@ -214,7 +222,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
     
     const avgBedPrice = bedPriceCount > 0 ? bedPriceSum / bedPriceCount : 0;
 
-    return { totalSpend, totalPaid, totalUnpaid, totalOverdue, totalDeposits, months, maxMonth, sortedGroups, maxGroupValue, mostBooked, avgBedPrice };
+    return { totalSpend, totalPaid, totalUnpaid, totalOverdue, totalDeposits, months, maxMonth, maxPaid, maxUnpaid, sortedGroups, maxGroupValue, mostBooked, avgBedPrice };
   }, [hotels, selectedYear, selectedMonth, localGroup, sortAsc, lang]);
 
   const monthLabelsDe = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
@@ -279,28 +287,84 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
           
           {selectedMonth === null ? (
             // --- BAR CHART (ALL MONTHS) ---
-            <div className="flex-1 flex items-end gap-2 h-[280px] relative mt-4">
-              <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10 dark:opacity-5">
-                 <div className="w-full h-px bg-slate-900 dark:bg-white"></div>
-                 <div className="w-full h-px bg-slate-900 dark:bg-white"></div>
-                 <div className="w-full h-px bg-slate-900 dark:bg-white"></div>
-                 <div className="w-full h-px bg-slate-900 dark:bg-white"></div>
+            <div className="flex flex-col flex-1 mt-2">
+              
+              {/* CHART TABS */}
+              <div className="flex items-center justify-end mb-4">
+                <div className={cn("flex p-0.5 rounded-lg", dk ? "bg-black/20" : "bg-slate-100")}>
+                  {[
+                    { id: 'all', label: lang === 'de' ? 'Alle' : 'All' },
+                    { id: 'total', label: lang === 'de' ? 'Gesamt' : 'Total' },
+                    { id: 'paid', label: lang === 'de' ? 'Bezahlt' : 'Paid' },
+                    { id: 'unpaid', label: lang === 'de' ? 'Offen' : 'Due' }
+                  ].map(t => (
+                    <button 
+                      key={t.id} 
+                      onClick={() => setChartTab(t.id as any)}
+                      className={cn("px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all", 
+                        chartTab === t.id ? (dk ? "bg-slate-700 text-white shadow-sm" : "bg-white text-slate-800 shadow-sm") : "text-slate-500 hover:text-slate-700 dark:text-slate-400")}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              {stats.months.map((m, i) => {
-                const heightPct = (m.total / stats.maxMonth) * 100;
-                return (
-                  <div key={i} className="flex-1 flex flex-col items-center justify-end gap-3 group h-full relative z-10">
-                    <div className="w-full flex items-end justify-center h-full relative">
-                       <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-[11px] font-bold py-1.5 px-2.5 rounded-lg pointer-events-none z-50 whitespace-nowrap shadow-xl">
-                         {formatCurrency(m.total)}
-                         <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-slate-800"></div>
-                       </div>
-                       <div className={cn("w-full max-w-[40px] rounded-t-md transition-all duration-700 ease-out", m.total > 0 ? "bg-teal-500 group-hover:bg-teal-400" : "bg-transparent")} style={{ height: `${Math.max(heightPct, 1)}%` }} />
+
+              {/* BARS CONTAINER */}
+              <div className="flex-1 flex items-end gap-2 relative">
+                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10 dark:opacity-5">
+                   <div className="w-full h-px bg-slate-900 dark:bg-white"></div>
+                   <div className="w-full h-px bg-slate-900 dark:bg-white"></div>
+                   <div className="w-full h-px bg-slate-900 dark:bg-white"></div>
+                   <div className="w-full h-px bg-slate-900 dark:bg-white"></div>
+                </div>
+                {stats.months.map((m, i) => {
+                  const activeMax = chartTab === 'paid' ? stats.maxPaid : chartTab === 'unpaid' ? stats.maxUnpaid : stats.maxMonth;
+                  const pctTotal = `${Math.max((m.total / activeMax) * 100, 1)}%`;
+                  const pctPaid = `${Math.max((m.paid / activeMax) * 100, 1)}%`;
+                  const pctUnpaid = `${Math.max((m.unpaid / activeMax) * 100, 1)}%`;
+                  const pctPending = `${Math.max((m.pending / activeMax) * 100, 1)}%`;
+                  const pctOverdue = `${Math.max((m.overdue / activeMax) * 100, 1)}%`;
+
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center justify-end gap-3 group h-full relative z-10 cursor-crosshair">
+                      
+                      {/* SMART TOOLTIP */}
+                      <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-[11px] p-3 rounded-xl pointer-events-none z-50 whitespace-nowrap shadow-xl flex flex-col gap-1.5">
+                        <span className="font-black text-slate-400 mb-1">{labels[i]}</span>
+                        <div className="flex justify-between gap-4"><span className="text-blue-400">{lang === 'de' ? 'Gesamt:' : 'Total:'}</span> <span className="font-bold">{formatCurrency(m.total)}</span></div>
+                        <div className="flex justify-between gap-4"><span className="text-emerald-400">{lang === 'de' ? 'Bezahlt:' : 'Paid:'}</span> <span className="font-bold">{formatCurrency(m.paid)}</span></div>
+                        <div className="w-full h-px bg-white/10 my-0.5"></div>
+                        <div className="flex justify-between gap-4"><span className="text-slate-300">{lang === 'de' ? 'Total Offen:' : 'Total Due:'}</span> <span className="font-bold">{formatCurrency(m.unpaid)}</span></div>
+                        <div className="flex justify-between gap-4 pl-2"><span className="text-amber-400 text-[10px]">{lang === 'de' ? '└ Ausstehend:' : '└ Pending:'}</span> <span className="font-bold text-[10px]">{formatCurrency(m.pending)}</span></div>
+                        <div className="flex justify-between gap-4 pl-2"><span className="text-red-400 text-[10px]">{lang === 'de' ? '└ Überfällig:' : '└ Overdue:'}</span> <span className="font-bold text-[10px]">{formatCurrency(m.overdue)}</span></div>
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-slate-800"></div>
+                      </div>
+
+                      {/* DYNAMIC BARS */}
+                      <div className="w-full flex items-end justify-center h-full relative gap-0.5 lg:gap-1">
+                         {chartTab === 'all' && (
+                           <>
+                             {m.total > 0 && <div style={{ height: pctTotal }} className="w-1/3 max-w-[12px] bg-blue-500 rounded-t-sm hover:brightness-110 transition-all duration-500" />}
+                             {m.paid > 0 && <div style={{ height: pctPaid }} className="w-1/3 max-w-[12px] bg-emerald-500 rounded-t-sm hover:brightness-110 transition-all duration-500" />}
+                             {m.unpaid > 0 && <div style={{ height: pctUnpaid }} className="w-1/3 max-w-[12px] bg-slate-300 dark:bg-slate-600 rounded-t-sm hover:brightness-110 transition-all duration-500" />}
+                           </>
+                         )}
+                         {chartTab === 'total' && m.total > 0 && <div style={{ height: pctTotal }} className="w-full max-w-[32px] bg-blue-500 rounded-t-md hover:brightness-110 transition-all duration-500" />}
+                         {chartTab === 'paid' && m.paid > 0 && <div style={{ height: pctPaid }} className="w-full max-w-[32px] bg-emerald-500 rounded-t-md hover:brightness-110 transition-all duration-500" />}
+                         {chartTab === 'unpaid' && (
+                           <>
+                             {m.unpaid > 0 && <div style={{ height: pctUnpaid }} className="w-1/3 max-w-[12px] bg-slate-300 dark:bg-slate-600 rounded-t-sm hover:brightness-110 transition-all duration-500" title="Total Due" />}
+                             {m.pending > 0 && <div style={{ height: pctPending }} className="w-1/3 max-w-[12px] bg-amber-500 rounded-t-sm hover:brightness-110 transition-all duration-500" title="Pending" />}
+                             {m.overdue > 0 && <div style={{ height: pctOverdue }} className="w-1/3 max-w-[12px] bg-red-500 rounded-t-sm hover:brightness-110 transition-all duration-500" title="Overdue" />}
+                           </>
+                         )}
+                      </div>
+                      <span className={cn("text-[10px] font-bold uppercase", dk ? "text-slate-500" : "text-slate-400")}>{labels[i]}</span>
                     </div>
-                    <span className={cn("text-[10px] font-bold uppercase", dk ? "text-slate-500" : "text-slate-400")}>{labels[i]}</span>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
           ) : (
             // --- DONUT CHART (SPECIFIC MONTH) ---
