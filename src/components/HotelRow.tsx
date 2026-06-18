@@ -919,6 +919,41 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     }, 400);
   }
 
+  // --- NEW: Context-Aware Due Date Calculator ---
+  const displayDueDate = useMemo(() => {
+      const unpaids = (localHotel.invoices || []).filter((i: any) => !i.isPaid && i.dueDate).map((i: any) => new Date(i.dueDate));
+      if (unpaids.length === 0) return null;
+
+      // If a specific filter is active, only show the dates that match the filter!
+      if (activeFilterDue && activeFilterDue !== 'all') {
+          const today = new Date();
+          today.setHours(0,0,0,0);
+          
+          const filteredDates = unpaids.filter((d: Date) => {
+              const date = new Date(d);
+              date.setHours(0,0,0,0);
+              
+              if (activeFilterDue === 'overdue') return date < today;
+              
+              let maxDate = new Date(today);
+              if (activeFilterDue === 'today') maxDate.setDate(today.getDate() + 0);
+              else if (activeFilterDue === '3days') maxDate.setDate(today.getDate() + 3);
+              else if (activeFilterDue === '5days') maxDate.setDate(today.getDate() + 5);
+              maxDate.setHours(23,59,59,999);
+              
+              return date >= today && date <= maxDate;
+          });
+
+          // Show the earliest date that specifically matches the current filter
+          if (filteredDates.length > 0) {
+              return new Date(Math.min(...filteredDates.map((d: Date) => d.getTime()))).toISOString();
+          }
+      }
+      
+      // Fallback: If no filter is active, just show the most urgent (earliest) due date
+      return new Date(Math.min(...unpaids.map((d: Date) => d.getTime()))).toISOString();
+  }, [localHotel.invoices, activeFilterDue]);
+  
   const handleEnterBlur = (e: React.KeyboardEvent) => { if (e.key === 'Enter') (e.target as HTMLElement).blur(); };
   const labelCls = cn('flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500', dk && 'text-slate-400');
   const inputCls = cn('w-full px-2 py-1.5 rounded-lg text-sm font-bold outline-none border transition-all h-[34px]', dk ? 'bg-[#1E293B] border-white/10 text-white placeholder-slate-600' : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400', viewOnly && "opacity-60 cursor-default");
@@ -1211,9 +1246,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                </div>
             )}
 
-            {!showGlobalFinancials && (activeSort === 'payment_due' || (activeFilterDue && activeFilterDue !== 'all')) && masterMath.nearestDueDate && (
-               <div className="text-[9px] font-bold text-red-500 mt-1 uppercase tracking-wider">
-                  {lang === 'de' ? 'Fällig: ' : 'Due: '} {formatShortDate(masterMath.nearestDueDate)}
+            {!showGlobalFinancials && (activeSort === 'payment_due' || (activeFilterDue && activeFilterDue !== 'all')) && displayDueDate && (
+               <div className="text-[10px] font-bold text-red-500 mt-1 uppercase tracking-wider">
+                  {lang === 'de' ? 'Fällig: ' : 'Due: '} {formatShortDate(displayDueDate)}
                </div>
             )}
 
