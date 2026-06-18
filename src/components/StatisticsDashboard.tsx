@@ -569,7 +569,8 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                      {mappedItems.map(item => (
                         <div 
                            key={item.id} 
-                           className={cn("absolute flex flex-col justify-center w-[150px] px-3", item.isRight ? "items-start border-l-[4px] text-left" : "items-end border-r-[4px] text-right")}
+                           // FIX: Changed w-[150px] to w-max and min-w-[150px] so it expands for long German words
+                           className={cn("absolute flex flex-col justify-center w-max min-w-[150px] px-3", item.isRight ? "items-start border-l-[4px] text-left" : "items-end border-r-[4px] text-right")}
                            style={{ 
                               top: `${(item.endY / 320) * 100}%`, 
                               left: item.isRight ? `${(item.endX / 700) * 100}%` : 'auto',
@@ -578,10 +579,11 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                               transform: 'translateY(-50%)'
                            }}
                         >
-                           <span className="text-[10px] font-black uppercase tracking-widest mb-0.5 flex items-center gap-1.5 drop-shadow-sm">
-                              {!item.isRight && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />}
+                           {/* FIX: Added whitespace-nowrap here and shrink-0 to the dots */}
+                           <span className="text-[10px] font-black uppercase tracking-widest mb-0.5 flex items-center gap-1.5 drop-shadow-sm whitespace-nowrap">
+                              {!item.isRight && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />}
                               <span style={{ color: item.color }}>{item.title}</span>
-                              {item.isRight && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />}
+                              {item.isRight && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />}
                            </span>
                            <span className={cn("text-xl font-black truncate w-full", dk ? "text-white" : "text-slate-900")}>{item.valStr}</span>
                            <span className="text-sm font-bold opacity-90" style={{ color: item.color }}>{item.val.toFixed(0)}%</span>
