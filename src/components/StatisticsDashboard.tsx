@@ -1,7 +1,7 @@
 //src/components/StatisticsDashboard.tsx
 import React, { useMemo, useState, useEffect } from 'react';
 import { cn, formatCurrency, calculateNights, calcInvoiceItem } from '../lib/utils';
-import { TrendingUp, TrendingDown, CreditCard, AlertCircle, ShieldCheck, Clock, Trophy, BedDouble, Building2, MapPin, Building, ArrowDownWideNarrow, ArrowUpNarrowWide } from 'lucide-react';
+import { TrendingUp, TrendingDown, CreditCard, AlertCircle, ShieldCheck, Clock, Trophy, BedDouble, Building2, MapPin,ReceiptEuro, Building, ArrowDownWideNarrow, ArrowUpNarrowWide } from 'lucide-react';
 
 interface Props {
   hotels: any[];
