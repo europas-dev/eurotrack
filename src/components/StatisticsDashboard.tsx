@@ -384,12 +384,12 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                   <button 
                     key={g.id} 
                     onClick={() => setLocalGroup(g.id as any)}
-                    className={cn("px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all", 
+                    className={cn("px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all", 
                       localGroup === g.id 
                         ? (dk ? "bg-blue-600 text-white shadow-sm" : "bg-white text-blue-600 shadow-sm") 
                         : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}
                   >
-                    {g.label.slice(0, 3)}
+                    {g.label}
                   </button>
                 ))}
               </div>
