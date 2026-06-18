@@ -368,17 +368,19 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
             {selectedMonth === null && (
               <div className={cn("flex p-0.5 rounded-lg", dk ? "bg-black/20" : "bg-slate-100")}>
                 {[
-                  { id: 'all', label: lang === 'de' ? 'Alle' : 'All' },
-                  { id: 'total', label: lang === 'de' ? 'Gesamt' : 'Total' },
-                  { id: 'paid', label: lang === 'de' ? 'Bezahlt' : 'Paid' },
-                  { id: 'unpaid', label: lang === 'de' ? 'Offen' : 'Due' }
+                  { id: 'all', label: lang === 'de' ? 'Alle' : 'All', color: null },
+                  { id: 'total', label: lang === 'de' ? 'Gesamt' : 'Total', color: 'bg-blue-500' },
+                  { id: 'paid', label: lang === 'de' ? 'Bezahlt' : 'Paid', color: 'bg-emerald-500' },
+                  { id: 'unpaid', label: lang === 'de' ? 'Offen' : 'Due', color: dk ? 'bg-slate-500' : 'bg-slate-400' }
                 ].map(t => (
                   <button 
                     key={t.id} 
                     onClick={() => setChartTab(t.id as any)}
-                    className={cn("px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all", 
+                    className={cn("px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all flex items-center gap-1.5", 
                       chartTab === t.id ? (dk ? "bg-slate-700 text-white shadow-sm" : "bg-white text-slate-800 shadow-sm") : "text-slate-500 hover:text-slate-700 dark:text-slate-400")}
                   >
+                    {/* Modern vertical line indicator matching the bar colors */}
+                    {t.color && <div className={cn("w-1 h-2.5 rounded-full shrink-0", t.color)} />}
                     {t.label}
                   </button>
                 ))}
