@@ -99,7 +99,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   
   const [fbType, setFbType] = useState<'all'|'today'|'tomorrow'|'3days'|'7days'|'range'>('all');
   const [filterPaid, setFilterPaid] = useState<'all' | 'paid' | 'unpaid'>('all');
-  const [filterDue, setFilterDue] = useState<'all' | 'today' | '3days' | '5days'>('all');
+  const [filterDue, setFilterDue] = useState<'all' | 'today' | '3days' | '5days' | 'overdue'>('all');
   const [filterDeposit, setFilterDeposit] = useState<'all' | 'yes' | 'no'>('all');
   const [groupBy, setGroupBy] = useState<'none' | 'hotel' | 'company' | 'city' | 'country'>('none');
   const [activeGroupTab, setActiveGroupTab] = useState<string | null>(null);
@@ -497,16 +497,22 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       if (filterDue !== 'all') {
           const today = new Date();
           today.setHours(0,0,0,0);
-          let maxDate = new Date(today);
-          if (filterDue === 'today') maxDate.setDate(today.getDate() + 0);
-          else if (filterDue === '3days') maxDate.setDate(today.getDate() + 3);
-          else if (filterDue === '5days') maxDate.setDate(today.getDate() + 5);
-          maxDate.setHours(23,59,59,999);
 
           const hasDueInvoice = (h.invoices || []).some((inv: any) => {
               if (inv.isPaid || !inv.dueDate) return false;
               const d = new Date(inv.dueDate);
-              return d >= today && d <= maxDate;
+              d.setHours(0,0,0,0); // Normalize time for exact day comparison
+
+              if (filterDue === 'overdue') {
+                  return d < today; // Strictly before today
+              } else {
+                  let maxDate = new Date(today);
+                  if (filterDue === 'today') maxDate.setDate(today.getDate() + 0);
+                  else if (filterDue === '3days') maxDate.setDate(today.getDate() + 3);
+                  else if (filterDue === '5days') maxDate.setDate(today.getDate() + 5);
+                  maxDate.setHours(23,59,59,999);
+                  return d >= today && d <= maxDate;
+              }
           });
           if (!hasDueInvoice) return false;
       }
@@ -825,7 +831,12 @@ finalFiltered.forEach(h => {
     if (filterPaid !== 'all') badges.push({ id: 'paid', label: lang === 'de' ? 'Zahlung' : 'Payment', val: lang === 'de' ? (filterPaid === 'paid' ? 'Bezahlt' : 'Offen') : filterPaid, clear: () => setFilterPaid('all') });
     
     if (filterDue !== 'all') {
-        const dueVal = filterDue === 'today' ? (lang === 'de' ? 'Heute' : 'Today') : (filterDue === '3days' ? (lang === 'de' ? 'In 3 Tagen' : 'In 3 Days') : (lang === 'de' ? 'In 5 Tagen' : 'In 5 Days'));
+        let dueVal = '';
+        if (filterDue === 'today') dueVal = lang === 'de' ? 'Heute' : 'Today';
+        else if (filterDue === '3days') dueVal = lang === 'de' ? 'In 3 Tagen' : 'In 3 Days';
+        else if (filterDue === '5days') dueVal = lang === 'de' ? 'In 5 Tagen' : 'In 5 Days';
+        else if (filterDue === 'overdue') dueVal = lang === 'de' ? 'Überfällig' : 'Overdue';
+        
         badges.push({ id: 'due', label: lang === 'de' ? 'Fälligkeit' : 'Payment Due', val: dueVal, clear: () => setFilterDue('all') });
     }
     
@@ -1158,9 +1169,15 @@ finalFiltered.forEach(h => {
                          {/* NEW: PAYMENT DUE */}
                          <div>
                            <p className={sectionTitle}>{lang === 'de' ? 'Fälligkeit' : 'Payment Due'}</p>
-                           <div className={segmentContainer}>
-                             {[{id:'all', lEn:'All', lDe:'Alle'}, {id:'today', lEn:'Today', lDe:'Heute'}, {id:'3days', lEn:'In 3 Days', lDe:'In 3 Tagen'}, {id:'5days', lEn:'In 5 Days', lDe:'In 5 Tagen'}].map(p => (
-                               <button key={p.id} onClick={() => setFilterDue(p.id as any)} className={segmentBtn(filterDue === p.id)}>{lang === 'de' ? p.lDe : p.lEn}</button>
+                           <div className={cn(segmentContainer, "flex-wrap gap-y-1")}>
+                             {[
+                               {id:'all', lEn:'All', lDe:'Alle'}, 
+                               {id:'overdue', lEn:'Overdue', lDe:'Überfällig'}, 
+                               {id:'today', lEn:'Today', lDe:'Heute'}, 
+                               {id:'3days', lEn:'In 3 Days', lDe:'In 3 Tagen'}, 
+                               {id:'5days', lEn:'In 5 Days', lDe:'In 5 Tagen'}
+                             ].map(p => (
+                               <button key={p.id} onClick={() => setFilterDue(p.id as any)} className={cn(segmentBtn(filterDue === p.id), "px-2 whitespace-nowrap")}>{lang === 'de' ? p.lDe : p.lEn}</button>
                              ))}
                            </div>
                          </div>
