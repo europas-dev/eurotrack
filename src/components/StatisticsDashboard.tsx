@@ -491,7 +491,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
 
                  const items = [
                      { id: 'paid', title: lang === 'de' ? 'Bezahlt' : 'Paid', val: paidPct, valStr: formatCurrency(stats.totalPaid), color: '#10b981', mid: midPaid },
-                     { id: 'pending-due', title: lang === 'de' ? 'Ausstehend' : 'Pending Due', val: pendingPct, valStr: formatCurrency(pendingVal), color: '#f59e0b', mid: midPending },
+                     { id: 'pending-due', title: lang === 'de' ? 'Ausstehend fällig' : 'Pending Due', val: pendingPct, valStr: formatCurrency(pendingVal), color: '#f59e0b', mid: midPending },
                      { id: 'overdue', title: lang === 'de' ? 'Überfällig' : 'Overdue', val: overduePct, valStr: formatCurrency(stats.totalOverdue), color: '#ef4444', mid: midOverdue },
                  ].filter(i => i.val > 0);
 
