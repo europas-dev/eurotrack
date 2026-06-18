@@ -4,7 +4,7 @@ import { supabase, deleteHotel, createHotel, updateHotel } from './lib/supabase'
 import { cn, formatCurrency, hotelMatchesSearch, calcHotelTotalCost, calcHotelFreeBedsToday, calculateNights, calcInvoiceItem, getEmployeeStatus } from './lib/utils';
 import { calcRoomCardNettoSum, calcRoomCardTotal } from './lib/roomCardUtils';
 import type { AccessLevel } from './lib/supabase';
-import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Star, Calendar, MapPin, Building, Building2, CloudOff, Globe, Trash2, Copy, Eye, EyeOff, ChevronDown, ChevronUp, Bed, Coins, Users, ArrowDownNarrowWide, ArrowDownWideNarrow } from 'lucide-react';
+import { Plus, Check, X, Loader2, Filter, ArrowUpDown, Star, Calendar, MapPin, Building, Building2, CloudOff, Globe, Trash2, Copy, Eye, EyeOff, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Bed, Coins, Users, ArrowDownNarrowWide, ArrowDownWideNarrow } from 'lucide-react';
 import Header from './components/Header';
 import { HotelRow, ModernDropdown, CompanyMultiSelect, getCountryOptions } from './components/HotelRow';
 import ExportStudio from './components/ExportStudio';
@@ -58,6 +58,14 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
   
   const yearMenuRef = useRef<HTMLDivElement>(null);
   const monthMenuRef = useRef<HTMLDivElement>(null);
+
+  // --- CUSTOM HORIZONTAL SCROLL LOGIC ---
+  const groupScrollRef = useRef<HTMLDivElement>(null);
+  const scrollGroups = (dir: 'left' | 'right') => {
+    if (groupScrollRef.current) {
+      groupScrollRef.current.scrollBy({ left: dir === 'left' ? -350 : 350, behavior: 'smooth' });
+    }
+  };
 
   // --- SELECTION SYSTEM STATE ---
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -1296,21 +1304,46 @@ finalFiltered.forEach(h => {
               </div>
             )}
 
-            {/* HORIZONTAL GROUP TABS */}
+            {/* HORIZONTAL GROUP TABS WITH CUSTOM ARROWS */}
             {groupBy !== 'none' && groupData && viewMode !== 'stats' && (
-              <div className="flex gap-2 mb-6 overflow-x-auto pb-3 border-b border-slate-200 dark:border-white/10 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
-                {Object.keys(groupData).map(g => (
-                  <button 
-                    key={g} 
-                    onClick={() => setActiveGroupTab(g === activeGroupTab ? null : g)} 
-                    className={cn(
-                      "px-5 py-2.5 rounded-t-xl text-sm font-bold border transition-all whitespace-nowrap", 
-                      activeGroupTab === g ? "bg-teal-600 text-white border-teal-600" : "bg-white dark:bg-white/5 text-slate-500 border-transparent hover:bg-slate-100"
-                    )}
-                  >
-                    {g} ({groupData[g].length})
-                  </button>
-                ))}
+              <div className="flex items-start gap-2 mb-6 border-b border-slate-200 dark:border-white/10 pb-3 w-full">
+                
+                {/* Left Scroll Arrow */}
+                <button 
+                  onClick={() => scrollGroups('left')} 
+                  className={cn("mt-1 shrink-0 p-1.5 rounded-lg border transition-all z-10", dk ? "bg-[#1E293B] border-white/10 hover:bg-white/5 text-slate-400" : "bg-white border-slate-200 hover:bg-slate-50 text-slate-500 shadow-sm")}
+                  title={lang === 'de' ? 'Nach links scrollen' : 'Scroll Left'}
+                >
+                  <ChevronLeft size={18} strokeWidth={2.5} />
+                </button>
+
+                {/* Scrollable Container */}
+                <div 
+                  ref={groupScrollRef} 
+                  className="flex gap-2 overflow-x-auto flex-1 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full pb-2"
+                >
+                  {Object.keys(groupData).map(g => (
+                    <button 
+                      key={g} 
+                      onClick={() => setActiveGroupTab(g === activeGroupTab ? null : g)} 
+                      className={cn(
+                        "px-5 py-2.5 rounded-t-xl text-sm font-bold border transition-all whitespace-nowrap", 
+                        activeGroupTab === g ? "bg-teal-600 text-white border-teal-600" : "bg-white dark:bg-white/5 text-slate-500 border-transparent hover:bg-slate-100"
+                      )}
+                    >
+                      {g} ({groupData[g].length})
+                    </button>
+                  ))}
+                </div>
+
+                {/* Right Scroll Arrow */}
+                <button 
+                  onClick={() => scrollGroups('right')} 
+                  className={cn("mt-1 shrink-0 p-1.5 rounded-lg border transition-all z-10", dk ? "bg-[#1E293B] border-white/10 hover:bg-white/5 text-slate-400" : "bg-white border-slate-200 hover:bg-slate-50 text-slate-500 shadow-sm")}
+                  title={lang === 'de' ? 'Nach rechts scrollen' : 'Scroll Right'}
+                >
+                  <ChevronRight size={18} strokeWidth={2.5} />
+                </button>
               </div>
             )}
 
