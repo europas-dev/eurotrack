@@ -460,20 +460,19 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                 })}
               </div>
             </div>
-          ) : (
-            // --- NEW: SINGLE-RING DONUT WITH SLEEK INFOGRAPHIC POINTER LINES ---
-            // Modifications: 1. Larger donut and center, 2. Separated pointers, 3. Updated "Pending Due" label
-            <div className="flex-1 flex items-center justify-center min-h-[300px] mt-2 animate-in fade-in zoom-in-95 duration-500 w-full">
+            ) : (
+            // --- NEW: GLOWING SINGLE-RING DONUT WITH NON-OVERLAPPING POINTERS ---
+            <div className="flex-1 flex items-center justify-center min-h-[320px] mt-2 animate-in fade-in zoom-in-95 duration-500 w-full relative">
                {(() => {
                  const paidPct = stats.totalSpend > 0 ? (stats.totalPaid / stats.totalSpend) * 100 : 0;
                  const overduePct = stats.totalSpend > 0 ? (stats.totalOverdue / stats.totalSpend) * 100 : 0;
                  const pendingVal = Math.max(0, stats.totalUnpaid - stats.totalOverdue);
                  const pendingPct = stats.totalSpend > 0 ? (pendingVal / stats.totalSpend) * 100 : 0;
                  
-                 // Canvas Math: Larger center and donut
-                 const cx = 300;
-                 const cy = 150;
-                 const r = 90; // Increased radius for larger donut and larger inner hole
+                 // Canvas Math: Larger center, perfectly balanced
+                 const cx = 350;
+                 const cy = 160;
+                 const r = 95; 
                  const circ = 2 * Math.PI * r;
 
                  const paidLen = (paidPct / 100) * circ;
@@ -492,42 +491,42 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
 
                  const items = [
                      { id: 'paid', title: lang === 'de' ? 'Bezahlt' : 'Paid', val: paidPct, valStr: formatCurrency(stats.totalPaid), color: '#10b981', mid: midPaid },
-                     { id: 'pending-due', title: lang === 'de' ? 'Ausstehend' : 'Pending Due', val: pendingPct, valStr: formatCurrency(pendingVal), color: '#f59e0b', mid: midPending }, // Updated label
+                     { id: 'pending-due', title: lang === 'de' ? 'Ausstehend' : 'Pending Due', val: pendingPct, valStr: formatCurrency(pendingVal), color: '#f59e0b', mid: midPending },
                      { id: 'overdue', title: lang === 'de' ? 'Überfällig' : 'Overdue', val: overduePct, valStr: formatCurrency(stats.totalOverdue), color: '#ef4444', mid: midOverdue },
                  ].filter(i => i.val > 0);
 
-                 // Separate pointers visually by adding a minimum angular gap between attachment points
-                 const MIN_PTR_GAP_DEGREES = 30; // Min gap between pointer lines on the donut itself
-                 const midPointsSeparated = [...items].sort((a, b) => a.mid - b.mid);
-                 midPointsSeparated.forEach((item, i) => {
-                    const prev = midPointsSeparated[(i - 1 + midPointsSeparated.length) % midPointsSeparated.length];
-                    const next = midPointsSeparated[(i + 1) % midPointsSeparated.length];
+                 // Iterative separation to push points far away from each other on the ring
+                 const MIN_PTR_GAP = 25; 
+                 let midPointsSeparated = [...items].sort((a, b) => a.mid - b.mid);
+                 for (let i = 0; i < 5; i++) {
+                    midPointsSeparated.forEach((item, idx) => {
+                       const next = midPointsSeparated[(idx + 1) % midPointsSeparated.length];
+                       if (!next || item.id === next.id) return;
+                       const currentAngle = item.mid * 3.6;
+                       let nextAngle = next.mid * 3.6;
+                       if (nextAngle < currentAngle) nextAngle += 360;
+                       
+                       if (Math.abs(nextAngle - currentAngle) < MIN_PTR_GAP) {
+                         const adjust = (MIN_PTR_GAP - Math.abs(nextAngle - currentAngle)) / 2;
+                         item.mid = (item.mid - adjust / 3.6 + 100) % 100;
+                         next.mid = (next.mid + adjust / 3.6) % 100;
+                       }
+                    });
+                 }
 
-                    const degPerPct = 3.6;
-                    let currentAngle = item.mid * degPerPct;
-                    let nextAngle = next.mid * degPerPct;
-
-                    // If the difference is too small, push them apart on the ring.
-                    if (Math.abs(currentAngle - nextAngle) < MIN_PTR_GAP_DEGREES) {
-                      const adjustment = (MIN_PTR_GAP_DEGREES - Math.abs(currentAngle - nextAngle)) / 2;
-                      midPointsSeparated[i] = {...item, mid: currentAngle - adjustment / degPerPct};
-                      midPointsSeparated[(i + 1) % midPointsSeparated.length] = {...next, mid: nextAngle + adjustment / degPerPct};
-                    }
-                 });
-
-                 // Group labels left/right based on where the adjusted midpoints fall
+                 // Group labels left/right, STRICTLY sorted by Y coordinate so lines never cross
                  const finalItems = items.map(item => midPointsSeparated.find(m => m.id === item.id) || item);
                  const rightItems = finalItems.filter(i => getPt(i.mid, 100).x >= cx).sort((a, b) => getPt(a.mid, 100).y - getPt(b.mid, 100).y);
                  const leftItems = finalItems.filter(i => getPt(i.mid, 100).x < cx).sort((a, b) => getPt(a.mid, 100).y - getPt(b.mid, 100).y);
 
                  const mappedItems: any[] = [];
                  const assignLayout = (list: any[], isRight: boolean) => {
-                     const gap = 85; // Breather room between labels
+                     const gap = 85; 
                      const startY = cy - ((list.length - 1) * gap) / 2;
                      list.forEach((item, index) => {
-                         const endX = isRight ? 460 : 140; // Spaced labels out more
+                         const endX = isRight ? 530 : 170; // Placed firmly on sides
                          const endY = startY + (index * gap);
-                         const start = getPt(item.mid, 103); // Point line attaches slightly further out
+                         const start = getPt(item.mid, 106); // Point attaches slightly off donut
                          const sign = isRight ? 1 : -1;
                          
                          const elbow1X = start.x + sign * 15;
@@ -542,12 +541,14 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                  assignLayout(leftItems, false);
                  
                  return (
-                   <div className="relative w-full max-w-[700px] aspect-[2/1] shrink-0">
+                   <div className="relative w-full max-w-[700px] aspect-[7/3] shrink-0 drop-shadow-xl">
                      
-                     {/* SVG GRAPHIC: DONUT & POINTER LINES */}
-                     <svg viewBox="0 0 700 300" className="w-full h-full absolute inset-0 z-10 pointer-events-none">
+                     <svg viewBox="0 0 700 320" className="w-full h-full absolute inset-0 z-10 pointer-events-none">
+                       {/* Subtle Glow Ring behind the donut */}
+                       <circle cx={cx} cy={cy} r={r} fill="transparent" stroke={dk ? '#10b981' : '#10b981'} strokeWidth="40" className="opacity-10 blur-xl" />
+
                        {/* Background Track */}
-                       <circle cx={cx} cy={cy} r={r} fill="transparent" stroke={dk ? '#1E293B' : '#f1f5f9'} strokeWidth="32" /> // Thicker ring for larger size
+                       <circle cx={cx} cy={cy} r={r} fill="transparent" stroke={dk ? '#1E293B' : '#f1f5f9'} strokeWidth="32" />
 
                        {/* Data Segments */}
                        {stats.totalSpend > 0 && (
@@ -561,8 +562,8 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                        {/* Connective Lines */}
                        {mappedItems.map(item => (
                           <g key={item.id}>
-                             <path d={item.path} fill="none" stroke={item.color} strokeWidth="2.5" className={dk ? "opacity-70" : "opacity-50"} />
-                             <circle cx={item.start.x} cy={item.start.y} r="5" fill={item.color} stroke={dk ? '#0F172A' : '#ffffff'} strokeWidth="2.5" /> // Adjusted size/thickness
+                             <path d={item.path} fill="none" stroke={item.color} strokeWidth="2.5" className={dk ? "opacity-70" : "opacity-40"} />
+                             <circle cx={item.start.x} cy={item.start.y} r="5" fill={dk ? '#0F172A' : '#ffffff'} stroke={item.color} strokeWidth="3" />
                           </g>
                        ))}
                      </svg>
@@ -573,28 +574,29 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                            key={item.id} 
                            className={cn("absolute flex flex-col justify-center w-[150px] px-3", item.isRight ? "items-start border-l-[4px] text-left" : "items-end border-r-[4px] text-right")}
                            style={{ 
-                              top: `${(item.endY / 300) * 100}%`, 
+                              top: `${(item.endY / 320) * 100}%`, 
                               left: item.isRight ? `${(item.endX / 700) * 100}%` : 'auto',
                               right: !item.isRight ? `${((700 - item.endX) / 700) * 100}%` : 'auto',
                               borderColor: item.color,
                               transform: 'translateY(-50%)'
                            }}
                         >
-                           <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0.5 flex items-center gap-1.5 drop-shadow-sm">
+                           <span className="text-[10px] font-black uppercase tracking-widest mb-0.5 flex items-center gap-1.5 drop-shadow-sm">
                               {!item.isRight && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />}
-                              {item.title}
+                              <span style={{ color: item.color }}>{item.title}</span>
                               {item.isRight && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />}
                            </span>
-                           <span className={cn("text-xl font-black truncate w-full", dk ? "text-white" : "text-slate-900")}>{item.valStr}</span> // Larger font
-                           <span className="text-sm font-bold opacity-95" style={{ color: item.color }}>{item.val.toFixed(0)}%</span>
+                           <span className={cn("text-xl font-black truncate w-full", dk ? "text-white" : "text-slate-900")}>{item.valStr}</span>
+                           <span className="text-sm font-bold opacity-90" style={{ color: item.color }}>{item.val.toFixed(0)}%</span>
                         </div>
                      ))}
 
-                     {/* CENTER TOTALS: Larger for readability */}
-                     <div className={cn("absolute inset-0 m-auto w-36 h-36 flex flex-col items-center justify-center rounded-full shadow-inner border z-0", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-100")} style={{ top: '5%' }}>
-                       <span className={cn("text-[11px] font-black uppercase tracking-widest mb-1.5", dk ? "text-slate-500" : "text-slate-400")}>{labels[selectedMonth]}</span>
-                       <span className={cn("text-2xl font-black truncate max-w-[120px]", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalSpend)}</span> // Larger numbers
+                     {/* CENTER TOTALS: Perfectly centered within absolute inset */}
+                     <div className={cn("absolute inset-0 m-auto flex flex-col items-center justify-center rounded-full shadow-inner border z-20", dk ? "bg-[#0F172A]/90 border-white/5 backdrop-blur-sm" : "bg-white/90 border-slate-100 backdrop-blur-sm")} style={{ width: '140px', height: '140px' }}>
+                       <span className={cn("text-[11px] font-black uppercase tracking-widest mb-1", dk ? "text-slate-500" : "text-slate-400")}>{labels[selectedMonth]}</span>
+                       <span className={cn("text-2xl font-black truncate max-w-[120px]", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalSpend)}</span>
                      </div>
+
                    </div>
                  );
                })()}
