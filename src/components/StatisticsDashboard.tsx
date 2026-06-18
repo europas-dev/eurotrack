@@ -461,85 +461,120 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
               </div>
             </div>
           ) : (
-            // --- NEW: CONCENTRIC RADIAL BAR CHART (SPECIFIC MONTH) ---
-            <div className="flex-1 flex flex-col xl:flex-row items-center justify-center gap-10 xl:gap-16 h-[280px] mt-4 animate-in fade-in zoom-in-95 duration-500">
+            // --- NEW: SINGLE-RING DONUT WITH SLEEK INFOGRAPHIC POINTER LINES ---
+            <div className="flex-1 flex items-center justify-center min-h-[300px] mt-2 animate-in fade-in zoom-in-95 duration-500">
                {(() => {
                  const paidPct = stats.totalSpend > 0 ? (stats.totalPaid / stats.totalSpend) * 100 : 0;
                  const overduePct = stats.totalSpend > 0 ? (stats.totalOverdue / stats.totalSpend) * 100 : 0;
                  const pendingVal = Math.max(0, stats.totalUnpaid - stats.totalOverdue);
                  const pendingPct = stats.totalSpend > 0 ? (pendingVal / stats.totalSpend) * 100 : 0;
                  
-                 // Concentric Rings Math (Center 80,80)
-                 const rPaid = 65;
-                 const rPending = 50;
-                 const rOverdue = 35;
+                 // Canvas Math
+                 const cx = 300;
+                 const cy = 150;
+                 const r = 75;
+                 const circ = 2 * Math.PI * r;
 
-                 const circPaid = 2 * Math.PI * rPaid;
-                 const circPending = 2 * Math.PI * rPending;
-                 const circOverdue = 2 * Math.PI * rOverdue;
+                 const paidLen = (paidPct / 100) * circ;
+                 const pendingLen = (pendingPct / 100) * circ;
+                 const overdueLen = (overduePct / 100) * circ;
+
+                 const midPaid = paidPct / 2;
+                 const midPending = paidPct + (pendingPct / 2);
+                 const midOverdue = paidPct + pendingPct + (overduePct / 2);
+
+                 const getPt = (pct: number, radius: number) => {
+                     const angle = (pct / 100) * 360 - 90;
+                     const rads = angle * (Math.PI / 180);
+                     return { x: cx + radius * Math.cos(rads), y: cy + radius * Math.sin(rads) };
+                 };
+
+                 const items = [
+                     { id: 'paid', title: lang === 'de' ? 'Bezahlt' : 'Paid', val: paidPct, valStr: formatCurrency(stats.totalPaid), color: '#10b981', mid: midPaid },
+                     { id: 'pending', title: lang === 'de' ? 'Ausstehend' : 'Pending', val: pendingPct, valStr: formatCurrency(pendingVal), color: '#f59e0b', mid: midPending },
+                     { id: 'overdue', title: lang === 'de' ? 'Überfällig' : 'Overdue', val: overduePct, valStr: formatCurrency(stats.totalOverdue), color: '#ef4444', mid: midOverdue },
+                 ].filter(i => i.val > 0);
+
+                 // Group labels left/right based on where the arc falls
+                 const rightItems = items.filter(i => getPt(i.mid, 85).x >= cx).sort((a, b) => getPt(a.mid, 85).y - getPt(b.mid, 85).y);
+                 const leftItems = items.filter(i => getPt(i.mid, 85).x < cx).sort((a, b) => getPt(a.mid, 85).y - getPt(b.mid, 85).y);
+
+                 const mappedItems: any[] = [];
+                 const assignLayout = (list: any[], isRight: boolean) => {
+                     const gap = 75; // Vertical breathing room between labels
+                     const startY = cy - ((list.length - 1) * gap) / 2;
+                     list.forEach((item, index) => {
+                         const endX = isRight ? 430 : 170;
+                         const endY = startY + (index * gap);
+                         const start = getPt(item.mid, 88); 
+                         const sign = isRight ? 1 : -1;
+                         
+                         const elbow1X = start.x + sign * 15;
+                         const elbow2X = endX - sign * 15;
+                         const path = `M ${start.x},${start.y} L ${elbow1X},${start.y} L ${elbow2X},${endY} L ${endX},${endY}`;
+                         
+                         mappedItems.push({ ...item, start, endX, endY, isRight, path });
+                     });
+                 };
+
+                 assignLayout(rightItems, true);
+                 assignLayout(leftItems, false);
                  
                  return (
-                   <>
-                     {/* RADIAL CHART */}
-                     <div className="relative w-56 h-56 flex shrink-0 items-center justify-center drop-shadow-md">
-                       <svg viewBox="0 0 160 160" className="w-full h-full -rotate-90 transform overflow-visible z-10">
-                         {/* Background Tracks */}
-                         <circle cx="80" cy="80" r={rPaid} fill="transparent" stroke={dk ? '#1E293B' : '#f1f5f9'} strokeWidth="10" />
-                         <circle cx="80" cy="80" r={rPending} fill="transparent" stroke={dk ? '#1E293B' : '#f1f5f9'} strokeWidth="10" />
-                         <circle cx="80" cy="80" r={rOverdue} fill="transparent" stroke={dk ? '#1E293B' : '#f1f5f9'} strokeWidth="10" />
-
-                         {/* Value Rings with Rounded Caps */}
-                         <circle cx="80" cy="80" r={rPaid} fill="transparent" stroke="#10b981" strokeWidth="10" strokeDasharray={`${(paidPct/100)*circPaid} ${circPaid}`} strokeLinecap="round" className="transition-all duration-1000 ease-out" />
-                         <circle cx="80" cy="80" r={rPending} fill="transparent" stroke="#f59e0b" strokeWidth="10" strokeDasharray={`${(pendingPct/100)*circPending} ${circPending}`} strokeLinecap="round" className="transition-all duration-1000 ease-out" />
-                         <circle cx="80" cy="80" r={rOverdue} fill="transparent" stroke="#ef4444" strokeWidth="10" strokeDasharray={`${(overduePct/100)*circOverdue} ${circOverdue}`} strokeLinecap="round" className="transition-all duration-1000 ease-out" />
-                       </svg>
-                       
-                       {/* CENTER TEXT */}
-                       <div className="absolute inset-0 m-auto flex flex-col items-center justify-center z-0">
-                         <span className={cn("text-[10px] font-black uppercase tracking-widest mb-0.5", dk ? "text-slate-500" : "text-slate-400")}>{labels[selectedMonth]}</span>
-                         <span className={cn("text-sm font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalSpend)}</span>
-                       </div>
-                     </div>
+                   <div className="relative w-full max-w-[600px] aspect-[2/1] shrink-0">
                      
-                     {/* SLEEK MODERN LEGEND */}
-                     <div className="flex flex-col gap-5 min-w-[220px]">
-                        {/* Paid */}
-                        <div className="flex items-center justify-between group cursor-default">
-                           <div className="flex items-center gap-3.5">
-                              <div className="w-1.5 h-8 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
-                              <div className="flex flex-col">
-                                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-emerald-500 transition-colors">{lang === 'de' ? 'Bezahlt' : 'Paid'}</span>
-                                 <span className={cn("text-base font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalPaid)}</span>
-                              </div>
-                           </div>
-                           <span className={cn("text-xl font-light pl-4", dk ? "text-slate-600" : "text-slate-300")}>{paidPct.toFixed(0)}%</span>
-                        </div>
+                     {/* SVG GRAPHIC: DONUT & POINTER LINES */}
+                     <svg viewBox="0 0 600 300" className="w-full h-full absolute inset-0 z-10 pointer-events-none">
+                       {/* Background Track */}
+                       <circle cx={cx} cy={cy} r={r} fill="transparent" stroke={dk ? '#1E293B' : '#f1f5f9'} strokeWidth="26" />
 
-                        {/* Pending */}
-                        <div className="flex items-center justify-between group cursor-default">
-                           <div className="flex items-center gap-3.5">
-                              <div className="w-1.5 h-8 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]" />
-                              <div className="flex flex-col">
-                                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-amber-500 transition-colors">{lang === 'de' ? 'Ausstehend' : 'Pending'}</span>
-                                 <span className={cn("text-base font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(pendingVal)}</span>
-                              </div>
-                           </div>
-                           <span className={cn("text-xl font-light pl-4", dk ? "text-slate-600" : "text-slate-300")}>{pendingPct.toFixed(0)}%</span>
-                        </div>
+                       {/* Data Segments (Rotated -90 around center to start at 12 o'clock) */}
+                       {stats.totalSpend > 0 && (
+                         <>
+                           <circle cx={cx} cy={cy} r={r} transform={`rotate(-90 ${cx} ${cy})`} fill="transparent" stroke="#10b981" strokeWidth="26" strokeDasharray={`${paidLen} ${circ}`} strokeDashoffset={0} strokeLinecap="butt" className="transition-all duration-1000 ease-out" />
+                           <circle cx={cx} cy={cy} r={r} transform={`rotate(-90 ${cx} ${cy})`} fill="transparent" stroke="#f59e0b" strokeWidth="26" strokeDasharray={`${pendingLen} ${circ}`} strokeDashoffset={-paidLen} strokeLinecap="butt" className="transition-all duration-1000 ease-out" />
+                           <circle cx={cx} cy={cy} r={r} transform={`rotate(-90 ${cx} ${cy})`} fill="transparent" stroke="#ef4444" strokeWidth="26" strokeDasharray={`${overdueLen} ${circ}`} strokeDashoffset={-(paidLen + pendingLen)} strokeLinecap="butt" className="transition-all duration-1000 ease-out" />
+                         </>
+                       )}
 
-                        {/* Overdue */}
-                        <div className="flex items-center justify-between group cursor-default">
-                           <div className="flex items-center gap-3.5">
-                              <div className="w-1.5 h-8 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
-                              <div className="flex flex-col">
-                                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-red-500 transition-colors">{lang === 'de' ? 'Überfällig' : 'Overdue'}</span>
-                                 <span className={cn("text-base font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalOverdue)}</span>
-                              </div>
-                           </div>
-                           <span className={cn("text-xl font-light pl-4", dk ? "text-slate-600" : "text-slate-300")}>{overduePct.toFixed(0)}%</span>
+                       {/* Connective Lines */}
+                       {mappedItems.map(item => (
+                          <g key={item.id}>
+                             <path d={item.path} fill="none" stroke={item.color} strokeWidth="2" className={dk ? "opacity-60" : "opacity-40"} />
+                             <circle cx={item.start.x} cy={item.start.y} r="4" fill={item.color} stroke={dk ? '#0F172A' : '#ffffff'} strokeWidth="2" />
+                          </g>
+                       ))}
+                     </svg>
+                     
+                     {/* HTML OVERLAYS: LABELS */}
+                     {mappedItems.map(item => (
+                        <div 
+                           key={item.id} 
+                           className={cn("absolute flex flex-col justify-center w-[140px] px-3", item.isRight ? "items-start border-l-[3px] text-left" : "items-end border-r-[3px] text-right")}
+                           style={{ 
+                              top: `${(item.endY / 300) * 100}%`, 
+                              left: item.isRight ? `${(item.endX / 600) * 100}%` : 'auto',
+                              right: !item.isRight ? `${((600 - item.endX) / 600) * 100}%` : 'auto',
+                              borderColor: item.color,
+                              transform: 'translateY(-50%)'
+                           }}
+                        >
+                           <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0.5 flex items-center gap-1.5 drop-shadow-sm">
+                              {!item.isRight && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />}
+                              {item.title}
+                              {item.isRight && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />}
+                           </span>
+                           <span className={cn("text-lg font-black truncate w-full", dk ? "text-white" : "text-slate-900")}>{item.valStr}</span>
+                           <span className="text-sm font-bold opacity-90" style={{ color: item.color }}>{item.val.toFixed(0)}%</span>
                         </div>
+                     ))}
+
+                     {/* CENTER TOTALS */}
+                     <div className={cn("absolute inset-0 m-auto w-32 h-32 flex flex-col items-center justify-center rounded-full shadow-inner border z-0", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-100")}>
+                       <span className={cn("text-xs font-black uppercase tracking-widest mb-0.5", dk ? "text-slate-500" : "text-slate-400")}>{labels[selectedMonth]}</span>
+                       <span className={cn("text-xl font-black truncate max-w-[100px]", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalSpend)}</span>
                      </div>
-                   </>
+                   </div>
                  );
                })()}
             </div>
