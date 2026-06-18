@@ -276,6 +276,49 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
     </div>
   );
 
+  const Card = ({ title, value, icon: Icon, colorCls, bgCls }: any) => (
+    <div className={cn("p-5 rounded-2xl border flex flex-col gap-3 shadow-sm transition-all hover:shadow-md", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
+      <div className="flex items-center gap-2">
+        <div className={cn("p-2 rounded-lg", bgCls, colorCls)}><Icon size={16} strokeWidth={2.5} /></div>
+        <span className={cn("text-xs font-black uppercase tracking-widest", dk ? "text-slate-400" : "text-slate-500")}>{title}</span>
+      </div>
+      <span className={cn("text-2xl lg:text-3xl font-black truncate", dk ? "text-white" : "text-slate-900")}>{value}</span>
+    </div>
+  );
+
+  // --- NEW HELPER COMPONENTS (Safely inside the room!) ---
+  const HighlightChip = ({ text, colorCls }: { text: string; colorCls: string }) => (
+    <span className={cn("inline-flex items-center gap-1.5 text-[11px] font-black px-3 py-1 rounded-full whitespace-nowrap tracking-tight shadow-inner mt-2", colorCls)}>
+      {text}
+    </span>
+  );
+
+  const BookingCard = ({ title, hotelName, count, icon: Icon, isMost }: any) => (
+    <div className={cn("p-6 rounded-2xl border flex flex-col gap-4 shadow-sm transition-all hover:shadow-md", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
+      <div className="flex items-center gap-3">
+          <div className={cn("p-3 rounded-lg flex items-center justify-center", isMost ? "bg-purple-500/10 text-purple-500" : "bg-slate-500/10 text-slate-500")}><Icon size={20} strokeWidth={2.5}/></div>
+          <span className={cn("text-[10px] font-black uppercase tracking-widest", dk ? "text-slate-400" : "text-slate-500")}>{title}</span>
+      </div>
+      <span className={cn("text-xl font-black truncate max-w-full", dk ? "text-white" : "text-slate-900")} title={hotelName}>{hotelName}</span>
+      <div className="flex items-center justify-start">
+          <HighlightChip text={`${count} ${lang === 'de' ? 'Buchungen' : 'Bookings'}`} colorCls={isMost ? "bg-purple-500/10 text-purple-500" : "bg-slate-500/10 text-slate-500"} />
+      </div>
+    </div>
+  );
+
+  const PriceCard = ({ title, price, chipContent, iconColorCls }: any) => (
+    <div className={cn("p-6 rounded-2xl border flex flex-col gap-4 shadow-sm transition-all hover:shadow-md", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
+      <div className="flex items-center gap-3">
+          <div className={cn("p-3 rounded-lg flex items-center justify-center bg-blue-500/10 text-blue-500")}><BedDouble size={20} strokeWidth={2.5}/></div>
+          <span className={cn("text-[10px] font-black uppercase tracking-widest truncate flex-1", dk ? "text-slate-400" : "text-slate-500")} title={title}>{title}</span>
+      </div>
+      <span className={cn("text-xl font-black truncate max-w-full", dk ? "text-white" : "text-slate-900")}>{formatCurrency(price)}</span>
+      <div className="flex items-center justify-start">
+          <HighlightChip text={chipContent} colorCls={iconColorCls ? `bg-${iconColorCls.replace('text-','')}/10 ${iconColorCls}` : "bg-blue-500/10 text-blue-500"} />
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-6 w-full animate-in slide-in-from-bottom-4 fade-in duration-500 pb-10">
       
@@ -588,7 +631,6 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
             })}
           </div>
         </div>
-
       </div>
 
       {/* --- NEW: COMPREHENSIVE BOTTOM HIGHLIGHTS --- */}
@@ -607,42 +649,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
               <PriceCard title={lang === 'de' ? 'Höchster Preis pro Bett' : 'Highest Price per Bed'} price={stats.maxBedPrice.price} chipContent={stats.maxBedPrice.hotelName} iconColorCls="text-indigo-500" />
           </div>
       </div>
+
+    </div> {/* <-- THIS MISSING DIV IS WHAT CRASHED THE COMPILER! */}
   );
 }
-
-  // --- NEW HELPER COMPONENTS FOR THE REVISED FOOTER ---
-
-// A sleek, context-aware chip for metadata
-const HighlightChip = ({ text, colorCls }: { text: string; colorCls: string }) => (
-  <span className={cn("inline-flex items-center gap-1.5 text-[11px] font-black px-3 py-1 rounded-full whitespace-nowrap tracking-tight shadow-inner mt-2", colorCls)}>
-    {text}
-  </span>
-);
-
-// Card for booking highlights (Most/Least)
-const BookingCard = ({ title, hotelName, count, icon: Icon, isMost }: any) => (
-  <div className={cn("p-6 rounded-2xl border flex flex-col gap-4 shadow-sm transition-all hover:shadow-md", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
-    <div className="flex items-center gap-3">
-        <div className={cn("p-3 rounded-lg flex items-center justify-center", isMost ? "bg-purple-500/10 text-purple-500" : "bg-slate-500/10 text-slate-500")}><Icon size={20} strokeWidth={2.5}/></div>
-        <span className={cn("text-[10px] font-black uppercase tracking-widest", dk ? "text-slate-400" : "text-slate-500")}>{title}</span>
-    </div>
-    <span className={cn("text-xl font-black truncate max-w-full", dk ? "text-white" : "text-slate-900")} title={hotelName}>{hotelName}</span>
-    <div className="flex items-center justify-start">
-        <HighlightChip text={`${count} ${lang === 'de' ? 'Buchungen' : 'Bookings'}`} colorCls={isMost ? "bg-purple-500/10 text-purple-500" : "bg-slate-500/10 text-slate-500"} />
-    </div>
-  </div>
-);
-
-// Card for bed price highlights (Avg/Min/Max)
-const PriceCard = ({ title, price, chipContent, iconColorCls }: any) => (
-  <div className={cn("p-6 rounded-2xl border flex flex-col gap-4 shadow-sm transition-all hover:shadow-md", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
-    <div className="flex items-center gap-3">
-        <div className={cn("p-3 rounded-lg flex items-center justify-center bg-blue-500/10 text-blue-500")}><BedDouble size={20} strokeWidth={2.5}/></div>
-        <span className={cn("text-[10px] font-black uppercase tracking-widest truncate flex-1", dk ? "text-slate-400" : "text-slate-500")} title={title}>{title}</span>
-    </div>
-    <span className={cn("text-xl font-black truncate max-w-full", dk ? "text-white" : "text-slate-900")}>{formatCurrency(price)}</span>
-    <div className="flex items-center justify-start">
-        <HighlightChip text={chipContent} colorCls={iconColorCls ? `bg-${iconColorCls.replace('text-','')}/10 ${iconColorCls}` : "bg-blue-500/10 text-blue-500"} />
-    </div>
-  </div>
-);
