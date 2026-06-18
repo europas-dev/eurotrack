@@ -649,7 +649,5 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
               <PriceCard title={lang === 'de' ? 'Höchster Preis pro Bett' : 'Highest Price per Bed'} price={stats.maxBedPrice.price} chipContent={stats.maxBedPrice.hotelName} iconColorCls="text-indigo-500" />
           </div>
       </div>
-
-    </div> {/* <-- THIS MISSING DIV IS WHAT CRASHED THE COMPILER! */}
   );
 }
