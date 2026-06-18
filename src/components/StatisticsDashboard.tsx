@@ -561,10 +561,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
 
                        {/* Connective Lines */}
                        {mappedItems.map(item => (
-                          <g key={item.id}>
-                             <path d={item.path} fill="none" stroke={item.color} strokeWidth="2.5" className={dk ? "opacity-70" : "opacity-40"} />
-                             <circle cx={item.start.x} cy={item.start.y} r="5" fill={dk ? '#0F172A' : '#ffffff'} stroke={item.color} strokeWidth="3" />
-                          </g>
+                          <path key={item.id} d={item.path} fill="none" stroke={item.color} strokeWidth="2.5" className={dk ? "opacity-70" : "opacity-40"} />
                        ))}
                      </svg>
                      
@@ -592,9 +589,11 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                      ))}
 
                      {/* CENTER TOTALS: Perfectly centered within absolute inset */}
-                     <div className={cn("absolute inset-0 m-auto flex flex-col items-center justify-center rounded-full shadow-inner border z-20", dk ? "bg-[#0F172A]/90 border-white/5 backdrop-blur-sm" : "bg-white/90 border-slate-100 backdrop-blur-sm")} style={{ width: '140px', height: '140px' }}>
+                     <div className={cn("absolute inset-0 m-auto flex flex-col items-center justify-center rounded-full shadow-inner border z-20", dk ? "bg-[#0F172A]/90 border-white/5 backdrop-blur-sm" : "bg-white/90 border-slate-100 backdrop-blur-sm")} style={{ width: '150px', height: '150px' }}>
                        <span className={cn("text-[11px] font-black uppercase tracking-widest mb-1", dk ? "text-slate-500" : "text-slate-400")}>{labels[selectedMonth]}</span>
-                       <span className={cn("text-2xl font-black truncate max-w-[120px]", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalSpend)}</span>
+                       <span className={cn("text-[20px] font-black tracking-tight px-2 text-center", dk ? "text-white" : "text-slate-900")}>
+                           {formatCurrency(stats.totalSpend)}
+                       </span>
                      </div>
 
                    </div>
