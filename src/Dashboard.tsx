@@ -625,8 +625,36 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
       else if (sortBy === 'updated_at') { va = new Date(a.last_updated_at || a.lastUpdatedAt || 0).getTime(); vb = new Date(b.last_updated_at || b.lastUpdatedAt || 0).getTime(); }
       else if (sortBy === 'payment_due') {
           const getNextDue = (hotel: any) => {
-             const unpaids = (hotel.invoices || []).filter((i:any) => !i.isPaid && i.dueDate).map((i:any) => new Date(i.dueDate).getTime());
-             return unpaids.length > 0 ? Math.min(...unpaids) : Infinity;
+              const unpaids = (hotel.invoices || []).filter((i:any) => !i.isPaid && i.dueDate).map((i:any) => new Date(i.dueDate));
+              if (unpaids.length === 0) return Infinity;
+
+              // If a filter is active, only sort by the specific dates we are currently viewing!
+              if (filterDue && filterDue !== 'all') {
+                  const today = new Date();
+                  today.setHours(0,0,0,0);
+                  
+                  const filteredDates = unpaids.filter((d: Date) => {
+                      const date = new Date(d);
+                      date.setHours(0,0,0,0);
+                      
+                      if (filterDue === 'overdue') return date < today;
+                      
+                      let maxDate = new Date(today);
+                      if (filterDue === 'today') maxDate.setDate(today.getDate() + 0);
+                      else if (filterDue === '3days') maxDate.setDate(today.getDate() + 3);
+                      else if (filterDue === '5days') maxDate.setDate(today.getDate() + 5);
+                      maxDate.setHours(23,59,59,999);
+                      
+                      return date >= today && date <= maxDate;
+                  });
+
+                  if (filteredDates.length > 0) {
+                      return Math.min(...filteredDates.map((d: Date) => d.getTime()));
+                  }
+              }
+              
+              // Fallback: Just grab the absolute oldest unpaid date
+              return Math.min(...unpaids.map((d: Date) => d.getTime()));
           };
           va = getNextDue(a); vb = getNextDue(b);
       }
@@ -1172,12 +1200,25 @@ finalFiltered.forEach(h => {
                            <div className={cn(segmentContainer, "flex-wrap gap-y-1")}>
                              {[
                                {id:'all', lEn:'All', lDe:'Alle'}, 
-                               {id:'overdue', lEn:'Overdue', lDe:'Überfällig'}, 
                                {id:'today', lEn:'Today', lDe:'Heute'}, 
                                {id:'3days', lEn:'In 3 Days', lDe:'In 3 Tagen'}, 
-                               {id:'5days', lEn:'In 5 Days', lDe:'In 5 Tagen'}
+                               {id:'5days', lEn:'In 5 Days', lDe:'In 5 Tagen'},
+                               {id:'overdue', lEn:'Overdue', lDe:'Überfällig'}
                              ].map(p => (
-                               <button key={p.id} onClick={() => setFilterDue(p.id as any)} className={cn(segmentBtn(filterDue === p.id), "px-2 whitespace-nowrap")}>{lang === 'de' ? p.lDe : p.lEn}</button>
+                               <button 
+                                 key={p.id} 
+                                 onClick={() => {
+                                    setFilterDue(p.id as any);
+                                    // SMART SORT: Auto-sort by oldest due date when a filter is clicked!
+                                    if (p.id !== 'all') {
+                                        setSortBy('payment_due');
+                                        setSortDir('asc');
+                                    }
+                                 }} 
+                                 className={cn(segmentBtn(filterDue === p.id), "px-2 whitespace-nowrap")}
+                               >
+                                 {lang === 'de' ? p.lDe : p.lEn}
+                               </button>
                              ))}
                            </div>
                          </div>
