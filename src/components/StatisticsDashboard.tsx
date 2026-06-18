@@ -156,15 +156,17 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         else totalUnpaid += finalTotal;
       }
 
-      // Group dynamic data keys based on active state criteria
-      if (finalTotal > 0 || (selectedMonth === null && hasInvoicesInContext)) {
-        let groupKey = 'Unknown';
-        if (localGroup === 'hotel') groupKey = h.name || 'Unnamed Hotel';
-        else if (localGroup === 'company') groupKey = (h.companyTag && h.companyTag.length > 0) ? h.companyTag[0] : (lang === 'de' ? 'Ohne Firma' : 'Unassigned');
-        else if (localGroup === 'city') groupKey = h.city || (lang === 'de' ? 'Unbekannte Stadt' : 'Unknown City');
-        else if (localGroup === 'country') groupKey = h.country || (lang === 'de' ? 'Unbekanntes Land' : 'Unknown Country');
+      // Group dynamic data keys based on active state criteria (IGNORE FOR EMPLOYEES)
+      if (localGroup !== 'employee') {
+        if (finalTotal > 0 || (selectedMonth === null && hasInvoicesInContext)) {
+          let groupKey = 'Unknown';
+          if (localGroup === 'hotel') groupKey = h.name || 'Unnamed Hotel';
+          else if (localGroup === 'company') groupKey = (h.companyTag && h.companyTag.length > 0) ? h.companyTag[0] : (lang === 'de' ? 'Ohne Firma' : 'Unassigned');
+          else if (localGroup === 'city') groupKey = h.city || (lang === 'de' ? 'Unbekannte Stadt' : 'Unknown City');
+          else if (localGroup === 'country') groupKey = h.country || (lang === 'de' ? 'Unbekanntes Land' : 'Unknown Country');
 
-        groupedTotals[groupKey] = (groupedTotals[groupKey] || 0) + finalTotal;
+          groupedTotals[groupKey] = (groupedTotals[groupKey] || 0) + finalTotal;
+        }
       }
     
       // --- NEW: SMART EMPLOYEE NIGHTS CALCULATOR ---
