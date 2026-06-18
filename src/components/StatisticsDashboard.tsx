@@ -278,28 +278,38 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
 
   // --- NEW HELPER COMPONENTS (Safely inside the room!) ---
   const HighlightChip = ({ text, colorCls, bgCls }: { text: string; colorCls: string; bgCls: string }) => (
-    <span className={cn("inline-block text-xs font-bold px-2.5 py-0.5 rounded-md truncate max-w-full mt-1.5", colorCls, bgCls)} title={text}>
+    <div className={cn("w-fit self-start inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold px-3 py-1.5 rounded-lg mt-1.5 border shadow-sm backdrop-blur-md", colorCls, bgCls)}>
       {text}
-    </span>
-  );
-
-  const BookingCard = ({ title, hotelName, count, icon: Icon, isMost }: any) => (
-    <div className={cn("p-4 lg:p-5 rounded-2xl border flex items-center gap-4 shadow-sm transition-all hover:shadow-md", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
-      <div className={cn("p-3.5 rounded-xl flex shrink-0 items-center justify-center", isMost ? "bg-purple-500/10 text-purple-500" : "bg-slate-500/10 text-slate-500")}><Icon size={24} strokeWidth={2.5}/></div>
-      <div className="flex flex-col min-w-0 flex-1">
-          <span className={cn("text-[10px] font-black uppercase tracking-widest truncate", dk ? "text-slate-400" : "text-slate-500")}>{title}</span>
-          <span className={cn("text-lg lg:text-xl font-black truncate max-w-full", dk ? "text-white" : "text-slate-900")} title={hotelName}>{hotelName}</span>
-          <HighlightChip text={`${count} ${lang === 'de' ? 'Buchungen' : 'Bookings'}`} colorCls={isMost ? "text-purple-500" : "text-slate-500"} bgCls={isMost ? "bg-purple-500/10" : "bg-slate-500/10"} />
-      </div>
     </div>
   );
 
+  const BookingCard = ({ title, hotelName, count, icon: Icon, isMost }: any) => {
+    // Explicitly define bright, high-contrast colors for both Light and Dark modes
+    const colorCls = isMost ? "text-purple-600 dark:text-purple-400" : "text-slate-600 dark:text-slate-300";
+    const bgCls = isMost ? "bg-purple-50 dark:bg-purple-500/10 border-purple-200 dark:border-purple-500/20" : "bg-slate-100 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600";
+    
+    return (
+      <div className={cn("p-4 lg:p-5 rounded-2xl border flex items-center gap-4 shadow-sm transition-all hover:shadow-md", dk ? "bg-gradient-to-br from-[#1E293B] to-[#0F172A] border-white/10" : "bg-gradient-to-br from-white to-slate-50 border-slate-200")}>
+        <div className={cn("p-3.5 rounded-xl flex shrink-0 items-center justify-center border shadow-inner", bgCls, colorCls)}>
+          <Icon size={24} strokeWidth={2.5}/>
+        </div>
+        <div className="flex flex-col min-w-0 flex-1">
+            <span className={cn("text-xs font-black uppercase tracking-widest truncate mb-0.5", dk ? "text-slate-400" : "text-slate-500")}>{title}</span>
+            <span className={cn("text-lg sm:text-xl font-black truncate max-w-full", dk ? "text-white" : "text-slate-900")} title={hotelName}>{hotelName}</span>
+            <HighlightChip text={`${count} ${lang === 'de' ? 'Buchungen' : 'Bookings'}`} colorCls={colorCls} bgCls={bgCls} />
+        </div>
+      </div>
+    );
+  };
+
   const PriceCard = ({ title, price, chipContent, icon: Icon, colorCls, bgCls }: any) => (
-    <div className={cn("p-4 lg:p-5 rounded-2xl border flex items-center gap-3 lg:gap-4 shadow-sm transition-all hover:shadow-md", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
-      <div className={cn("p-3 rounded-xl flex shrink-0 items-center justify-center", bgCls, colorCls)}><Icon size={20} strokeWidth={2.5}/></div>
+    <div className={cn("p-4 lg:p-5 rounded-2xl border flex items-center gap-3 lg:gap-4 shadow-sm transition-all hover:shadow-md", dk ? "bg-gradient-to-br from-[#1E293B] to-[#0F172A] border-white/10" : "bg-gradient-to-br from-white to-slate-50 border-slate-200")}>
+      <div className={cn("p-3.5 rounded-xl flex shrink-0 items-center justify-center border shadow-inner", bgCls, colorCls)}>
+        <Icon size={24} strokeWidth={2.5}/>
+      </div>
       <div className="flex flex-col min-w-0 flex-1">
-          <span className={cn("text-[10px] font-black uppercase tracking-widest truncate", dk ? "text-slate-400" : "text-slate-500")} title={title}>{title}</span>
-          <span className={cn("text-lg font-black truncate max-w-full", dk ? "text-white" : "text-slate-900")}>{formatCurrency(price)}</span>
+          <span className={cn("text-xs font-black uppercase tracking-widest truncate mb-0.5", dk ? "text-slate-400" : "text-slate-500")} title={title}>{title}</span>
+          <span className={cn("text-lg sm:text-xl font-black truncate max-w-full", dk ? "text-white" : "text-slate-900")}>{formatCurrency(price)}</span>
           <HighlightChip text={chipContent} colorCls={colorCls} bgCls={bgCls} />
       </div>
     </div>
@@ -622,20 +632,40 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       {/* --- NEW: COMPREHENSIVE BOTTOM HIGHLIGHTS --- */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           
-          {/* A. BOOKING COUNTS (PERFECTLY ALIGNED UNDER LEFT CHART) */}
+          {/* A. BOOKING COUNTS */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <BookingCard title={lang === 'de' ? 'Meistgebuchtes Hotel' : 'Most Booked Hotel'} hotelName={stats.mostBooked.name} count={stats.mostBooked.count} icon={Trophy} isMost={true} />
               <BookingCard title={lang === 'de' ? 'Am wenigsten gebucht' : 'Least Booked Hotel'} hotelName={stats.leastBooked.name} count={stats.leastBooked.count === Infinity ? 0 : stats.leastBooked.count} icon={AlertCircle} isMost={false} />
           </div>
 
-          {/* B. BED PRICE ANALYSIS (PERFECTLY ALIGNED UNDER RIGHT LEADERBOARD) */}
+          {/* B. BED PRICE ANALYSIS */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <PriceCard title={lang === 'de' ? 'Ø Preis pro Bett' : 'Average Price/Bed'} price={stats.avgBedPrice} chipContent={lang === 'de' ? 'Nach Rechnungen' : 'Invoice Based'} icon={BedDouble} colorCls="text-blue-500" bgCls="bg-blue-500/10" />
-              <PriceCard title={lang === 'de' ? 'Niedrigster Preis' : 'Lowest Price/Bed'} price={stats.minBedPrice.price === Infinity ? 0 : stats.minBedPrice.price} chipContent={stats.minBedPrice.hotelName} icon={TrendingDown} colorCls="text-teal-500" bgCls="bg-teal-500/10" />
-              <PriceCard title={lang === 'de' ? 'Höchster Preis' : 'Highest Price/Bed'} price={stats.maxBedPrice.price} chipContent={stats.maxBedPrice.hotelName} icon={TrendingUp} colorCls="text-indigo-500" bgCls="bg-indigo-500/10" />
+              <PriceCard 
+                title={lang === 'de' ? 'Ø Preis pro Bett' : 'Average Price/Bed'} 
+                price={stats.avgBedPrice} 
+                chipContent={lang === 'de' ? 'Nach Rechnungen' : 'Invoice Based'} 
+                icon={BedDouble} 
+                colorCls="text-blue-600 dark:text-blue-400" 
+                bgCls="bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20" 
+              />
+              <PriceCard 
+                title={lang === 'de' ? 'Niedrigster Preis' : 'Lowest Price/Bed'} 
+                price={stats.minBedPrice.price === Infinity ? 0 : stats.minBedPrice.price} 
+                chipContent={stats.minBedPrice.hotelName} 
+                icon={TrendingDown} 
+                colorCls="text-teal-600 dark:text-teal-400" 
+                bgCls="bg-teal-50 dark:bg-teal-500/10 border-teal-200 dark:border-teal-500/20" 
+              />
+              <PriceCard 
+                title={lang === 'de' ? 'Höchster Preis' : 'Highest Price/Bed'} 
+                price={stats.maxBedPrice.price} 
+                chipContent={stats.maxBedPrice.hotelName} 
+                icon={TrendingUp} 
+                colorCls="text-indigo-600 dark:text-indigo-400" 
+                bgCls="bg-indigo-50 dark:bg-indigo-500/10 border-indigo-200 dark:border-indigo-500/20" 
+              />
           </div>
       </div>
-
     </div>
   );
 }
