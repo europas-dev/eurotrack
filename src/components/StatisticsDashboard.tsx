@@ -122,6 +122,9 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         // Apply specific month filter for top KPIs
         if (selectedMonth !== null && d.getMonth() !== selectedMonth) return;
 
+        hasInvoicesInContext = true;
+        hotelBruttoBeforeDiscount += invBrutto;
+
         if (inv.isPaid) {
           rawPaid += invBrutto;
         } else {
@@ -311,7 +314,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
               </div>
 
               {/* BARS CONTAINER */}
-              <div className="flex-1 flex items-end gap-2 relative">
+              <div className="flex-1 flex items-end gap-2 relative min-h-[260px]">
                 <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10 dark:opacity-5">
                    <div className="w-full h-px bg-slate-900 dark:bg-white"></div>
                    <div className="w-full h-px bg-slate-900 dark:bg-white"></div>
