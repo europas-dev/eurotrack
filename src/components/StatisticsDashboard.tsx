@@ -461,95 +461,83 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
               </div>
             </div>
           ) : (
-            // --- DONUT CHART (SPECIFIC MONTH) ---
-            <div className="flex-1 flex flex-wrap items-center justify-center gap-10 h-[280px] mt-4 animate-in fade-in zoom-in-95 duration-500">
+            // --- NEW: CONCENTRIC RADIAL BAR CHART (SPECIFIC MONTH) ---
+            <div className="flex-1 flex flex-col xl:flex-row items-center justify-center gap-10 xl:gap-16 h-[280px] mt-4 animate-in fade-in zoom-in-95 duration-500">
                {(() => {
                  const paidPct = stats.totalSpend > 0 ? (stats.totalPaid / stats.totalSpend) * 100 : 0;
                  const overduePct = stats.totalSpend > 0 ? (stats.totalOverdue / stats.totalSpend) * 100 : 0;
-                 const pendingPct = stats.totalSpend > 0 ? Math.max(0, 100 - paidPct - overduePct) : 0;
                  const pendingVal = Math.max(0, stats.totalUnpaid - stats.totalOverdue);
+                 const pendingPct = stats.totalSpend > 0 ? (pendingVal / stats.totalSpend) * 100 : 0;
                  
-                 // SVG Math for expanding interactive rings
-                 const radius = 40;
-                 const circ = 2 * Math.PI * radius;
-                 const paidLen = (paidPct / 100) * circ;
-                 const pendingLen = (pendingPct / 100) * circ;
-                 const overdueLen = (overduePct / 100) * circ;
+                 // Concentric Rings Math (Center 80,80)
+                 const rPaid = 65;
+                 const rPending = 50;
+                 const rOverdue = 35;
+
+                 const circPaid = 2 * Math.PI * rPaid;
+                 const circPending = 2 * Math.PI * rPending;
+                 const circOverdue = 2 * Math.PI * rOverdue;
                  
                  return (
                    <>
-                     {/* INTERACTIVE SVG DONUT */}
-                     <div className="relative w-56 h-56 flex items-center justify-center drop-shadow-sm">
-                       <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90 transform overflow-visible z-10">
-                         {/* Paid Segment */}
-                         {stats.totalPaid > 0 && (
-                           <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#10b981" strokeWidth="16" strokeDasharray={`${paidLen} ${circ}`} strokeDashoffset={0} className="transition-all duration-300 hover:stroke-[22px] hover:brightness-110 outline-none cursor-pointer" tabIndex={0}>
-                             <title>{lang === 'de' ? 'Bezahlt' : 'Paid'}: {formatCurrency(stats.totalPaid)}</title>
-                           </circle>
-                         )}
-                         {/* Pending Segment */}
-                         {pendingVal > 0 && (
-                           <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#f59e0b" strokeWidth="16" strokeDasharray={`${pendingLen} ${circ}`} strokeDashoffset={-paidLen} className="transition-all duration-300 hover:stroke-[22px] hover:brightness-110 outline-none cursor-pointer" tabIndex={0}>
-                             <title>{lang === 'de' ? 'Ausstehend' : 'Pending'}: {formatCurrency(pendingVal)}</title>
-                           </circle>
-                         )}
-                         {/* Overdue Segment */}
-                         {stats.totalOverdue > 0 && (
-                           <circle cx="50" cy="50" r={radius} fill="transparent" stroke="#ef4444" strokeWidth="16" strokeDasharray={`${overdueLen} ${circ}`} strokeDashoffset={-(paidLen + pendingLen)} className="transition-all duration-300 hover:stroke-[22px] hover:brightness-110 outline-none cursor-pointer" tabIndex={0}>
-                             <title>{lang === 'de' ? 'Überfällig' : 'Overdue'}: {formatCurrency(stats.totalOverdue)}</title>
-                           </circle>
-                         )}
-                         {/* Empty State Ring */}
-                         {stats.totalSpend === 0 && (
-                           <circle cx="50" cy="50" r={radius} fill="transparent" stroke={dk ? '#1E293B' : '#f1f5f9'} strokeWidth="16" />
-                         )}
+                     {/* RADIAL CHART */}
+                     <div className="relative w-56 h-56 flex shrink-0 items-center justify-center drop-shadow-md">
+                       <svg viewBox="0 0 160 160" className="w-full h-full -rotate-90 transform overflow-visible z-10">
+                         {/* Background Tracks */}
+                         <circle cx="80" cy="80" r={rPaid} fill="transparent" stroke={dk ? '#1E293B' : '#f1f5f9'} strokeWidth="10" />
+                         <circle cx="80" cy="80" r={rPending} fill="transparent" stroke={dk ? '#1E293B' : '#f1f5f9'} strokeWidth="10" />
+                         <circle cx="80" cy="80" r={rOverdue} fill="transparent" stroke={dk ? '#1E293B' : '#f1f5f9'} strokeWidth="10" />
+
+                         {/* Value Rings with Rounded Caps */}
+                         <circle cx="80" cy="80" r={rPaid} fill="transparent" stroke="#10b981" strokeWidth="10" strokeDasharray={`${(paidPct/100)*circPaid} ${circPaid}`} strokeLinecap="round" className="transition-all duration-1000 ease-out" />
+                         <circle cx="80" cy="80" r={rPending} fill="transparent" stroke="#f59e0b" strokeWidth="10" strokeDasharray={`${(pendingPct/100)*circPending} ${circPending}`} strokeLinecap="round" className="transition-all duration-1000 ease-out" />
+                         <circle cx="80" cy="80" r={rOverdue} fill="transparent" stroke="#ef4444" strokeWidth="10" strokeDasharray={`${(overduePct/100)*circOverdue} ${circOverdue}`} strokeLinecap="round" className="transition-all duration-1000 ease-out" />
                        </svg>
                        
-                       {/* DONUT CENTER TEXT */}
-                       <div className={cn("absolute inset-0 m-auto w-32 h-32 rounded-full flex flex-col items-center justify-center z-0", dk ? "bg-[#0F172A]" : "bg-white")}>
-                         <span className={cn("text-xs font-black uppercase tracking-widest", dk ? "text-slate-500" : "text-slate-400")}>{labels[selectedMonth]}</span>
-                         <span className={cn("text-xl font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalSpend)}</span>
+                       {/* CENTER TEXT */}
+                       <div className="absolute inset-0 m-auto flex flex-col items-center justify-center z-0">
+                         <span className={cn("text-[10px] font-black uppercase tracking-widest mb-0.5", dk ? "text-slate-500" : "text-slate-400")}>{labels[selectedMonth]}</span>
+                         <span className={cn("text-sm font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalSpend)}</span>
                        </div>
                      </div>
                      
-                     {/* VERTICAL HIERARCHICAL LEGEND */}
-                     <div className="flex flex-col gap-4 min-w-[220px]">
-                       {/* Paid Box */}
-                       <div className={cn("flex flex-col p-4 rounded-xl border shadow-sm", dk ? "bg-emerald-500/10 border-emerald-500/20" : "bg-emerald-50 border-emerald-200")}>
-                         <div className="flex items-center gap-2 mb-1.5">
-                           <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm" />
-                           <span className={cn("text-xs font-black uppercase tracking-wider", dk ? "text-emerald-400" : "text-emerald-600")}>{lang === 'de' ? 'Bezahlt' : 'Paid'}</span>
-                         </div>
-                         <span className={cn("text-xl font-black pl-4.5", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalPaid)}</span>
-                       </div>
-                       
-                       {/* Total Due Box (Contains Pending + Overdue) */}
-                       <div className={cn("flex flex-col p-4 rounded-xl border shadow-sm", dk ? "bg-amber-500/10 border-amber-500/20" : "bg-amber-50 border-amber-200")}>
-                         <div className="flex items-center gap-2 mb-1.5">
-                           <Clock size={14} className="text-amber-500" strokeWidth={3} />
-                           <span className={cn("text-xs font-black uppercase tracking-wider", dk ? "text-amber-500" : "text-amber-600")}>{lang === 'de' ? 'Total Offen' : 'Total Due'}</span>
-                         </div>
-                         <span className={cn("text-xl font-black pl-5 mb-4", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalUnpaid)}</span>
-                         
-                         {/* Internal Vertical Split */}
-                         <div className="flex flex-col gap-3 pl-5 border-l-2 border-amber-500/30 ml-1">
-                           <div className="flex flex-col">
-                             <div className="flex items-center gap-1.5 mb-1">
-                               <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                               <span className={cn("text-[11px] font-bold uppercase tracking-wider", dk ? "text-slate-300" : "text-slate-600")}>{lang === 'de' ? 'Ausstehend' : 'Pending'}</span>
-                             </div>
-                             <span className={cn("text-base font-black pl-3", dk ? "text-white" : "text-slate-800")}>{formatCurrency(pendingVal)}</span>
+                     {/* SLEEK MODERN LEGEND */}
+                     <div className="flex flex-col gap-5 min-w-[220px]">
+                        {/* Paid */}
+                        <div className="flex items-center justify-between group cursor-default">
+                           <div className="flex items-center gap-3.5">
+                              <div className="w-1.5 h-8 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+                              <div className="flex flex-col">
+                                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-emerald-500 transition-colors">{lang === 'de' ? 'Bezahlt' : 'Paid'}</span>
+                                 <span className={cn("text-base font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalPaid)}</span>
+                              </div>
                            </div>
-                           <div className="flex flex-col">
-                             <div className="flex items-center gap-1.5 mb-1">
-                               <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                               <span className={cn("text-[11px] font-bold uppercase tracking-wider", dk ? "text-slate-300" : "text-slate-600")}>{lang === 'de' ? 'Überfällig' : 'Overdue'}</span>
-                             </div>
-                             <span className={cn("text-base font-black pl-3", dk ? "text-white" : "text-slate-800")}>{formatCurrency(stats.totalOverdue)}</span>
-                           </div>
-                         </div>
-                       </div>
+                           <span className={cn("text-xl font-light pl-4", dk ? "text-slate-600" : "text-slate-300")}>{paidPct.toFixed(0)}%</span>
+                        </div>
 
+                        {/* Pending */}
+                        <div className="flex items-center justify-between group cursor-default">
+                           <div className="flex items-center gap-3.5">
+                              <div className="w-1.5 h-8 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]" />
+                              <div className="flex flex-col">
+                                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-amber-500 transition-colors">{lang === 'de' ? 'Ausstehend' : 'Pending'}</span>
+                                 <span className={cn("text-base font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(pendingVal)}</span>
+                              </div>
+                           </div>
+                           <span className={cn("text-xl font-light pl-4", dk ? "text-slate-600" : "text-slate-300")}>{pendingPct.toFixed(0)}%</span>
+                        </div>
+
+                        {/* Overdue */}
+                        <div className="flex items-center justify-between group cursor-default">
+                           <div className="flex items-center gap-3.5">
+                              <div className="w-1.5 h-8 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
+                              <div className="flex flex-col">
+                                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-red-500 transition-colors">{lang === 'de' ? 'Überfällig' : 'Overdue'}</span>
+                                 <span className={cn("text-base font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalOverdue)}</span>
+                              </div>
+                           </div>
+                           <span className={cn("text-xl font-light pl-4", dk ? "text-slate-600" : "text-slate-300")}>{overduePct.toFixed(0)}%</span>
+                        </div>
                      </div>
                    </>
                  );
