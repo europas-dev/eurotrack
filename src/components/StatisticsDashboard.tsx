@@ -44,8 +44,12 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
     let groupedTotals: Record<string, number> = {};
     
     let mostBooked = { name: '-', count: 0 };
+    let leastBooked = { name: '-', count: Infinity }; // Start with Infinity for finding the minimum
+    
     let bedPriceSum = 0;
     let bedPriceCount = 0;
+    let minBedPrice = { hotelName: '-', price: Infinity };
+    let maxBedPrice = { hotelName: '-', price: 0 };
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -70,8 +74,25 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       if (dCount > mostBooked.count) {
         mostBooked = { name: h.name || 'Unnamed', count: dCount };
       }
+      // NEW: Track least booked (ignore hotels with zero bookings)
+      if (dCount > 0 && dCount < leastBooked.count) {
+        leastBooked = { name: h.name || 'Unnamed', count: dCount };
+      }
 
       const bedOverride = h.override_price_per_bed ?? h.overridePricePerBed;
+      if (bedOverride != null) {
+        const overrideP = parseFloat(bedOverride) || 0;
+        bedPriceSum += overrideP;
+        bedPriceCount++;
+        
+        // NEW: Track lowest and highest from overrides
+        if (overrideP > 0 && overrideP < minBedPrice.price) {
+          minBedPrice = { hotelName: h.name || 'Unnamed', price: overrideP };
+        }
+        if (overrideP > maxBedPrice.price) {
+          maxBedPrice = { hotelName: h.name || 'Unnamed', price: overrideP };
+        }
+      }
       if (bedOverride != null) {
         bedPriceSum += parseFloat(bedOverride) || 0;
         bedPriceCount++;
@@ -99,8 +120,17 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
             if (!item) return;
             invBrutto += calcInvoiceItem(item, defaultN)?.brutto || 0;
             if (item.type === 'room' && item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 0) {
-               bedPriceSum += parseFloat(item.netto) || 0;
+               const p = parseFloat(item.netto) || 0;
+               bedPriceSum += p;
                bedPriceCount++;
+               
+               // NEW: Track lowest and highest from itemized bed prices
+               if (p < minBedPrice.price) {
+                 minBedPrice = { hotelName: h.name || 'Unnamed', price: p };
+               }
+               if (p > maxBedPrice.price) {
+                 maxBedPrice = { hotelName: h.name || 'Unnamed', price: p };
+               }
             }
           });
         }
@@ -225,7 +255,11 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
     
     const avgBedPrice = bedPriceCount > 0 ? bedPriceSum / bedPriceCount : 0;
 
-    return { totalSpend, totalPaid, totalUnpaid, totalOverdue, totalDeposits, months, maxMonth, maxPaid, maxUnpaid, sortedGroups, maxGroupValue, mostBooked, avgBedPrice };
+    // Cleanup if no bookings found or prices tracked
+    if (leastBooked.count === Infinity) leastBooked.name = '-';
+    if (minBedPrice.price === Infinity) minBedPrice.hotelName = '-';
+
+    return { totalSpend, totalPaid, totalUnpaid, totalOverdue, totalDeposits, months, maxMonth, maxPaid, maxUnpaid, sortedGroups, maxGroupValue, mostBooked, leastBooked, avgBedPrice, minBedPrice, maxBedPrice };
   }, [hotels, selectedYear, selectedMonth, localGroup, sortAsc, lang]);
 
   const monthLabelsDe = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
@@ -557,27 +591,58 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
 
       </div>
 
-      {/* 3. BOTTOM HIGHLIGHTS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className={cn("p-5 rounded-2xl border flex items-center gap-4 shadow-sm", dk ? "bg-gradient-to-br from-[#1E293B] to-[#0F172A] border-white/10" : "bg-gradient-to-br from-white to-slate-50 border-slate-200")}>
-           <div className="p-3.5 bg-purple-500/10 text-purple-500 rounded-xl"><Trophy size={28} strokeWidth={2}/></div>
-           <div className="flex flex-col">
-             <span className={cn("text-[10px] font-black uppercase tracking-widest", dk ? "text-slate-400" : "text-slate-500")}>{lang === 'de' ? 'Meistgebuchtes Hotel' : 'Most Booked Hotel'}</span>
-             <span className={cn("text-xl font-black truncate max-w-[300px]", dk ? "text-white" : "text-slate-900")}>{stats.mostBooked.name}</span>
-             <span className="text-xs font-bold text-purple-500 mt-1">{stats.mostBooked.count} {lang === 'de' ? 'Buchungen' : 'Bookings'}</span>
-           </div>
-        </div>
-        
-        <div className={cn("p-5 rounded-2xl border flex items-center gap-4 shadow-sm", dk ? "bg-gradient-to-br from-[#1E293B] to-[#0F172A] border-white/10" : "bg-gradient-to-br from-white to-slate-50 border-slate-200")}>
-           <div className="p-3.5 bg-teal-500/10 text-teal-500 rounded-xl"><BedDouble size={28} strokeWidth={2}/></div>
-           <div className="flex flex-col">
-             <span className={cn("text-[10px] font-black uppercase tracking-widest", dk ? "text-slate-400" : "text-slate-500")}>{lang === 'de' ? 'Ø Preis pro Bett' : 'Average Price per Bed'}</span>
-             <span className={cn("text-xl font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.avgBedPrice)}</span>
-             <span className="text-xs font-bold text-teal-500 mt-1">{lang === 'de' ? 'Basierend auf Rechnungen' : 'Based on itemized invoices'}</span>
-           </div>
-        </div>
-      </div>
+      {/* --- NEW: COMPREHENSIVE BOTTOM HIGHLIGHTS --- */}
+      <div className="flex flex-col lg:flex-row gap-6">
+          
+          {/* A. BOOKING COUNTS (LEFT COLUMN - 2 CARDS) */}
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <BookingCard title={lang === 'de' ? 'Meistgebuchtes Hotel' : 'Most Booked Hotel'} hotelName={stats.mostBooked.name} count={stats.mostBooked.count} icon={Trophy} isMost={true} />
+              <BookingCard title={lang === 'de' ? 'Am wenigsten gebuchtes Hotel' : 'Least Booked Hotel'} hotelName={stats.leastBooked.name} count={stats.leastBooked.count === Infinity ? 0 : stats.leastBooked.count} icon={AlertCircle} isMost={false} />
+          </div>
 
-    </div>
+          {/* B. BED PRICE ANALYSIS (RIGHT COLUMN - 3 CARDS) */}
+          <div className="flex-[1.5] grid grid-cols-1 md:grid-cols-3 gap-4">
+              <PriceCard title={lang === 'de' ? 'Ø Preis pro Bett' : 'Average Price per Bed'} price={stats.avgBedPrice} chipContent={lang === 'de' ? 'Basierend auf Rechnungen' : 'Based on invoices'} />
+              <PriceCard title={lang === 'de' ? 'Niedrigster Preis pro Bett' : 'Lowest Price per Bed'} price={stats.minBedPrice.price === Infinity ? 0 : stats.minBedPrice.price} chipContent={stats.minBedPrice.hotelName} iconColorCls="text-teal-500" />
+              <PriceCard title={lang === 'de' ? 'Höchster Preis pro Bett' : 'Highest Price per Bed'} price={stats.maxBedPrice.price} chipContent={stats.maxBedPrice.hotelName} iconColorCls="text-indigo-500" />
+          </div>
+      </div>
   );
 }
+
+  // --- NEW HELPER COMPONENTS FOR THE REVISED FOOTER ---
+
+// A sleek, context-aware chip for metadata
+const HighlightChip = ({ text, colorCls }: { text: string; colorCls: string }) => (
+  <span className={cn("inline-flex items-center gap-1.5 text-[11px] font-black px-3 py-1 rounded-full whitespace-nowrap tracking-tight shadow-inner mt-2", colorCls)}>
+    {text}
+  </span>
+);
+
+// Card for booking highlights (Most/Least)
+const BookingCard = ({ title, hotelName, count, icon: Icon, isMost }: any) => (
+  <div className={cn("p-6 rounded-2xl border flex flex-col gap-4 shadow-sm transition-all hover:shadow-md", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
+    <div className="flex items-center gap-3">
+        <div className={cn("p-3 rounded-lg flex items-center justify-center", isMost ? "bg-purple-500/10 text-purple-500" : "bg-slate-500/10 text-slate-500")}><Icon size={20} strokeWidth={2.5}/></div>
+        <span className={cn("text-[10px] font-black uppercase tracking-widest", dk ? "text-slate-400" : "text-slate-500")}>{title}</span>
+    </div>
+    <span className={cn("text-xl font-black truncate max-w-full", dk ? "text-white" : "text-slate-900")} title={hotelName}>{hotelName}</span>
+    <div className="flex items-center justify-start">
+        <HighlightChip text={`${count} ${lang === 'de' ? 'Buchungen' : 'Bookings'}`} colorCls={isMost ? "bg-purple-500/10 text-purple-500" : "bg-slate-500/10 text-slate-500"} />
+    </div>
+  </div>
+);
+
+// Card for bed price highlights (Avg/Min/Max)
+const PriceCard = ({ title, price, chipContent, iconColorCls }: any) => (
+  <div className={cn("p-6 rounded-2xl border flex flex-col gap-4 shadow-sm transition-all hover:shadow-md", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
+    <div className="flex items-center gap-3">
+        <div className={cn("p-3 rounded-lg flex items-center justify-center bg-blue-500/10 text-blue-500")}><BedDouble size={20} strokeWidth={2.5}/></div>
+        <span className={cn("text-[10px] font-black uppercase tracking-widest truncate flex-1", dk ? "text-slate-400" : "text-slate-500")} title={title}>{title}</span>
+    </div>
+    <span className={cn("text-xl font-black truncate max-w-full", dk ? "text-white" : "text-slate-900")}>{formatCurrency(price)}</span>
+    <div className="flex items-center justify-start">
+        <HighlightChip text={chipContent} colorCls={iconColorCls ? `bg-${iconColorCls.replace('text-','')}/10 ${iconColorCls}` : "bg-blue-500/10 text-blue-500"} />
+    </div>
+  </div>
+);
