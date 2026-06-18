@@ -166,9 +166,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
 
         groupedTotals[groupKey] = (groupedTotals[groupKey] || 0) + finalTotal;
       }
-      groupedTotals[groupKey] = (groupedTotals[groupKey] || 0) + finalTotal;
-      }
-      
+    
       // --- NEW: SMART EMPLOYEE NIGHTS CALCULATOR ---
       if (localGroup === 'employee') {
         (h.durations || []).forEach((dur: any) => {
