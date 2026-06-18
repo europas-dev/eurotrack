@@ -1328,7 +1328,9 @@ finalFiltered.forEach(h => {
                       onClick={() => setActiveGroupTab(g === activeGroupTab ? null : g)} 
                       className={cn(
                         "px-5 py-2.5 rounded-t-xl text-sm font-bold border transition-all whitespace-nowrap", 
-                        activeGroupTab === g ? "bg-teal-600 text-white border-teal-600" : "bg-white dark:bg-white/5 text-slate-500 border-transparent hover:bg-slate-100"
+                        activeGroupTab === g 
+                          ? "bg-teal-600 text-white border-teal-600" 
+                          : "bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 border-transparent hover:bg-slate-100 dark:hover:bg-white/10"
                       )}
                     >
                       {g} ({groupData[g].length})
