@@ -462,17 +462,18 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
             </div>
           ) : (
             // --- NEW: SINGLE-RING DONUT WITH SLEEK INFOGRAPHIC POINTER LINES ---
-            <div className="flex-1 flex items-center justify-center min-h-[300px] mt-2 animate-in fade-in zoom-in-95 duration-500">
+            // Modifications: 1. Larger donut and center, 2. Separated pointers, 3. Updated "Pending Due" label
+            <div className="flex-1 flex items-center justify-center min-h-[300px] mt-2 animate-in fade-in zoom-in-95 duration-500 w-full">
                {(() => {
                  const paidPct = stats.totalSpend > 0 ? (stats.totalPaid / stats.totalSpend) * 100 : 0;
                  const overduePct = stats.totalSpend > 0 ? (stats.totalOverdue / stats.totalSpend) * 100 : 0;
                  const pendingVal = Math.max(0, stats.totalUnpaid - stats.totalOverdue);
                  const pendingPct = stats.totalSpend > 0 ? (pendingVal / stats.totalSpend) * 100 : 0;
                  
-                 // Canvas Math
+                 // Canvas Math: Larger center and donut
                  const cx = 300;
                  const cy = 150;
-                 const r = 75;
+                 const r = 90; // Increased radius for larger donut and larger inner hole
                  const circ = 2 * Math.PI * r;
 
                  const paidLen = (paidPct / 100) * circ;
@@ -491,22 +492,42 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
 
                  const items = [
                      { id: 'paid', title: lang === 'de' ? 'Bezahlt' : 'Paid', val: paidPct, valStr: formatCurrency(stats.totalPaid), color: '#10b981', mid: midPaid },
-                     { id: 'pending', title: lang === 'de' ? 'Ausstehend' : 'Pending', val: pendingPct, valStr: formatCurrency(pendingVal), color: '#f59e0b', mid: midPending },
+                     { id: 'pending-due', title: lang === 'de' ? 'Ausstehend' : 'Pending Due', val: pendingPct, valStr: formatCurrency(pendingVal), color: '#f59e0b', mid: midPending }, // Updated label
                      { id: 'overdue', title: lang === 'de' ? 'Überfällig' : 'Overdue', val: overduePct, valStr: formatCurrency(stats.totalOverdue), color: '#ef4444', mid: midOverdue },
                  ].filter(i => i.val > 0);
 
-                 // Group labels left/right based on where the arc falls
-                 const rightItems = items.filter(i => getPt(i.mid, 85).x >= cx).sort((a, b) => getPt(a.mid, 85).y - getPt(b.mid, 85).y);
-                 const leftItems = items.filter(i => getPt(i.mid, 85).x < cx).sort((a, b) => getPt(a.mid, 85).y - getPt(b.mid, 85).y);
+                 // Separate pointers visually by adding a minimum angular gap between attachment points
+                 const MIN_PTR_GAP_DEGREES = 30; // Min gap between pointer lines on the donut itself
+                 const midPointsSeparated = [...items].sort((a, b) => a.mid - b.mid);
+                 midPointsSeparated.forEach((item, i) => {
+                    const prev = midPointsSeparated[(i - 1 + midPointsSeparated.length) % midPointsSeparated.length];
+                    const next = midPointsSeparated[(i + 1) % midPointsSeparated.length];
+
+                    const degPerPct = 3.6;
+                    let currentAngle = item.mid * degPerPct;
+                    let nextAngle = next.mid * degPerPct;
+
+                    // If the difference is too small, push them apart on the ring.
+                    if (Math.abs(currentAngle - nextAngle) < MIN_PTR_GAP_DEGREES) {
+                      const adjustment = (MIN_PTR_GAP_DEGREES - Math.abs(currentAngle - nextAngle)) / 2;
+                      midPointsSeparated[i] = {...item, mid: currentAngle - adjustment / degPerPct};
+                      midPointsSeparated[(i + 1) % midPointsSeparated.length] = {...next, mid: nextAngle + adjustment / degPerPct};
+                    }
+                 });
+
+                 // Group labels left/right based on where the adjusted midpoints fall
+                 const finalItems = items.map(item => midPointsSeparated.find(m => m.id === item.id) || item);
+                 const rightItems = finalItems.filter(i => getPt(i.mid, 100).x >= cx).sort((a, b) => getPt(a.mid, 100).y - getPt(b.mid, 100).y);
+                 const leftItems = finalItems.filter(i => getPt(i.mid, 100).x < cx).sort((a, b) => getPt(a.mid, 100).y - getPt(b.mid, 100).y);
 
                  const mappedItems: any[] = [];
                  const assignLayout = (list: any[], isRight: boolean) => {
-                     const gap = 75; // Vertical breathing room between labels
+                     const gap = 85; // Breather room between labels
                      const startY = cy - ((list.length - 1) * gap) / 2;
                      list.forEach((item, index) => {
-                         const endX = isRight ? 430 : 170;
+                         const endX = isRight ? 460 : 140; // Spaced labels out more
                          const endY = startY + (index * gap);
-                         const start = getPt(item.mid, 88); 
+                         const start = getPt(item.mid, 103); // Point line attaches slightly further out
                          const sign = isRight ? 1 : -1;
                          
                          const elbow1X = start.x + sign * 15;
@@ -521,27 +542,27 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                  assignLayout(leftItems, false);
                  
                  return (
-                   <div className="relative w-full max-w-[600px] aspect-[2/1] shrink-0">
+                   <div className="relative w-full max-w-[700px] aspect-[2/1] shrink-0">
                      
                      {/* SVG GRAPHIC: DONUT & POINTER LINES */}
-                     <svg viewBox="0 0 600 300" className="w-full h-full absolute inset-0 z-10 pointer-events-none">
+                     <svg viewBox="0 0 700 300" className="w-full h-full absolute inset-0 z-10 pointer-events-none">
                        {/* Background Track */}
-                       <circle cx={cx} cy={cy} r={r} fill="transparent" stroke={dk ? '#1E293B' : '#f1f5f9'} strokeWidth="26" />
+                       <circle cx={cx} cy={cy} r={r} fill="transparent" stroke={dk ? '#1E293B' : '#f1f5f9'} strokeWidth="32" /> // Thicker ring for larger size
 
-                       {/* Data Segments (Rotated -90 around center to start at 12 o'clock) */}
+                       {/* Data Segments */}
                        {stats.totalSpend > 0 && (
                          <>
-                           <circle cx={cx} cy={cy} r={r} transform={`rotate(-90 ${cx} ${cy})`} fill="transparent" stroke="#10b981" strokeWidth="26" strokeDasharray={`${paidLen} ${circ}`} strokeDashoffset={0} strokeLinecap="butt" className="transition-all duration-1000 ease-out" />
-                           <circle cx={cx} cy={cy} r={r} transform={`rotate(-90 ${cx} ${cy})`} fill="transparent" stroke="#f59e0b" strokeWidth="26" strokeDasharray={`${pendingLen} ${circ}`} strokeDashoffset={-paidLen} strokeLinecap="butt" className="transition-all duration-1000 ease-out" />
-                           <circle cx={cx} cy={cy} r={r} transform={`rotate(-90 ${cx} ${cy})`} fill="transparent" stroke="#ef4444" strokeWidth="26" strokeDasharray={`${overdueLen} ${circ}`} strokeDashoffset={-(paidLen + pendingLen)} strokeLinecap="butt" className="transition-all duration-1000 ease-out" />
+                           <circle cx={cx} cy={cy} r={r} transform={`rotate(-90 ${cx} ${cy})`} fill="transparent" stroke="#10b981" strokeWidth="32" strokeDasharray={`${paidLen} ${circ}`} strokeDashoffset={0} strokeLinecap="butt" className="transition-all duration-1000 ease-out" />
+                           <circle cx={cx} cy={cy} r={r} transform={`rotate(-90 ${cx} ${cy})`} fill="transparent" stroke="#f59e0b" strokeWidth="32" strokeDasharray={`${pendingLen} ${circ}`} strokeDashoffset={-paidLen} strokeLinecap="butt" className="transition-all duration-1000 ease-out" />
+                           <circle cx={cx} cy={cy} r={r} transform={`rotate(-90 ${cx} ${cy})`} fill="transparent" stroke="#ef4444" strokeWidth="32" strokeDasharray={`${overdueLen} ${circ}`} strokeDashoffset={-(paidLen + pendingLen)} strokeLinecap="butt" className="transition-all duration-1000 ease-out" />
                          </>
                        )}
 
                        {/* Connective Lines */}
                        {mappedItems.map(item => (
                           <g key={item.id}>
-                             <path d={item.path} fill="none" stroke={item.color} strokeWidth="2" className={dk ? "opacity-60" : "opacity-40"} />
-                             <circle cx={item.start.x} cy={item.start.y} r="4" fill={item.color} stroke={dk ? '#0F172A' : '#ffffff'} strokeWidth="2" />
+                             <path d={item.path} fill="none" stroke={item.color} strokeWidth="2.5" className={dk ? "opacity-70" : "opacity-50"} />
+                             <circle cx={item.start.x} cy={item.start.y} r="5" fill={item.color} stroke={dk ? '#0F172A' : '#ffffff'} strokeWidth="2.5" /> // Adjusted size/thickness
                           </g>
                        ))}
                      </svg>
@@ -550,11 +571,11 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                      {mappedItems.map(item => (
                         <div 
                            key={item.id} 
-                           className={cn("absolute flex flex-col justify-center w-[140px] px-3", item.isRight ? "items-start border-l-[3px] text-left" : "items-end border-r-[3px] text-right")}
+                           className={cn("absolute flex flex-col justify-center w-[150px] px-3", item.isRight ? "items-start border-l-[4px] text-left" : "items-end border-r-[4px] text-right")}
                            style={{ 
                               top: `${(item.endY / 300) * 100}%`, 
-                              left: item.isRight ? `${(item.endX / 600) * 100}%` : 'auto',
-                              right: !item.isRight ? `${((600 - item.endX) / 600) * 100}%` : 'auto',
+                              left: item.isRight ? `${(item.endX / 700) * 100}%` : 'auto',
+                              right: !item.isRight ? `${((700 - item.endX) / 700) * 100}%` : 'auto',
                               borderColor: item.color,
                               transform: 'translateY(-50%)'
                            }}
@@ -564,15 +585,15 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                               {item.title}
                               {item.isRight && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} />}
                            </span>
-                           <span className={cn("text-lg font-black truncate w-full", dk ? "text-white" : "text-slate-900")}>{item.valStr}</span>
-                           <span className="text-sm font-bold opacity-90" style={{ color: item.color }}>{item.val.toFixed(0)}%</span>
+                           <span className={cn("text-xl font-black truncate w-full", dk ? "text-white" : "text-slate-900")}>{item.valStr}</span> // Larger font
+                           <span className="text-sm font-bold opacity-95" style={{ color: item.color }}>{item.val.toFixed(0)}%</span>
                         </div>
                      ))}
 
-                     {/* CENTER TOTALS */}
-                     <div className={cn("absolute inset-0 m-auto w-32 h-32 flex flex-col items-center justify-center rounded-full shadow-inner border z-0", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-100")}>
-                       <span className={cn("text-xs font-black uppercase tracking-widest mb-0.5", dk ? "text-slate-500" : "text-slate-400")}>{labels[selectedMonth]}</span>
-                       <span className={cn("text-xl font-black truncate max-w-[100px]", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalSpend)}</span>
+                     {/* CENTER TOTALS: Larger for readability */}
+                     <div className={cn("absolute inset-0 m-auto w-36 h-36 flex flex-col items-center justify-center rounded-full shadow-inner border z-0", dk ? "bg-[#0F172A] border-white/5" : "bg-white border-slate-100")} style={{ top: '5%' }}>
+                       <span className={cn("text-[11px] font-black uppercase tracking-widest mb-1.5", dk ? "text-slate-500" : "text-slate-400")}>{labels[selectedMonth]}</span>
+                       <span className={cn("text-2xl font-black truncate max-w-[120px]", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalSpend)}</span> // Larger numbers
                      </div>
                    </div>
                  );
