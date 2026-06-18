@@ -16,7 +16,7 @@ interface Props {
 
 export default function StatisticsDashboard({ hotels, selectedYear, selectedMonth, groupBy, parentSortBy, parentSortDir, lang, dk }: Props) {
   
-  const [localGroup, setLocalGroup] = useState<'hotel' | 'company' | 'city' | 'country'>(groupBy === 'none' ? 'hotel' : (groupBy as any));
+  const [localGroup, setLocalGroup] = useState<'hotel' | 'company' | 'city' | 'country' | 'employee'>(groupBy === 'none' ? 'hotel' : (groupBy as any));
   const [sortAsc, setSortAsc] = useState(false);
 
   // Auto-sync with parent dashboard if the parent filter changes
@@ -165,6 +165,42 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         else if (localGroup === 'country') groupKey = h.country || (lang === 'de' ? 'Unbekanntes Land' : 'Unknown Country');
 
         groupedTotals[groupKey] = (groupedTotals[groupKey] || 0) + finalTotal;
+      }
+      groupedTotals[groupKey] = (groupedTotals[groupKey] || 0) + finalTotal;
+      }
+      
+      // --- NEW: SMART EMPLOYEE NIGHTS CALCULATOR ---
+      if (localGroup === 'employee') {
+        (h.durations || []).forEach((dur: any) => {
+          (dur.roomCards || []).forEach((rc: any) => {
+            (rc.employees || []).forEach((emp: any) => {
+              if (!emp.name || (!emp.checkIn && !emp.checkin) || (!emp.checkOut && !emp.checkout)) return;
+              
+              let start = new Date(emp.checkIn || emp.checkin);
+              let end = new Date(emp.checkOut || emp.checkout);
+              
+              // Constrain the dates strictly to the active Dashboard Filter
+              if (selectedMonth !== null) {
+                const mStart = new Date(selectedYear, selectedMonth, 1);
+                const mEnd = new Date(selectedYear, selectedMonth + 1, 0);
+                if (start < mStart) start = mStart;
+                if (end > mEnd) end = mEnd;
+              } else {
+                const yStart = new Date(selectedYear, 0, 1);
+                const yEnd = new Date(selectedYear, 11, 31);
+                if (start < yStart) start = yStart;
+                if (end > yEnd) end = yEnd;
+              }
+              
+              if (start < end) {
+                const nights = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                if (nights > 0) {
+                  groupedTotals[emp.name] = (groupedTotals[emp.name] || 0) + nights;
+                }
+              }
+            });
+          });
+        });
       }
     });
 
@@ -379,7 +415,8 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                 {[
                   { id: 'hotel', label: lang === 'de' ? 'Hotel' : 'Hotel' },
                   { id: 'company', label: lang === 'de' ? 'Firma' : 'Company' },
-                  { id: 'city', label: lang === 'de' ? 'Stadt' : 'City' }
+                  { id: 'city', label: lang === 'de' ? 'Stadt' : 'City' },
+                  { id: 'employee', label: lang === 'de' ? 'Mitarbeiter' : 'Employee' }
                 ].map(g => (
                   <button 
                     key={g.id} 
@@ -415,7 +452,11 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                 <div key={i} className="flex flex-col gap-2 group">
                   <div className="flex items-center justify-between text-[13px] font-bold">
                     <span className={cn("truncate pr-4", dk ? "text-slate-300" : "text-slate-700")}>{name}</span>
-                    <span className={dk ? "text-white" : "text-slate-900"}>{formatCurrency(total)}</span>
+                    <span className={dk ? "text-white" : "text-slate-900"}>
+                    {localGroup === 'employee' 
+                      ? `${total} ${lang === 'de' ? 'Nächte' : 'Nights'}` 
+                      : formatCurrency(total)}
+                  </span>
                   </div>
                   <div className={cn("w-full h-2.5 rounded-full overflow-hidden", dk ? "bg-white/5" : "bg-slate-100")}>
                     <div 
