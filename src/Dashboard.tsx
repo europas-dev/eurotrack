@@ -1380,6 +1380,8 @@ finalFiltered.forEach(h => {
                 selectedYear={selectedYear} 
                 selectedMonth={selectedMonth}
                 groupBy={groupBy}
+                parentSortBy={sortBy}         
+                parentSortDir={sortDir}
                 lang={lang} 
                 dk={dk} 
               />
