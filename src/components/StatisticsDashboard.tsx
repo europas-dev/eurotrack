@@ -358,46 +358,42 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         {/* RIGHT: LEADERBOARD WIDGET */}
         <div className={cn("p-6 rounded-2xl border shadow-sm flex flex-col", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
           
-          {/* HEADER & CHIP & SORT */}
-          <div className="flex items-center justify-between mb-4">
+          {/* COMPACT HEADER: Title Left, Controls Right */}
+          <div className="flex items-center justify-between mb-6">
+            <h3 className={cn("text-sm font-black uppercase tracking-widest", dk ? "text-slate-300" : "text-slate-700")}>
+              Leaderboard
+            </h3>
+            
             <div className="flex items-center gap-2">
-              <h3 className={cn("text-sm font-black uppercase tracking-widest", dk ? "text-slate-300" : "text-slate-700")}>
-                Leaderboard
-              </h3>
-              <span className="text-[9px] font-black uppercase bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded tracking-tighter">
-                {localGroup === 'city' ? (lang === 'de' ? 'Städte' : 'Cities') : 
-                 localGroup === 'company' ? (lang === 'de' ? 'Firmen' : 'Companies') : 
-                 localGroup === 'country' ? (lang === 'de' ? 'Länder' : 'Countries') : 
-                 (lang === 'de' ? 'Hotels' : 'Hotels')}
-              </span>
-            </div>
-            <button 
-              onClick={() => setSortAsc(!sortAsc)} 
-              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors text-slate-500 dark:text-slate-400"
-              title={lang === 'de' ? 'Sortierung ändern' : 'Toggle Sort'}
-            >
-              {sortAsc ? <ArrowUpNarrowWide size={16} strokeWidth={2.5} /> : <ArrowDownWideNarrow size={16} strokeWidth={2.5} />}
-            </button>
-          </div>
+              {/* COMPACT SWITCHING TABS */}
+              <div className={cn("flex p-0.5 rounded-lg", dk ? "bg-black/20" : "bg-slate-100")}>
+                {[
+                  { id: 'hotel', label: lang === 'de' ? 'Hotel' : 'Hotel' },
+                  { id: 'company', label: lang === 'de' ? 'Firma' : 'Company' },
+                  { id: 'city', label: lang === 'de' ? 'Stadt' : 'City' }
+                ].map(g => (
+                  <button 
+                    key={g.id} 
+                    onClick={() => setLocalGroup(g.id as any)}
+                    className={cn("px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all", 
+                      localGroup === g.id 
+                        ? (dk ? "bg-blue-600 text-white shadow-sm" : "bg-white text-blue-600 shadow-sm") 
+                        : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}
+                  >
+                    {g.label.slice(0, 3)}
+                  </button>
+                ))}
+              </div>
 
-          {/* INTERACTIVE GROUP TABS */}
-          <div className={cn("flex p-1 rounded-xl mb-5", dk ? "bg-black/20" : "bg-slate-100")}>
-            {[
-              { id: 'hotel', icon: Building, label: lang === 'de' ? 'Hotel' : 'Hotel' },
-              { id: 'company', icon: Building2, label: lang === 'de' ? 'Firma' : 'Company' },
-              { id: 'city', icon: MapPin, label: lang === 'de' ? 'Stadt' : 'City' }
-            ].map(g => (
+              {/* SORT TOGGLE */}
               <button 
-                key={g.id} 
-                onClick={() => setLocalGroup(g.id as any)}
-                className={cn("flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all", 
-                  localGroup === g.id 
-                    ? (dk ? "bg-blue-600 text-white shadow-sm" : "bg-white text-blue-600 shadow-sm") 
-                    : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}
+                onClick={() => setSortAsc(!sortAsc)} 
+                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors text-slate-500 dark:text-slate-400"
+                title={lang === 'de' ? 'Sortierung ändern' : 'Toggle Sort'}
               >
-                <g.icon size={12} strokeWidth={2.5} /> {g.label}
+                {sortAsc ? <ArrowUpNarrowWide size={16} strokeWidth={2.5} /> : <ArrowDownWideNarrow size={16} strokeWidth={2.5} />}
               </button>
-            ))}
+            </div>
           </div>
 
           {/* LIST WITH CUSTOM SCROLLBAR & EXTRA PADDING */}
