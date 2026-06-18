@@ -659,6 +659,17 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     return groups;
   }, [finalFiltered, groupBy, lang]);
 
+  // --- NEW: AUTO-SELECT FIRST GROUP TAB ---
+  useEffect(() => {
+    if (groupData) {
+      const keys = Object.keys(groupData);
+      // If there are groups, and we either haven't selected one OR the current selection vanished:
+      if (keys.length > 0 && (!activeGroupTab || !keys.includes(activeGroupTab))) {
+        setActiveGroupTab(keys[0]);
+      }
+    }
+  }, [groupData, activeGroupTab]);
+
     const isAllSelected = useMemo(() => {
     const visible = groupBy !== 'none' && activeGroupTab && groupData ? (groupData[activeGroupTab] || []) : finalFiltered;
     return visible.length > 0 && visible.every(h => selectedIds.has(h.id));
@@ -1287,7 +1298,7 @@ finalFiltered.forEach(h => {
 
             {/* HORIZONTAL GROUP TABS */}
             {groupBy !== 'none' && groupData && viewMode !== 'stats' && (
-              <div className="flex gap-2 mb-6 overflow-x-auto pb-2 no-scrollbar border-b border-slate-200 dark:border-white/10">
+              <div className="flex gap-2 mb-6 overflow-x-auto pb-3 border-b border-slate-200 dark:border-white/10 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
                 {Object.keys(groupData).map(g => (
                   <button 
                     key={g} 
