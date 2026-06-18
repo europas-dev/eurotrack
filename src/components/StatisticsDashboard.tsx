@@ -8,11 +8,13 @@ interface Props {
   selectedYear: number;
   selectedMonth: number | null;
   groupBy: 'none' | 'hotel' | 'company' | 'city' | 'country';
+  parentSortBy?: string;           
+  parentSortDir?: 'asc' | 'desc';  
   lang: 'de' | 'en';
   dk: boolean;
 }
 
-export default function StatisticsDashboard({ hotels, selectedYear, selectedMonth, groupBy, lang, dk }: Props) {
+export default function StatisticsDashboard({ hotels, selectedYear, selectedMonth, groupBy, parentSortBy, parentSortDir, lang, dk }: Props) {
   
   const [localGroup, setLocalGroup] = useState<'hotel' | 'company' | 'city' | 'country'>(groupBy === 'none' ? 'hotel' : (groupBy as any));
   const [sortAsc, setSortAsc] = useState(false);
@@ -21,6 +23,13 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
   useEffect(() => {
     setLocalGroup(groupBy === 'none' ? 'hotel' : (groupBy as any));
   }, [groupBy]);
+
+  // NEW: Auto-sync sort direction IF the parent is actively sorting by 'cost'
+  useEffect(() => {
+    if (parentSortBy === 'cost' && parentSortDir) {
+      setSortAsc(parentSortDir === 'asc');
+    }
+  }, [parentSortBy, parentSortDir]);
 
   // --- RE-ENGINEERED INDESTRUCTIBLE METRICS ENGINE ---
   const stats = useMemo(() => {
