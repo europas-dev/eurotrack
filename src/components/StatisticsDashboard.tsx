@@ -320,7 +320,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       
       {/* 1. TOP KPI ROW */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card title={lang === 'de' ? 'Gesamtkosten' : 'Total Spend'} value={formatCurrency(stats.totalSpend)} icon={TrendingUp} colorCls="text-blue-500" bgCls="bg-blue-500/10" />
+        <Card title={lang === 'de' ? 'Gesamtkosten' : 'Total Cost'} value={formatCurrency(stats.totalSpend)} icon={ReceiptEuro} colorCls="text-blue-500" bgCls="bg-blue-500/10" />
         <Card title={lang === 'de' ? 'Total Bezahlt' : 'Total Paid'} value={formatCurrency(stats.totalPaid)} icon={ShieldCheck} colorCls="text-emerald-500" bgCls="bg-emerald-500/10" />
         
         {/* CUSTOM SPLIT CARD FOR TOTAL DUE */}
