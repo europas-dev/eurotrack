@@ -280,38 +280,43 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         
         {/* LEFT: CONDITIONAL CHART (MONTHLY BARS OR MONTH DONUT) */}
-        <div className={cn("p-6 rounded-2xl border shadow-sm flex flex-col", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
-          <h3 className={cn("text-sm font-black uppercase tracking-widest mb-6", dk ? "text-slate-300" : "text-slate-700")}>
-            {selectedMonth === null 
-              ? (lang === 'de' ? 'Monatliche Ausgaben' : 'Monthly Breakdown')
-              : (lang === 'de' ? `Finanzstatus: ${labels[selectedMonth]}` : `Financial Status: ${labels[selectedMonth]}`)
-            }
-          </h3>
+        <div className={cn("p-6 rounded-2xl border shadow-sm flex flex-col h-full", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+          
+          {/* HEADER & TABS IN ONE LINE */}
+          <div className="flex items-center justify-between mb-6">
+            <h3 className={cn("text-sm font-black uppercase tracking-widest", dk ? "text-slate-300" : "text-slate-700")}>
+              {selectedMonth === null 
+                ? (lang === 'de' ? 'Monatliche Ausgaben' : 'Monthly Breakdown')
+                : (lang === 'de' ? `Finanzstatus: ${labels[selectedMonth]}` : `Financial Status: ${labels[selectedMonth]}`)
+              }
+            </h3>
+            
+            {/* CHART TABS (Only show when looking at ALL months) */}
+            {selectedMonth === null && (
+              <div className={cn("flex p-0.5 rounded-lg", dk ? "bg-black/20" : "bg-slate-100")}>
+                {[
+                  { id: 'all', label: lang === 'de' ? 'Alle' : 'All' },
+                  { id: 'total', label: lang === 'de' ? 'Gesamt' : 'Total' },
+                  { id: 'paid', label: lang === 'de' ? 'Bezahlt' : 'Paid' },
+                  { id: 'unpaid', label: lang === 'de' ? 'Offen' : 'Due' }
+                ].map(t => (
+                  <button 
+                    key={t.id} 
+                    onClick={() => setChartTab(t.id as any)}
+                    className={cn("px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all", 
+                      chartTab === t.id ? (dk ? "bg-slate-700 text-white shadow-sm" : "bg-white text-slate-800 shadow-sm") : "text-slate-500 hover:text-slate-700 dark:text-slate-400")}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           
           {selectedMonth === null ? (
             // --- BAR CHART (ALL MONTHS) ---
-            <div className="flex flex-col flex-1 mt-2">
+            <div className="flex flex-col flex-1">
               
-              {/* CHART TABS */}
-              <div className="flex items-center justify-end mb-4">
-                <div className={cn("flex p-0.5 rounded-lg", dk ? "bg-black/20" : "bg-slate-100")}>
-                  {[
-                    { id: 'all', label: lang === 'de' ? 'Alle' : 'All' },
-                    { id: 'total', label: lang === 'de' ? 'Gesamt' : 'Total' },
-                    { id: 'paid', label: lang === 'de' ? 'Bezahlt' : 'Paid' },
-                    { id: 'unpaid', label: lang === 'de' ? 'Offen' : 'Due' }
-                  ].map(t => (
-                    <button 
-                      key={t.id} 
-                      onClick={() => setChartTab(t.id as any)}
-                      className={cn("px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all", 
-                        chartTab === t.id ? (dk ? "bg-slate-700 text-white shadow-sm" : "bg-white text-slate-800 shadow-sm") : "text-slate-500 hover:text-slate-700 dark:text-slate-400")}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
 
               {/* BARS CONTAINER */}
               <div className="flex-1 flex items-end gap-2 relative min-h-[260px]">
@@ -335,12 +340,25 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                       {/* SMART TOOLTIP */}
                       <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-[11px] p-3 rounded-xl pointer-events-none z-50 whitespace-nowrap shadow-xl flex flex-col gap-1.5">
                         <span className="font-black text-slate-400 mb-1">{labels[i]}</span>
-                        <div className="flex justify-between gap-4"><span className="text-blue-400">{lang === 'de' ? 'Gesamt:' : 'Total:'}</span> <span className="font-bold">{formatCurrency(m.total)}</span></div>
-                        <div className="flex justify-between gap-4"><span className="text-emerald-400">{lang === 'de' ? 'Bezahlt:' : 'Paid:'}</span> <span className="font-bold">{formatCurrency(m.paid)}</span></div>
-                        <div className="w-full h-px bg-white/10 my-0.5"></div>
-                        <div className="flex justify-between gap-4"><span className="text-slate-300">{lang === 'de' ? 'Total Offen:' : 'Total Due:'}</span> <span className="font-bold">{formatCurrency(m.unpaid)}</span></div>
-                        <div className="flex justify-between gap-4 pl-2"><span className="text-amber-400 text-[10px]">{lang === 'de' ? '└ Ausstehend:' : '└ Pending:'}</span> <span className="font-bold text-[10px]">{formatCurrency(m.pending)}</span></div>
-                        <div className="flex justify-between gap-4 pl-2"><span className="text-red-400 text-[10px]">{lang === 'de' ? '└ Überfällig:' : '└ Overdue:'}</span> <span className="font-bold text-[10px]">{formatCurrency(m.overdue)}</span></div>
+                        
+                        {(chartTab === 'all' || chartTab === 'total') && (
+                          <div className="flex justify-between gap-4"><span className="text-blue-400">{lang === 'de' ? 'Gesamt:' : 'Total:'}</span> <span className="font-bold">{formatCurrency(m.total)}</span></div>
+                        )}
+                        
+                        {(chartTab === 'all' || chartTab === 'paid') && (
+                          <div className="flex justify-between gap-4"><span className="text-emerald-400">{lang === 'de' ? 'Bezahlt:' : 'Paid:'}</span> <span className="font-bold">{formatCurrency(m.paid)}</span></div>
+                        )}
+                        
+                        {chartTab === 'all' && <div className="w-full h-px bg-white/10 my-0.5"></div>}
+                        
+                        {(chartTab === 'all' || chartTab === 'unpaid') && (
+                          <>
+                            <div className="flex justify-between gap-4"><span className="text-slate-300">{lang === 'de' ? 'Total Offen:' : 'Total Due:'}</span> <span className="font-bold">{formatCurrency(m.unpaid)}</span></div>
+                            <div className="flex justify-between gap-4 pl-2"><span className="text-amber-400 text-[10px]">{lang === 'de' ? '└ Ausstehend:' : '└ Pending:'}</span> <span className="font-bold text-[10px]">{formatCurrency(m.pending)}</span></div>
+                            <div className="flex justify-between gap-4 pl-2"><span className="text-red-400 text-[10px]">{lang === 'de' ? '└ Überfällig:' : '└ Overdue:'}</span> <span className="font-bold text-[10px]">{formatCurrency(m.overdue)}</span></div>
+                          </>
+                        )}
+                        
                         <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-slate-800"></div>
                       </div>
 
@@ -510,7 +528,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
           </div>
 
           {/* LIST WITH CUSTOM SCROLLBAR & EXTRA PADDING */}
-          <div className="flex flex-col gap-5 overflow-y-auto pr-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full" style={{ maxHeight: '220px' }}>
+          <div className="flex flex-col gap-5 overflow-y-auto pr-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full" style={{ maxHeight: '280px' }}>
             {stats.sortedGroups.length === 0 ? (
                <div className="h-full flex items-center justify-center text-slate-400 text-sm font-bold italic py-12">{lang === 'de' ? 'Keine Daten in dieser Ansicht verfügbar' : 'No data available in this view'}</div>
             ) : stats.sortedGroups.map(([name, total], i) => {
