@@ -514,26 +514,36 @@ export default function Header({
                           </div>
                         </div>
 
-                        {/* --- NEW THEME GRID --- */}
+                        {/* --- NEW THEME GRID (Smart Filtered) --- */}
                         <div className="col-span-2 mt-4 border-t pt-4 dark:border-white/10 border-slate-200">
                           <p className={cn('text-xs font-bold mb-3', dk ? 'text-slate-400' : 'text-slate-600')}>{isDe ? 'Themen (Themes)' : 'Themes'}</p>
                           <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
                              {[
-                               { id: 'light', name: 'Euro Light', bg: '#f8fafc', card: '#ffffff' },
-                               { id: 'dark', name: 'Euro Dark', bg: '#0f172a', card: '#1e293b' },
-                               { id: 'midnight-neon', name: 'Midnight', bg: '#060913', card: '#0c1222' },
-                               { id: 'matte-charcoal', name: 'Charcoal', bg: '#18181b', card: '#27272a' },
-                               { id: 'airy-glass', name: 'Airy Glass', bg: '#fafafa', card: '#ffffff' },
-                               { id: 'sunset-dune', name: 'Sunset', bg: '#1a1614', card: '#262220' }
-                             ].map(t => {
-                               const isActive = typeof document !== 'undefined' && 
-                                 (document.documentElement.getAttribute('data-theme') === t.id || (!document.documentElement.getAttribute('data-theme') && (t.id === (dk ? 'dark' : 'light'))));
+                               { id: 'light', type: 'light', name: 'Euro Default', bg: '#f8fafc', card: '#ffffff' },
+                               { id: 'airy-glass', type: 'light', name: 'Airy Glass', bg: '#fafafa', card: '#ffffff' },
+                               { id: 'soft-sand', type: 'light', name: 'Soft Sand', bg: '#fdfbf7', card: '#ffffff' },
+                               { id: 'dark', type: 'dark', name: 'Euro Default', bg: '#0f172a', card: '#1e293b' },
+                               { id: 'midnight-neon', type: 'dark', name: 'Midnight', bg: '#060913', card: '#0c1222' },
+                               { id: 'matte-charcoal', type: 'dark', name: 'Charcoal', bg: '#18181b', card: '#27272a' },
+                               { id: 'sunset-dune', type: 'dark', name: 'Sunset', bg: '#1a1614', card: '#262220' }
+                             ]
+                             // ONLY SHOW THEMES MATCHING CURRENT LIGHT/DARK MODE
+                             .filter(t => t.type === (dk ? 'dark' : 'light'))
+                             .map(t => {
+                               const currentTheme = typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : null;
+                               const isActive = currentTheme === t.id || (!currentTheme && t.id === (dk ? 'dark' : 'light'));
                                
                                return (
                                  <button 
                                     key={t.id} 
                                     onClick={() => {
-                                      document.documentElement.setAttribute('data-theme', t.id);
+                                      if (isActive) {
+                                        // UNSELECT: Revert to default for this mode
+                                        document.documentElement.setAttribute('data-theme', dk ? 'dark' : 'light');
+                                      } else {
+                                        // SELECT: Apply new theme
+                                        document.documentElement.setAttribute('data-theme', t.id);
+                                      }
                                     }}
                                     className={cn("flex items-center gap-2 p-2 rounded-xl border transition-all text-left", 
                                       isActive ? "border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/50" : (dk ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50")
