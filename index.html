@@ -13,9 +13,40 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <title>EuroTrack | Europas GmbH</title>
+
+    <script>
+      (function() {
+        try {
+          // 1. Get the saved theme, default to dark
+          var savedTheme = localStorage.getItem('euro-theme') || 'dark';
+          
+          // 2. Set the CSS Variables theme immediately
+          document.documentElement.setAttribute('data-theme', savedTheme);
+          
+          // 3. Check if it's one of the 6 Dark Themes
+          var darkThemes = [
+            'dark', 
+            'midnight-neon', 
+            'matte-charcoal', 
+            'sunset-dune', 
+            'abyssal-emerald', 
+            'deep-ocean'
+          ];
+          
+          // 4. Force Tailwind to render the correct borders/text immediately
+          if (darkThemes.includes(savedTheme)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {
+          console.error("Theme initialization failed", e);
+        }
+      })();
+    </script>
   </head>
   
-  <body translate="no">
+  <body translate="no" class="bg-app-main text-app-text transition-colors duration-300">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
