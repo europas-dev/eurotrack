@@ -1290,7 +1290,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         </div>
                   
         {isOpen && (
-          <div className={cn('rounded-b-2xl border-t shadow-inner flex flex-col', dk ? 'bg-[#0B1224] border-white/5' : 'bg-slate-50 border-slate-200')} onClick={e => e.stopPropagation()}>
+          <div className="rounded-b-2xl border-t shadow-inner flex flex-col bg-black/5 dark:bg-black/20 border-app-border" onClick={e => e.stopPropagation()}>
             
             <div className="flex items-center px-4 pt-2 gap-2 border-b border-slate-200 dark:border-white/10">
                <button onClick={() => setActiveTab('bookings')} className={cn("px-5 py-2.5 text-sm font-bold transition-all border-b-2", activeTab === 'bookings' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300")}>{lang === 'de' ? 'Buchungszeiträume' : 'Booking Periods'}</button>
@@ -1299,7 +1299,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             </div>
 
             {activeTab === 'bookings' && (
-              <div className="p-4 bg-white dark:bg-[#1E293B] rounded-b-2xl animate-in fade-in">
+              <div className="p-4 bg-app-card rounded-b-2xl animate-in fade-in">
                 <div className={cn("flex items-end gap-1 flex-wrap mb-[3px]")}>
                   {sortedDurations.map((d: any, sortedIdx: number) => {
                     const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
@@ -1337,9 +1337,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             )}
 
             {activeTab === 'billing' && (
-              <div className="flex flex-col xl:flex-row bg-white dark:bg-transparent rounded-b-2xl animate-in fade-in">
-                <div className={cn("w-full xl:w-[300px] shrink-0 p-5 flex flex-col gap-3 border-b xl:border-b-0 xl:border-r transition-colors", dk ? "border-white/10 bg-[#0F172A]/80" : "border-slate-200 bg-slate-50")}>
-                    <div className="flex items-center justify-between mb-2">
+              <div className="flex flex-col xl:flex-row bg-app-card rounded-b-2xl animate-in fade-in">
+                <div className="w-full xl:w-[300px] shrink-0 p-5 flex flex-col gap-3 border-b xl:border-b-0 xl:border-r transition-colors border-app-border bg-black/5 dark:bg-black/20">
+                <div className="flex items-center justify-between mb-2">
                        <label className={labelCls}><Receipt size={14}/> {lang === 'de' ? 'Rechnungen' : 'Invoices'}</label>
                        <div className="flex items-center gap-2">
                            {totalInvs > 0 && (
@@ -1986,8 +1986,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    </div>
                 </div>
 
-                <div className={cn("w-full xl:w-[300px] p-5 flex flex-col shrink-0 rounded-b-2xl xl:rounded-bl-none transition-colors", dk ? "bg-[#0B1224]" : "bg-white", activeInvoice && (dk ? "bg-teal-950/20" : "bg-teal-50/30"))}>
-                   <div className="flex items-center justify-between gap-2 mb-5">
+                <div className={cn("w-full xl:w-[300px] p-5 flex flex-col shrink-0 rounded-b-2xl xl:rounded-bl-none transition-colors bg-black/5 dark:bg-black/20", activeInvoice && (dk ? "bg-teal-950/20" : "bg-teal-50/30"))}>  
+                 <div className="flex items-center justify-between gap-2 mb-5">
                       {activeInvoice ? (
                          <span className="text-[14px] font-black text-teal-600 dark:text-teal-400 bg-teal-500/10 px-3 py-1 rounded-md">{activeInvoice.number || 'Draft'}</span>
                       ) : (
@@ -2072,10 +2072,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
             {/* TAB 3: HOTEL INFO */}
             {activeTab === 'info' && (() => {
-  const seamlessInput = cn('w-full px-2 py-1.5 rounded-lg text-sm font-bold outline-none border border-transparent transition-all h-[34px]', dk ? 'bg-transparent text-white hover:bg-white/5 focus:bg-[#1E293B] focus:border-teal-500 placeholder-slate-600' : 'bg-transparent text-slate-900 hover:bg-slate-50 focus:bg-white focus:border-teal-500 placeholder-slate-400', viewOnly && "opacity-60 cursor-default");
+  const seamlessInput = cn('w-full px-2 py-1.5 rounded-lg text-sm font-bold outline-none border border-transparent transition-all h-[34px]', dk ? 'bg-transparent text-white hover:bg-white/5 focus:bg-app-card focus:border-teal-500 placeholder-slate-600' : 'bg-transparent text-slate-900 hover:bg-black/5 focus:bg-app-card focus:border-teal-500 placeholder-slate-400', viewOnly && "opacity-60 cursor-default");
   
   return (
-    <div className="p-5 bg-white dark:bg-[#0B1224] rounded-b-2xl border-t border-slate-200 dark:border-white/5 animate-in fade-in">
+    <div className="p-5 bg-app-card rounded-b-2xl border-t border-app-border animate-in fade-in">
       <div className="grid grid-cols-12 gap-x-6 gap-y-5">
         
         {/* ROW 1: Added onKeyDown={handleEnterBlur} to all inputs */}
