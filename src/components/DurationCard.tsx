@@ -367,14 +367,14 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
       'rounded-b-2xl rounded-tr-2xl border relative -mt-[1px] transition-all',
       confirmDelete 
         ? (dk ? 'border-red-500 ring-2 ring-red-500 bg-red-950/20 z-[9999]' : 'border-red-500 ring-2 ring-red-500 bg-red-50 z-[9999]')
-        : (dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')
+        : ('bg-black/5 dark:bg-black/20 border-app-border')
     )}>
       <div className="flex flex-wrap items-center justify-between gap-3 p-3">
         
         {/* LEFT: DATES, PRESETS, COMPACT ROOM CONTROLS */}
         <div className="flex flex-wrap items-center gap-2">
          {/* DATE PICKERS */}
-          <div className={cn("flex items-center rounded-lg border h-[42px] px-2 shrink-0 shadow-sm", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
+          <div className={cn("flex items-center rounded-lg border h-[42px] px-2 shrink-0 shadow-sm", "bg-app-card border-app-border")}>
               <CalendarDays size={16} className="mr-2 opacity-50 shrink-0" />
               
               <div className={cn("relative w-[110px] h-full", viewOnly ? "cursor-default" : "cursor-pointer")} onClick={() => openPicker(inDateRef)}>
@@ -432,7 +432,7 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
                       "h-full px-2.5 text-[13px] font-black transition-all outline-none border-y border-l rounded-l-lg",
                       local.endDate 
                         ? (dk ? "bg-white/5 border-white/10 text-slate-600 cursor-default" : "bg-slate-50 border-slate-200 text-slate-300 cursor-default")
-                        : (dk ? "bg-[#1E293B] border-white/10 text-teal-400 hover:bg-white/5" : "bg-white border-slate-200 text-teal-600 hover:bg-slate-50")
+                        : ("bg-app-card border-app-border text-[var(--accent-primary)] hover:bg-black/5")
                     )}
                   >
                     {p.label}
@@ -451,7 +451,7 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
                         "flex-1 px-2 text-[11px] font-black border-b transition-colors outline-none",
                         !local.endDate 
                           ? (dk ? "text-slate-700 bg-white/5" : "text-slate-200 bg-slate-50") 
-                          : (dk ? "text-teal-400 hover:bg-white/10 bg-[#1E293B]" : "text-teal-600 hover:bg-teal-50 bg-white")
+                          : ("text-[var(--accent-primary)] hover:bg-black/5 bg-app-card")
                       )}
                     >+</button>
                     <button 
