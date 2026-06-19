@@ -549,8 +549,7 @@ export default function Header({
                              })}
                           </div>
                         </div>
-                      </div>
-                    </div>
+              
 
                         <div className="flex items-center justify-between pt-1">
                           {personalizeMsg && <p className={cn('text-xs font-bold', personalizeMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{personalizeMsg}</p>}
