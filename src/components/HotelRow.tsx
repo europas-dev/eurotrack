@@ -1305,7 +1305,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                     const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
                     const isActive = activeDurationTab === trueIdx;
                     return (
-                      <button key={d.id || sortedIdx} onClick={() => setActiveDurationTab(trueIdx)} className={cn('px-5 py-2 text-sm font-bold transition-all border', isActive ? (dk ? 'bg-[#0B1224] text-teal-400 border-white/10 border-b-0 rounded-t-xl z-10' : 'bg-slate-50 text-teal-700 border-slate-200 border-b-0 rounded-t-xl z-10') : (dk ? 'bg-black/20 text-slate-500 border-transparent hover:text-slate-300 rounded-lg' : 'bg-slate-100 text-slate-500 border-transparent hover:text-slate-700 rounded-lg'))} style={isActive ? { marginBottom: '-1px' } : {}}>
+                      <button key={d.id || sortedIdx} onClick={() => setActiveDurationTab(trueIdx)} className={cn('px-5 py-2 text-sm font-bold transition-all border', isActive ? 'bg-black/5 dark:bg-black/20 text-[var(--accent-primary)] border-app-border border-b-0 rounded-t-xl z-10' : 'bg-transparent text-app-muted border-transparent hover:bg-black/10 rounded-lg')} style={isActive ? { marginBottom: '-1px' } : {}}>
                         {getDurationTabLabel(d, lang)}
                       </button>
                     );
@@ -1469,8 +1469,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                            }
 
                            return (
-                              <div key={inv.id} onClick={() => { setSelectedInvoiceId(isActiveSelection ? null : inv.id); setEditingItemId(null); setEditingTotal(false); }} className={cn("group relative flex items-center justify-between p-2 rounded-xl transition-all cursor-pointer border shadow-sm hover:shadow-md", isActiveSelection ? (dk ? "bg-teal-900/40 border-teal-500/60 shadow-md" : "bg-teal-50 border-teal-300 shadow-md") : (dk ? "bg-[#242d41] border-white/10 hover:border-white/20" : "bg-white border-slate-200 hover:border-slate-300"))}>
-                                 <div className="flex items-center gap-2.5">
+                           <div key={inv.id} onClick={() => { setSelectedInvoiceId(isActiveSelection ? null : inv.id); setEditingItemId(null); setEditingTotal(false); }} className={cn("group relative flex items-center justify-between p-2 rounded-xl transition-all cursor-pointer border shadow-sm hover:shadow-md", isActiveSelection ? "bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/50 shadow-md" : "bg-black/5 dark:bg-white/5 border-transparent hover:border-app-border")}>   
+                             <div className="flex items-center gap-2.5">
                                     <div className={cn("relative flex items-center justify-center group/info cursor-help shrink-0")}>
                                        <div className={cn("w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-colors", dk ? "border-slate-600 text-slate-400" : "border-slate-300 text-slate-400 group-hover/info:border-teal-500 group-hover/info:text-teal-500")}>i</div>
                                        <div className={cn("absolute left-7 top-0 w-max min-w-[200px] max-w-[250px] p-3 rounded-xl shadow-2xl border opacity-0 group-hover/info:opacity-100 pointer-events-none transition-all z-[9999] -translate-x-2 group-hover/info:translate-x-0 flex flex-col gap-1", dk ? "bg-slate-800 border-white/10" : "bg-white border-slate-200")}>
