@@ -104,6 +104,16 @@ select {
   --accent-primary: #6366f1; /* Indigo */
 }
 
+/* NEW LIGHT THEME: SOFT SAND */
+[data-theme='soft-sand'] {
+  --bg-main: #fdfbf7;
+  --bg-card: #ffffff;
+  --border-subtle: rgba(217, 119, 6, 0.15); /* amber tint */
+  --text-main: #292524;
+  --text-muted: #78716c;
+  --accent-primary: #d97706; /* amber-600 */
+}
+
 /* 6. NEW THEME: SUNSET DUNE (Warm, Earthy Dark Mode) */
 [data-theme='sunset-dune'] {
   --bg-main: #1a1614;        
