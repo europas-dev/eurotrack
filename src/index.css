@@ -4,10 +4,6 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: 'Inter', sans-serif;
-}
-
 :root {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
@@ -16,8 +12,10 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
-  background-color: #F1F5F9; /* Light background for the dashboard area */
-  color: #1E293B;
+  /* Automatically reacts to the themes! */
+  background-color: var(--bg-main) !important; 
+  color: var(--text-main) !important;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 #root {
@@ -25,7 +23,6 @@ body {
   height: 100%;
 }
 
-/* Scrollbar styling for a cleaner look */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
@@ -34,10 +31,10 @@ body {
   scrollbar-width: none;
 }
 
-/* Custom background for the EuroTrack theme */
 .bg-sidebar {
   background-color: #1E293B;
 }
+
 mark.search-highlight {
   background: rgba(234, 179, 8, 0.35);
   color: inherit;
@@ -45,88 +42,158 @@ mark.search-highlight {
   padding: 0 1px;
 }
 
-/* Fix year dropdown in light mode */
 select {
   color-scheme: light dark;
 }
 
-/* -------------------------------------------------------------
-   THEME ENGINE: Define colors for 6 different visual themes.
-   ------------------------------------------------------------- */
+/* =============================================================
+   THEME ENGINE: 6 LIGHT & 6 DARK THEMES
+   ============================================================= */
 
-/* 1. DEFAULT LIGHT THEME (Your original light mode) */
-:root {
-  --bg-main: #f8fafc;        /* slate-50 */
-  --bg-card: #ffffff;        /* white */
-  --border-subtle: #e2e8f0;  /* slate-200 */
-  --text-main: #0f172a;      /* slate-900 */
-  --text-muted: #64748b;     /* slate-500 */
-  --accent-primary: #0d9488; /* teal-600 */
-}
+/* --- LIGHT THEMES --- */
 
-/* 2. DEFAULT DARK THEME (Your original dark mode) */
-[data-theme='dark'] {
-  --bg-main: #0f172a;        /* slate-900 */
-  --bg-card: #1e293b;        /* slate-800 */
-  --border-subtle: rgba(255, 255, 255, 0.1); 
-  --text-main: #ffffff;      
-  --text-muted: #94a3b8;     /* slate-400 */
-  --accent-primary: #14b8a6; /* teal-500 */
-}
-
-/* 3. NEW THEME: MIDNIGHT NEON (Sci-Fi, Glowing) */
-[data-theme='midnight-neon'] {
-  --bg-main: #060913;        
-  --bg-card: #0c1222;        
-  --border-subtle: rgba(0, 240, 255, 0.15); 
-  --text-main: #e2e8f0;
+/* 1. DEFAULT LIGHT THEME */
+:root, [data-theme='light'] {
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-card-to: #f8fafc;
+  --border-subtle: #e2e8f0;
+  --text-main: #0f172a;
   --text-muted: #64748b;
-  --accent-primary: #00F0FF; /* Neon Cyan */
+  --accent-primary: #0d9488;
+  --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
 }
 
-/* 4. NEW THEME: MATTE CHARCOAL (Ultra Pro, AdminKit style) */
-[data-theme='matte-charcoal'] {
-  --bg-main: #18181b;        /* zinc-900 */
-  --bg-card: #27272a;        /* zinc-800 */
-  --border-subtle: rgba(255, 255, 255, 0.05);
-  --text-main: #d4d4d8;      /* zinc-300 */
-  --text-muted: #a1a1aa;     /* zinc-400 */
-  --accent-primary: #3b82f6; /* Soft Blue */
-}
-
-/* 5. NEW THEME: AIRY GLASS (Apple-like Light Mode) */
+/* 2. AIRY GLASS */
 [data-theme='airy-glass'] {
-  --bg-main: #fafafa;
-  --bg-card: rgba(255, 255, 255, 0.6); 
-  --border-subtle: rgba(0, 0, 0, 0.06);
+  --bg-main: #f0f4f8;
+  --bg-card: rgba(255, 255, 255, 0.7); 
+  --bg-card-to: rgba(255, 255, 255, 0.4);
+  --border-subtle: rgba(0, 0, 0, 0.05);
   --text-main: #1e293b;
   --text-muted: #64748b;
-  --accent-primary: #6366f1; /* Indigo */
+  --accent-primary: #6366f1; 
+  --card-shadow: 0 8px 32px rgba(31, 38, 135, 0.05);
 }
 
-/* NEW LIGHT THEME: SOFT SAND */
+/* 3. SOFT SAND */
 [data-theme='soft-sand'] {
   --bg-main: #fdfbf7;
   --bg-card: #ffffff;
-  --border-subtle: rgba(217, 119, 6, 0.15); /* amber tint */
+  --bg-card-to: #faf8f5;
+  --border-subtle: rgba(217, 119, 6, 0.15); 
   --text-main: #292524;
   --text-muted: #78716c;
-  --accent-primary: #d97706; /* amber-600 */
+  --accent-primary: #d97706; 
+  --card-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.05);
 }
 
-/* 6. NEW THEME: SUNSET DUNE (Warm, Earthy Dark Mode) */
+/* 4. MINT BREEZE */
+[data-theme='mint-breeze'] {
+  --bg-main: #f0fdf4;
+  --bg-card: #ffffff;
+  --bg-card-to: #f0fdf4;
+  --border-subtle: #dcfce7;
+  --text-main: #064e3b;
+  --text-muted: #166534;
+  --accent-primary: #059669;
+  --card-shadow: 0 4px 12px rgba(5, 150, 105, 0.05);
+}
+
+/* 5. LAVENDER MIST */
+[data-theme='lavender-mist'] {
+  --bg-main: #faf5ff;
+  --bg-card: #ffffff;
+  --bg-card-to: #faf5ff;
+  --border-subtle: #f3e8ff;
+  --text-main: #3b0764;
+  --text-muted: #6b21a8;
+  --accent-primary: #9333ea;
+  --card-shadow: 0 4px 12px rgba(147, 51, 234, 0.05);
+}
+
+/* 6. CORPORATE BLUE */
+[data-theme='corporate-blue'] {
+  --bg-main: #f0f9ff;
+  --bg-card: #ffffff;
+  --bg-card-to: #f0f9ff;
+  --border-subtle: #e0f2fe;
+  --text-main: #082f49;
+  --text-muted: #0369a1;
+  --accent-primary: #0284c7;
+  --card-shadow: 0 2px 8px rgba(2, 132, 199, 0.08);
+}
+
+/* --- DARK THEMES --- */
+
+/* 1. DEFAULT DARK THEME */
+[data-theme='dark'] {
+  --bg-main: #0f172a;
+  --bg-card: #1e293b;
+  --bg-card-to: #0f172a;
+  --border-subtle: rgba(255, 255, 255, 0.1); 
+  --text-main: #ffffff;      
+  --text-muted: #94a3b8;
+  --accent-primary: #14b8a6;
+  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+}
+
+/* 2. MIDNIGHT NEON */
+[data-theme='midnight-neon'] {
+  --bg-main: #050811;        
+  --bg-card: #0c1222;        
+  --bg-card-to: #050811;
+  --border-subtle: rgba(0, 240, 255, 0.15); 
+  --text-main: #e2e8f0;
+  --text-muted: #64748b;
+  --accent-primary: #00F0FF; 
+  --card-shadow: 0 8px 30px rgba(0, 240, 255, 0.05), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+}
+
+/* 3. MATTE CHARCOAL */
+[data-theme='matte-charcoal'] {
+  --bg-main: #141416;        
+  --bg-card: #202024;        
+  --bg-card-to: #18181b;
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --text-main: #d4d4d8;      
+  --text-muted: #a1a1aa;     
+  --accent-primary: #3b82f6; 
+  --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+/* 4. SUNSET DUNE */
 [data-theme='sunset-dune'] {
-  --bg-main: #1a1614;        
+  --bg-main: #171412;        
   --bg-card: #262220;        
-  --border-subtle: rgba(245, 158, 11, 0.15); /* Amber tinted border */
+  --bg-card-to: #1c1816;
+  --border-subtle: rgba(245, 158, 11, 0.15); 
   --text-main: #fdfbf7;
   --text-muted: #a8a29e;
-  --accent-primary: #f59e0b; /* Amber */
+  --accent-primary: #f59e0b; 
+  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
-/* Let the body automatically react to the themes! */
-body {
-  background-color: var(--bg-main) !important; 
-  color: var(--text-main) !important;
-  transition: background-color 0.3s ease, color 0.3s ease;
+/* 5. ABYSSAL EMERALD */
+[data-theme='abyssal-emerald'] {
+  --bg-main: #022c22;        
+  --bg-card: #064e3b;        
+  --bg-card-to: #022c22;
+  --border-subtle: rgba(16, 185, 129, 0.2); 
+  --text-main: #ecfdf5;
+  --text-muted: #6ee7b7;
+  --accent-primary: #10b981; 
+  --card-shadow: 0 8px 24px rgba(6, 78, 59, 0.5);
+}
+
+/* 6. DEEP OCEAN */
+[data-theme='deep-ocean'] {
+  --bg-main: #0a0f24;        
+  --bg-card: #121b38;        
+  --bg-card-to: #0a0f24;
+  --border-subtle: rgba(99, 102, 241, 0.2); 
+  --text-main: #e0e7ff;
+  --text-muted: #818cf8;
+  --accent-primary: #6366f1; 
+  --card-shadow: 0 8px 30px rgba(99, 102, 241, 0.1);
 }
