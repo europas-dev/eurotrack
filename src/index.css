@@ -49,3 +49,74 @@ mark.search-highlight {
 select {
   color-scheme: light dark;
 }
+
+/* -------------------------------------------------------------
+   THEME ENGINE: Define colors for 6 different visual themes.
+   ------------------------------------------------------------- */
+
+/* 1. DEFAULT LIGHT THEME (Your original light mode) */
+:root {
+  --bg-main: #f8fafc;        /* slate-50 */
+  --bg-card: #ffffff;        /* white */
+  --border-subtle: #e2e8f0;  /* slate-200 */
+  --text-main: #0f172a;      /* slate-900 */
+  --text-muted: #64748b;     /* slate-500 */
+  --accent-primary: #0d9488; /* teal-600 */
+}
+
+/* 2. DEFAULT DARK THEME (Your original dark mode) */
+[data-theme='dark'] {
+  --bg-main: #0f172a;        /* slate-900 */
+  --bg-card: #1e293b;        /* slate-800 */
+  --border-subtle: rgba(255, 255, 255, 0.1); 
+  --text-main: #ffffff;      
+  --text-muted: #94a3b8;     /* slate-400 */
+  --accent-primary: #14b8a6; /* teal-500 */
+}
+
+/* 3. NEW THEME: MIDNIGHT NEON (Sci-Fi, Glowing) */
+[data-theme='midnight-neon'] {
+  --bg-main: #060913;        
+  --bg-card: #0c1222;        
+  --border-subtle: rgba(0, 240, 255, 0.15); 
+  --text-main: #e2e8f0;
+  --text-muted: #64748b;
+  --accent-primary: #00F0FF; /* Neon Cyan */
+}
+
+/* 4. NEW THEME: MATTE CHARCOAL (Ultra Pro, AdminKit style) */
+[data-theme='matte-charcoal'] {
+  --bg-main: #18181b;        /* zinc-900 */
+  --bg-card: #27272a;        /* zinc-800 */
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --text-main: #d4d4d8;      /* zinc-300 */
+  --text-muted: #a1a1aa;     /* zinc-400 */
+  --accent-primary: #3b82f6; /* Soft Blue */
+}
+
+/* 5. NEW THEME: AIRY GLASS (Apple-like Light Mode) */
+[data-theme='airy-glass'] {
+  --bg-main: #fafafa;
+  --bg-card: rgba(255, 255, 255, 0.6); 
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --accent-primary: #6366f1; /* Indigo */
+}
+
+/* 6. NEW THEME: SUNSET DUNE (Warm, Earthy Dark Mode) */
+[data-theme='sunset-dune'] {
+  --bg-main: #1a1614;        
+  --bg-card: #262220;        
+  --border-subtle: rgba(245, 158, 11, 0.15); /* Amber tinted border */
+  --text-main: #fdfbf7;
+  --text-muted: #a8a29e;
+  --accent-primary: #f59e0b; /* Amber */
+}
+
+/* Let the body automatically react to the themes! */
+body {
+  background-color: var(--bg-main) !important; 
+  color: var(--text-main) !important;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
