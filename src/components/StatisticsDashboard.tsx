@@ -316,7 +316,8 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
   );
 
   return (
-    <div className="flex flex-col gap-6 w-full animate-in slide-in-from-bottom-4 fade-in duration-500 pb-10">
+    // Added [zoom:85%] for standard screens (laptops/24"), and [zoom:100%] for ultra-wide 2xl screens (27"+)
+    <div className="flex flex-col gap-6 w-full animate-in slide-in-from-bottom-4 fade-in duration-500 pb-10 xl:[zoom:85%] 2xl:[zoom:100%]">
       
       {/* 1. TOP KPI ROW */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
