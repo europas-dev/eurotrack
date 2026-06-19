@@ -156,8 +156,9 @@ export default function Header({
     const savedTheme = localStorage.getItem('euro-theme');
     if (savedTheme) {
       document.documentElement.setAttribute('data-theme', savedTheme);
-      // Ensure React's `dk` state matches the loaded theme
-      const isDarkTheme = ['dark', 'midnight-neon', 'matte-charcoal', 'sunset-dune'].includes(savedTheme);
+      // FIX: Added 'abyssal-emerald' and 'deep-ocean' so React knows they are dark themes!
+      const isDarkTheme = ['dark', 'midnight-neon', 'matte-charcoal', 'sunset-dune', 'abyssal-emerald', 'deep-ocean'].includes(savedTheme);
+      
       if (isDarkTheme && !dk) toggleTheme();
       if (!isDarkTheme && dk) toggleTheme();
     } else {
