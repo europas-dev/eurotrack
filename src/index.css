@@ -47,7 +47,7 @@ select {
 }
 
 /* =============================================================
-   THEME ENGINE: 6 LIGHT & 6 DARK THEMES
+   THEME ENGINE: PREMIUM GRADIENTS & GLOWS (APEX / HORIZON STYLE)
    ============================================================= */
 
 /* --- LIGHT THEMES --- */
@@ -55,6 +55,7 @@ select {
 /* 1. DEFAULT LIGHT THEME */
 :root, [data-theme='light'] {
   --bg-main: #f8fafc;
+  --body-bg: #f8fafc;
   --bg-card: #ffffff;
   --bg-card-to: #f8fafc;
   --border-subtle: #e2e8f0;
@@ -64,21 +65,23 @@ select {
   --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
 }
 
-/* 2. AIRY GLASS */
+/* 2. AIRY GLASS (Dappr Style - Pastel Mesh Background) */
 [data-theme='airy-glass'] {
-  --bg-main: #f0f4f8;
-  --bg-card: rgba(255, 255, 255, 0.7); 
-  --bg-card-to: rgba(255, 255, 255, 0.4);
-  --border-subtle: rgba(0, 0, 0, 0.05);
-  --text-main: #1e293b;
-  --text-muted: #64748b;
-  --accent-primary: #6366f1; 
-  --card-shadow: 0 8px 32px rgba(31, 38, 135, 0.05);
+  --bg-main: #e2e8f0;
+  --body-bg: linear-gradient(135deg, #e0f2fe 0%, #ede9fe 50%, #f0fdf4 100%);
+  --bg-card: rgba(255, 255, 255, 0.65); 
+  --bg-card-to: rgba(255, 255, 255, 0.3);
+  --border-subtle: rgba(255, 255, 255, 0.6);
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --accent-primary: #2563eb; 
+  --card-shadow: 0 8px 32px rgba(31, 38, 135, 0.06);
 }
 
 /* 3. SOFT SAND */
 [data-theme='soft-sand'] {
   --bg-main: #fdfbf7;
+  --body-bg: #fdfbf7;
   --bg-card: #ffffff;
   --bg-card-to: #faf8f5;
   --border-subtle: rgba(217, 119, 6, 0.15); 
@@ -88,11 +91,12 @@ select {
   --card-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.05);
 }
 
-/* 4. MINT BREEZE */
+/* 4. MINT BREEZE (Clean, stark white with rich green) */
 [data-theme='mint-breeze'] {
-  --bg-main: #f0fdf4;
+  --bg-main: #f4fcf9;
+  --body-bg: #f4fcf9;
   --bg-card: #ffffff;
-  --bg-card-to: #f0fdf4;
+  --bg-card-to: #fafffc;
   --border-subtle: #dcfce7;
   --text-main: #064e3b;
   --text-muted: #166534;
@@ -102,7 +106,8 @@ select {
 
 /* 5. LAVENDER MIST */
 [data-theme='lavender-mist'] {
-  --bg-main: #faf5ff;
+  --bg-main: #f5f3ff;
+  --body-bg: linear-gradient(to bottom right, #f5f3ff, #faf5ff);
   --bg-card: #ffffff;
   --bg-card-to: #faf5ff;
   --border-subtle: #f3e8ff;
@@ -115,8 +120,9 @@ select {
 /* 6. CORPORATE BLUE */
 [data-theme='corporate-blue'] {
   --bg-main: #f0f9ff;
+  --body-bg: #f0f9ff;
   --bg-card: #ffffff;
-  --bg-card-to: #f0f9ff;
+  --bg-card-to: #f4faff;
   --border-subtle: #e0f2fe;
   --text-main: #082f49;
   --text-muted: #0369a1;
@@ -129,6 +135,7 @@ select {
 /* 1. DEFAULT DARK THEME */
 [data-theme='dark'] {
   --bg-main: #0f172a;
+  --body-bg: #0f172a;
   --bg-card: #1e293b;
   --bg-card-to: #0f172a;
   --border-subtle: rgba(255, 255, 255, 0.1); 
@@ -138,11 +145,12 @@ select {
   --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
 }
 
-/* 2. MIDNIGHT NEON */
+/* 2. MIDNIGHT NEON (Dashdark Style) */
 [data-theme='midnight-neon'] {
-  --bg-main: #050811;        
-  --bg-card: #0c1222;        
-  --bg-card-to: #050811;
+  --bg-main: #090C15;
+  --body-bg: radial-gradient(circle at top left, #12192B 0%, #090C15 100%);
+  --bg-card: rgba(18, 25, 43, 0.7);        
+  --bg-card-to: rgba(9, 12, 21, 0.9);
   --border-subtle: rgba(0, 240, 255, 0.15); 
   --text-main: #e2e8f0;
   --text-muted: #64748b;
@@ -150,12 +158,13 @@ select {
   --card-shadow: 0 8px 30px rgba(0, 240, 255, 0.05), inset 0 1px 1px rgba(255, 255, 255, 0.05);
 }
 
-/* 3. MATTE CHARCOAL */
+/* 3. MATTE CHARCOAL (AdminKit Style - Ultra Flat) */
 [data-theme='matte-charcoal'] {
-  --bg-main: #141416;        
-  --bg-card: #202024;        
-  --bg-card-to: #18181b;
-  --border-subtle: rgba(255, 255, 255, 0.04);
+  --bg-main: #121212; 
+  --body-bg: #121212;
+  --bg-card: #1c1c1c;        
+  --bg-card-to: #171717;
+  --border-subtle: rgba(255, 255, 255, 0.05);
   --text-main: #d4d4d8;      
   --text-muted: #a1a1aa;     
   --accent-primary: #3b82f6; 
@@ -164,9 +173,10 @@ select {
 
 /* 4. SUNSET DUNE */
 [data-theme='sunset-dune'] {
-  --bg-main: #171412;        
-  --bg-card: #262220;        
-  --bg-card-to: #1c1816;
+  --bg-main: #161210;        
+  --body-bg: radial-gradient(circle at top right, #241d1a 0%, #161210 100%);
+  --bg-card: rgba(36, 29, 26, 0.8);        
+  --bg-card-to: rgba(22, 18, 16, 0.9);
   --border-subtle: rgba(245, 158, 11, 0.15); 
   --text-main: #fdfbf7;
   --text-muted: #a8a29e;
@@ -174,26 +184,57 @@ select {
   --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
-/* 5. ABYSSAL EMERALD */
+/* 5. ABYSSAL EMERALD (Apex Dark Mode - Pure #000501) */
 [data-theme='abyssal-emerald'] {
-  --bg-main: #022c22;        
-  --bg-card: #064e3b;        
-  --bg-card-to: #022c22;
-  --border-subtle: rgba(16, 185, 129, 0.2); 
+  --bg-main: #000501;        
+  --body-bg: radial-gradient(circle at top center, #021207 0%, #000501 100%);
+  --bg-card: rgba(3, 18, 7, 0.8);        
+  --bg-card-to: rgba(0, 5, 1, 0.9);
+  --border-subtle: rgba(16, 185, 129, 0.15); 
   --text-main: #ecfdf5;
   --text-muted: #6ee7b7;
   --accent-primary: #10b981; 
-  --card-shadow: 0 8px 24px rgba(6, 78, 59, 0.5);
+  --card-shadow: 0 8px 32px rgba(16, 185, 129, 0.04), inset 0 1px 1px rgba(16, 185, 129, 0.05);
 }
 
-/* 6. DEEP OCEAN */
+/* 6. DEEP OCEAN (Horizon UI Style) */
 [data-theme='deep-ocean'] {
-  --bg-main: #0a0f24;        
-  --bg-card: #121b38;        
-  --bg-card-to: #0a0f24;
-  --border-subtle: rgba(99, 102, 241, 0.2); 
-  --text-main: #e0e7ff;
-  --text-muted: #818cf8;
-  --accent-primary: #6366f1; 
-  --card-shadow: 0 8px 30px rgba(99, 102, 241, 0.1);
+  --bg-main: #0b1437;        
+  --body-bg: radial-gradient(circle at top right, #111c44 0%, #0b1437 100%);
+  --bg-card: rgba(17, 28, 68, 0.8);        
+  --bg-card-to: rgba(11, 20, 55, 0.9);
+  --border-subtle: rgba(255, 255, 255, 0.05); 
+  --text-main: #ffffff;
+  --text-muted: #8f9bba;
+  --accent-primary: #7551FF; 
+  --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+/* -------------------------------------------------------------
+   GLOBAL STYLES & UTILITIES
+   ------------------------------------------------------------- */
+
+/* Use the new gradient body backgrounds globally */
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  /* var(--body-bg) handles the new gradients, falls back to flat color if needed */
+  background: var(--body-bg, var(--bg-main)) !important; 
+  background-attachment: fixed !important;
+  color: var(--text-main) !important;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
