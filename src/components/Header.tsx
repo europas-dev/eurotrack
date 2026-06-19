@@ -505,11 +505,43 @@ export default function Header({
                               <button onClick={() => setLang('en')} className={cn('flex-1 py-1.5 text-xs font-bold transition-all', lang === 'en' ? 'bg-blue-600 text-white' : (dk ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'))}>EN</button>
                             </div>
                           </div>
-                          <div>
-                            <p className={cn('text-xs font-bold mb-1.5', dk ? 'text-slate-400' : 'text-slate-600')}>{isDe ? 'Erscheinungsbild' : 'Appearance'}</p>
-                            <div className={cn('flex rounded-lg border overflow-hidden', dk ? 'border-white/10' : 'border-slate-200')}>
-                              <button onClick={toggleTheme} className={cn('flex-1 py-1.5 flex justify-center transition-all', dk ? 'bg-blue-600 text-white' : (dk ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'))}><Moon size={14} /></button>
-                              <button onClick={toggleTheme} className={cn('flex-1 py-1.5 flex justify-center transition-all', !dk ? 'bg-blue-600 text-white' : (dk ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'))}><Sun size={14} /></button>
+                          <div className="col-span-2 mt-2">
+                            <p className={cn('text-xs font-bold mb-2', dk ? 'text-slate-400' : 'text-slate-600')}>{isDe ? 'Erscheinungsbild (Themes)' : 'Appearance (Themes)'}</p>
+                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                               {[
+                                 { id: 'light', name: 'Euro Light', bg: '#f8fafc', card: '#ffffff', accent: '#0d9488' },
+                                 { id: 'dark', name: 'Euro Dark', bg: '#0f172a', card: '#1e293b', accent: '#14b8a6' },
+                                 { id: 'midnight-neon', name: 'Midnight', bg: '#060913', card: '#0c1222', accent: '#00F0FF' },
+                                 { id: 'matte-charcoal', name: 'Charcoal', bg: '#18181b', card: '#27272a', accent: '#3b82f6' },
+                                 { id: 'airy-glass', name: 'Airy Glass', bg: '#fafafa', card: '#ffffff', accent: '#4f46e5' },
+                                 { id: 'sunset-dune', name: 'Sunset', bg: '#1a1614', card: '#262220', accent: '#f59e0b' }
+                               ].map(t => {
+                                 // Determine if this is currently active by checking the HTML element
+                                 const isActive = typeof document !== 'undefined' && 
+                                   (document.documentElement.getAttribute('data-theme') === t.id || (!document.documentElement.getAttribute('data-theme') && t.id === 'light'));
+                                 
+                                 return (
+                                   <button 
+                                      key={t.id} 
+                                      onClick={() => {
+                                        // Update the data attribute on the HTML element
+                                        document.documentElement.setAttribute('data-theme', t.id);
+                                        // You might still want to call toggleTheme if you rely on the 'dk' boolean for non-CSS things,
+                                        // but ideally the CSS variables handle all styling now!
+                                      }}
+                                      className={cn("flex items-center gap-2 p-2 rounded-xl border transition-all text-left", 
+                                        isActive ? "border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/50" : (dk ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50")
+                                      )}
+                                   >
+                                      {/* Tiny theme preview bubble */}
+                                      <div className="w-6 h-6 rounded-full border border-white/20 shadow-inner flex overflow-hidden shrink-0">
+                                         <div className="w-1/2 h-full" style={{ backgroundColor: t.bg }}></div>
+                                         <div className="w-1/2 h-full" style={{ backgroundColor: t.card }}></div>
+                                      </div>
+                                      <span className={cn("text-[11px] font-bold truncate", dk ? "text-white" : "text-slate-800")}>{t.name}</span>
+                                   </button>
+                                 )
+                               })}
                             </div>
                           </div>
                         </div>
