@@ -267,16 +267,16 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
   const labels = lang === 'de' ? monthLabelsDe : monthLabelsEn;
 
   const Card = ({ title, value, icon: Icon, colorCls, bgCls }: any) => (
-    <div className={cn("p-5 rounded-2xl border flex flex-col gap-3 shadow-sm transition-all hover:shadow-md", "bg-app-card border-app-border")}>
+    <div className="p-5 rounded-2xl border flex flex-col gap-3 shadow-sm transition-all hover:shadow-md bg-app-card border-app-border">
       <div className="flex items-center gap-2">
         <div className={cn("p-2 rounded-lg", bgCls, colorCls)}><Icon size={16} strokeWidth={2.5} /></div>
-        <span className={cn("text-xs font-black uppercase tracking-widest", dk ? "text-slate-400" : "text-slate-500")}>{title}</span>
+        <span className="text-xs font-black uppercase tracking-widest text-app-muted">{title}</span>
       </div>
-      <span className={cn("text-2xl lg:text-3xl font-black truncate", dk ? "text-white" : "text-slate-900")}>{value}</span>
+      <span className="text-2xl lg:text-3xl font-black truncate text-app-text">{value}</span>
     </div>
   );
 
-  // --- NEW HELPER COMPONENTS (Safely inside the room!) ---
+  // --- NEW HELPER COMPONENTS ---
   const HighlightChip = ({ text, colorCls, bgCls }: { text: string; colorCls: string; bgCls: string }) => (
     <div className={cn("w-fit self-start inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold px-3 py-1.5 rounded-lg mt-1.5 border shadow-sm backdrop-blur-md", colorCls, bgCls)}>
       {text}
@@ -284,18 +284,17 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
   );
 
   const BookingCard = ({ title, hotelName, count, icon: Icon, isMost }: any) => {
-    // Explicitly define bright, high-contrast colors for both Light and Dark modes
     const colorCls = isMost ? "text-purple-600 dark:text-purple-400" : "text-slate-600 dark:text-slate-300";
     const bgCls = isMost ? "bg-purple-50 dark:bg-purple-500/10 border-purple-200 dark:border-purple-500/20" : "bg-slate-100 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600";
     
     return (
-      <div className={cn("p-4 lg:p-5 rounded-2xl border flex items-center gap-4 shadow-sm transition-all hover:shadow-md", dk ? "bg-gradient-to-br from-[#1E293B] to-[#0F172A] border-white/10" : "bg-gradient-to-br from-white to-slate-50 border-slate-200")}>
+      <div className="p-4 lg:p-5 rounded-2xl border flex items-center gap-4 shadow-sm transition-all hover:shadow-md bg-app-card border-app-border">
         <div className={cn("p-3.5 rounded-xl flex shrink-0 items-center justify-center border shadow-inner", bgCls, colorCls)}>
           <Icon size={24} strokeWidth={2.5}/>
         </div>
         <div className="flex flex-col min-w-0 flex-1">
-            <span className={cn("text-xs font-black uppercase tracking-widest truncate mb-0.5", dk ? "text-slate-400" : "text-slate-500")}>{title}</span>
-            <span className={cn("text-lg sm:text-xl font-black truncate max-w-full", dk ? "text-white" : "text-slate-900")} title={hotelName}>{hotelName}</span>
+            <span className="text-xs font-black uppercase tracking-widest truncate mb-0.5 text-app-muted">{title}</span>
+            <span className="text-lg sm:text-xl font-black truncate max-w-full text-app-text" title={hotelName}>{hotelName}</span>
             <HighlightChip text={`${count} ${lang === 'de' ? 'Buchungen' : 'Bookings'}`} colorCls={colorCls} bgCls={bgCls} />
         </div>
       </div>
@@ -303,13 +302,13 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
   };
 
   const PriceCard = ({ title, price, chipContent, icon: Icon, colorCls, bgCls }: any) => (
-    <div className={cn("p-4 lg:p-5 rounded-2xl border flex items-center gap-3 lg:gap-4 shadow-sm transition-all hover:shadow-md", dk ? "bg-gradient-to-br from-[#1E293B] to-[#0F172A] border-white/10" : "bg-gradient-to-br from-white to-slate-50 border-slate-200")}>
+    <div className="p-4 lg:p-5 rounded-2xl border flex items-center gap-3 lg:gap-4 shadow-sm transition-all hover:shadow-md bg-app-card border-app-border">
       <div className={cn("p-3.5 rounded-xl flex shrink-0 items-center justify-center border shadow-inner", bgCls, colorCls)}>
         <Icon size={24} strokeWidth={2.5}/>
       </div>
       <div className="flex flex-col min-w-0 flex-1">
-          <span className={cn("text-xs font-black uppercase tracking-widest truncate mb-0.5", dk ? "text-slate-400" : "text-slate-500")} title={title}>{title}</span>
-          <span className={cn("text-lg sm:text-xl font-black truncate max-w-full", dk ? "text-white" : "text-slate-900")}>{formatCurrency(price)}</span>
+          <span className="text-xs font-black uppercase tracking-widest truncate mb-0.5 text-app-muted" title={title}>{title}</span>
+          <span className="text-lg sm:text-xl font-black truncate max-w-full text-app-text">{formatCurrency(price)}</span>
           <HighlightChip text={chipContent} colorCls={colorCls} bgCls={bgCls} />
       </div>
     </div>
@@ -354,7 +353,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         
         {/* LEFT: CONDITIONAL CHART (MONTHLY BARS OR MONTH DONUT) */}
-        <div className={cn("p-6 rounded-2xl border shadow-sm flex flex-col h-full", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+        <div className="p-6 rounded-2xl border shadow-sm flex flex-col h-full bg-app-card border-app-border">
           
           {/* HEADER & TABS IN ONE LINE */}
           <div className="flex items-center justify-between mb-6">
@@ -609,7 +608,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         </div>
 
         {/* RIGHT: LEADERBOARD WIDGET */}
-        <div className={cn("p-6 rounded-2xl border shadow-sm flex flex-col", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
+        <div className="p-6 rounded-2xl border shadow-sm flex flex-col bg-app-card border-app-border">
           
           {/* COMPACT HEADER: Title Left, Controls Right */}
           <div className="flex items-center justify-between mb-6">
