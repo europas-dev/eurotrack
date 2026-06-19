@@ -230,7 +230,7 @@ function BedSlot({
 
   const inputCls = cn(
     'px-3 py-1.5 rounded-lg text-sm outline-none border transition-all h-[38px] font-bold',
-    dk ? 'bg-[#1E293B] border-white/10 text-white focus:border-blue-500 placeholder-slate-500' : 'bg-white border-slate-200 text-slate-900 focus:border-blue-500 placeholder-slate-400'
+    'bg-app-card border-app-border text-app-text focus:border-[var(--accent-primary)] placeholder-app-muted'
   )
 
   async function save() {
@@ -327,7 +327,7 @@ function BedSlot({
     if (!isCompact) {
       // ONE-LINE LAYOUT (For 1 or 2 beds per room)
       return (
-        <div id={`emp-slot-${employee.id}`} className={cn('flex items-center gap-4 px-4 py-3 rounded-lg transition-all group relative', borderCls, isPartial ? 'border-2 border-dashed' : 'border-2 border-solid', dk ? 'bg-[#0F172A]' : 'bg-white')}>
+        <div id={`emp-slot-${employee.id}`} className={cn('flex items-center gap-4 px-4 py-3 rounded-lg transition-all group relative', borderCls, isPartial ? 'border-2 border-dashed' : 'border-2 border-solid', 'bg-app-card')}>
           <IconToUse size={18} className={cn("shrink-0", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} />
           
           <div className="flex flex-col flex-1 overflow-hidden relative">
@@ -351,7 +351,7 @@ function BedSlot({
     } else {
       // TWO-LINE LAYOUT (For 3+ beds per room)
       return (
-        <div id={`emp-slot-${employee.id}`} className={cn('flex flex-col gap-1.5 px-3 py-2.5 rounded-lg transition-all group relative', borderCls, isPartial ? 'border-2 border-dashed' : 'border-2 border-solid', dk ? 'bg-[#0F172A]' : 'bg-white')}>
+        <div id={`emp-slot-${employee.id}`} className={cn('flex flex-col gap-1.5 px-3 py-2.5 rounded-lg transition-all group relative', borderCls, isPartial ? 'border-2 border-dashed' : 'border-2 border-solid', 'bg-app-card')}>
           <div className="flex items-start justify-between gap-2 w-full">
             <div className="flex items-center gap-2.5 flex-1 min-w-0">
               <IconToUse size={16} className={cn("shrink-0 mt-0.5", status === 'active' ? 'text-emerald-500' : status === 'upcoming' ? 'text-blue-500' : status === 'ending-soon' ? 'text-red-500' : 'text-slate-400')} />
@@ -385,7 +385,7 @@ function BedSlot({
   }
 
   return (
-    <div className={cn('flex flex-col gap-2.5 p-3 rounded-xl border shadow-sm', dk ? 'bg-[#0F172A] border-white/10' : 'bg-slate-50 border-slate-200')}>
+    <div className={cn('flex flex-col gap-2.5 p-3 rounded-xl border shadow-sm', 'bg-black/5 dark:bg-black/20 border-app-border')}>
       <div className="flex items-center gap-2 w-full">
         <input disabled={viewOnly} ref={inputRef} type="text" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder={lang === 'de' ? 'Name...' : 'Name...'} className={cn(inputCls, 'flex-[6] min-w-0 text-[13px] h-[34px]', viewOnly && "opacity-60")} list={`emp-list-${roomCardId}-${slotIndex}`} />
         <datalist id={`emp-list-${roomCardId}-${slotIndex}`}>
@@ -875,7 +875,7 @@ export default function RoomCard({
     <div className={cn('rounded-xl border transition-all shadow-sm flex flex-col w-full relative', 
       confirmDelete 
         ? (dk ? 'border-red-500 ring-2 ring-red-500 bg-red-950/20 z-[9999]' : 'border-red-500 ring-2 ring-red-500 bg-red-50 z-[9999]') 
-        : (dk ? 'bg-[#0B1224] border-white/10' : 'bg-white border-slate-200')
+        : ('bg-app-card border-app-border')
     )}>
   
   {/* HEADER: COMPACT LAYOUT */}
@@ -1024,7 +1024,7 @@ export default function RoomCard({
       </div>
       
       {isOpen && (
-        <div className={cn("p-6 border-t", dk ? "bg-black/20 border-white/5" : "bg-slate-50/50 border-slate-100")}>
+        <div className={cn("p-6 border-t", "bg-black/5 dark:bg-black/20 border-app-border")}>
            {/* --- BED AND EMPLOYEE MANAGEMENT --- */}
            <div className="grid gap-6 items-start" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(400px, 1fr))` }}>
               {Array.from({ length: beds }).map((_, i) => {
