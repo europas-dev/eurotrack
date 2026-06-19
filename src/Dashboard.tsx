@@ -1020,8 +1020,7 @@ finalFiltered.forEach(h => {
              <Loader2 size={48} className="animate-spin text-teal-500 opacity-50" />
           </div>
         ) : (
-          <main className="flex-1 overflow-y-auto px-8 pb-64 relative [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
-            
+          <main className="flex-1 overflow-y-auto overflow-x-hidden px-8 pb-64 relative [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">   
             {/* STICKY CONTROL STACK */}
             <div 
               className="sticky top-0 pt-4 pb-3 -mx-8 px-8 mb-4 border-b border-app-border shadow-sm bg-app-main"
