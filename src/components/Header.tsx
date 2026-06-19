@@ -548,13 +548,21 @@ export default function Header({
                           <p className={cn('text-xs font-bold mb-3', dk ? 'text-slate-400' : 'text-slate-600')}>{isDe ? 'Themen (Themes)' : 'Themes'}</p>
                           <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
                              {[
-                               { id: 'light', type: 'light', name: 'Euro Default', bg: '#f8fafc', card: '#ffffff' },
-                               { id: 'airy-glass', type: 'light', name: 'Airy Glass', bg: '#fafafa', card: '#ffffff' },
+                               // LIGHT THEMES
+                               { id: 'light', type: 'light', name: 'Euro Light', bg: '#f8fafc', card: '#ffffff' },
+                               { id: 'airy-glass', type: 'light', name: 'Airy Glass', bg: '#f0f4f8', card: '#ffffff' },
                                { id: 'soft-sand', type: 'light', name: 'Soft Sand', bg: '#fdfbf7', card: '#ffffff' },
-                               { id: 'dark', type: 'dark', name: 'Euro Default', bg: '#0f172a', card: '#1e293b' },
-                               { id: 'midnight-neon', type: 'dark', name: 'Midnight', bg: '#060913', card: '#0c1222' },
-                               { id: 'matte-charcoal', type: 'dark', name: 'Charcoal', bg: '#18181b', card: '#27272a' },
-                               { id: 'sunset-dune', type: 'dark', name: 'Sunset', bg: '#1a1614', card: '#262220' }
+                               { id: 'mint-breeze', type: 'light', name: 'Mint Breeze', bg: '#f0fdf4', card: '#ffffff' },
+                               { id: 'lavender-mist', type: 'light', name: 'Lavender', bg: '#faf5ff', card: '#ffffff' },
+                               { id: 'corporate-blue', type: 'light', name: 'Corp Blue', bg: '#f0f9ff', card: '#ffffff' },
+                               
+                               // DARK THEMES
+                               { id: 'dark', type: 'dark', name: 'Euro Dark', bg: '#0f172a', card: '#1e293b' },
+                               { id: 'midnight-neon', type: 'dark', name: 'Midnight', bg: '#050811', card: '#0c1222' },
+                               { id: 'matte-charcoal', type: 'dark', name: 'Charcoal', bg: '#141416', card: '#202024' },
+                               { id: 'sunset-dune', type: 'dark', name: 'Sunset', bg: '#171412', card: '#262220' },
+                               { id: 'abyssal-emerald', type: 'dark', name: 'Abyssal', bg: '#022c22', card: '#064e3b' },
+                               { id: 'deep-ocean', type: 'dark', name: 'Deep Ocean', bg: '#0a0f24', card: '#121b38' }
                              ]
                              .filter(t => t.type === (dk ? 'dark' : 'light'))
                              .map(t => {
