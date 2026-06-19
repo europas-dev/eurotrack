@@ -890,7 +890,7 @@ finalFiltered.forEach(h => {
 
   const btnActive = dk ? 'bg-teal-600 text-white border-transparent' : 'bg-white border-teal-600 text-teal-700 shadow-sm';
   const btnInactive = dk ? 'bg-white/5 text-slate-300 border-transparent hover:bg-white/10' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50';
-  const popupCls = cn('absolute z-[1000] mt-3 p-5 rounded-2xl border shadow-2xl w-[420px] text-sm animate-in fade-in slide-in-from-top-2 duration-200 right-0 lg:-right-10', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900');
+  const popupCls = "absolute z-[1000] mt-3 p-5 rounded-2xl border shadow-2xl w-[420px] text-sm animate-in fade-in slide-in-from-top-2 duration-200 right-0 lg:-right-10 bg-app-card border-app-border text-app-text";
   const popupHeader = "flex items-center justify-between mb-5";
   const popupTitle = "text-lg font-bold";
   const sectionTitle = "text-sm text-slate-400 mb-2";
@@ -1024,7 +1024,7 @@ finalFiltered.forEach(h => {
             
             {/* STICKY CONTROL STACK */}
             <div 
-              className="sticky top-0 pt-4 pb-3 -mx-8 px-8 mb-4 border-b border-app-border shadow-sm bg-app-main/90 backdrop-blur-md"
+              className="sticky top-0 pt-4 pb-3 -mx-8 px-8 mb-4 border-b border-app-border shadow-sm bg-app-main"
               style={{ zIndex: isAnyModalOpen ? 0 : (showYearMenu || showMonthMenu || showFilterMenu || showTimelineMenu || showSortMenu) ? 999999 : 1000 }}
             ><div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative" style={{ zIndex: isAnyModalOpen ? 0 : 999998 }}>
               <h2 className="text-xl font-black tracking-tight">{displayTitle}</h2>
