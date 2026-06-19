@@ -53,82 +53,82 @@ body {
   --bg-main: #f8fafc;
   --body-bg: #f8fafc;
   --bg-card: #ffffff;
-  --bg-card-to: #f8fafc;
+  --bg-card-to: #ffffff;
   --border-subtle: #e2e8f0;
   --text-main: #0f172a;
   --text-muted: #64748b;
   --accent-primary: #0d9488;
-  --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
   --card-backdrop: none;
 }
 
-/* 2. AIRY GLASS (Dappr Style - Pastel Mesh Background & Frosted Glass) */
+/* 2. AIRY GLASS (Ultra-light pastel mesh) */
 [data-theme='airy-glass'] {
-  --bg-main: #e2e8f0;
-  --body-bg: linear-gradient(135deg, #e0f2fe 0%, #ede9fe 50%, #f0fdf4 100%);
-  --bg-card: rgba(255, 255, 255, 0.65); 
-  --bg-card-to: rgba(255, 255, 255, 0.4);
-  --border-subtle: rgba(255, 255, 255, 0.8);
+  --bg-main: #f8fafc;
+  --body-bg: linear-gradient(135deg, #f0f9ff 0%, #f5f3ff 50%, #f0fdf4 100%);
+  --bg-card: rgba(255, 255, 255, 0.85); 
+  --bg-card-to: rgba(255, 255, 255, 0.5);
+  --border-subtle: rgba(255, 255, 255, 0.9);
   --text-main: #0f172a;
   --text-muted: #475569;
-  --accent-primary: #2563eb; 
-  --card-shadow: 0 8px 32px rgba(31, 38, 135, 0.06);
+  --accent-primary: #3b82f6; 
+  --card-shadow: 0 8px 32px rgba(31, 38, 135, 0.03);
   --card-backdrop: blur(16px);
 }
 
-/* 3. SOFT SAND */
+/* 3. SOFT SAND (Warm, clean off-white) */
 [data-theme='soft-sand'] {
-  --bg-main: #fdfbf7;
-  --body-bg: radial-gradient(circle at top left, #ffffff 0%, #fdfbf7 100%);
-  --bg-card: rgba(255, 255, 255, 0.8);
-  --bg-card-to: rgba(250, 248, 245, 0.9);
-  --border-subtle: rgba(217, 119, 6, 0.15); 
+  --bg-main: #fffdfa;
+  --body-bg: radial-gradient(circle at top left, #ffffff 0%, #fffcf8 100%);
+  --bg-card: rgba(255, 255, 255, 0.85);
+  --bg-card-to: rgba(255, 255, 255, 0.6);
+  --border-subtle: rgba(217, 119, 6, 0.1); 
   --text-main: #292524;
   --text-muted: #78716c;
   --accent-primary: #d97706; 
-  --card-shadow: 0 8px 24px rgba(217, 119, 6, 0.04);
+  --card-shadow: 0 8px 24px rgba(217, 119, 6, 0.03);
   --card-backdrop: blur(12px);
 }
 
-/* 4. MINT BREEZE */
+/* 4. MINT BREEZE (Icy, fresh white-green) */
 [data-theme='mint-breeze'] {
-  --bg-main: #f0fdf4;
-  --body-bg: linear-gradient(120deg, #f0fdf4 0%, #dcfce7 100%);
-  --bg-card: rgba(255, 255, 255, 0.7);
-  --bg-card-to: rgba(255, 255, 255, 0.5);
-  --border-subtle: rgba(5, 150, 105, 0.15);
+  --bg-main: #f7fdf9;
+  --body-bg: linear-gradient(120deg, #ffffff 0%, #f0fdf4 100%);
+  --bg-card: rgba(255, 255, 255, 0.85);
+  --bg-card-to: rgba(255, 255, 255, 0.6);
+  --border-subtle: rgba(5, 150, 105, 0.1);
   --text-main: #064e3b;
   --text-muted: #166534;
   --accent-primary: #059669;
-  --card-shadow: 0 8px 24px rgba(5, 150, 105, 0.06);
+  --card-shadow: 0 8px 24px rgba(5, 150, 105, 0.03);
   --card-backdrop: blur(16px);
 }
 
-/* 5. LAVENDER MIST */
+/* 5. LAVENDER MIST (Ethereal light purple) */
 [data-theme='lavender-mist'] {
-  --bg-main: #f5f3ff;
-  --body-bg: linear-gradient(to bottom right, #faf5ff, #f3e8ff);
-  --bg-card: rgba(255, 255, 255, 0.7);
-  --bg-card-to: rgba(255, 255, 255, 0.4);
-  --border-subtle: rgba(147, 51, 234, 0.15);
+  --bg-main: #fcfaff;
+  --body-bg: linear-gradient(to bottom right, #ffffff, #f5f3ff);
+  --bg-card: rgba(255, 255, 255, 0.85);
+  --bg-card-to: rgba(255, 255, 255, 0.6);
+  --border-subtle: rgba(147, 51, 234, 0.1);
   --text-main: #3b0764;
   --text-muted: #6b21a8;
   --accent-primary: #9333ea;
-  --card-shadow: 0 8px 24px rgba(147, 51, 234, 0.05);
+  --card-shadow: 0 8px 24px rgba(147, 51, 234, 0.03);
   --card-backdrop: blur(16px);
 }
 
-/* 6. CORPORATE BLUE */
+/* 6. CORPORATE BLUE (Crisp ice blue) */
 [data-theme='corporate-blue'] {
-  --bg-main: #f0f9ff;
+  --bg-main: #f4faff;
   --body-bg: linear-gradient(180deg, #ffffff 0%, #f0f9ff 100%);
-  --bg-card: rgba(255, 255, 255, 0.75);
-  --bg-card-to: rgba(255, 255, 255, 0.5);
-  --border-subtle: rgba(2, 132, 199, 0.15);
+  --bg-card: rgba(255, 255, 255, 0.85);
+  --bg-card-to: rgba(255, 255, 255, 0.6);
+  --border-subtle: rgba(2, 132, 199, 0.1);
   --text-main: #082f49;
   --text-muted: #0369a1;
   --accent-primary: #0284c7;
-  --card-shadow: 0 8px 24px rgba(2, 132, 199, 0.06);
+  --card-shadow: 0 8px 24px rgba(2, 132, 199, 0.03);
   --card-backdrop: blur(12px);
 }
 
