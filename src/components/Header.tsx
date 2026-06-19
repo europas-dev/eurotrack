@@ -508,13 +508,22 @@ export default function Header({
                           <div>
                             <p className={cn('text-xs font-bold mb-1.5', dk ? 'text-slate-400' : 'text-slate-600')}>{isDe ? 'Erscheinungsbild' : 'Appearance'}</p>
                             <div className={cn('flex rounded-lg border overflow-hidden', dk ? 'border-white/10' : 'border-slate-200')}>
-                              <button onClick={toggleTheme} className={cn('flex-1 py-1.5 flex justify-center transition-all', dk ? 'bg-blue-600 text-white' : (dk ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'))}><Moon size={14} /></button>
-                              <button onClick={toggleTheme} className={cn('flex-1 py-1.5 flex justify-center transition-all', !dk ? 'bg-blue-600 text-white' : (dk ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'))}><Sun size={14} /></button>
+                              {/* MOON BUTTON: Forces dark mode AND resets to default dark theme */}
+                              <button onClick={() => { 
+                                if (!dk) toggleTheme(); 
+                                document.documentElement.setAttribute('data-theme', 'dark'); 
+                              }} className={cn('flex-1 py-1.5 flex justify-center transition-all', dk ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50')}><Moon size={14} /></button>
+                              
+                              {/* SUN BUTTON: Forces light mode AND resets to default light theme */}
+                              <button onClick={() => { 
+                                if (dk) toggleTheme(); 
+                                document.documentElement.setAttribute('data-theme', 'light'); 
+                              }} className={cn('flex-1 py-1.5 flex justify-center transition-all', !dk ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5')}><Sun size={14} /></button>
                             </div>
                           </div>
                         </div>
 
-                        {/* --- NEW THEME GRID (Smart Filtered) --- */}
+                        {/* SMART THEME GRID */}
                         <div className="col-span-2 mt-4 border-t pt-4 dark:border-white/10 border-slate-200">
                           <p className={cn('text-xs font-bold mb-3', dk ? 'text-slate-400' : 'text-slate-600')}>{isDe ? 'Themen (Themes)' : 'Themes'}</p>
                           <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
@@ -541,7 +550,9 @@ export default function Header({
                                         // UNSELECT: Revert to default for this mode
                                         document.documentElement.setAttribute('data-theme', dk ? 'dark' : 'light');
                                       } else {
-                                        // SELECT: Apply new theme
+                                        // SELECT: Apply new theme and sync React state just in case
+                                        if (t.type === 'dark' && !dk) toggleTheme();
+                                        if (t.type === 'light' && dk) toggleTheme();
                                         document.documentElement.setAttribute('data-theme', t.id);
                                       }
                                     }}
