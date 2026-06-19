@@ -434,8 +434,8 @@ export default function Header({
       {showSettings && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 flex pointer-events-none" style={{ zIndex: 999999 }}>
           <div className="flex-1 pointer-events-auto" onClick={() => setShowSettings(false)} />
-          <div className={cn('relative w-full max-w-md h-full flex flex-col shadow-2xl border-l pointer-events-auto', drawerBg, dk ? 'border-white/10' : 'border-slate-200')} style={{ animation: 'slideInRight 220ms cubic-bezier(0.16,1,0.3,1)' }}>
-            <div className={cn('flex items-center justify-between px-6 py-4 border-b shrink-0', dk ? 'border-white/10' : 'border-slate-200')}>
+          <div className="relative w-full max-w-md h-full flex flex-col shadow-2xl border-l pointer-events-auto bg-app-card border-app-border" style={{ animation: 'slideInRight 220ms cubic-bezier(0.16,1,0.3,1)' }}>
+          <div className={cn('flex items-center justify-between px-6 py-4 border-b shrink-0', dk ? 'border-white/10' : 'border-slate-200')}>
               <h2 className={cn('text-lg font-black', dk ? 'text-white' : 'text-slate-900')}>{isDe ? 'Einstellungen' : 'Settings'}</h2>
               <button onClick={() => setShowSettings(false)} className={cn('p-2 rounded-lg', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}><X size={18} /></button>
             </div>
