@@ -1024,7 +1024,7 @@ finalFiltered.forEach(h => {
             
             {/* STICKY CONTROL STACK */}
             <div 
-              className={cn("sticky top-0 pt-4 pb-3 -mx-8 px-8 mb-4 border-b-2 shadow-sm", dk ? "bg-[#0F172A]/95 border-white/10 backdrop-blur-md" : "bg-slate-50/95 border-slate-300 backdrop-blur-md")}
+              className="sticky top-0 pt-4 pb-3 -mx-8 px-8 mb-4 border-b border-app-border shadow-sm bg-app-main/90 backdrop-blur-md"
               style={{ zIndex: isAnyModalOpen ? 0 : (showYearMenu || showMonthMenu || showFilterMenu || showTimelineMenu || showSortMenu) ? 999999 : 1000 }}
             ><div className="flex items-center justify-between mb-4 gap-4 flex-wrap relative" style={{ zIndex: isAnyModalOpen ? 0 : 999998 }}>
               <h2 className="text-xl font-black tracking-tight">{displayTitle}</h2>
