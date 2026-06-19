@@ -900,7 +900,7 @@ finalFiltered.forEach(h => {
   const actionSecondary = "text-teal-600 dark:text-teal-400 text-sm font-medium hover:underline";
 
   return (
-    <div className={cn('flex h-screen overflow-hidden', dk ? 'bg-[#0F172A]' : 'bg-slate-50')}>
+    <div className="flex h-screen overflow-hidden bg-app-main text-app-text transition-colors duration-300">
       
       <div className={cn("flex-1 flex flex-col min-w-0 overflow-hidden relative", isStrictViewer ? "pt-4" : "")}>
         {/* MEGA-ROW: APP HEADER + STATS */}
