@@ -288,7 +288,10 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
     const bgCls = isMost ? "bg-purple-50 dark:bg-purple-500/10 border-purple-200 dark:border-purple-500/20" : "bg-slate-100 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600";
     
     return (
-      <div className="p-4 lg:p-5 rounded-2xl border flex items-center gap-4 shadow-sm transition-all hover:shadow-md bg-app-card border-app-border">
+      <div 
+         className="p-4 lg:p-5 rounded-2xl border flex items-center gap-4 transition-all hover:-translate-y-1 duration-300 border-app-border bg-gradient-to-br from-app-card to-[var(--bg-card-to)]"
+         style={{ boxShadow: 'var(--card-shadow)' }}
+      >
         <div className={cn("p-3.5 rounded-xl flex shrink-0 items-center justify-center border shadow-inner", bgCls, colorCls)}>
           <Icon size={24} strokeWidth={2.5}/>
         </div>
@@ -302,7 +305,10 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
   };
 
   const PriceCard = ({ title, price, chipContent, icon: Icon, colorCls, bgCls }: any) => (
-    <div className="p-4 lg:p-5 rounded-2xl border flex items-center gap-3 lg:gap-4 shadow-sm transition-all hover:shadow-md bg-app-card border-app-border">
+    <div 
+       className="p-4 lg:p-5 rounded-2xl border flex items-center gap-3 lg:gap-4 transition-all hover:-translate-y-1 duration-300 border-app-border bg-gradient-to-br from-app-card to-[var(--bg-card-to)]"
+       style={{ boxShadow: 'var(--card-shadow)' }}
+    >
       <div className={cn("p-3.5 rounded-xl flex shrink-0 items-center justify-center border shadow-inner", bgCls, colorCls)}>
         <Icon size={24} strokeWidth={2.5}/>
       </div>
