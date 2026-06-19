@@ -267,7 +267,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
   const labels = lang === 'de' ? monthLabelsDe : monthLabelsEn;
 
   const Card = ({ title, value, icon: Icon, colorCls, bgCls }: any) => (
-    <div className={cn("p-5 rounded-2xl border flex flex-col gap-3 shadow-sm transition-all hover:shadow-md", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
+    <div className={cn("p-5 rounded-2xl border flex flex-col gap-3 shadow-sm transition-all hover:shadow-md", "bg-app-card border-app-border")}>
       <div className="flex items-center gap-2">
         <div className={cn("p-2 rounded-lg", bgCls, colorCls)}><Icon size={16} strokeWidth={2.5} /></div>
         <span className={cn("text-xs font-black uppercase tracking-widest", dk ? "text-slate-400" : "text-slate-500")}>{title}</span>
@@ -325,7 +325,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         <Card title={lang === 'de' ? 'Total Bezahlt' : 'Total Paid'} value={formatCurrency(stats.totalPaid)} icon={ShieldCheck} colorCls="text-emerald-500" bgCls="bg-emerald-500/10" />
         
         {/* CUSTOM SPLIT CARD FOR TOTAL DUE */}
-        <div className={cn("p-5 rounded-2xl border flex items-stretch justify-between gap-6 lg:gap-10 shadow-sm transition-all hover:shadow-md", dk ? "bg-[#1E293B] border-white/10" : "bg-white border-slate-200")}>
+        <div className={cn("p-5 rounded-2xl border flex items-stretch justify-between gap-6 lg:gap-10 shadow-sm transition-all hover:shadow-md", "bg-app-card border-app-border")}>
           <div className="flex flex-col gap-3 flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500"><Clock size={16} strokeWidth={2.5} /></div>
