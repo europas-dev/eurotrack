@@ -151,6 +151,21 @@ export default function Header({
   const [savingPersonalize, setSavingPersonalize] = useState(false);
   const [personalizeMsg, setPersonalizeMsg] = useState('');
 
+  // --- NEW: THEME PERSISTENCE ON LOAD ---
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('euro-theme');
+    if (savedTheme) {
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      // Ensure React's `dk` state matches the loaded theme
+      const isDarkTheme = ['dark', 'midnight-neon', 'matte-charcoal', 'sunset-dune'].includes(savedTheme);
+      if (isDarkTheme && !dk) toggleTheme();
+      if (!isDarkTheme && dk) toggleTheme();
+    } else {
+      document.documentElement.setAttribute('data-theme', dk ? 'dark' : 'light');
+    }
+  }, []); 
+
+
   const [newUsername, setNewUsername] = useState('');
   const [usernameMsg, setUsernameMsg] = useState('');
   const [savingUsername, setSavingUsername] = useState(false);
@@ -389,7 +404,12 @@ export default function Header({
             {lang === 'de' ? 'EN' : 'DE'}
           </button>
 
-          <button onClick={toggleTheme} className={iconBtn}>
+          <button onClick={() => {
+            toggleTheme();
+            const newTheme = !dk ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('euro-theme', newTheme);
+          }} className={iconBtn}>
             {dk ? <Sun size={18} /> : <Moon size={18} />}
           </button>
 
@@ -508,22 +528,22 @@ export default function Header({
                           <div>
                             <p className={cn('text-xs font-bold mb-1.5', dk ? 'text-slate-400' : 'text-slate-600')}>{isDe ? 'Erscheinungsbild' : 'Appearance'}</p>
                             <div className={cn('flex rounded-lg border overflow-hidden', dk ? 'border-white/10' : 'border-slate-200')}>
-                              {/* MOON BUTTON: Forces dark mode AND resets to default dark theme */}
                               <button onClick={() => { 
                                 if (!dk) toggleTheme(); 
                                 document.documentElement.setAttribute('data-theme', 'dark'); 
+                                localStorage.setItem('euro-theme', 'dark');
                               }} className={cn('flex-1 py-1.5 flex justify-center transition-all', dk ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50')}><Moon size={14} /></button>
                               
-                              {/* SUN BUTTON: Forces light mode AND resets to default light theme */}
                               <button onClick={() => { 
                                 if (dk) toggleTheme(); 
                                 document.documentElement.setAttribute('data-theme', 'light'); 
+                                localStorage.setItem('euro-theme', 'light');
                               }} className={cn('flex-1 py-1.5 flex justify-center transition-all', !dk ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5')}><Sun size={14} /></button>
                             </div>
                           </div>
                         </div>
 
-                        {/* SMART THEME GRID */}
+                        {/* SMART THEME GRID WITH PERSISTENCE */}
                         <div className="col-span-2 mt-4 border-t pt-4 dark:border-white/10 border-slate-200">
                           <p className={cn('text-xs font-bold mb-3', dk ? 'text-slate-400' : 'text-slate-600')}>{isDe ? 'Themen (Themes)' : 'Themes'}</p>
                           <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
@@ -536,7 +556,6 @@ export default function Header({
                                { id: 'matte-charcoal', type: 'dark', name: 'Charcoal', bg: '#18181b', card: '#27272a' },
                                { id: 'sunset-dune', type: 'dark', name: 'Sunset', bg: '#1a1614', card: '#262220' }
                              ]
-                             // ONLY SHOW THEMES MATCHING CURRENT LIGHT/DARK MODE
                              .filter(t => t.type === (dk ? 'dark' : 'light'))
                              .map(t => {
                                const currentTheme = typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : null;
@@ -547,13 +566,14 @@ export default function Header({
                                     key={t.id} 
                                     onClick={() => {
                                       if (isActive) {
-                                        // UNSELECT: Revert to default for this mode
-                                        document.documentElement.setAttribute('data-theme', dk ? 'dark' : 'light');
+                                        const defaultTheme = dk ? 'dark' : 'light';
+                                        document.documentElement.setAttribute('data-theme', defaultTheme);
+                                        localStorage.setItem('euro-theme', defaultTheme);
                                       } else {
-                                        // SELECT: Apply new theme and sync React state just in case
                                         if (t.type === 'dark' && !dk) toggleTheme();
                                         if (t.type === 'light' && dk) toggleTheme();
                                         document.documentElement.setAttribute('data-theme', t.id);
+                                        localStorage.setItem('euro-theme', t.id);
                                       }
                                     }}
                                     className={cn("flex items-center gap-2 p-2 rounded-xl border transition-all text-left", 
@@ -570,7 +590,6 @@ export default function Header({
                              })}
                           </div>
                         </div>
-              
 
                         <div className="flex items-center justify-between pt-1">
                           {personalizeMsg && <p className={cn('text-xs font-bold', personalizeMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{personalizeMsg}</p>}
