@@ -364,10 +364,10 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
 
   return (
     <div className={cn(
-      'rounded-b-2xl rounded-tr-2xl border relative -mt-[1px] transition-all',
+      'rounded-b-2xl rounded-tr-2xl border relative -mt-[1px] transition-all shadow-md',
       confirmDelete 
-        ? (dk ? 'border-red-500 ring-2 ring-red-500 bg-red-950/20 z-[9999]' : 'border-red-500 ring-2 ring-red-500 bg-red-50 z-[9999]')
-        : ('bg-black/5 dark:bg-black/20 border-app-border')
+        ? 'border-red-500 ring-2 ring-red-500 bg-red-50 dark:bg-red-950/20 z-[9999]'
+        : 'bg-app-card border-app-border'
     )}>
       <div className="flex flex-wrap items-center justify-between gap-3 p-3">
         
@@ -381,7 +381,7 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
                   <input disabled={viewOnly} ref={inDateRef} type="date" value={local.startDate || ''} onChange={e => handleStartDateChange(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                   {/* FIX: Added justify-center here */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <span className={cn("text-[15px] font-bold", local.startDate ? (dk ? 'text-white' : 'text-slate-900') : 'text-slate-400')}>{forceDMY(local.startDate)}</span>
+                      <span className={cn("text-[15px] font-bold", local.startDate ? ('text-app-text') : 'text-slate-400')}>{forceDMY(local.startDate)}</span>
                   </div>
               </div>
               
@@ -405,7 +405,7 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
                   />
                   {/* FIX: Added justify-center here */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <span className={cn("text-[15px] font-bold", local.endDate ? (dk ? 'text-white' : 'text-slate-900') : 'text-slate-400')}>
+                      <span className={cn("text-[15px] font-bold", local.endDate ? ('text-app-text') : 'text-slate-400')}>
                         {forceDMY(local.endDate)}
                       </span>
                   </div>
@@ -479,10 +479,10 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
                   const count = typeCount[rt] ?? 0;
                   if (rt === 'WG' && isAddingWg && !viewOnly) {
                     return (
-                      <div key="wg-input" className={cn('flex items-center h-full rounded-lg border overflow-hidden shrink-0 shadow-sm', dk ? 'border-white/10 bg-[#1E293B]' : 'border-slate-300 bg-white')}>
-                        <button onClick={() => setWgBeds(Math.max(1, wgBeds - 1))} className={cn("px-3 h-full font-black text-lg transition-colors border-r", dk ? "hover:bg-white/10 border-white/10" : "hover:bg-slate-100 border-slate-200")}>-</button>
-                        <div className="flex items-center justify-center w-8 h-full font-black text-sm">{wgBeds}</div>
-                        <button onClick={() => setWgBeds(wgBeds + 1)} className={cn("px-3 h-full font-black text-lg transition-colors border-l", dk ? "hover:bg-white/10 border-white/10" : "hover:bg-slate-100 border-slate-200")}>+</button>
+                      <div key="wg-input" className="flex items-center h-full rounded-lg border overflow-hidden shrink-0 shadow-sm bg-app-card border-app-border">
+                        <button onClick={() => setWgBeds(Math.max(1, wgBeds - 1))} className="px-3 h-full font-black text-lg transition-colors border-r border-app-border text-app-text hover:bg-black/5">-</button>
+                        <div className="flex items-center justify-center w-8 h-full font-black text-sm text-app-text">{wgBeds}</div>
+                        <button onClick={() => setWgBeds(wgBeds + 1)} className="px-3 h-full font-black text-lg transition-colors border-l border-app-border text-app-text hover:bg-black/5">+</button>
                         <button onClick={() => { handleAddRoomCard('WG', wgBeds); setIsAddingWg(false); }} className="px-3 h-full bg-blue-600 hover:bg-blue-700 text-white font-black text-xs transition-colors border-l border-blue-700">{lang === 'de' ? '+ Hinzufügen' : '+ Add'}</button>
                         <button onClick={() => setIsAddingWg(false)} className={cn("px-2 h-full text-red-500 transition-colors border-l", dk ? "hover:bg-red-900/20 border-white/10" : "hover:bg-red-50 border-slate-200")}><X size={14}/></button>
                       </div>
@@ -496,12 +496,12 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
                     ) : null;
                   }
                   return (
-                    <div key={rt} className="flex items-center h-full shadow-sm rounded-lg overflow-hidden border shrink-0" style={{ borderColor: dk ? 'rgba(255,255,255,0.1)' : '#cbd5e1' }}>
-                       <div className={cn("flex items-center h-full px-2.5", dk ? "bg-[#1E293B]" : "bg-white")}>
-                         <span className={cn('text-[13px] font-bold mr-1.5', dk ? 'text-slate-400' : 'text-slate-500')}>{rt}</span>
-                         <span className={cn('text-[15px] font-black', dk ? 'text-teal-400' : 'text-teal-600')}>{count}</span>
+                    <div key={rt} className="flex items-center h-full shadow-sm rounded-lg overflow-hidden border shrink-0 border-app-border">
+                       <div className="flex items-center h-full px-2.5 bg-app-card">
+                         <span className="text-[13px] font-bold mr-1.5 text-app-muted">{rt}</span>
+                         <span className="text-[15px] font-black text-[var(--accent-primary)]">{count}</span>
                       </div>
-                      {!viewOnly && <button onClick={() => rt === 'WG' ? setIsAddingWg(true) : handleAddRoomCard(rt)} disabled={!!addingType} className={cn('px-2.5 h-full border-l transition-all', dk ? 'text-slate-400 hover:bg-teal-900/20 hover:text-teal-400' : 'text-slate-400 hover:bg-teal-50 hover:text-teal-600')}><Plus size={14} strokeWidth={3} /></button>}
+                      {!viewOnly && <button onClick={() => rt === 'WG' ? setIsAddingWg(true) : handleAddRoomCard(rt)} disabled={!!addingType} className="px-2.5 h-full border-l transition-all border-app-border bg-app-card text-app-muted hover:bg-[var(--accent-primary)]/10 hover:text-[var(--accent-primary)]"><Plus size={14} strokeWidth={3} /></button>}
                     </div>
                   );
              })}
