@@ -266,7 +266,12 @@ export default function App() {
   );
 
   if (view === 'login' || view === 'signup' || view === 'admin-login') return (
-    <Auth initialMode='login' onBack={() => setView('landing')} lang={lang} theme={theme} />
+    <Auth 
+      initialMode={view === 'signup' ? 'signup' : 'login'} 
+      onBack={() => setView('landing')} 
+      lang={lang} 
+      theme={theme} 
+    />
   );
 
   if (view === 'pending' || accessLevel?.role === 'pending') return (
