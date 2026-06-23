@@ -157,7 +157,7 @@ body {
   --border-subtle: rgba(255, 255, 255, 0.08); 
   --text-main: #e2e8f0;
   --text-muted: #8b9bb4;
-  --accent-primary: #0b6485; 
+  --accent-primary: #05789e; 
   --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); 
   --card-backdrop: blur(16px);
 }
@@ -171,7 +171,7 @@ body {
   --border-subtle: rgba(255, 255, 255, 0.05);
   --text-main: #d4d4d8;      
   --text-muted: #a1a1aa;     
-  --accent-primary: #bcd2e8;
+  --accent-primary: #915e04;
   --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
   --card-backdrop: none;
 }
@@ -213,7 +213,7 @@ body {
   --border-subtle: rgba(255, 255, 255, 0.08); 
   --text-main: #ffffff;
   --text-muted: #8f9bba;
-  --accent-primary: #6c6cf5;
+  --accent-primary: #0257cf;
   --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   --card-backdrop: blur(16px);
 }
