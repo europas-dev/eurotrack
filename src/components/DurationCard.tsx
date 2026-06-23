@@ -463,7 +463,7 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
                         "flex-1 px-2 text-[11px] font-black transition-colors outline-none",
                         !local.endDate 
                           ? (dk ? "text-slate-700 bg-white/5" : "text-slate-200 bg-slate-50") 
-                          : (dk ? "text-teal-400 hover:bg-white/10 bg-[#1E293B]" : "text-teal-600 hover:bg-teal-50 bg-white")
+                          : ("text-[var(--accent-primary)] hover:bg-black/5 bg-app-card")
                       )}
                     >−</button>
                   </div>
