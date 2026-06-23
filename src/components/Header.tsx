@@ -385,11 +385,11 @@ export default function Header({
             </div>
           )}
           <button onClick={onPrint} className={iconBtn} title="Export">
-            <Upload size={18} className="text-teal-500" />
+            <Upload size={18} className="text-[var(--accent-primary)]" />
           </button>
 
           <button onClick={onToggleOfflineMode} className={cn(iconBtn, offlineMode && "bg-amber-500/20 text-amber-500")} title={isDe ? 'Offline-Modus' : 'Offline Mode'}>
-            {(!isOnline || offlineMode) ? <WifiOff size={18} /> : <Wifi size={18} className="text-emerald-500" />}
+            {(!isOnline || offlineMode) ? <WifiOff size={18} /> : <Wifi size={18} className="text-[var(--accent-primary)]" />}
           </button>
 
           <button 
@@ -442,7 +442,7 @@ export default function Header({
             </div>
             <div className={cn('flex border-b shrink-0', dk ? 'border-white/10' : 'border-slate-200')}>
               {([{ id: 'profile', icon: User, label: isDe ? 'Profil' : 'Profile' }, { id: 'security', icon: Lock, label: isDe ? 'Sicherheit' : 'Security' }, ...(isAdmin ? [{ id: 'access', icon: Users, label: isDe ? 'Zugriff' : 'Access' }] : [])] as const).map(({ id, icon: Icon, label }) => (
-                <button key={id} onClick={() => setSettingsTab(id as any)} className={cn('flex items-center gap-2 px-5 py-3 text-sm font-bold border-b-2 transition-all', settingsTab === id ? 'border-blue-500 text-blue-500' : cn('border-transparent', dk ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'))}><Icon size={14} />{label}</button>
+                <button key={id} onClick={() => setSettingsTab(id as any)} className={cn('flex items-center gap-2 px-5 py-3 text-sm font-bold border-b-2 transition-all', settingsTab === id ? 'border-[var(--accent-primary)] text-[var(--accent-primary)]' : cn('border-transparent', dk ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'))}><Icon size={14} />{label}</button>
               ))}
             </div>
             
