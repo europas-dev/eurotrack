@@ -888,16 +888,16 @@ finalFiltered.forEach(h => {
     return badges;
   }, [tlType, tlStart, tlEnd, fbType, filterPaid, filterDue, filterDeposit, groupBy, sortBy, sortDir, lang]);
 
-  const btnActive = dk ? 'bg-teal-600 text-white border-transparent' : 'bg-white border-teal-600 text-teal-700 shadow-sm';
-  const btnInactive = dk ? 'bg-white/5 text-slate-300 border-transparent hover:bg-white/10' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50';
+  const btnActive = "bg-[var(--accent-primary)] text-white border-[var(--accent-primary)] shadow-sm";
+  const btnInactive = "bg-app-card text-app-muted border-app-border hover:bg-black/5 dark:hover:bg-white/5 hover:text-app-text";
   const popupCls = "absolute z-[1000] mt-3 p-5 rounded-2xl border shadow-2xl w-[420px] text-sm animate-in fade-in slide-in-from-top-2 duration-200 right-0 lg:-right-10 bg-app-card border-app-border text-app-text";
   const popupHeader = "flex items-center justify-between mb-5";
-  const popupTitle = "text-lg font-bold";
-  const sectionTitle = "text-sm text-slate-400 mb-2";
-  const segmentContainer = cn("flex p-1 rounded-xl", dk ? "bg-black/20" : "bg-slate-100");
-  const segmentBtn = (active: boolean) => cn("flex-1 py-1.5 text-sm font-medium rounded-lg transition-all", active ? (dk ? "bg-teal-600 text-white shadow-sm" : "bg-white text-teal-700 shadow-sm") : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300");
-  const actionPrimary = cn("px-5 py-2 rounded-lg font-bold transition-all", dk ? "bg-teal-600 text-white hover:bg-teal-500" : "bg-teal-700 text-white hover:bg-teal-800");
-  const actionSecondary = "text-teal-600 dark:text-teal-400 text-sm font-medium hover:underline";
+  const popupTitle = "text-lg font-bold text-app-text";
+  const sectionTitle = "text-sm text-app-muted mb-2";
+  const segmentContainer = "flex p-1 rounded-xl bg-black/5 dark:bg-black/20 border border-app-border";
+  const segmentBtn = (active: boolean) => cn("flex-1 py-1.5 text-sm font-medium rounded-lg transition-all", active ? "bg-[var(--accent-primary)] text-white shadow-sm" : "text-app-muted hover:text-app-text hover:bg-black/5 dark:hover:bg-white/5");
+  const actionPrimary = "px-5 py-2 rounded-lg font-bold transition-all bg-[var(--accent-primary)] text-white hover:opacity-80";
+  const actionSecondary = "text-[var(--accent-primary)] text-sm font-bold hover:opacity-80";
 
   return (
     <div className="flex h-screen overflow-hidden bg-app-main text-app-text transition-colors duration-300">
@@ -1037,7 +1037,7 @@ finalFiltered.forEach(h => {
       setShowYearMenu(!showYearMenu); 
       setShowMonthMenu(false); 
     }} 
-    className={cn("px-4 py-2.5 rounded-xl border text-sm font-bold flex items-center gap-2 transition-all shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800")}
+    className="px-4 py-2.5 rounded-xl border border-app-border bg-app-card text-app-text text-sm font-bold flex items-center gap-2 transition-all shadow-sm hover:bg-black/5"
   >
     {selectedYear} <ChevronDown size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} />
   </button>
@@ -1081,7 +1081,7 @@ finalFiltered.forEach(h => {
       setShowMonthMenu(!showMonthMenu); 
       setShowYearMenu(false); 
     }} 
-    className={cn("px-4 py-2.5 rounded-xl border text-sm font-bold flex items-center gap-2 transition-all shadow-sm", dk ? "bg-[#1E293B] border-white/10 text-white" : "bg-white border-slate-200 text-slate-800")}
+    className="px-4 py-2.5 rounded-xl border border-app-border bg-app-card text-app-text text-sm font-bold flex items-center gap-2 transition-all shadow-sm hover:bg-black/5"
   >
     {selectedMonth === null 
       ? (lang === 'de' ? 'Alle Monate' : 'All Months') 
@@ -1318,8 +1318,8 @@ finalFiltered.forEach(h => {
                               className={cn(
                                 "flex items-center gap-3 px-3 py-2 rounded-lg transition-all border", 
                                 isSelected 
-                                  ? (dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400" : "bg-teal-50 border-teal-200 text-teal-700")
-                                  : "border-transparent hover:bg-black/5 dark:hover:bg-white/5"
+                                  ? "bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/30 text-[var(--accent-primary)]"
+                                  : "border-transparent text-app-text hover:bg-black/5 dark:hover:bg-white/5"
                               )}
                             >
                               <div className={cn("w-3 h-3 rounded-full", s.color)} />
@@ -1349,7 +1349,7 @@ finalFiltered.forEach(h => {
               <div className="flex flex-wrap items-center gap-2 mb-6 animate-in fade-in duration-200">
                 <span className="text-xs font-bold text-slate-500 mr-2">{lang === 'de' ? 'Aktive Filter:' : 'Active Filters:'}</span>
                 {activeFilters.map(af => (
-                  <span key={af.id} className={cn("px-3 py-1.5 rounded-lg flex items-center gap-2 text-[11px] font-bold border", dk ? "bg-teal-500/20 text-teal-400 border-teal-500/30" : "bg-teal-50 border-teal-200 text-teal-700")}>
+                  <span key={af.id} className="px-3 py-1.5 rounded-lg flex items-center gap-2 text-[11px] font-bold border bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border-[var(--accent-primary)]/30">
                     {af.label}: <span className="opacity-70 uppercase">{af.val}</span>
                     <button onClick={af.clear} className="hover:text-red-500 ml-1 transition-colors"><X size={12} strokeWidth={3} /></button>
                   </span>
