@@ -12,6 +12,7 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
+  /* The body will use the rich gradients defined in the themes */
   background: var(--body-bg, var(--bg-main)) !important; 
   background-attachment: fixed !important;
   color: var(--text-main) !important;
@@ -31,6 +32,10 @@ body {
   scrollbar-width: none;
 }
 
+/* =============================================================
+   THE MAGIC GLASSMORPHISM CLASS
+   Apply this automatically to anything using bg-app-card
+   ============================================================= */
 .bg-app-card {
   background: var(--bg-card) !important;
   backdrop-filter: var(--card-backdrop, none) !important;
@@ -38,10 +43,12 @@ body {
 }
 
 /* =============================================================
-   THEME ENGINE
+   THEME ENGINE: PREMIUM GRADIENTS & GLASS (Horizon/Dappr/Apex)
    ============================================================= */
 
 /* --- LIGHT THEMES --- */
+
+/* 1. EURO DEFAULT (Solid, Flat, Original) */
 :root, [data-theme='light'] {
   --bg-main: #f8fafc;
   --body-bg: #f8fafc;
@@ -51,12 +58,11 @@ body {
   --text-main: #0f172a;
   --text-muted: #64748b;
   --accent-primary: #0d9488;
-  --text-accent: var(--accent-primary);
-  --accent-fg: #ffffff;
   --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
   --card-backdrop: none;
 }
 
+/* 2. AIRY GLASS (Ultra-light pastel mesh) */
 [data-theme='airy-glass'] {
   --bg-main: #f8fafc;
   --body-bg: linear-gradient(135deg, #f0f9ff 0%, #f5f3ff 50%, #f0fdf4 100%);
@@ -66,12 +72,11 @@ body {
   --text-main: #0f172a;
   --text-muted: #475569;
   --accent-primary: #3b82f6; 
-  --text-accent: var(--accent-primary);
-  --accent-fg: #ffffff;
   --card-shadow: 0 8px 32px rgba(31, 38, 135, 0.03);
   --card-backdrop: blur(16px);
 }
 
+/* 3. SOFT SAND (Warm, clean off-white) */
 [data-theme='soft-sand'] {
   --bg-main: #fffdfa;
   --body-bg: radial-gradient(circle at top left, #ffffff 0%, #fffcf8 100%);
@@ -81,12 +86,11 @@ body {
   --text-main: #292524;
   --text-muted: #78716c;
   --accent-primary: #d97706; 
-  --text-accent: var(--accent-primary);
-  --accent-fg: #ffffff;
   --card-shadow: 0 8px 24px rgba(217, 119, 6, 0.03);
   --card-backdrop: blur(12px);
 }
 
+/* 4. MINT BREEZE (Icy, fresh white-green) */
 [data-theme='mint-breeze'] {
   --bg-main: #f7fdf9;
   --body-bg: linear-gradient(120deg, #ffffff 0%, #f0fdf4 100%);
@@ -96,12 +100,11 @@ body {
   --text-main: #064e3b;
   --text-muted: #166534;
   --accent-primary: #059669;
-  --text-accent: var(--accent-primary);
-  --accent-fg: #ffffff;
   --card-shadow: 0 8px 24px rgba(5, 150, 105, 0.03);
   --card-backdrop: blur(16px);
 }
 
+/* 5. LAVENDER MIST (Ethereal light purple) */
 [data-theme='lavender-mist'] {
   --bg-main: #fcfaff;
   --body-bg: linear-gradient(to bottom right, #ffffff, #f5f3ff);
@@ -111,12 +114,11 @@ body {
   --text-main: #3b0764;
   --text-muted: #6b21a8;
   --accent-primary: #9333ea;
-  --text-accent: var(--accent-primary);
-  --accent-fg: #ffffff;
   --card-shadow: 0 8px 24px rgba(147, 51, 234, 0.03);
   --card-backdrop: blur(16px);
 }
 
+/* 6. CORPORATE BLUE (Crisp ice blue) */
 [data-theme='corporate-blue'] {
   --bg-main: #f4faff;
   --body-bg: linear-gradient(180deg, #ffffff 0%, #f0f9ff 100%);
@@ -126,13 +128,13 @@ body {
   --text-main: #082f49;
   --text-muted: #0369a1;
   --accent-primary: #0284c7;
-  --text-accent: var(--accent-primary);
-  --accent-fg: #ffffff;
   --card-shadow: 0 8px 24px rgba(2, 132, 199, 0.03);
   --card-backdrop: blur(12px);
 }
 
 /* --- DARK THEMES --- */
+
+/* 1. EURO DEFAULT (Solid, Flat, Original) */
 [data-theme='dark'] {
   --bg-main: #0f172a;
   --body-bg: #0f172a;
@@ -142,12 +144,11 @@ body {
   --text-main: #ffffff;      
   --text-muted: #94a3b8;
   --accent-primary: #14b8a6;
-  --text-accent: var(--accent-primary);
-  --accent-fg: #ffffff;
   --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
   --card-backdrop: none;
 }
 
+/* 2. MIDNIGHT NEON (Dashdark Style - Glowing cyber vibe) */
 [data-theme='midnight-neon'] {
   --bg-main: #090C15;
   --body-bg: radial-gradient(circle at top left, #1a1b41 0%, #090a0f 100%);
@@ -156,13 +157,12 @@ body {
   --border-subtle: rgba(255, 255, 255, 0.08); 
   --text-main: #e2e8f0;
   --text-muted: #8b9bb4;
-  --accent-primary: #0b6485; 
-  --text-accent: #00dcf5; 
-  --accent-fg: #ffffff;
+  --accent-primary: #0a85c7; 
   --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); 
   --card-backdrop: blur(16px);
 }
 
+/* 3. MATTE CHARCOAL (AdminKit Style - Ultra Flat & Professional) */
 [data-theme='matte-charcoal'] {
   --bg-main: #121212; 
   --body-bg: #121212;
@@ -171,13 +171,12 @@ body {
   --border-subtle: rgba(255, 255, 255, 0.05);
   --text-main: #d4d4d8;      
   --text-muted: #a1a1aa;     
-  --accent-primary: #bcd2e8; 
-  --text-accent: var(--accent-primary);
-  --accent-fg: #1c1c1c; 
+  --accent-primary: #d0dbf2;
   --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
   --card-backdrop: none;
 }
 
+/* 4. SUNSET DUNE */
 [data-theme='sunset-dune'] {
   --bg-main: #161210;        
   --body-bg: radial-gradient(circle at top right, #2b1f1a 0%, #110e0c 100%);
@@ -187,12 +186,11 @@ body {
   --text-main: #fdfbf7;
   --text-muted: #a8a29e;
   --accent-primary: #f59e0b; 
-  --text-accent: var(--accent-primary);
-  --accent-fg: #ffffff;
   --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
   --card-backdrop: blur(16px);
 }
 
+/* 5. ABYSSAL EMERALD (Apex Dark Mode - Pure #000501) */
 [data-theme='abyssal-emerald'] {
   --bg-main: #000501;        
   --body-bg: linear-gradient(135deg, #000501 0%, #011408 100%);
@@ -202,12 +200,11 @@ body {
   --text-main: #ecfdf5;
   --text-muted: #6ee7b7;
   --accent-primary: #10b981; 
-  --text-accent: var(--accent-primary);
-  --accent-fg: #ffffff;
   --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.6); 
   --card-backdrop: blur(12px);
 }
 
+/* 6. DEEP OCEAN (Horizon UI Style) */
 [data-theme='deep-ocean'] {
   --bg-main: #0b1437;        
   --body-bg: linear-gradient(135deg, #0b1437 0%, #111c44 100%);
@@ -216,80 +213,7 @@ body {
   --border-subtle: rgba(255, 255, 255, 0.08); 
   --text-main: #ffffff;
   --text-muted: #8f9bba;
-  --accent-primary: #6c6cf5; 
-  --text-accent: #8b9dff; 
-  --accent-fg: #ffffff;
+  --accent-primary: #0357ff;
   --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   --card-backdrop: blur(16px);
-}
-
-
-/* =============================================================
-   TAILWIND HIJACKER: FORCE DYNAMIC THEMES GLOBALLY
-   This automatically intercepts the hardcoded React classes 
-   and forces them to match your selected Theme!
-   ============================================================= */
-
-/* 1. Force Solid Backgrounds (Settings panel, Primary Buttons) */
-.bg-teal-600, .bg-teal-500, .bg-blue-600, .bg-blue-500 {
-  background-color: var(--accent-primary) !important;
-  color: var(--accent-fg) !important;
-  border-color: transparent !important;
-}
-
-/* 2. Force Hover Backgrounds */
-.hover\:bg-teal-700:hover, .hover\:bg-teal-600:hover, 
-.hover\:bg-blue-700:hover, .hover\:bg-blue-600:hover {
-  background-color: var(--accent-primary) !important;
-  opacity: 0.8 !important;
-}
-
-/* 3. Force Text Colors (Tabs, 2026 Year text, Dropdown Chevrons, Icons) */
-.text-teal-700, .text-teal-600, .text-teal-500, .text-teal-400, 
-.text-blue-600, .text-blue-500, .text-blue-400,
-.dark\:text-teal-400:is(.dark *) {
-  color: var(--text-accent) !important;
-}
-
-/* 4. Force Hover Text Colors */
-.hover\:text-teal-600:hover, .hover\:text-teal-500:hover, .hover\:text-teal-400:hover, 
-.hover\:text-blue-600:hover, .hover\:text-blue-500:hover {
-  color: var(--text-accent) !important;
-  opacity: 0.8 !important;
-}
-
-/* 5. Force Borders (Active Tabs, Focus States, Add Buttons) */
-.border-teal-600, .border-teal-500, .border-teal-400, .border-teal-300,
-.border-blue-600, .border-blue-500, .border-blue-400,
-.dark\:border-teal-500\/50:is(.dark *), .dark\:border-teal-500\/30:is(.dark *) {
-  border-color: color-mix(in srgb, var(--accent-primary) 50%, transparent) !important;
-}
-
-/* 6. Force Focus Rings (Search bars, Selectors) */
-.focus-within\:ring-teal-500:focus-within, .focus-within\:border-teal-500:focus-within, 
-.focus\:border-blue-500:focus, .focus-within\:border-blue-500:focus-within {
-  --tw-ring-color: var(--accent-primary) !important;
-  border-color: var(--accent-primary) !important;
-}
-
-/* 7. Force Translucent Tints (Selected Rows, 2026 Badges, Month Selector) */
-.bg-teal-50, .bg-teal-500\/10, .bg-teal-500\/20, .bg-teal-500\/30, .bg-teal-900\/20, .bg-teal-900\/30,
-.bg-blue-50, .bg-blue-500\/10, .bg-blue-500\/40, .bg-blue-500\/5,
-.dark\:bg-teal-500\/10:is(.dark *), .dark\:bg-teal-900\/30:is(.dark *),
-.dark\:bg-blue-500\/40:is(.dark *) {
-  background-color: color-mix(in srgb, var(--accent-primary) 12%, transparent) !important;
-}
-
-/* 8. Force Translucent Hover Tints */
-.hover\:bg-teal-50:hover, .hover\:bg-teal-500\/10:hover, .hover\:bg-blue-50:hover, .hover\:bg-blue-100:hover,
-.hover\:bg-teal-900\/30:hover, .dark\:hover\:bg-teal-500\/20:hover {
-  background-color: color-mix(in srgb, var(--accent-primary) 20%, transparent) !important;
-}
-
-/* 9. SPECIFIC FIX: Top "Total Offen" KPI (Forces it to match the Accent) */
-.grid-cols-1.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(3) .text-amber-500 {
-  color: var(--text-accent) !important;
-}
-.grid-cols-1.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(3) .bg-amber-500\/10 {
-  background-color: color-mix(in srgb, var(--accent-primary) 15%, transparent) !important;
 }
