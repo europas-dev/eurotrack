@@ -1572,13 +1572,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
                              return (
                                 <div className="p-4">
-                                   <div ref={totalRef} className={cn("flex flex-col p-4 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-2 relative", editingTotal ? "z-[100] shadow-2xl" : "z-20 shadow-sm", dk ? "bg-[#1E293B]" : "bg-white", editingTotal ? (dk ? "border-teal-500/50 bg-teal-900/20" : "border-teal-300 bg-teal-50") : (dk ? "border-slate-800" : "border-slate-100"))}>
+                                   <div ref={totalRef} className={cn("flex flex-col p-4 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-2 relative bg-app-card", editingTotal ? "z-[100] shadow-2xl border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/50" : "z-20 shadow-sm border-app-border")}>
                                       
                                       {!editingTotal ? (
                                           <div className="flex items-center justify-end gap-4 px-2 w-full text-[13px]">
                                               <div className="flex items-center gap-2">
                                                   <span className="font-bold text-slate-500 uppercase tracking-widest text-[10px]">Netto</span>
-                                                  <span className={cn("font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(viewBaseN)}</span>
+                                                  <span className={cn("font-black", "text-app-text")}>{formatCurrency(viewBaseN)}</span>
                                                   {viewDiscVal > 0 && (
                                                       <div className="flex items-center gap-1.5 ml-1">
                                                           <span className="bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded font-bold text-[11px] whitespace-nowrap shrink-0">- {viewDiscType === 'percentage' ? `${viewDiscVal}%` : formatCurrency(viewDiscVal)}</span>
@@ -1590,7 +1590,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                               <div className="w-px h-4 bg-slate-200 dark:bg-white/10" />
                                               <div className="flex items-center gap-2">
                                                   <span className="font-bold text-slate-500 uppercase tracking-widest text-[10px]">MwSt</span>
-                                                  <span className={cn("font-black", dk ? "text-slate-300" : "text-slate-700")}>{viewMwst}%</span>
+                                                  <span className={cn("font-black", "text-app-text")}>{viewMwst}%</span>
                                               </div>
                                               <div className="w-px h-4 bg-slate-200 dark:bg-white/10" />
                                               <div className="flex items-center gap-2">
@@ -1797,7 +1797,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                              );
                          })() : (
                             <div className="flex flex-col animate-in fade-in pb-5">
-                               <div className={cn("sticky top-0 z-10 flex items-center px-3 py-2 gap-2 border-b mb-3 backdrop-blur-md", dk ? "bg-[#0B1224]/95 border-white/10" : "bg-slate-50/95 border-slate-200")}>
+                               <div className="sticky top-0 z-10 flex items-center px-3 py-2 gap-2 border-b mb-3 backdrop-blur-md bg-app-card/90 border-app-border">
                                <div className="w-[220px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">{lang === 'de' ? 'Beschreibung' : 'Description'}</div>
                                <div className="flex-1 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right pr-3">{lang === 'de' ? 'Netto (Bett)' : 'Netto (Bed)'}</div>
                                <div className="w-[100px] shrink-0 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</div>
@@ -1865,7 +1865,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                return (
                                <div key={inv.id} className="flex flex-col mb-3 px-3">
                                   {/* ... expand button remains same ... */}
-                                  <button onClick={() => setExpandedInvoices(prev => isExpanded ? prev.filter(id => id !== inv.id) : [...prev, inv.id])} className={cn("flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg transition-colors group border shadow-sm", inv.isPaid ? (dk ? "bg-emerald-950/20 border-emerald-500/20" : "bg-emerald-50 border-emerald-200") : (dk ? "bg-red-950/20 border-red-500/20" : "bg-red-50 border-red-200"))}>
+                                  <button onClick={() => setExpandedInvoices(prev => isExpanded ? prev.filter(id => id !== inv.id) : [...prev, inv.id])} className={cn("flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg transition-colors group border shadow-sm", inv.isPaid ? "bg-emerald-500/10 border-emerald-500/20 hover:bg-emerald-500/20" : "bg-red-500/10 border-red-500/20 hover:bg-red-500/20")}>
                                      <div className="flex items-center gap-2">
                                         {isExpanded ? <ChevronDown size={16} className={inv.isPaid ? "text-emerald-500" : "text-red-500"}/> : <ChevronRight size={16} className={inv.isPaid ? "text-emerald-500" : "text-red-500"}/>}
                                         <span className={cn("text-[14px] font-black", inv.isPaid ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
@@ -1977,7 +1977,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                                </div>
                                );
                             }) : (
-                               <p className="text-[12px] font-bold text-slate-400 italic mt-4 mx-5 text-center py-6 bg-slate-100 dark:bg-white/5 rounded-xl border border-dashed border-slate-300 dark:border-white/10">
+                               <p className="text-[12px] font-bold text-app-muted italic mt-4 mx-5 text-center py-6 bg-black/5 dark:bg-white/5 rounded-xl border border-dashed border-app-border">
                                    {itemSearchQuery ? (lang === 'de' ? 'Keine Ergebnisse für diese Suche.' : 'No results found.') : (lang === 'de' ? 'Keine Daten. Wähle eine Rechnung auf der linken Seite aus.' : 'No data. Select an invoice on the left.')}
                                </p>
                             )}
@@ -1986,7 +1986,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                    </div>
                 </div>
 
-                <div className={cn("w-full xl:w-[300px] p-5 flex flex-col shrink-0 rounded-b-2xl xl:rounded-bl-none transition-colors bg-black/5 dark:bg-black/20", activeInvoice && (dk ? "bg-teal-950/20" : "bg-teal-50/30"))}>  
+                <div className="w-full xl:w-[300px] p-5 flex flex-col shrink-0 rounded-b-2xl xl:rounded-bl-none transition-colors bg-black/[0.03] dark:bg-black/20 border-l border-app-border"> 
                  <div className="flex items-center justify-between gap-2 mb-5">
                       {activeInvoice ? (
                          <span className="text-[14px] font-black text-teal-600 dark:text-teal-400 bg-teal-500/10 px-3 py-1 rounded-md">{activeInvoice.number || 'Draft'}</span>
