@@ -121,7 +121,9 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
   return (
     <div className={cn('min-h-screen w-full flex flex-col items-center justify-center p-6', isDark ? 'bg-[#020617]' : 'bg-slate-100')}>
       <button onClick={onBack} className="mb-10 flex items-center gap-2 text-2xl font-black italic text-[#EAB308] hover:scale-105 transition-all">
-        <span className={isDark ? 'text-white' : 'text-slate-900'}>Euro</span>Track.
+        <div className="text-xl sm:text-2xl font-black italic">
+              EuroTrack<span className="text-[#EAB308]">.</span>
+            </div>
       </button>
 
       <div className={cn('w-full max-w-md p-10 rounded-[2.5rem] shadow-2xl border',
@@ -169,7 +171,7 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
               </button>
             </div>
             <button type="submit" disabled={loading}
-              className="w-full py-4 bg-blue-600 text-white font-black rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 shadow-lg shadow-blue-600/20 disabled:opacity-50 transition-all">
+  className="w-full py-4 bg-blue-600 text-white font-black rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 shadow-lg shadow-blue-600/20 disabled:opacity-50 transition-all whitespace-nowrap">
               {loading ? <Loader2 className="animate-spin" size={20} /> : <LogIn size={20} />}
               {lang === 'de' ? 'Anmelden' : 'Log In'}
             </button>
