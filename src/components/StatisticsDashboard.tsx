@@ -419,28 +419,26 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                     <div key={i} className="flex-1 flex flex-col items-center justify-end gap-3 group h-full relative z-10 cursor-crosshair">
                       
                       {/* SMART TOOLTIP */}
-                      <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-[11px] p-3 rounded-xl pointer-events-none z-50 whitespace-nowrap shadow-xl flex flex-col gap-1.5">
-                        <span className="font-black text-slate-400 mb-1">{labels[i]}</span>
+                      <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-app-card border border-app-border text-app-text text-[11px] p-3 rounded-xl pointer-events-none z-50 whitespace-nowrap shadow-xl flex flex-col gap-1.5">
+                        <span className="font-black text-app-muted mb-1">{labels[i]}</span>
                         
                         {(chartTab === 'all' || chartTab === 'total') && (
-                          <div className="flex justify-between gap-4"><span className="text-blue-400">{lang === 'de' ? 'Gesamt:' : 'Total:'}</span> <span className="font-bold">{formatCurrency(m.total)}</span></div>
+                          <div className="flex justify-between gap-4"><span className="text-[var(--accent-primary)]">{lang === 'de' ? 'Gesamt:' : 'Total:'}</span> <span className="font-bold">{formatCurrency(m.total)}</span></div>
                         )}
                         
                         {(chartTab === 'all' || chartTab === 'paid') && (
-                          <div className="flex justify-between gap-4"><span className="text-emerald-400">{lang === 'de' ? 'Bezahlt:' : 'Paid:'}</span> <span className="font-bold">{formatCurrency(m.paid)}</span></div>
+                          <div className="flex justify-between gap-4"><span className="text-emerald-600 dark:text-emerald-400">{lang === 'de' ? 'Bezahlt:' : 'Paid:'}</span> <span className="font-bold">{formatCurrency(m.paid)}</span></div>
                         )}
                         
-                        {chartTab === 'all' && <div className="w-full h-px bg-white/10 my-0.5"></div>}
+                        {chartTab === 'all' && <div className="w-full h-px bg-[var(--border-subtle)] my-0.5"></div>}
                         
                         {(chartTab === 'all' || chartTab === 'unpaid') && (
                           <>
-                            <div className="flex justify-between gap-4"><span className="text-slate-300">{lang === 'de' ? 'Total Offen:' : 'Total Due:'}</span> <span className="font-bold">{formatCurrency(m.unpaid)}</span></div>
-                            <div className="flex justify-between gap-4 pl-2"><span className="text-amber-400 text-[10px]">{lang === 'de' ? '└ Ausstehend:' : '└ Pending:'}</span> <span className="font-bold text-[10px]">{formatCurrency(m.pending)}</span></div>
-                            <div className="flex justify-between gap-4 pl-2"><span className="text-red-400 text-[10px]">{lang === 'de' ? '└ Überfällig:' : '└ Overdue:'}</span> <span className="font-bold text-[10px]">{formatCurrency(m.overdue)}</span></div>
+                            <div className="flex justify-between gap-4"><span className="text-app-text">{lang === 'de' ? 'Total Offen:' : 'Total Due:'}</span> <span className="font-bold">{formatCurrency(m.unpaid)}</span></div>
+                            <div className="flex justify-between gap-4 pl-2"><span className="text-amber-500 text-[10px]">{lang === 'de' ? '└ Ausstehend:' : '└ Pending:'}</span> <span className="font-bold text-[10px]">{formatCurrency(m.pending)}</span></div>
+                            <div className="flex justify-between gap-4 pl-2"><span className="text-red-500 text-[10px]">{lang === 'de' ? '└ Überfällig:' : '└ Overdue:'}</span> <span className="font-bold text-[10px]">{formatCurrency(m.overdue)}</span></div>
                           </>
                         )}
-                        
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-slate-800"></div>
                       </div>
 
                       {/* DYNAMIC BARS */}
