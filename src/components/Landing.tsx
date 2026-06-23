@@ -103,7 +103,7 @@ export default function Landing({
         <div className="md:hidden flex flex-col gap-4 py-4 sm:py-6 border-b dark:border-white/10 border-slate-200 mb-6">
           <div className="flex justify-between items-center w-full">
             <div className="text-xl sm:text-2xl font-black italic">
-              Euro<span className="text-[#EAB308]">Track.</span>
+              EuroTrack<span className="text-[#EAB308]">.</span>
             </div>
             <div className="flex items-center gap-2">
               {/* Language toggle */}
@@ -157,15 +157,16 @@ export default function Landing({
       </nav>
 
       {/* Hero */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 pb-20 sm:pb-32 text-center flex-1 flex flex-col items-center justify-center z-10 relative">
-        <span className="px-3 sm:px-4 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-500 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-6 sm:mb-8 inline-block shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 sm:pt-20 pb-10 sm:pb-32 text-center flex-1 flex flex-col items-center justify-start z-10 relative">
+        <span className="px-3 sm:px-4 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-500 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-6 inline-block shadow-sm">
           {t.tag}
         </span>
-        <h1 className={cn('text-4xl sm:text-6xl md:text-8xl font-black mb-6 sm:mb-8 tracking-tighter leading-tight bg-clip-text text-transparent',
+        {/* Added pb-4 to fix the 'g' cutoff */}
+        <h1 className={cn('text-4xl sm:text-6xl md:text-8xl font-black mb-6 tracking-tighter leading-[0.9] pb-4 bg-clip-text text-transparent',
           isDarkMode ? 'bg-gradient-to-br from-white via-white/90 to-blue-300/40' : 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-700')}>
           {t.title}
         </h1>
-        <p className={cn('text-sm sm:text-lg md:text-xl mb-10 sm:mb-12 max-w-2xl mx-auto px-2 leading-relaxed',
+        <p className={cn('text-sm sm:text-lg md:text-xl mb-10 max-w-2xl mx-auto px-2 leading-relaxed',
           isDarkMode ? 'text-slate-400' : 'text-slate-600')}>
           {t.desc}
         </p>
