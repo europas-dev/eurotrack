@@ -1086,7 +1086,7 @@ finalFiltered.forEach(h => {
     {selectedMonth === null 
       ? (lang === 'de' ? 'Alle Monate' : 'All Months') 
       : (lang === 'de' ? ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'][selectedMonth] : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][selectedMonth])
-    } <ChevronDown size={14} className={dk ? 'text-slate-500' : 'text-slate-400'} />
+    } <ChevronDown size={14} className={dk ? 'text-app-muted' : 'text-slate-400'} />
   </button>
   {showMonthMenu && (
     <div className={cn(popupCls, "w-[220px] p-2")} onClick={(e) => e.stopPropagation()}>
