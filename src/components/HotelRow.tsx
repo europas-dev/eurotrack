@@ -527,7 +527,7 @@ export function MonthFilterDropdown({ selectedMonth, localMonthFilter, setLocalM
   return (
     <div ref={ref} className="relative">
       <button disabled={disabled} onClick={() => setOpen(!open)} className={cn("flex items-center px-2 py-1.5 rounded-lg border w-max transition-all shadow-sm outline-none", dk ? "bg-black/40 border-white/10 hover:border-white/30" : "bg-white border-slate-200 hover:border-slate-300", disabled && "opacity-50 cursor-not-allowed")}>
-         <span className={cn("text-[12px] font-black border-r pr-2 mr-2", dk ? "text-teal-400 border-white/10" : "text-teal-600 border-slate-200")}>{selectedYear || new Date().getFullYear()}</span>
+         <span className="text-[12px] font-black border-r border-app-border pr-2 mr-2 text-[var(--accent-primary)]">{selectedYear || new Date().getFullYear()}</span>
          <Filter size={14} className={cn("mr-1.5", dk ? "text-slate-500" : "text-slate-400")}/>
          <span className={cn("text-[11px] font-black uppercase tracking-wide pr-2", dk ? "text-white" : "text-slate-700")}>{displayStr}</span>
          <ChevronDown size={12} className={dk ? "text-slate-500" : "text-slate-400"}/>
@@ -984,9 +984,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
            confirmDelete 
              ? 'border-red-500 ring-2 ring-red-500 bg-red-50 dark:bg-red-950/20 z-[9999]'
              : (isSelected && !isChildModalOpen) 
-                 ? 'bg-teal-50 dark:bg-teal-500/10 border-teal-500/40 dark:border-teal-500/50' 
+                 ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/40 dark:border-[var(--accent-primary)]/50' 
                  : (isOpen && !isChildModalOpen) 
-                     ? 'bg-app-card border-teal-400/60 dark:border-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.15)]' 
+                     ? 'bg-app-card border-[var(--accent-primary)]/60 shadow-md ring-1 ring-[var(--accent-primary)]/20' 
                      : 'bg-app-card border-app-border hover:border-slate-300 dark:hover:border-white/10'
          )}
          style={(!confirmDelete && !isSelected && !isOpen) ? { boxShadow: 'var(--card-shadow)' } : {}}
@@ -995,7 +995,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
        <div className={cn('flex items-center cursor-pointer py-1.5 min-h-[56px] px-2 pr-2 group', dk ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/70', isOpen && 'border-b', isOpen && (dk ? 'border-white/5 bg-black/20' : 'border-slate-100 bg-slate-50/50'))} onClick={onToggle}>   
           <div className="flex items-center justify-center w-10 shrink-0">
-            {isOpen ? <ChevronDown size={18} className="text-teal-500" /> : <ChevronRight size={18} className="text-slate-500" />}
+            {isOpen ? <ChevronDown size={18} className="text-[var(--accent-primary)]" /> : <ChevronRight size={18} className="text-app-muted" />}
           </div>
 
           <div className="w-[200px] shrink-0 pr-4 flex flex-col justify-center relative">
@@ -1312,12 +1312,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                   })}
                   {!viewOnly && (
                     <button onClick={async () => {
-                      setCreatingDuration(true);
-                      const created = await createDuration({ hotelId: localHotel.id });
-                      const next = { ...localHotel, durations: [...localHotel.durations, { ...created, roomCards: [] }] };
-                      patchHotel({ durations: next.durations }); setActiveDurationTab(next.durations.length - 1); setCreatingDuration(false);
-                    }} className={cn("px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all border border-dashed ml-1", dk ? "border-white/20 text-slate-400 hover:bg-white/10 hover:text-white" : "border-slate-300 text-slate-500 hover:bg-slate-200 hover:text-slate-800")}>
-                      {creatingDuration ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} strokeWidth={3} />} {lang === 'de' ? 'Neu' : 'New'}
+                                     setCreatingDuration(true);
+                                     const created = await createDuration({ hotelId: localHotel.id });
+                                     const next = { ...localHotel, durations: [...localHotel.durations, { ...created, roomCards: [] }] };
+                                     patchHotel({ durations: next.durations }); setActiveDurationTab(next.durations.length - 1); setCreatingDuration(false);
+                                   }} className="px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all border border-dashed ml-1 border-[var(--accent-primary)]/50 text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10">
+                                     {creatingDuration ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} strokeWidth={3} />} {lang === 'de' ? 'Neu' : 'New'}
                     </button>
                   )}
                 </div>
@@ -1353,10 +1353,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                            )}
                            {!viewOnly && (
                              <button onClick={() => {
-                                 const newId = Math.random().toString();
-                                 const newDraft = { id: newId, number: '', note: '', isPaid: false, billingMode: 'detailed', items: [], startDate: null, endDate: null, dueDate: null, paymentDate: null };
-                                 setInvoiceDraft(newDraft); setEditingInvoiceId(newId); setSelectedInvoiceId(newId);
-                             }} className="p-1.5 rounded-md text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-500/20 transition-all shrink-0"><Plus size={14} strokeWidth={3} /></button>
+                                   const newId = Math.random().toString();
+                                   const newDraft = { id: newId, number: '', note: '', isPaid: false, billingMode: 'detailed', items: [], startDate: null, endDate: null, dueDate: null, paymentDate: null };
+                                   setInvoiceDraft(newDraft); setEditingInvoiceId(newId); setSelectedInvoiceId(newId);
+                               }} className="p-1.5 rounded-md text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 transition-all shrink-0"><Plus size={14} strokeWidth={3} /></button>
                            )}
                        </div>
                     </div>
