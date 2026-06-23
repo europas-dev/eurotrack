@@ -1,4 +1,3 @@
-// src/components/Auth.tsx
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Loader2, Eye, EyeOff, ArrowLeft, Mail, Lock, UserPlus, LogIn, AtSign, User } from 'lucide-react';
@@ -66,7 +65,7 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
       const email    = regEmail.trim();
       const password = regPass;
 
-      if (!name)     throw new Error(lang === 'de' ? 'Name erforderlich.'           : 'Full name is required.');
+      if (!name)     throw new Error(lang === 'de' ? 'Name erforderlich.'            : 'Full name is required.');
       if (!username) throw new Error(lang === 'de' ? 'Benutzername erforderlich.'   : 'Username is required.');
       if (username.length < 3) throw new Error(lang === 'de' ? 'Benutzername mindestens 3 Zeichen.' : 'Username must be at least 3 characters.');
       if (!/^[a-zA-Z0-9_.-]+$/.test(username)) throw new Error(lang === 'de' ? 'Benutzername: nur Buchstaben, Zahlen, _ . -' : 'Username: only letters, numbers, _ . -');
@@ -112,27 +111,32 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
   }
 
   const inputClass = cn(
-    'w-full p-4 pl-12 rounded-xl outline-none border transition-all',
+    'w-full p-3 sm:p-4 pl-12 rounded-xl outline-none border transition-all text-sm sm:text-base',
     isDark
       ? 'bg-white/5 border-white/10 focus:border-blue-500 text-white placeholder-slate-500'
       : 'bg-slate-50 border-slate-200 focus:border-blue-500 text-slate-900 placeholder-slate-400'
   );
 
   return (
-    <div className={cn('min-h-screen w-full flex flex-col items-center justify-center p-6', isDark ? 'bg-[#020617]' : 'bg-slate-100')}>
-      <button onClick={onBack} className="mb-10 flex items-center gap-2 text-2xl font-black italic text-[#EAB308] hover:scale-105 transition-all">
+    <div 
+      className={cn('min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-6', isDark ? 'bg-[#020617]' : 'bg-slate-100')}
+      style={{ fontFamily: '"Poppins", sans-serif' }}
+    >
+      <button onClick={onBack} className="mb-6 sm:mb-10 flex items-center gap-2 text-2xl font-black italic text-[#EAB308] hover:scale-105 transition-all">
         <span className={isDark ? 'text-white' : 'text-slate-900'}>Euro</span>Track.
       </button>
 
-      <div className={cn('w-full max-w-md p-10 rounded-[2.5rem] shadow-2xl border',
+      {/* CHANGED p-10 to p-6 sm:p-10 to give mobile more room */}
+      <div className={cn('w-full max-w-md p-6 sm:p-10 rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border',
         isDark ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
 
-        <h2 className="text-3xl font-black mb-2">
+        {/* Scaled down header slightly on mobile */}
+        <h2 className="text-2xl sm:text-3xl font-black mb-2 tracking-tight">
           {mode === 'login'
             ? (lang === 'de' ? 'Willkommen zurück' : 'Welcome Back')
             : (lang === 'de' ? 'Konto erstellen'   : 'Create Account')}
         </h2>
-        <p className="text-sm opacity-50 mb-8">
+        <p className="text-xs sm:text-sm opacity-50 mb-6 sm:mb-8">
           {mode === 'login'
             ? (lang === 'de' ? 'Benutzername oder E-Mail + Passwort' : 'Username or email + password')
             : (lang === 'de' ? 'Alle Felder ausfüllen'               : 'Fill in all fields to get started')}
@@ -140,86 +144,88 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
 
         {errorMsg && (
           <div className="mb-4 p-3 bg-red-600/10 border border-red-500/20 rounded-xl">
-            <p className="text-red-400 text-sm font-bold">{errorMsg}</p>
+            <p className="text-red-400 text-xs sm:text-sm font-bold">{errorMsg}</p>
           </div>
         )}
         {success && (
           <div className="mb-4 p-3 bg-green-600/10 border border-green-500/20 rounded-xl">
-            <p className="text-green-400 text-sm font-bold">{success}</p>
+            <p className="text-green-400 text-xs sm:text-sm font-bold">{success}</p>
           </div>
         )}
 
         {mode === 'login' && (
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-3 sm:space-y-4">
             <div className="relative">
-              <AtSign className="absolute left-4 top-4 opacity-30" size={20} />
+              <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" size={18} />
               <input type="text"
                 placeholder={lang === 'de' ? 'Benutzername oder E-Mail' : 'Username or Email'}
                 required value={loginId} onChange={e => setLoginId(e.target.value)}
                 autoComplete="username" className={inputClass} />
             </div>
             <div className="relative">
-              <Lock className="absolute left-4 top-4 opacity-30" size={20} />
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" size={18} />
               <input type={showPass ? 'text' : 'password'}
                 placeholder={lang === 'de' ? 'Passwort' : 'Password'}
                 required value={loginPass} onChange={e => setLoginPass(e.target.value)}
                 autoComplete="current-password" className={cn(inputClass, 'pr-12')} />
-              <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-4 top-4 opacity-50 hover:opacity-100">
-                {showPass ? <EyeOff size={20} /> : <Eye size={20} />}
+              <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-4 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100">
+                {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            {/* Added whitespace-nowrap here */}
             <button type="submit" disabled={loading}
-              className="w-full py-4 bg-blue-600 text-white font-black rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 shadow-lg shadow-blue-600/20 disabled:opacity-50 transition-all">
-              {loading ? <Loader2 className="animate-spin" size={20} /> : <LogIn size={20} />}
+              className="w-full py-3.5 sm:py-4 bg-blue-600 text-white font-black rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 shadow-lg shadow-blue-600/20 disabled:opacity-50 transition-all whitespace-nowrap text-sm sm:text-base">
+              {loading ? <Loader2 className="animate-spin" size={18} /> : <LogIn size={18} />}
               {lang === 'de' ? 'Anmelden' : 'Log In'}
             </button>
           </form>
         )}
 
         {mode === 'signup' && (
-          <form onSubmit={handleSignup} className="space-y-4">
+          <form onSubmit={handleSignup} className="space-y-3 sm:space-y-4">
             <div className="relative">
-              <User className="absolute left-4 top-4 opacity-30" size={20} />
+              <User className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" size={18} />
               <input type="text"
                 placeholder={lang === 'de' ? 'Vollständiger Name' : 'Full Name'}
                 required value={regName} onChange={e => setRegName(e.target.value)}
                 autoComplete="name" className={inputClass} />
             </div>
             <div className="relative">
-              <AtSign className="absolute left-4 top-4 opacity-30" size={20} />
+              <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" size={18} />
               <input type="text"
-                placeholder={lang === 'de' ? 'Benutzername (z.B. max_muster)' : 'Username (e.g. john_doe)'}
+                placeholder={lang === 'de' ? 'Benutzername (z.B. max)' : 'Username (e.g. john_doe)'}
                 required value={regUsername} onChange={e => setRegUsername(e.target.value)}
                 autoComplete="username" className={inputClass} />
             </div>
-            <p className={cn('text-[11px] -mt-2 px-1', isDark ? 'text-slate-500' : 'text-slate-400')}>
+            <p className={cn('text-[10px] sm:text-[11px] -mt-1 sm:-mt-2 px-1', isDark ? 'text-slate-500' : 'text-slate-400')}>
               {lang === 'de' ? 'Buchstaben, Zahlen, _ . — zum Einloggen verwendet' : 'Letters, numbers, _ . only — used to log in'}
             </p>
             <div className="relative">
-              <Mail className="absolute left-4 top-4 opacity-30" size={20} />
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" size={18} />
               <input type="email" placeholder="Email"
                 required value={regEmail} onChange={e => setRegEmail(e.target.value)}
                 autoComplete="email" className={inputClass} />
             </div>
             <div className="relative">
-              <Lock className="absolute left-4 top-4 opacity-30" size={20} />
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30" size={18} />
               <input type={showPass ? 'text' : 'password'}
-                placeholder={lang === 'de' ? 'Passwort (min. 6 Zeichen)' : 'Password (min. 6 chars)'}
+                placeholder={lang === 'de' ? 'Passwort (min. 6)' : 'Password (min. 6)'}
                 required value={regPass} onChange={e => setRegPass(e.target.value)}
                 autoComplete="new-password" className={cn(inputClass, 'pr-12')} />
-              <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-4 top-4 opacity-50 hover:opacity-100">
-                {showPass ? <EyeOff size={20} /> : <Eye size={20} />}
+              <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-4 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100">
+                {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            {/* Added whitespace-nowrap here */}
             <button type="submit" disabled={loading}
-              className="w-full py-4 bg-blue-600 text-white font-black rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 shadow-lg shadow-blue-600/20 disabled:opacity-50 transition-all">
-              {loading ? <Loader2 className="animate-spin" size={20} /> : <UserPlus size={20} />}
+              className="w-full py-3.5 sm:py-4 bg-blue-600 text-white font-black rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 shadow-lg shadow-blue-600/20 disabled:opacity-50 transition-all whitespace-nowrap text-sm sm:text-base">
+              {loading ? <Loader2 className="animate-spin" size={18} /> : <UserPlus size={18} />}
               {lang === 'de' ? 'Konto erstellen' : 'Create Account'}
             </button>
           </form>
         )}
 
-        <div className={cn('mt-8 pt-8 border-t text-center text-sm', isDark ? 'border-white/10' : 'border-slate-200')}>
+        <div className={cn('mt-6 sm:mt-8 pt-6 sm:pt-8 border-t text-center text-xs sm:text-sm', isDark ? 'border-white/10' : 'border-slate-200')}>
           <span className="opacity-50">
             {mode === 'login'
               ? (lang === 'de' ? 'Noch kein Konto?' : 'No account yet?')
@@ -234,7 +240,7 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
         </div>
       </div>
 
-      <button onClick={onBack} className="mt-8 flex items-center gap-2 text-xs font-bold opacity-50 hover:opacity-100 transition-all">
+      <button onClick={onBack} className="mt-6 sm:mt-8 flex items-center gap-2 text-xs font-bold opacity-50 hover:opacity-100 transition-all">
         <ArrowLeft size={14} /> {lang === 'de' ? 'Zurück zur Startseite' : 'Back to Landing'}
       </button>
     </div>
