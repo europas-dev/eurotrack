@@ -12,7 +12,7 @@ interface LandingProps {
   toggleTheme:  () => void;
 }
 
-// Inline SVG flag components — no external deps
+// Inline SVG flag components
 function FlagDE({ size = 24 }: { size?: number }) {
   return (
     <svg width={size} height={Math.round(size * 0.6)} viewBox="0 0 30 18"
@@ -27,7 +27,6 @@ function FlagDE({ size = 24 }: { size?: number }) {
 }
 
 function FlagUK({ size = 24 }: { size?: number }) {
-  // Proper Union Jack proportions 2:1
   const w = size;
   const h = Math.round(size * 0.6);
   return (
@@ -36,14 +35,10 @@ function FlagUK({ size = 24 }: { size?: number }) {
       style={{ borderRadius: 3, display: 'block', boxShadow: '0 0 0 1px rgba(255,255,255,0.15)' }}
     >
       <rect width="60" height="36" fill="#012169" />
-      {/* White diagonals */}
       <path d="M0,0 L60,36 M60,0 L0,36" stroke="#fff" strokeWidth="8" />
-      {/* Red diagonals */}
       <path d="M0,0 L60,36" stroke="#C8102E" strokeWidth="4.8" />
       <path d="M60,0 L0,36" stroke="#C8102E" strokeWidth="4.8" />
-      {/* White cross */}
       <path d="M30,0 V36 M0,18 H60" stroke="#fff" strokeWidth="12" />
-      {/* Red cross */}
       <path d="M30,0 V36 M0,18 H60" stroke="#C8102E" strokeWidth="7.2" />
     </svg>
   );
@@ -89,49 +84,88 @@ export default function Landing({
 
   return (
     <div 
-      className={cn('min-h-screen flex flex-col transition-colors duration-300',
+      className={cn('min-h-screen flex flex-col transition-colors duration-300 relative overflow-hidden',
         isDarkMode ? 'bg-[#020617] text-white' : 'bg-slate-50 text-slate-900')}
-      style={{ fontFamily: '"Poppins", sans-serif' }}
+      style={{ fontFamily: '"Poppins", sans-serif' }} // Enforce Poppins
     >
+      {/* Dynamic Background Mesh Gradient */}
+      {isDarkMode && (
+        <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
+          <div className="absolute top-1/4 -left-1/4 w-3/4 h-3/4 rounded-full bg-blue-900/30 blur-[150px]"/>
+          <div className="absolute bottom-1/4 -right-1/4 w-3/4 h-3/4 rounded-full bg-blue-600/30 blur-[150px]"/>
+        </div>
+      )}
 
       {/* Navigation */}
-      <nav className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex flex-wrap justify-between items-center w-full gap-4">
-        <div className="text-xl sm:text-2xl font-black italic">
-          Euro<span className="text-[#EAB308]">Track.</span>
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 w-full z-10">
+        
+        {/* MOBILE LAYOUT: Logo, Theme, Lang inline. Next line login/signup. */}
+        <div className="md:hidden flex flex-col gap-4 py-4 sm:py-6 border-b dark:border-white/10 border-slate-200 mb-6">
+          <div className="flex justify-between items-center w-full">
+            <div className="text-xl sm:text-2xl font-black italic">
+              Euro<span className="text-[#EAB308]">Track.</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Language toggle */}
+              <button
+                onClick={() => setLang(lang === 'de' ? 'en' : 'de')}
+                title={lang === 'de' ? 'Switch to English' : 'Auf Deutsch wechseln'}
+                className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 border border-transparent transition-all"
+              >
+                {lang === 'de' ? <FlagUK size={24} /> : <FlagDE size={24} />}
+              </button>
+              {/* Theme toggle */}
+              <button onClick={toggleTheme}
+                className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 border border-transparent transition-all">
+                {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center justify-center gap-2 border-t dark:border-white/10 border-slate-200 pt-4">
+            <button onClick={onLogin} className="text-xs sm:text-sm font-bold px-2 sm:px-4 text-app-text-muted">{t.login}</button>
+            <button onClick={onRegister}
+              className="bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-bold shadow-lg hover:bg-blue-700 transition-all">
+              {t.signup}
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2 sm:gap-4 ml-auto">
-          {/* Language toggle */}
-          <button
-            onClick={() => setLang(lang === 'de' ? 'en' : 'de')}
-            title={lang === 'de' ? 'Switch to English' : 'Auf Deutsch wechseln'}
-            className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 border border-transparent transition-all"
-          >
-            {lang === 'de' ? <FlagUK size={24} /> : <FlagDE size={24} />}
-          </button>
 
-          {/* Theme toggle */}
-          <button onClick={toggleTheme}
-            className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 border border-transparent transition-all">
-            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-
-          <button onClick={onLogin} className="text-xs sm:text-sm font-bold px-2 sm:px-4">{t.login}</button>
-          <button onClick={onRegister}
-            className="bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-bold shadow-lg hover:bg-blue-700 transition-all">
-            {t.signup}
-          </button>
+        {/* DESKTOP LAYOUT (sm and above): All inline */}
+        <div className="hidden md:flex justify-between items-center w-full py-6">
+          <div className="text-xl sm:text-2xl font-black italic">
+            Euro<span className="text-[#EAB308]">Track.</span>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-4 ml-auto">
+            <button
+              onClick={() => setLang(lang === 'de' ? 'en' : 'de')}
+              title={lang === 'de' ? 'Switch to English' : 'Auf Deutsch wechseln'}
+              className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 border border-transparent transition-all"
+            >
+              {lang === 'de' ? <FlagUK size={24} /> : <FlagDE size={24} />}
+            </button>
+            <button onClick={toggleTheme}
+              className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-white/10 border border-transparent transition-all">
+              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+            <button onClick={onLogin} className="text-xs sm:text-sm font-bold px-2 sm:px-4 text-app-text-muted">{t.login}</button>
+            <button onClick={onRegister}
+              className="bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-bold shadow-lg hover:bg-blue-700 transition-all">
+              {t.signup}
+            </button>
+          </div>
         </div>
       </nav>
 
       {/* Hero */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 pb-20 sm:pb-32 text-center flex-1 flex flex-col items-center justify-center">
-        <span className="px-3 sm:px-4 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-500 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-6 sm:mb-8 inline-block">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 pb-20 sm:pb-32 text-center flex-1 flex flex-col items-center justify-center z-10 relative">
+        <span className="px-3 sm:px-4 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-500 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-6 sm:mb-8 inline-block shadow-sm">
           {t.tag}
         </span>
-        <h1 className="text-4xl sm:text-6xl md:text-8xl font-black mb-6 sm:mb-8 tracking-tighter leading-tight">
+        <h1 className={cn('text-4xl sm:text-6xl md:text-8xl font-black mb-6 sm:mb-8 tracking-tighter leading-tight bg-clip-text text-transparent',
+          isDarkMode ? 'bg-gradient-to-br from-white via-white/90 to-blue-300/40' : 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-700')}>
           {t.title}
         </h1>
-        <p className={cn('text-sm sm:text-lg md:text-xl mb-10 sm:mb-12 max-w-2xl mx-auto px-2',
+        <p className={cn('text-sm sm:text-lg md:text-xl mb-10 sm:mb-12 max-w-2xl mx-auto px-2 leading-relaxed',
           isDarkMode ? 'text-slate-400' : 'text-slate-600')}>
           {t.desc}
         </p>
@@ -142,19 +176,20 @@ export default function Landing({
       </div>
 
       {/* Features */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 pb-12 sm:pb-20 w-full">
+      {/* We use grid-cols-2 lg:grid-cols-4 for the 2x2 grid on mobile! */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 pb-12 sm:pb-20 w-full z-10">
         {t.features.map((f, i) => (
-          <div key={i} className={cn('p-6 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] border transition-all',
-            isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-sm')}>
+          <div key={i} className={cn('p-6 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] border transition-all hover:border-blue-500/30 hover:scale-[1.02] shadow-sm',
+            isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200')}>
             <div className="mb-3 sm:mb-4 text-blue-500">{f.icon}</div>
             <h3 className="font-black text-sm sm:text-base mb-1.5 sm:mb-2">{f.title}</h3>
-            <p className="text-xs opacity-60 leading-relaxed">{f.desc}</p>
+            <p className="text-[10px] sm:text-xs opacity-60 leading-relaxed">{f.desc}</p>
           </div>
         ))}
       </div>
 
       {/* Footer */}
-      <footer className="w-full py-6 flex justify-center">
+      <footer className="w-full py-6 flex justify-center z-10">
         <button
           onClick={onAdminLogin}
           className={cn(
