@@ -662,7 +662,7 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
 
       {confirmDelete && (
   <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/50 p-4 transition-all">
-    <div className={cn('w-full max-w-md rounded-2xl border p-6 shadow-2xl', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
+    <div className="w-full max-w-md rounded-2xl border p-6 shadow-2xl bg-app-card border-app-border text-app-text">
       <h3 className="text-xl font-black mb-2">
               {lang === 'de' ? 'Buchungszeitraum löschen?' : 'Delete booking period?'}
             </h3>
