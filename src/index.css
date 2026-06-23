@@ -168,23 +168,28 @@ body {
   --body-bg: #121212;            /* surface-a0 */
   --bg-card: #212321;            /* surface-tonal-a0 */
   --bg-card-to: #252525;         /* surface-a10 */
-  --border-subtle: #333533;      /* surface-tonal-a10 */
-  --text-main: #d4d4d8;          /* Kept bright for readability */
-  --text-muted: #878887;         /* surface-tonal-a50 */
-  --accent-primary: #d5f7f7;     /* primary-a0 */
+  
+  /* Bumping border brightness up so unselected button outlines are visible */
+  --border-subtle: #474947;      /* surface-tonal-a20 */
+  
+  --text-main: #d4d4d8;          
+  /* Brightening the muted text so inactive options don't fade away */
+  --text-muted: #a3a4a3;         
+  
+  --accent-primary: #cfdecc;     /* primary-a0 */
   --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
   --card-backdrop: none;
 }
 
-/* Fix: Force dark text inside primary buttons for Matte Charcoal */
+/* Fix: Force softer dark text inside primary buttons for Matte Charcoal */
 [data-theme='matte-charcoal'] .bg-teal-600,
 [data-theme='matte-charcoal'] .bg-teal-500,
 [data-theme='matte-charcoal'] .bg-blue-600,
 [data-theme='matte-charcoal'] .bg-\[var\(--accent-primary\)\] {
   background-color: var(--accent-primary) !important;
-  color: #121212 !important;
+  /* Using surface-tonal-a10 for softer text instead of harsh #121212 */
+  color: #333533 !important; 
 }
-
 /* 4. SUNSET DUNE */
 [data-theme='sunset-dune'] {
   --bg-main: #161210;        
