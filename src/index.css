@@ -162,16 +162,27 @@ body {
   --card-backdrop: blur(16px);
 }
 
-/* 3. MATTE CHARCOAL (AdminKit Style - Ultra Flat & Professional) */
+/* 3. MATTE CHARCOAL (Custom Palette) */
 [data-theme='matte-charcoal'] {
-  --bg-main: #121212; 
-  --body-bg: #121212;
-  --bg-card: #1c1c1c;        
-  --bg-card-to: #171717;
-  --border-subtle: rgba(255, 255, 255, 0.05);
-  --text-main: #d4d4d8;      
-  --text-muted: #a1a1aa;     
-  --accent-primary: #e0c599;
+  /* Surface colors */
+  --bg-main: #121212;           /* surface-a0 */
+  --body-bg: #121212;           /* surface-a0 */
+  
+  /* Tonal surface for cards */
+  --bg-card: #212321;           /* surface-tonal-a0 */
+  --bg-card-to: #252525;        /* surface-a10 */
+  
+  /* Borders and Dividers */
+  --border-subtle: #333533;     /* surface-tonal-a10 */
+  
+  /* Text */
+  --text-main: #d4d4d8;         /* Keeping high-contrast text */
+  --text-muted: #878887;        /* surface-tonal-a50 */
+  
+  /* Primary Accent */
+  --accent-primary: #cfdecc;    /* primary-a0 */
+  
+  /* Default Shadows & Blur */
   --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
   --card-backdrop: none;
 }
