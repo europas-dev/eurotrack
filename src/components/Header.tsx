@@ -296,7 +296,7 @@ export default function Header({
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold truncate">{c.fullName || 'User'}</p>
-        {c.username && <p className="text-[12px] font-semibold text-blue-500">@{c.username}</p>}
+        {c.username && <p className="text-[12px] font-semibold text-[var(--accent-primary)]">@{c.username}</p>}
         <p className="text-[11px] truncate opacity-50 opacity-60">{c.email}</p>
       </div>
       <select 
@@ -309,7 +309,7 @@ export default function Header({
         <option value="editor">Editor</option>
         <option value="admin">Admin</option>
       </select>
-      <button onMouseDown={e => e.stopPropagation()} onClick={() => handleChangeCollabRole(c.userId)} disabled={changingRole === c.userId} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-all">
+      <button onMouseDown={e => e.stopPropagation()} onClick={() => handleChangeCollabRole(c.userId)} disabled={changingRole === c.userId} className="px-3 py-1.5 bg-[var(--accent-primary)] hover:opacity-80 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-all">
         {changingRole === c.userId ? <Loader2 size={12} className="animate-spin" /> : (isDe ? 'Ändern' : 'Change')}
       </button>
     </div>
@@ -678,9 +678,12 @@ export default function Header({
                       </div>
                     )}
                     {selectedUser && (
-                      <div className={cn('rounded-xl border p-4 space-y-3 mb-3', dk ? 'border-blue-500/40 bg-blue-500/5' : 'border-blue-300 bg-blue-50')}>
-                        <div className="flex items-center justify-between"><p className={cn('text-sm font-black', dk ? 'text-white' : 'text-slate-900')}>{selectedUser.fullName || selectedUser.username || selectedUser.email}</p><button onClick={() => setSelectedUser(null)} className={cn('p-1 rounded', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-blue-100 text-slate-500')}><X size={13} /></button></div>
-                        <select value={grantRole} onChange={e => setGrantRole(e.target.value as any)} className={selectCls}><option value="viewer">👁 Viewer</option><option value="editor">✏️ Editor</option><option value="admin">🛡️ Admin</option></select>
+                      <div className="rounded-xl border p-4 space-y-3 mb-3 border-[var(--accent-primary)]/40 bg-[var(--accent-primary)]/5">
+                        <div className="flex items-center justify-between">
+                          <p className={cn('text-sm font-black', dk ? 'text-white' : 'text-slate-900')}>{selectedUser.fullName || selectedUser.username || selectedUser.email}</p>
+                          <button onClick={() => setSelectedUser(null)} className={cn('p-1 rounded transition-colors', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-[var(--accent-primary)]/10 text-slate-500')}><X size={13} /></button>
+                        </div>
+                    <select value={grantRole} onChange={e => setGrantRole(e.target.value as any)} className={selectCls}><option value="viewer">👁 Viewer</option><option value="editor">✏️ Editor</option><option value="admin">🛡️ Admin</option></select>
                         {grantMsg && <p className={cn('text-xs font-bold', grantMsg.startsWith('Error') ? 'text-red-400' : 'text-green-400')}>{grantMsg}</p>}
                         <button onClick={handleGrantAccess} disabled={granting} className={btnPrimary}>{granting ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />} {isDe ? 'Zugriff erteilen' : 'Grant Access'}</button>
                       </div>
