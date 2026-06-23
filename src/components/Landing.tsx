@@ -88,8 +88,11 @@ export default function Landing({
   const t = content[lang];
 
   return (
-    <div className={cn('min-h-screen flex flex-col transition-colors duration-300',
-      isDarkMode ? 'bg-[#020617] text-white' : 'bg-slate-50 text-slate-900')}>
+    <div 
+      className={cn('min-h-screen flex flex-col transition-colors duration-300',
+        isDarkMode ? 'bg-[#020617] text-white' : 'bg-slate-50 text-slate-900')}
+      style={{ fontFamily: '"Poppins", sans-serif' }}
+    >
 
       {/* Navigation */}
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex flex-wrap justify-between items-center w-full gap-4">
@@ -139,7 +142,7 @@ export default function Landing({
       </div>
 
       {/* Features */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 pb-12 sm:pb-20 w-full">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 pb-12 sm:pb-20 w-full">
         {t.features.map((f, i) => (
           <div key={i} className={cn('p-6 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] border transition-all',
             isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200 shadow-sm')}>
