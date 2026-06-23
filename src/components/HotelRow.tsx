@@ -1292,10 +1292,10 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         {isOpen && (
           <div className="rounded-b-2xl border-t shadow-inner flex flex-col bg-black/5 dark:bg-black/20 border-app-border" onClick={e => e.stopPropagation()}>
             
-            <div className="flex items-center px-4 pt-2 gap-2 border-b border-slate-200 dark:border-white/10">
-               <button onClick={() => setActiveTab('bookings')} className={cn("px-5 py-2.5 text-sm font-bold transition-all border-b-2", activeTab === 'bookings' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300")}>{lang === 'de' ? 'Buchungszeiträume' : 'Booking Periods'}</button>
-               <button onClick={() => setActiveTab('billing')} className={cn("px-5 py-2.5 text-sm font-bold transition-all border-b-2", activeTab === 'billing' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300")}>{lang === 'de' ? 'Abrechnung & Rechnungen' : 'Billing & Invoice'}</button>
-               <button onClick={() => setActiveTab('info')} className={cn("px-5 py-2.5 text-sm font-bold transition-all border-b-2", activeTab === 'info' ? "border-teal-500 text-teal-600 dark:text-teal-400" : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300")}>{lang === 'de' ? 'Hotel Info' : 'Hotel Info'}</button>
+            <div className="flex items-center px-4 pt-2 gap-2 border-b border-app-border">
+               <button onClick={() => setActiveTab('bookings')} className={cn("px-5 py-2.5 text-sm font-bold transition-all border-b-2", activeTab === 'bookings' ? "border-[var(--accent-primary)] text-[var(--accent-primary)]" : "border-transparent text-app-muted hover:text-app-text")}>{lang === 'de' ? 'Buchungszeiträume' : 'Booking Periods'}</button>
+               <button onClick={() => setActiveTab('billing')} className={cn("px-5 py-2.5 text-sm font-bold transition-all border-b-2", activeTab === 'billing' ? "border-[var(--accent-primary)] text-[var(--accent-primary)]" : "border-transparent text-app-muted hover:text-app-text")}>{lang === 'de' ? 'Abrechnung & Rechnungen' : 'Billing & Invoice'}</button>
+               <button onClick={() => setActiveTab('info')} className={cn("px-5 py-2.5 text-sm font-bold transition-all border-b-2", activeTab === 'info' ? "border-[var(--accent-primary)] text-[var(--accent-primary)]" : "border-transparent text-app-muted hover:text-app-text")}>{lang === 'de' ? 'Hotel Info' : 'Hotel Info'}</button>
             </div>
 
             {activeTab === 'bookings' && (
