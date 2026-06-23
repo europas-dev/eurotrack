@@ -103,7 +103,8 @@ export default function Landing({
         <div className="md:hidden flex flex-col gap-4 py-4 sm:py-6 border-b dark:border-white/10 border-slate-200 mb-6">
           <div className="flex justify-between items-center w-full">
             <div className="text-xl sm:text-2xl font-black italic">
-              EuroTrack<span className="text-[#EAB308]">.</span>
+              <span className="text-white">Euro</span>
+              <span className="text-[#EAB308]">Track.</span>
             </div>
             <div className="flex items-center gap-2">
               {/* Language toggle */}
@@ -133,7 +134,8 @@ export default function Landing({
         {/* DESKTOP LAYOUT (sm and above): All inline */}
         <div className="hidden md:flex justify-between items-center w-full py-6">
           <div className="text-xl sm:text-2xl font-black italic">
-            Euro<span className="text-[#EAB308]">Track.</span>
+            <span className="text-white">Euro</span>
+            <span className="text-[#EAB308]">Track.</span>
           </div>
           <div className="flex items-center gap-2 sm:gap-4 ml-auto">
             <button
@@ -157,19 +159,18 @@ export default function Landing({
       </nav>
 
       {/* Hero */}
-      {/* Changed flex-1 to flex-grow-0 and removed justify-center to bring content up */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 pb-12 sm:pb-20 text-center flex-grow-0 flex flex-col items-center z-10 relative">
-        <span className="px-3 sm:px-4 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-500 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-6 inline-block shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 sm:pt-12 pb-8 sm:pb-16 text-center flex-grow-0 flex flex-col items-center z-10 relative">
+        <span className="px-3 sm:px-4 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-500 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-4 inline-block shadow-sm">
           {t.tag}
         </span>
         
-        {/* Adjusted mb and leading to tighten the space */}
-        <h1 className={cn('text-4xl sm:text-6xl md:text-8xl font-black mb-6 tracking-tighter leading-[0.9] pb-2 bg-clip-text text-transparent',
+        {/* Added 'min-h-[120px]' and 'pb-2' to prevent 'g' cut-off */}
+        <h1 className={cn('text-4xl sm:text-6xl md:text-8xl font-black mb-4 tracking-tighter leading-[0.9] pb-4 bg-clip-text text-transparent',
           isDarkMode ? 'bg-gradient-to-br from-white via-white/90 to-blue-300/40' : 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-700')}>
           {t.title}
         </h1>
         
-        <p className={cn('text-sm sm:text-lg md:text-xl mb-8 max-w-2xl mx-auto px-2 leading-relaxed',
+        <p className={cn('text-sm sm:text-lg md:text-xl mb-6 max-w-2xl mx-auto px-2 leading-relaxed',
           isDarkMode ? 'text-slate-400' : 'text-slate-600')}>
           {t.desc}
         </p>
