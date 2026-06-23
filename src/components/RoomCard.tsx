@@ -1,5 +1,6 @@
 // src/components/RoomCard.tsx
 import React, { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Bed, ChevronDown, ChevronUp, Copy, Loader2, Phone,
   Minus, Plus, Tag, Trash2, X, Zap, CornerDownRight, Moon, Calendar, Check, Ticket, Lock, Unlock, RotateCcw, Eye, EyeOff
@@ -1113,17 +1114,17 @@ export default function RoomCard({
         </div>
       )}
 
-      {confirmDelete && (
-        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/50 p-4 transition-all">
-          <div className={cn('w-full max-w-sm rounded-3xl border p-6 shadow-2xl', 'bg-app-card border-app-border text-app-text')}>
+      {confirmDelete && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/50 p-4 transition-all pointer-events-auto">
+          <div className="w-full max-w-sm rounded-3xl border p-6 shadow-2xl bg-app-card border-app-border text-app-text">
             <h3 className="text-xl font-black mb-2">{lang === 'de' ? 'Zimmer löschen?' : 'Delete Room?'}</h3>
-            <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+            <p className="text-[13px] font-medium text-app-muted mb-6 leading-relaxed">
               {lang === 'de' 
                 ? 'Diese Aktion kann nicht rückgängig gemacht werden. Möchten Sie die Löschung wirklich durchführen?' 
                 : 'This action cannot be undone. Proceed to deletion?'}
             </p>
             <div className="flex justify-end gap-3">
-              <button onClick={() => { setConfirmDelete(false); window.dispatchEvent(new Event('child-modal-closed')); }} className={cn('px-5 py-2.5 rounded-lg border text-sm font-bold', dk ? 'border-white/10 text-slate-300' : 'border-slate-200 text-slate-700')}>
+              <button onClick={() => { setConfirmDelete(false); window.dispatchEvent(new Event('child-modal-closed')); }} className="px-5 py-2.5 rounded-lg border text-sm font-bold border-app-border text-app-text hover:bg-black/5">
                 {lang === 'de' ? 'Abbrechen' : 'Cancel'}
               </button>
               <button onClick={async () => { await enqueue({ type: 'deleteRoomCard', payload: { id: card.id } }); onDelete(card.id); setConfirmDelete(false); window.dispatchEvent(new Event('child-modal-closed')); }} className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-bold">
@@ -1131,7 +1132,8 @@ export default function RoomCard({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
