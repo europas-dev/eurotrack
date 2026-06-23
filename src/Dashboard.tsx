@@ -1093,7 +1093,7 @@ finalFiltered.forEach(h => {
        <div className="flex flex-col gap-1">
          <button 
             onClick={() => { setSelectedMonth(null); setShowMonthMenu(false); }} 
-            className={cn("w-full text-center px-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", selectedMonth === null ? (dk ? "bg-teal-500/20 text-teal-400" : "bg-teal-50 text-teal-600") : (dk ? "bg-white/5 text-slate-300 hover:bg-white/10" : "bg-slate-100 text-slate-700 hover:bg-slate-200"))}
+            className={cn("w-full text-center px-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", selectedMonth === null ? "bg-[var(--accent-primary)] text-white shadow-sm" : "bg-transparent text-app-muted hover:bg-black/5 dark:hover:bg-white/5 hover:text-app-text")}
          >
             {lang === 'de' ? 'Alle Monate' : 'All Months'}
          </button>
@@ -1102,7 +1102,7 @@ finalFiltered.forEach(h => {
              <button 
                 key={i} 
                 onClick={() => { setSelectedMonth(i); setShowMonthMenu(false); }} 
-                className={cn("w-full text-center py-2.5 rounded-xl text-[11px] font-black uppercase transition-all border", selectedMonth === i ? (dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400 shadow-inner" : "bg-teal-50 border-teal-200 text-teal-600 shadow-inner") : (dk ? "border-transparent bg-transparent text-slate-400 hover:bg-white/5 hover:text-white" : "border-transparent bg-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-900"))}
+                className={cn("w-full text-center py-2.5 rounded-xl text-[11px] font-black uppercase transition-all border", selectedMonth === i ? "bg-[var(--accent-primary)] text-white border-[var(--accent-primary)] shadow-sm" : "border-transparent bg-transparent text-app-muted hover:bg-black/5 dark:hover:bg-white/5 hover:text-app-text")}
              >
                 {m}
              </button>
@@ -1140,17 +1140,17 @@ finalFiltered.forEach(h => {
                           </button>
                         ))}
                       </div>
-                      <div className={cn("p-4 rounded-xl border mb-4", dk ? "bg-black/20 border-white/5" : "bg-slate-50 border-slate-200")}>
+                      <div className="p-4 rounded-xl border border-app-border mb-4 bg-black/5 dark:bg-black/20">
                         <div className="flex items-center gap-3">
-                           <div className={cn("relative flex-1 h-[38px] rounded-lg border transition-all focus-within:border-teal-500 focus-within:ring-1 focus-within:ring-teal-500 overflow-hidden", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
-                              <div className={cn("absolute inset-0 flex items-center px-3 text-sm font-medium pointer-events-none", dk ? "text-white" : "text-slate-900")}>
+                           <div className="relative flex-1 h-[38px] rounded-lg border border-app-border transition-all focus-within:border-[var(--accent-primary)] focus-within:ring-1 focus-within:ring-[var(--accent-primary)] overflow-hidden bg-app-card">
+                            <div className="absolute inset-0 flex items-center px-3 text-sm font-medium pointer-events-none text-app-text">
                                  {tlStart ? tlStart.split('-').reverse().join('.') : <span className="opacity-40">{lang === 'de' ? 'TT.MM.JJJJ' : 'DD.MM.YYYY'}</span>}
                               </div>
                               <input type="date" value={tlStart} onClick={(e: any) => e.target.showPicker && e.target.showPicker()} onChange={e => {setTlStart(e.target.value); setTlType('range');}} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                            </div>
                            <span className="text-slate-400">➔</span>
-                           <div className={cn("relative flex-1 h-[38px] rounded-lg border transition-all focus-within:border-teal-500 focus-within:ring-1 focus-within:ring-teal-500 overflow-hidden", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
-                              <div className={cn("absolute inset-0 flex items-center px-3 text-sm font-medium pointer-events-none", dk ? "text-white" : "text-slate-900")}>
+                           <div className="relative flex-1 h-[38px] rounded-lg border border-app-border transition-all focus-within:border-[var(--accent-primary)] focus-within:ring-1 focus-within:ring-[var(--accent-primary)] overflow-hidden bg-app-card">
+                              <div className="absolute inset-0 flex items-center px-3 text-sm font-medium pointer-events-none text-app-text">
                                  {tlEnd ? tlEnd.split('-').reverse().join('.') : <span className="opacity-40">{lang === 'de' ? 'TT.MM.JJJJ' : 'DD.MM.YYYY'}</span>}
                               </div>
                               <input type="date" min={tlStart} value={tlEnd} onClick={(e: any) => e.target.showPicker && e.target.showPicker()} onChange={e => {if(tlStart && e.target.value < tlStart) return; setTlEnd(e.target.value); setTlType('range');}} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
@@ -1159,7 +1159,7 @@ finalFiltered.forEach(h => {
                       </div>
                       <p className="text-xs text-slate-500 mb-6">{lang === 'de' ? 'Blendet alle Hotels ohne Buchungen im gewählten Zeitraum aus.' : 'Hides any hotel that has zero bookings/durations overlapping your chosen range.'}</p>
                       <div className="flex justify-center border-t border-slate-200 dark:border-white/10 pt-4">
-                        <button onClick={() => {setTlType('all'); setTlStart(''); setTlEnd(''); closeMenu();}} className={cn("w-full py-2.5 rounded-lg border flex items-center justify-center gap-2 text-sm font-medium", dk ? "border-teal-600 text-teal-500 hover:bg-teal-600/10" : "border-teal-600 text-teal-700 hover:bg-teal-50")}>
+                        <button onClick={() => {setTlType('all'); setTlStart(''); setTlEnd(''); closeMenu();}} className="w-full py-2.5 rounded-lg border flex items-center justify-center gap-2 text-sm font-bold border-[var(--accent-primary)] text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 transition-colors">
                           <Trash2 size={16}/> {lang === 'de' ? 'Zeitraum zurücksetzen' : 'Clear Timeline'}
                         </button>
                       </div>
