@@ -120,12 +120,12 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
 
   return (
     <div className={cn('min-h-screen w-full flex flex-col items-center justify-center p-6', isDark ? 'bg-[#020617]' : 'bg-slate-100')}>
-      <button onClick={onBack} className="mb-10 flex items-center gap-2 text-2xl font-black italic hover:scale-105 transition-all">
-        <span className={isDark ? 'text-white' : 'text-slate-900'}>Euro</span>
-        <span className="text-[#EAB308]">Track.</span>
-      </button>
+      <button onClick={onBack} className="flex items-center text-2xl font-black italic hover:scale-105 transition-all">
+  <span className={isDark ? 'text-white' : 'text-slate-900'}>Euro</span>
+  <span className="text-[#EAB308]">Track.</span>
+</button>
 
-      <div className={cn('w-full max-w-md p-10 rounded-[2.5rem] shadow-2xl border',
+      <div className={cn('w-full max-w-md p-8 rounded-[2.5rem] shadow-2xl border',
         isDark ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
 
         <h2 className="text-3xl font-black mb-2">
