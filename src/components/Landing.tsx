@@ -157,19 +157,23 @@ export default function Landing({
       </nav>
 
       {/* Hero */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 sm:pt-20 pb-10 sm:pb-32 text-center flex-1 flex flex-col items-center justify-start z-10 relative">
+      {/* Changed flex-1 to flex-grow-0 and removed justify-center to bring content up */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 pb-12 sm:pb-20 text-center flex-grow-0 flex flex-col items-center z-10 relative">
         <span className="px-3 sm:px-4 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-500 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-6 inline-block shadow-sm">
           {t.tag}
         </span>
-        {/* Added pb-4 to fix the 'g' cutoff */}
-        <h1 className={cn('text-4xl sm:text-6xl md:text-8xl font-black mb-6 tracking-tighter leading-[0.9] pb-4 bg-clip-text text-transparent',
+        
+        {/* Adjusted mb and leading to tighten the space */}
+        <h1 className={cn('text-4xl sm:text-6xl md:text-8xl font-black mb-6 tracking-tighter leading-[0.9] pb-2 bg-clip-text text-transparent',
           isDarkMode ? 'bg-gradient-to-br from-white via-white/90 to-blue-300/40' : 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-700')}>
           {t.title}
         </h1>
-        <p className={cn('text-sm sm:text-lg md:text-xl mb-10 max-w-2xl mx-auto px-2 leading-relaxed',
+        
+        <p className={cn('text-sm sm:text-lg md:text-xl mb-8 max-w-2xl mx-auto px-2 leading-relaxed',
           isDarkMode ? 'text-slate-400' : 'text-slate-600')}>
           {t.desc}
         </p>
+        
         <button onClick={onRegister}
           className="px-6 py-4 sm:px-10 sm:py-5 bg-blue-600 text-white text-sm sm:text-base font-black rounded-2xl shadow-xl hover:scale-105 transition-all flex items-center gap-2 sm:gap-3 mx-auto">
           {t.getStarted} <ChevronRight size={20} />
