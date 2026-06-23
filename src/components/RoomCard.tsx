@@ -173,7 +173,7 @@ function CompactEmployeePill({ emp, dk, durationStart, durationEnd, isSubstitute
       </button>
       
       {/* BEAUTIFUL CUSTOM TOOLTIP (DROPPING DOWNWARDS) */}
-      <div className={cn("absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max min-w-[180px] p-3 rounded-2xl shadow-2xl border opacity-0 group-hover/pill:opacity-100 transition-all pointer-events-none -translate-y-1 group-hover/pill:translate-y-0 flex flex-col items-center gap-1.5", dk ? "bg-slate-800 border-white/10" : "bg-white border-slate-200")}>
+      <div className={cn("absolute top-full left-1/2 -translate-x-1/2 mt-2 w-max min-w-[180px] p-3 rounded-2xl shadow-2xl border opacity-0 group-hover/pill:opacity-100 transition-all pointer-events-none -translate-y-1 group-hover/pill:translate-y-0 flex flex-col items-center gap-1.5", "bg-app-card border-app-border text-app-text")}>
         <span className={cn("text-sm font-black", dk ? "text-white" : "text-slate-900")}>{emp.name}</span>
         <span className="text-[11px] font-bold text-slate-500">
           {fmtDateDe(emp.checkIn||'')} ➔ {fmtDateDe(emp.checkOut||'')} <span className="opacity-60">({calculateNights(emp.checkIn||'', emp.checkOut||'')}N)</span>
@@ -874,8 +874,8 @@ export default function RoomCard({
   return (
     <div className={cn('rounded-xl border transition-all shadow-sm flex flex-col w-full relative', 
       confirmDelete 
-        ? (dk ? 'border-red-500 ring-2 ring-red-500 bg-red-950/20 z-[9999]' : 'border-red-500 ring-2 ring-red-500 bg-red-50 z-[9999]') 
-        : ('bg-app-card border-app-border')
+        ? 'border-red-500 ring-2 ring-red-500 bg-red-50 dark:bg-red-950/20 z-[9999]' 
+        : 'bg-app-main border-app-border'
     )}>
   
   {/* HEADER: COMPACT LAYOUT */}
@@ -885,9 +885,8 @@ export default function RoomCard({
         {!isOpen ? (
            <>
              <div className="flex items-center gap-4 shrink-0 min-w-[280px]">
-               <span className={cn("font-black w-8", dk ? "text-white" : "text-slate-900")}>{card.roomType}</span>
-               <span className={cn("text-base font-bold w-24 truncate", dk ? "text-slate-300" : "text-slate-700")}>{card.roomNo || '---'}</span>
-               
+               <span className="font-black w-8 text-app-text">{card.roomType}</span>
+               <span className="text-base font-bold w-24 truncate text-app-muted">{card.roomNo || '---'}</span>
                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-blue-500/10 text-blue-500 font-black text-sm shrink-0">
                  <Moon size={18} /> <span className="text-[16px] lg:text-[18px]">{nights}</span> 
                  <div className="w-px h-4 bg-blue-500/30 mx-1.5" /> 
@@ -1024,7 +1023,7 @@ export default function RoomCard({
       </div>
       
       {isOpen && (
-        <div className={cn("p-6 border-t", "bg-black/5 dark:bg-black/20 border-app-border")}>
+        <div className="p-6 border-t border-app-border bg-black/[0.05] dark:bg-black/40 shadow-inner">
            {/* --- BED AND EMPLOYEE MANAGEMENT --- */}
            <div className="grid gap-6 items-start" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(400px, 1fr))` }}>
               {Array.from({ length: beds }).map((_, i) => {
@@ -1116,7 +1115,7 @@ export default function RoomCard({
 
       {confirmDelete && (
         <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/50 p-4 transition-all">
-          <div className={cn('w-full max-w-sm rounded-3xl border p-6 shadow-2xl', dk ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
+          <div className={cn('w-full max-w-sm rounded-3xl border p-6 shadow-2xl', 'bg-app-card border-app-border text-app-text')}>
             <h3 className="text-xl font-black mb-2">{lang === 'de' ? 'Zimmer löschen?' : 'Delete Room?'}</h3>
             <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
               {lang === 'de' 
