@@ -1,5 +1,6 @@
 // src/components/DurationCard.tsx
 import React, { useEffect, useRef, useState, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import {
   CalendarDays, Loader2, Minus, Plus, Trash2, 
   Moon, DoorClosed, Bed, ArrowRight, X
@@ -660,34 +661,32 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
         ))}
       </div>
 
-      {confirmDelete && (
-  <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/50 p-4 transition-all">
-    <div className="w-full max-w-md rounded-2xl border p-6 shadow-2xl bg-app-card border-app-border text-app-text">
-      <h3 className="text-xl font-black mb-2">
+      {confirmDelete && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/50 p-4 transition-all pointer-events-auto">
+          <div className="w-full max-w-md rounded-2xl border p-6 shadow-2xl bg-app-card border-app-border text-app-text">
+            <h3 className="text-xl font-black mb-2">
               {lang === 'de' ? 'Buchungszeitraum löschen?' : 'Delete booking period?'}
             </h3>
-            <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+            <p className="text-[13px] font-medium text-app-muted mb-6 leading-relaxed">
               {lang === 'de' 
                 ? 'Diese Aktion kann nicht rückgängig gemacht werden. Möchten Sie die Löschung wirklich durchführen?' 
                 : 'This action cannot be undone. Proceed to deletion?'}
             </p>
-      <div className="flex justify-end gap-3">
-        <button 
-          onClick={() => { setConfirm(false); window.dispatchEvent(new Event('child-modal-closed')); }} 
-          className="px-4 py-2 font-bold opacity-50 hover:opacity-100 transition-opacity"
-        >
-          {lang === 'de' ? 'Abbrechen' : 'Cancel'}
-        </button>
-        <button 
-          onClick={() => { onDelete(local.id); setConfirm(false); window.dispatchEvent(new Event('child-modal-closed')); }} 
-          className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors"
-        >
-          {lang === 'de' ? 'Löschen' : 'Delete'}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-</div> // <--- THIS IS THE MAIN CONTAINER CLOSING TAG
-  )
-}
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => { setConfirm(false); window.dispatchEvent(new Event('child-modal-closed')); }} 
+                className="px-4 py-2 font-bold opacity-50 hover:opacity-100 transition-opacity"
+              >
+                {lang === 'de' ? 'Abbrechen' : 'Cancel'}
+              </button>
+              <button 
+                onClick={() => { onDelete(local.id); setConfirm(false); window.dispatchEvent(new Event('child-modal-closed')); }} 
+                className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors"
+              >
+                {lang === 'de' ? 'Löschen' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
