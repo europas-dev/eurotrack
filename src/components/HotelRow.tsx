@@ -1305,7 +1305,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                     const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
                     const isActive = activeDurationTab === trueIdx;
                     return (
-                      <button key={d.id || sortedIdx} onClick={() => setActiveDurationTab(trueIdx)} className={cn('px-5 py-2 text-sm font-bold transition-all border', isActive ? 'bg-black/5 dark:bg-black/20 text-[var(--accent-primary)] border-app-border border-b-0 rounded-t-xl z-10' : 'bg-transparent text-app-muted border-transparent hover:bg-black/10 rounded-lg')} style={isActive ? { marginBottom: '-1px' } : {}}>
+                      <button key={d.id || sortedIdx} onClick={() => setActiveDurationTab(trueIdx)} className={cn('px-5 py-2 text-sm font-bold transition-all border', isActive ? 'bg-black/[0.05] dark:bg-black/40 text-app-text border-app-border border-b-transparent rounded-t-xl z-10' : 'bg-transparent text-app-muted border-transparent hover:bg-black/5 hover:text-app-text rounded-lg')} style={isActive ? { marginBottom: '-1px' } : {}}>
                         {getDurationTabLabel(d, lang)}
                       </button>
                     );
@@ -1504,7 +1504,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
                 </div>
 
                 <div className="flex-1 p-0 flex flex-col min-w-[660px] z-10 border-r border-slate-200 dark:border-white/10">
-                   <div className={cn("px-5 h-[50px] border-b flex items-center justify-between shrink-0", dk ? "border-white/10" : "border-slate-200", activeInvoice ? (dk ? "bg-[#1E293B]" : "bg-slate-50") : "bg-transparent")}>
+                   <div className={cn("px-5 h-[50px] border-b flex items-center justify-between shrink-0 border-app-border", activeInvoice ? "bg-black/5 dark:bg-white/5" : "bg-transparent")}>
                       <div className="flex items-center gap-4 flex-1">
                           {activeInvoice ? (
                              <div className="flex items-center gap-3">
@@ -2159,11 +2159,11 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
       {confirmDelete && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/50 p-4 transition-all pointer-events-auto">
-          <div className={cn('w-full max-w-md rounded-3xl border p-8 shadow-2xl animate-in zoom-in-95', dk ? 'bg-[#0F172A] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200')}>
+          <div className="w-full max-w-md rounded-3xl border p-8 shadow-2xl animate-in zoom-in-95 bg-app-card border-app-border text-app-text">
             <h3 className="text-xl font-black mb-2">{lang === 'de' ? 'Hotel löschen?' : 'Delete hotel?'}</h3>
             <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">{lang === 'de' ? 'Diese Aktion kann nicht rückgängig gemacht werden. Möchten Sie die Löschung wirklich durchführen?' : 'This action cannot be undone. Proceed to deletion?'}</p>
             <div className="flex justify-end gap-3">
-              <button onClick={() => { setConfirmDelete(false); window.dispatchEvent(new Event('child-modal-closed')); }} className={cn("px-6 py-2.5 text-sm font-bold rounded-xl border transition-all", dk ? "border-white/10 hover:bg-white/5 text-slate-300" : "border-slate-200 hover:bg-slate-50 text-slate-700")}>{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
+              <button onClick={() => { setConfirmDelete(false); window.dispatchEvent(new Event('child-modal-closed')); }} className="px-6 py-2.5 text-sm font-bold rounded-xl border transition-all border-app-border text-app-text hover:bg-black/5">{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button>
               <button onClick={async () => { await deleteHotel(localHotel.id); onDelete(localHotel.id); setConfirmDelete(false); window.dispatchEvent(new Event('child-modal-closed')); }} className="px-6 py-2.5 text-sm font-bold bg-red-600 hover:bg-red-700 text-white rounded-xl transition-all shadow-md">{lang === 'de' ? 'Löschen' : 'Delete'}</button>
             </div>
           </div>
@@ -2173,7 +2173,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
       {invoiceToDelete && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/50 p-4 transition-all pointer-events-auto">
-          <div className={cn('w-full max-w-sm rounded-3xl border p-6 shadow-2xl animate-in zoom-in-95', dk ? 'bg-[#0F172A] text-white border-white/10' : 'bg-white text-slate-900 border-slate-200')}>
+          <div className="w-full max-w-md rounded-3xl border p-8 shadow-2xl animate-in zoom-in-95 bg-app-card border-app-border text-app-text">
             <div className="flex items-center gap-3 mb-2 text-red-500"><AlertTriangle size={24} /><h3 className="text-xl font-black">{lang === 'de' ? 'Rechnung löschen?' : 'Delete invoice?'}</h3></div>
             <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 mb-6 mt-2 leading-relaxed">{lang === 'de' ? 'Diese Aktion kann nicht rückgängig gemacht werden. Möchten Sie die Löschung wirklich durchführen?' : 'This action cannot be undone. Proceed to deletion?'}</p>
             <div className="flex justify-end gap-3">
