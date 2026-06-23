@@ -690,3 +690,6 @@ const showSync = roomsToSync.length > 0 && diffNights !== 0;
         </div>,
         document.body
       )}
+</div> // <--- THIS IS THE MAIN CONTAINER CLOSING TAG
+  )
+}
