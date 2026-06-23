@@ -535,12 +535,12 @@ export function MonthFilterDropdown({ selectedMonth, localMonthFilter, setLocalM
       {open && !disabled && (
         <div className={cn("absolute top-full left-0 mt-2 w-[220px] z-[200] rounded-2xl border shadow-2xl p-2 overflow-hidden animate-in fade-in slide-in-from-top-2", dk ? "bg-[#0F172A] border-white/10" : "bg-white border-slate-200")}>
            <div className="flex flex-col gap-1">
-             <button onClick={() => { setLocalMonthFilter('all'); setOpen(false); }} className={cn("w-full text-center px-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", currentVal === 'all' ? (dk ? "bg-teal-500/20 text-teal-400" : "bg-teal-50 text-teal-600") : (dk ? "bg-white/5 text-slate-300 hover:bg-white/10" : "bg-slate-100 text-slate-700 hover:bg-slate-200"))}>
+             <button onClick={() => { setLocalMonthFilter('all'); setOpen(false); }} className={cn("w-full text-center px-2 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", currentVal === 'all' ? "bg-[var(--accent-primary)] text-white shadow-sm" : "bg-transparent text-app-muted hover:bg-black/5 dark:hover:bg-white/5 hover:text-app-text")}>
                 {lang === 'de' ? 'Alle Monate' : 'All Months'}
              </button>
              <div className="grid grid-cols-3 gap-1 mt-1">
                {monthOptions.map((m: string, idx: number) => (
-                 <button key={idx} onClick={() => { setLocalMonthFilter(idx); setOpen(false); }} className={cn("w-full text-center py-2.5 rounded-xl text-[11px] font-black uppercase transition-all border", currentVal === idx ? (dk ? "bg-teal-500/20 border-teal-500/30 text-teal-400 shadow-inner" : "bg-teal-50 border-teal-200 text-teal-600 shadow-inner") : (dk ? "border-transparent bg-transparent text-slate-400 hover:bg-white/5 hover:text-white" : "border-transparent bg-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-900"))}>
+                 <button key={idx} onClick={() => { setLocalMonthFilter(idx); setOpen(false); }} className={cn("w-full text-center py-2.5 rounded-xl text-[11px] font-black uppercase transition-all border", currentVal === idx ? "bg-[var(--accent-primary)] text-white border-[var(--accent-primary)] shadow-sm" : "border-transparent bg-transparent text-app-muted hover:bg-black/5 dark:hover:bg-white/5 hover:text-app-text")}>
                     {m}
                  </button>
                ))}
