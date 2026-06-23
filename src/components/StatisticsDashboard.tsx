@@ -326,33 +326,33 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       
       {/* 1. TOP KPI ROW */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Card title={lang === 'de' ? 'Gesamtkosten' : 'Total Cost'} value={formatCurrency(stats.totalSpend)} icon={ReceiptEuro} colorCls="text-blue-500" bgCls="bg-blue-500/10" />
+        <Card title={lang === 'de' ? 'Gesamtkosten' : 'Total Cost'} value={formatCurrency(stats.totalSpend)} icon={ReceiptEuro} colorCls="text-[var(--accent-primary)]" bgCls="bg-[var(--accent-primary)]/10" />
         <Card title={lang === 'de' ? 'Total Bezahlt' : 'Total Paid'} value={formatCurrency(stats.totalPaid)} icon={ShieldCheck} colorCls="text-emerald-500" bgCls="bg-emerald-500/10" />
         
         {/* CUSTOM SPLIT CARD FOR TOTAL DUE */}
         <div className={cn("p-5 rounded-2xl border flex items-stretch justify-between gap-6 lg:gap-10 shadow-sm transition-all hover:shadow-md", "bg-app-card border-app-border")}>
           <div className="flex flex-col gap-3 flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500"><Clock size={16} strokeWidth={2.5} /></div>
-              <span className={cn("text-xs font-black uppercase tracking-widest", dk ? "text-slate-400" : "text-slate-500")}>{lang === 'de' ? 'Total Offen' : 'Total Due'}</span>
+              <div className="p-2 rounded-lg bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]"><Clock size={16} strokeWidth={2.5} /></div>
+              <span className="text-xs font-black uppercase tracking-widest text-app-muted">{lang === 'de' ? 'Total Offen' : 'Total Due'}</span>
             </div>
-            <span className={cn("text-2xl lg:text-3xl font-black truncate", dk ? "text-white" : "text-slate-900")}>{formatCurrency(stats.totalUnpaid)}</span>
+            <span className="text-2xl lg:text-3xl font-black truncate text-app-text">{formatCurrency(stats.totalUnpaid)}</span>
           </div>
           
           {/* Right Side: Centered vertically to match the card height naturally */}
           <div className="flex flex-col justify-center gap-3 pl-6 lg:pl-8 border-l border-slate-200 dark:border-white/10 shrink-0">
             <div className="flex flex-col">
               <span className="text-[11px] font-black uppercase text-amber-500 tracking-widest mb-0.5">{lang === 'de' ? 'Ausstehend' : 'Pending'}</span>
-              <span className={cn("text-base lg:text-lg font-black truncate", dk ? "text-slate-200" : "text-slate-700")}>{formatCurrency(Math.max(0, stats.totalUnpaid - stats.totalOverdue))}</span>
+              <span className="text-base lg:text-lg font-black truncate text-app-text">{formatCurrency(Math.max(0, stats.totalUnpaid - stats.totalOverdue))}</span>
             </div>
             <div className="flex flex-col">
               <span className="text-[11px] font-black uppercase text-red-500 tracking-widest mb-0.5">{lang === 'de' ? 'Überfällig' : 'Overdue'}</span>
-              <span className={cn("text-base lg:text-lg font-black truncate", dk ? "text-slate-200" : "text-slate-700")}>{formatCurrency(stats.totalOverdue)}</span>
+              <span className="text-base lg:text-lg font-black truncate text-app-text">{formatCurrency(stats.totalOverdue)}</span>
             </div>
           </div>
         </div>
 
-        <Card title={lang === 'de' ? 'Kautionen' : 'Deposits'} value={formatCurrency(stats.totalDeposits)} icon={CreditCard} colorCls="text-indigo-500" bgCls="bg-indigo-500/10" />
+        <Card title={lang === 'de' ? 'Kautionen' : 'Deposits'} value={formatCurrency(stats.totalDeposits)} icon={CreditCard} colorCls="text-[var(--accent-primary)]" bgCls="bg-[var(--accent-primary)]/10" />
       </div>
 
       {/* 2. CHARTS ROW */}
