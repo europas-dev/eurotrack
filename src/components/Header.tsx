@@ -206,7 +206,7 @@ export default function Header({
       : 'bg-white border-slate-200 text-slate-900 focus:border-blue-500');
   const iconBtn = cn('p-2.5 rounded-xl border transition-all flex items-center gap-2 group',
     dk ? 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900');
-  const btnPrimary = 'flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-all';
+  const btnPrimary = 'flex items-center gap-2 px-4 py-2 bg-[var(--accent-primary)] hover:opacity-80 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-all';
 
   useEffect(() => {
     setProfileLoading(true);
@@ -282,7 +282,7 @@ export default function Header({
         <div className="w-full h-full rounded-full flex items-center justify-center font-black select-none transition-all group-hover:opacity-80 overflow-hidden" style={{ background: av ? av.bg : (dk ? '#334155' : '#e2e8f0'), fontSize: size * 0.4 }}>
           {av ? av.emoji : <span className={dk ? 'text-slate-300' : 'text-slate-600'}>{initials}</span>}
         </div>
-        <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center shadow-md pointer-events-none">
+        <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-[var(--accent-primary)] flex items-center justify-center shadow-md pointer-events-none">
           <Pencil size={9} className="text-white" />
         </div>
       </div>
@@ -459,8 +459,8 @@ export default function Header({
                             <div className="flex items-center gap-2 group">
                               {editingName ? (
                               <div className="flex items-center gap-2 w-full max-w-[200px] animate-in fade-in" onClick={e => e.stopPropagation()}>
-                                 <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSaveProfile()} className="w-full bg-transparent border-b-2 border-blue-500 outline-none text-sm font-black text-blue-500 py-0.5" />
-                                 <button onClick={() => handleSaveProfile()} disabled={savingProfile} className="p-1 text-white bg-blue-500 hover:bg-blue-600 rounded shadow-sm"><Check size={12} strokeWidth={3}/></button>
+                                 <input autoFocus value={editName} onChange={e => setEditName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSaveProfile()} className="w-full bg-transparent border-b-2 border-[var(--accent-primary)] outline-none text-sm font-black text-[var(--accent-primary)] py-0.5" />
+                                 <button onClick={() => handleSaveProfile()} disabled={savingProfile} className="p-1 text-white bg-[var(--accent-primary)] hover:opacity-80 rounded shadow-sm transition-opacity"><Check size={12} strokeWidth={3}/></button>
                                  <button onClick={() => { setEditingName(false); setEditName(profile?.fullName || profile?.full_name || ''); }} className="p-1 text-slate-500 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded"><X size={12} strokeWidth={3}/></button>
                               </div>
                            ) : (
@@ -490,7 +490,7 @@ export default function Header({
                           <div className={cn('mt-4 pt-4 border-t', dk ? 'border-white/10' : 'border-slate-200')}>
                             <div className="flex items-center justify-between mb-3"><p className={cn('text-xs font-bold', dk ? 'text-slate-400' : 'text-slate-600')}>{isDe ? 'Avatar wählen' : 'Choose avatar'}</p><button onClick={() => setShowAvatarPicker(false)} className={cn('p-1 rounded text-xs', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-200 text-slate-500')}><X size={13} /></button></div>
                             <div className="grid grid-cols-6 gap-2">
-                              {AVATARS.map(av => <button key={av.id} onClick={() => { setSelectedAvatar(av.id); setShowAvatarPicker(false); handleSaveProfile(av.id); }} className={cn('w-10 h-10 rounded-full flex items-center justify-center text-lg transition-all hover:scale-110', selectedAvatar === av.id ? 'ring-2 ring-blue-500 ring-offset-2' : '')} style={{ background: av.bg }}>{av.emoji}</button>)}
+                              {AVATARS.map(av => <button key={av.id} onClick={() => { setSelectedAvatar(av.id); setShowAvatarPicker(false); handleSaveProfile(av.id); }} className={cn('w-10 h-10 rounded-full flex items-center justify-center text-lg transition-all hover:scale-110', selectedAvatar === av.id ? 'ring-2 ring-[var(--accent-primary)] ring-offset-2 dark:ring-offset-[#0F172A]' : '')} style={{ background: av.bg }}>{av.emoji}</button>)}
                             </div>
                           </div>
                         )}
@@ -502,7 +502,7 @@ export default function Header({
                           <p className={cn('text-xs font-bold mb-1.5', dk ? 'text-slate-400' : 'text-slate-600')}>{isDe ? 'Schriftstil' : 'Font Style'}</p>
                           <div className="grid grid-cols-3 gap-2">
                             {FONT_STYLES.map(s => (
-                              <button key={s.id} onClick={() => handleFontFamilyChange(s.id)} className={cn('py-2.5 rounded-lg border font-bold transition-all flex flex-col items-center justify-center', fontFamily === s.id ? 'border-blue-500 bg-blue-500/10 text-blue-500' : dk ? 'border-white/10 text-slate-400 hover:text-white' : 'border-slate-200 text-slate-600')} style={{ fontFamily: s.family }}>
+                              <button key={s.id} onClick={() => handleFontFamilyChange(s.id)} className={cn('py-2.5 rounded-lg border font-bold transition-all flex flex-col items-center justify-center', fontFamily === s.id ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]' : dk ? 'border-white/10 text-slate-400 hover:text-white' : 'border-slate-200 text-slate-600')} style={{ fontFamily: s.family }}>
                                 Ag <span className="text-[10px] uppercase font-normal">{s.label}</span>
                               </button>
                             ))}
@@ -522,8 +522,8 @@ export default function Header({
                           <div>
                             <p className={cn('text-xs font-bold mb-1.5', dk ? 'text-slate-400' : 'text-slate-600')}>{isDe ? 'Sprache' : 'Language'}</p>
                             <div className={cn('flex rounded-lg border overflow-hidden', dk ? 'border-white/10' : 'border-slate-200')}>
-                              <button onClick={() => setLang('de')} className={cn('flex-1 py-1.5 text-xs font-bold transition-all', lang === 'de' ? 'bg-blue-600 text-white' : (dk ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'))}>DE</button>
-                              <button onClick={() => setLang('en')} className={cn('flex-1 py-1.5 text-xs font-bold transition-all', lang === 'en' ? 'bg-blue-600 text-white' : (dk ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'))}>EN</button>
+                              <button onClick={() => setLang('de')} className={cn('flex-1 py-1.5 text-xs font-bold transition-all', lang === 'de' ? 'bg-[var(--accent-primary)] text-white' : (dk ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'))}>DE</button>
+                              <button onClick={() => setLang('en')} className={cn('flex-1 py-1.5 text-xs font-bold transition-all', lang === 'en' ? 'bg-[var(--accent-primary)] text-white' : (dk ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'))}>EN</button>
                             </div>
                           </div>
                           <div>
@@ -533,13 +533,13 @@ export default function Header({
                                 if (!dk) toggleTheme(); 
                                 document.documentElement.setAttribute('data-theme', 'dark'); 
                                 localStorage.setItem('euro-theme', 'dark');
-                              }} className={cn('flex-1 py-1.5 flex justify-center transition-all', dk ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50')}><Moon size={14} /></button>
+                              }} className={cn('flex-1 py-1.5 flex justify-center transition-all', dk ? 'bg-[var(--accent-primary)] text-white' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50')}><Moon size={14} /></button>
                               
                               <button onClick={() => { 
                                 if (dk) toggleTheme(); 
                                 document.documentElement.setAttribute('data-theme', 'light'); 
                                 localStorage.setItem('euro-theme', 'light');
-                              }} className={cn('flex-1 py-1.5 flex justify-center transition-all', !dk ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5')}><Sun size={14} /></button>
+                              }} className={cn('flex-1 py-1.5 flex justify-center transition-all', !dk ? 'bg-[var(--accent-primary)] text-white' : 'text-slate-400 hover:text-white hover:bg-white/5')}><Sun size={14} /></button>
                             </div>
                           </div>
                         </div>
@@ -586,7 +586,7 @@ export default function Header({
                                       }
                                     }}
                                     className={cn("flex items-center gap-2 p-2 rounded-xl border transition-all text-left", 
-                                      isActive ? "border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/50" : (dk ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50")
+                                      isActive ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/10 ring-1 ring-[var(--accent-primary)]/50" : (dk ? "border-white/10 hover:bg-white/5" : "border-slate-200 hover:bg-slate-50")
                                     )}
                                  >
                                     <div className="w-5 h-5 rounded-full border border-white/20 shadow-inner flex overflow-hidden shrink-0">
@@ -639,7 +639,7 @@ export default function Header({
                              <AtSign size={14} className={dk ? "text-slate-400" : "text-slate-500"} />
                              <span className={cn("text-sm font-bold", dk ? "text-white" : "text-slate-900")}>{profile?.username || '—'}</span>
                           </div>
-                          <button onClick={() => { setEditingUsername(true); setNewUsername(profile?.username || ''); }} className="text-xs font-bold text-blue-500 hover:underline">{isDe ? 'Ändern' : 'Change'}</button>
+                          <button onClick={() => { setEditingUsername(true); setNewUsername(profile?.username || ''); }} className="text-xs font-bold text-[var(--accent-primary)] hover:underline">{isDe ? 'Ändern' : 'Change'}</button>
                        </div>
                     ) : (
                        <div className="animate-in fade-in slide-in-from-top-2">
