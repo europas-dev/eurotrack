@@ -162,29 +162,27 @@ body {
   --card-backdrop: blur(16px);
 }
 
-/* 3. MATTE CHARCOAL (Custom Palette) */
+/* 3. MATTE CHARCOAL (Custom CFFY Palette) */
 [data-theme='matte-charcoal'] {
-  /* Surface colors */
-  --bg-main: #121212;           /* surface-a0 */
-  --body-bg: #121212;           /* surface-a0 */
-  
-  /* Tonal surface for cards */
-  --bg-card: #212321;           /* surface-tonal-a0 */
-  --bg-card-to: #252525;        /* surface-a10 */
-  
-  /* Borders and Dividers */
-  --border-subtle: #333533;     /* surface-tonal-a10 */
-  
-  /* Text */
-  --text-main: #d4d4d8;         /* Keeping high-contrast text */
-  --text-muted: #878887;        /* surface-tonal-a50 */
-  
-  /* Primary Accent */
-  --accent-primary: #cfdecc;    /* primary-a0 */
-  
-  /* Default Shadows & Blur */
+  --bg-main: #121212;            /* surface-a0 */
+  --body-bg: #121212;            /* surface-a0 */
+  --bg-card: #212321;            /* surface-tonal-a0 */
+  --bg-card-to: #252525;         /* surface-a10 */
+  --border-subtle: #333533;      /* surface-tonal-a10 */
+  --text-main: #d4d4d8;          /* Kept bright for readability */
+  --text-muted: #878887;         /* surface-tonal-a50 */
+  --accent-primary: #cfdecc;     /* primary-a0 */
   --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
   --card-backdrop: none;
+}
+
+/* Fix: Force dark text inside primary buttons for Matte Charcoal */
+[data-theme='matte-charcoal'] .bg-teal-600,
+[data-theme='matte-charcoal'] .bg-teal-500,
+[data-theme='matte-charcoal'] .bg-blue-600,
+[data-theme='matte-charcoal'] .bg-\[var\(--accent-primary\)\] {
+  background-color: var(--accent-primary) !important;
+  color: #121212 !important;
 }
 
 /* 4. SUNSET DUNE */
