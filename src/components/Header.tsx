@@ -545,8 +545,8 @@ export default function Header({
                         </div>
 
                         {/* SMART THEME GRID WITH PERSISTENCE */}
-                        <div className="col-span-2 mt-4 border-t pt-4 dark:border-white/10 border-slate-200">
-                          <p className={cn('text-xs font-bold mb-3', dk ? 'text-slate-400' : 'text-slate-600')}>{isDe ? 'Themen (Themes)' : 'Themes'}</p>
+                        <div className="hidden sm:block col-span-2 mt-4 border-t pt-4 border-slate-200 dark:border-white/10 border-app-border">
+                          <p className={cn('text-xs font-bold mb-3', dk ? 'text-slate-400' : 'text-slate-600')}>{isDe ? 'Themen' : 'Themes'}</p>
                           <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
                              {[
                                // LIGHT THEMES
