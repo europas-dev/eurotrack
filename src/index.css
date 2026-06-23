@@ -171,7 +171,7 @@ body {
   --border-subtle: rgba(255, 255, 255, 0.05);
   --text-main: #d4d4d8;      
   --text-muted: #a1a1aa;     
-  --accent-primary: #a34d0f;
+  --accent-primary: #d0dbf2;
   --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
   --card-backdrop: none;
 }
@@ -213,7 +213,7 @@ body {
   --border-subtle: rgba(255, 255, 255, 0.08); 
   --text-main: #ffffff;
   --text-muted: #8f9bba;
-  --accent-primary: #3265f0;
+  --accent-primary: #0357ff;
   --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   --card-backdrop: blur(16px);
 }
