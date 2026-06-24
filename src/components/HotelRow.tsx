@@ -611,22 +611,21 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
   useEffect(() => {
     if (!isOpen) {
+      // 1. Reset filters when closing
       setLocalMonthFilter('all');
       setInvoiceFilter('all');
       setItemSearchQuery('');
 
+      // 2. PREP FOR NEXT OPEN: Quietly reset to the newest date
       if (localHotel.durations && localHotel.durations.length > 0) {
-        // Explicitly create a copy to avoid mutating the original
-        const sortedList = [...localHotel.durations].sort((a, b) => {
-          const timeA = new Date(a.startDate || 0).getTime();
-          const timeB = new Date(b.startDate || 0).getTime();
-          return timeB - timeA;
-        });
+        // Sort by string comparison (ISO dates YYYY-MM-DD sort correctly as strings)
+        const sorted = [...localHotel.durations].sort((a, b) => 
+          (b.startDate || '').localeCompare(a.startDate || '')
+        );
         
-        const newestItem = sortedList[0];
-        const indexFound = localHotel.durations.findIndex((d) => d.id === newestItem.id);
-        
-        setActiveDurationTab(indexFound >= 0 ? indexFound : 0);
+        const newest = sorted[0];
+        const idx = localHotel.durations.findIndex((d: any) => d.id === newest.id);
+        setActiveDurationTab(idx >= 0 ? idx : 0);
       }
     }
   }, [isOpen, localHotel.durations]);
