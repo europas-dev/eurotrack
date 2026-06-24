@@ -125,7 +125,7 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
   <span className="text-[#EAB308]">Track.</span>
 </button>
 
-      <div className={cn('w-full max-w-md p-8 rounded-[2.5rem] shadow-2xl border',
+      <div className={cn('w-full max-w-md p-10 rounded-[2.5rem] shadow-2xl border',
         isDark ? 'bg-[#0F172A] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
 
         <h2 className="text-3xl font-black mb-2">
