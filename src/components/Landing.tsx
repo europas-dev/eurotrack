@@ -54,7 +54,7 @@ export default function Landing({
       desc:       'Optimieren Sie Hotelbelegungen und tracken Sie Mitarbeiter-Substitutionen in Echtzeit für Europas GmbH',
       login:      'Anmelden',
       signup:     'Registrieren',
-      getStarted: 'Jetzt Starten',
+      getStarted: 'Zum Dashboard',
       adminLink:  'Systemadministration',
       features: [
         { icon: <LayoutDashboard size={18} />, title: 'Übersicht',    desc: 'Zentralisierte Verwaltung.' },
@@ -69,7 +69,7 @@ export default function Landing({
       desc:       'Optimize hotel occupancies and track employee substitutions in real-time for Europas GmbH',
       login:      'Log In',
       signup:     'Sign Up',
-      getStarted: 'Get Started',
+      getStarted: 'Go to Dashboard',
       adminLink:  'System Administration',
       features: [
         { icon: <LayoutDashboard size={18} />, title: 'Overview',  desc: 'Centralized management.' },
@@ -170,8 +170,8 @@ export default function Landing({
           {t.desc}
         </p>
         
-        <button onClick={onRegister}
-          className="px-8 py-4 bg-blue-600 text-white text-sm sm:text-base font-black rounded-2xl shadow-lg hover:scale-105 hover:bg-blue-500 transition-all flex items-center gap-3 mx-auto whitespace-nowrap">
+        <button onClick={onLogin}
+          className="px-8 py-4 bg-blue-600 text-white text-sm sm:text-base font-black rounded-2xl shadow-xl hover:scale-105 hover:bg-blue-500 transition-all flex items-center gap-3 mx-auto whitespace-nowrap">
           {t.getStarted} <ChevronRight size={18} strokeWidth={3} />
         </button>
       </div>
