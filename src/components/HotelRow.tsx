@@ -610,22 +610,20 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   }, [editingTotal]);
 
   useEffect(() => {
-     if (!isOpen) {
-        // 1. Reset filters when closing
-        setLocalMonthFilter('all');
-        setInvoiceFilter('all');
-        setItemSearchQuery('');
+    if (!isOpen) {
+      setLocalMonthFilter('all');
+      setInvoiceFilter('all');
+      setItemSearchQuery('');
 
-        // 2. PREP FOR NEXT OPEN: Quietly reset the tab to the newest date
-        if (localHotel.durations && localHotel.durations.length > 0) {
-           const newestDuration = [...localHotel.durations].sort((a, b) => 
-             new Date(b.startDate || 0).getTime() - new Date(a.startDate || 0).getTime()
-           )[0];
-           
-           const trueIdx = localHotel.durations.findIndex((d: any) => d.id === newestDuration.id);
-           setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0);
-        }
-     }
+      if (localHotel.durations && localHotel.durations.length > 0) {
+        const newestDuration = [...localHotel.durations].sort((a, b) => 
+          new Date(b.startDate || 0).getTime() - new Date(a.startDate || 0).getTime()
+        )[0];
+        
+        const trueIdx = localHotel.durations.findIndex((d: any) => d.id === newestDuration.id);
+        setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0);
+      }
+    }
   }, [isOpen, localHotel.durations]);
 
   const [localHotel, setLocalHotel] = useState({
