@@ -616,15 +616,17 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       setItemSearchQuery('');
 
       if (localHotel.durations && localHotel.durations.length > 0) {
-        const sorted = [...localHotel.durations].sort((a, b) => {
+        // Explicitly create a copy to avoid mutating the original
+        const sortedList = [...localHotel.durations].sort((a, b) => {
           const timeA = new Date(a.startDate || 0).getTime();
           const timeB = new Date(b.startDate || 0).getTime();
           return timeB - timeA;
         });
         
-        const newest = sorted[0];
-        const trueIdx = localHotel.durations.findIndex((d: any) => d.id === newest.id);
-        setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0);
+        const newestItem = sortedList[0];
+        const indexFound = localHotel.durations.findIndex((d) => d.id === newestItem.id);
+        
+        setActiveDurationTab(indexFound >= 0 ? indexFound : 0);
       }
     }
   }, [isOpen, localHotel.durations]);
