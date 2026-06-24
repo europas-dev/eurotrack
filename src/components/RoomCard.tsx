@@ -379,7 +379,7 @@ function BedSlot({
   if (!editing) {
     const isGap = !!(gapStart || gapEnd)
     return (
-      <button disabled={viewOnly} onClick={() => { if(!viewOnly) { setCheckIn(effectiveIn); setCheckOut(effectiveOut); setEditing(true); setTimeout(() => inputRef.current?.focus(), 40) } }} className={cn('w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg border-2 border-dashed text-sm font-bold transition-all h-[52px]', isGap ? (dk ? 'border-amber-500/40 text-amber-400 hover:bg-amber-900/10' : 'border-amber-400 text-amber-600 hover:bg-amber-50') : (dk ? 'border-white/10 text-slate-500 hover:border-blue-500/40 hover:text-blue-400' : 'border-slate-200 text-slate-400 hover:border-blue-400 hover:text-blue-500'), viewOnly && "opacity-60 cursor-default hover:bg-transparent pointer-events-none")}>
+      <button disabled={viewOnly} onClick={() => { if(!viewOnly) { setCheckIn(effectiveIn); setCheckOut(effectiveOut); setEditing(true); setTimeout(() => inputRef.current?.focus(), 40) } }} className={cn('w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg border-2 border-dashed text-sm font-bold transition-all h-[52px]', isGap ? (dk ? 'border-amber-500/40 text-amber-400 hover:bg-amber-900/10' : 'border-amber-400 text-amber-600 hover:bg-amber-50') : (dk ? 'border-white/10 text-slate-500 hover:border-blue-500/40 hover:text-blue-400' : 'border-slate-300 text-slate-500 hover:border-blue-400 hover:text-blue-500'), viewOnly && "opacity-60 cursor-default hover:bg-transparent pointer-events-none")}>
         {!viewOnly && <Plus size={16} />} {isGap ? `${lang === 'de' ? 'Lücke füllen' : 'Fill gap'} (${fmtDateDe(effectiveIn)} ➔ ${fmtDateDe(effectiveOut)})` : (lang === 'de' ? 'Bett zuweisen' : 'Assign bed')}
       </button>
     )
@@ -393,7 +393,7 @@ function BedSlot({
             {name.trim().length > 0 && employeeOptions?.map(opt => <option key={opt} value={opt} />)}
         </datalist>
         <div className="relative flex items-center flex-[4] min-w-0">
-          <Phone size={12} className={cn("absolute left-2.5", dk ? "text-slate-500" : "text-slate-400")} />
+          <Phone size={12} className={cn("absolute left-2.5", dk ? "text-slate-500" : "text-slate-600")} />
           <input disabled={viewOnly} type="text" value={phone} onChange={e => setPhone(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder="+49" className={cn(inputCls, 'w-full pl-7 text-[13px] h-[34px]', viewOnly && "opacity-60")} />
         </div>
       </div>
