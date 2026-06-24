@@ -160,7 +160,7 @@ export default function Landing({
         </span>
         
         {/* FIXED: Removed the super-tight line-height and added py-2 so the 'g' cannot physically be clipped by bg-clip-text */}
-        <h1 className={cn('text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black mb-6 tracking-tight leading-tight py-2 bg-clip-text text-transparent',
+        <h1 className={cn('text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black mb-6 tracking-tight leading-tight pt-2 pb-6 bg-clip-text text-transparent',
           isDarkMode ? 'bg-gradient-to-br from-white via-white/90 to-blue-300/40' : 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-500')}>
           {t.title}
         </h1>
@@ -181,7 +181,7 @@ export default function Landing({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 pb-16 sm:pb-20 w-full z-10 relative">
         {t.features.map((f, i) => (
           <div key={i} className={cn('p-4 sm:p-6 rounded-[1.2rem] sm:rounded-[1.5rem] border transition-all hover:border-blue-500/30 hover:-translate-y-1 shadow-sm flex flex-col justify-center',
-            isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/60 backdrop-blur-md border-slate-200/60')}>
+            isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/80 backdrop-blur-xl border-white/60 shadow-[0_8px_30px_rgba(0,0,0,0.04)] ring-1 ring-slate-900/5')}>
             
             {/* FIXED: Inline layout! Icon and Title sit side-by-side */}
             <div className="flex items-center gap-2 sm:gap-3 mb-2">
