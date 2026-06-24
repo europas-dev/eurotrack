@@ -592,14 +592,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [activeDurationTab, setActiveDurationTab] = useState(0);
-  // Force-reset to the absolute most recent duration (first in sorted list) when opening
-useEffect(() => {
-  if (isOpen) {
-    // sortedDurations is already sorted by date descending (newest first)
-    // index 0 is guaranteed to be the most recent
-    setActiveDurationTab(0);
-  }
-}, [isOpen]);
   const [saving, setSaving] = useState(false);
   const [creatingDuration, setCreatingDuration] = useState(false);
   const saveTimer = useRef<any>(null);
