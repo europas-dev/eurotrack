@@ -119,7 +119,10 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
   );
 
   return (
-    <div className={cn('min-h-screen w-full flex flex-col items-center justify-center p-6', isDark ? 'bg-[#020617]' : 'bg-slate-100')}>
+    <div 
+      className={cn('min-h-screen w-full flex flex-col items-center justify-center p-6', isDark ? 'bg-[#020617]' : 'bg-slate-100')}
+      style={{ fontFamily: '"Poppins", sans-serif' }}
+    >
       <button onClick={onBack} className="flex items-center text-2xl font-black italic hover:scale-105 transition-all">
   <span className={isDark ? 'text-white' : 'text-slate-900'}>Euro</span>
   <span className="text-[#EAB308]">Track.</span>
