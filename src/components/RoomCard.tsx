@@ -393,7 +393,13 @@ function BedSlot({
             {name.trim().length > 0 && employeeOptions?.map(opt => <option key={opt} value={opt} />)}
         </datalist>
         <div className="relative flex items-center flex-[4] min-w-0">
-          <Phone size={12} className={cn("absolute left-2.5", dk ? "text-slate-500" : "text-slate-600")} />
+          <Phone 
+            size={12} 
+            className={cn(
+              "absolute left-2.5 opacity-60", 
+              "text-app-text" // Use your theme's primary text variable
+            )} 
+          />
           <input disabled={viewOnly} type="text" value={phone} onChange={e => setPhone(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder="+49" className={cn(inputCls, 'w-full pl-7 text-[13px] h-[34px]', viewOnly && "opacity-60")} />
         </div>
       </div>
@@ -432,7 +438,7 @@ function BedSlot({
         
         {/* COMPACT SAVE & CANCEL ICONS */}
         {!viewOnly && (
-           <button onClick={save} disabled={saving || !name.trim()} className="h-[34px] w-[38px] rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-md shrink-0 transition-colors">
+           <button onClick={save} disabled={saving || !name.trim()} className="h-[34px] w-[38px] rounded-lg flex items-center justify-center shadow-md shrink-0 transition-all">
               {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={18} strokeWidth={3} />}
            </button>
         )}
