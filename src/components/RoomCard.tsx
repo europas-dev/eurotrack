@@ -394,13 +394,12 @@ function BedSlot({
         </datalist>
         <div className="relative flex items-center flex-[4] min-w-0">
           <Phone 
-          size={12} 
-          className={cn(
-            "absolute left-2.5", 
-            // Use the theme's text color variable instead of a static slate color
-            "text-[var(--input-icon-color,currentColor)] opacity-70"
-          )} 
-        />
+            size={12} 
+            className={cn(
+              "absolute left-2.5 opacity-60", 
+              "text-app-text" // Use your theme's primary text variable
+            )} 
+          />
           <input disabled={viewOnly} type="text" value={phone} onChange={e => setPhone(e.target.value)} onKeyDown={e => e.key === 'Enter' && save()} placeholder="+49" className={cn(inputCls, 'w-full pl-7 text-[13px] h-[34px]', viewOnly && "opacity-60")} />
         </div>
       </div>
@@ -440,16 +439,16 @@ function BedSlot({
         {/* COMPACT SAVE & CANCEL ICONS */}
         {!viewOnly && (
            <button 
-  onClick={save} 
-  disabled={saving || !name.trim()} 
-  className={cn(
-    "h-[34px] w-[38px] rounded-lg flex items-center justify-center shadow-md shrink-0 transition-all",
-    // Use variables that automatically contrast with the theme
-    "bg-[var(--action-bg)] text-[var(--action-fg)] hover:opacity-90"
-  )}
->
-  {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={18} strokeWidth={3} />}
-</button>
+            onClick={save} 
+            disabled={saving || !name.trim()} 
+            className={cn(
+              "h-[34px] w-[38px] rounded-lg flex items-center justify-center shadow-md shrink-0 transition-all",
+              // This uses your global accent background class that matches your Add Hotel button
+              "bg-app-accent hover:opacity-90 text-white" 
+            )}
+          >
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={18} strokeWidth={3} />}
+          </button>
         )}
         {!viewOnly && (
            <button onClick={() => setEditing(false)} className={cn('h-[34px] w-[38px] rounded-lg flex items-center justify-center transition-all shrink-0 border', dk ? 'border-white/10 text-slate-400 hover:bg-white/10 hover:text-white' : 'border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-900')}>
