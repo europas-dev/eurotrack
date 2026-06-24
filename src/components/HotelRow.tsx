@@ -611,21 +611,23 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
   useEffect(() => {
      if (!isOpen) {
-        // Reset filters when closing
+        // 1. Reset filters when closing
         setLocalMonthFilter('all');
         setInvoiceFilter('all');
         setItemSearchQuery('');
-     } else if (localHotel.durations && localHotel.durations.length > 0) {
-        // FIX: When opening the row, find the chronologically newest duration
-        const newestDuration = [...localHotel.durations].sort((a, b) => 
-          new Date(b.startDate || 0).getTime() - new Date(a.startDate || 0).getTime()
-        )[0];
-        
-        // Find its real index in the unsorted array and set it as active
-        const trueIdx = localHotel.durations.findIndex((d: any) => d.id === newestDuration.id);
-        setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0);
+
+        // 2. PREP FOR NEXT OPEN: Quietly reset the tab to the newest date while the row is closed
+        if (localHotel.durations && localHotel.durations.length > 0) {
+           const newestDuration = [...localHotel.durations].sort((a, b) => 
+             new Date(b.startDate || 0).getTime() - new Date(a.startDate || 0).getTime()
+           )[0];
+           
+           const trueIdx = localHotel.durations.findIndex((d: any) => d.id === newestDuration.id);
+           setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0);
+        }
      }
-  }, [isOpen]); // Runs exactly when you expand/close the hotel row
+     // Notice we completely removed the "else if" block!
+  }, [isOpen, localHotel.durations]);
 
   const [localHotel, setLocalHotel] = useState({
     ...entry,
