@@ -438,9 +438,17 @@ function BedSlot({
         
         {/* COMPACT SAVE & CANCEL ICONS */}
         {!viewOnly && (
-           <button onClick={save} disabled={saving || !name.trim()} className="h-[34px] w-[38px] rounded-lg flex items-center justify-center shadow-md shrink-0 transition-all">
-              {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={18} strokeWidth={3} />}
-           </button>
+           <button 
+            onClick={save} 
+            disabled={saving || !name.trim()} 
+            className={cn(
+              "h-[34px] w-[38px] rounded-lg flex items-center justify-center shadow-md shrink-0 transition-all",
+              // This uses your global accent background class that matches your Add Hotel button
+              "bg-app-accent hover:opacity-90 text-white" 
+            )}
+          >
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={18} strokeWidth={3} />}
+          </button>
         )}
         {!viewOnly && (
            <button onClick={() => setEditing(false)} className={cn('h-[34px] w-[38px] rounded-lg flex items-center justify-center transition-all shrink-0 border', dk ? 'border-white/10 text-slate-400 hover:bg-white/10 hover:text-white' : 'border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-900')}>
