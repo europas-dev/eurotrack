@@ -26,7 +26,7 @@ function useMediaQuery(query: string): boolean {
 // ---------------------------------
 
 type View = 'landing' | 'login' | 'signup' | 'admin-login' | 'dashboard' | 'superadmin-home' | 'user-management' | 'pending';
-type Theme    = 'dark' | 'light';
+type Theme = string;
 type Language = 'de' | 'en';
 
 const VIEW_KEY = 'et_last_view';
@@ -88,11 +88,20 @@ export default function App() {
   const signingOut = useRef(false);
   const currentUser = useRef<string | null>(null); 
 
-  const dk = theme === 'dark';
+  const LIGHT_THEMES = ['light', 'airy-glass', 'soft-sand', 'mint-breeze', 'lavender-mist', 'corporate-blue'];
+  const isPublicView = ['landing', 'login', 'signup', 'admin-login'].includes(view);
+  
+  // Stop theme bleeding: Force public pages to standard light/dark
+  const activeTheme = isPublicView 
+    ? (LIGHT_THEMES.includes(theme) ? 'light' : 'dark') 
+    : theme;
+
+  const dk = !LIGHT_THEMES.includes(activeTheme);
 
   const handleToggleTheme = useCallback(() => {
     setTheme(prev => {
-      const next = prev === 'dark' ? 'light' : 'dark';
+      const isCurrentlyLight = LIGHT_THEMES.includes(prev);
+      const next = isCurrentlyLight ? 'dark' : 'light';
       localStorage.setItem(THEME_KEY, next);
       return next;
     });
@@ -146,12 +155,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (theme === 'dark') {
+    document.documentElement.setAttribute('data-theme', activeTheme);
+    if (dk) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
-  }, [theme]);
+  }, [activeTheme, dk]);
 
   useEffect(() => {
     let cancelled = false;
@@ -270,7 +280,7 @@ export default function App() {
       initialMode={view === 'signup' ? 'signup' : 'login'} 
       onBack={() => setView('landing')} 
       lang={lang} 
-      theme={theme} 
+      theme={activeTheme as 'dark' | 'light'} 
     />
   );
 
