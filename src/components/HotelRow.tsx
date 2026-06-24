@@ -616,7 +616,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         setInvoiceFilter('all');
         setItemSearchQuery('');
 
-        // 2. PREP FOR NEXT OPEN: Quietly reset the tab to the newest date while the row is closed
+        // 2. PREP FOR NEXT OPEN: Quietly reset the tab to the newest date
         if (localHotel.durations && localHotel.durations.length > 0) {
            const newestDuration = [...localHotel.durations].sort((a, b) => 
              new Date(b.startDate || 0).getTime() - new Date(a.startDate || 0).getTime()
@@ -626,7 +626,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
            setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0);
         }
      }
-     // Notice we completely removed the "else if" block!
   }, [isOpen, localHotel.durations]);
 
   const [localHotel, setLocalHotel] = useState({
