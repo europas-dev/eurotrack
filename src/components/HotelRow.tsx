@@ -610,21 +610,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   }, [editingTotal]);
 
   useEffect(() => {
-    if (!isOpen) {
-      setLocalMonthFilter('all');
-      setInvoiceFilter('all');
-      setItemSearchQuery('');
-
-      if (localHotel.durations && localHotel.durations.length > 0) {
-        const newestDuration = [...localHotel.durations].sort((a, b) => 
-          new Date(b.startDate || 0).getTime() - new Date(a.startDate || 0).getTime()
-        )[0];
-        
-        const trueIdx = localHotel.durations.findIndex((d: any) => d.id === newestDuration.id);
-        setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0);
-      }
-    }
-  }, [isOpen, localHotel.durations]);
+     if (!isOpen) {
+        setLocalMonthFilter('all');
+        setInvoiceFilter('all');
+        setItemSearchQuery('');
+     }
+  }, [isOpen]);
 
   const [localHotel, setLocalHotel] = useState({
     ...entry,
