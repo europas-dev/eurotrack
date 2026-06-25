@@ -595,6 +595,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [saving, setSaving] = useState(false);
   const [creatingDuration, setCreatingDuration] = useState(false);
   const saveTimer = useRef<any>(null);
+  const skipTabResetRef = useRef(false)
 
   // Update the parent's modal status when this row's modal changes
   useEffect(() => {
@@ -609,20 +610,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       return () => { document.removeEventListener('keydown', handleTotalKey); }
   }, [editingTotal]);
 
-  const skipTabResetRef = useRef(false)
-
-// In your chip onClick handler, BEFORE calling onToggle():
-skipTabResetRef.current = true
-onToggle()
-setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0)
-
-// In the useEffect:
 useEffect(() => {
   if (isOpen) {
     if (skipTabResetRef.current) {
-      skipTabResetRef.current = false // chip handled it, do nothing
+      skipTabResetRef.current = false
     } else {
-      setActiveDurationTab(0)   // manual open → reset to first tab
+      setActiveDurationTab(0)
       setActiveTab('bookings')
     }
   } else {
@@ -1061,7 +1054,10 @@ useEffect(() => {
                 return (
                   <div key={d.id} className="relative group/dur">
                     <button onClick={(e) => { 
-                        e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); 
+                        e.stopPropagation(); if (!isOpen) {
+                        skipTabResetRef.current = true
+                        onToggle()
+                      }; setActiveTab('bookings'); 
                         const trueIdx = localHotel.durations.findIndex((dur:any) => dur.id === d.id);
                         setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); 
                     }} className={cn('w-full min-w-[100px] max-w-[105px] px-1 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all', dk ? 'bg-[#0F172A] border-white/10 text-slate-300 hover:bg-white/10' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100')}>
@@ -1104,7 +1100,10 @@ useEffect(() => {
                                 return (
                                     <div key={d.id} className="relative group/innerDur">
                                         <button onClick={(e) => { 
-                                            e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('bookings'); setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); 
+                                            e.stopPropagation(); if (!isOpen) {
+                                            skipTabResetRef.current = true
+                                            onToggle()
+                                          }; setActiveTab('bookings'); setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0); 
                                         }} className={cn("px-2 py-0.5 rounded text-[10px] font-bold border truncate text-center shadow-sm hover:ring-1 ring-teal-500/30 transition-all", dk ? "bg-slate-700 border-white/10 text-white hover:bg-slate-600" : "bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200")}>
                                         {d.startDate && d.endDate ? `${formatChipStr(d.startDate)} - ${formatChipStr(d.endDate)}` : 'New'}
                                         </button>
