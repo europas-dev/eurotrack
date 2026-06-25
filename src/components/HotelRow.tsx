@@ -615,7 +615,13 @@ useEffect(() => {
     if (skipTabResetRef.current) {
       skipTabResetRef.current = false
     } else {
-      setActiveDurationTab(0)
+      // Find the index of the most-recent duration (first in sortedDurations) in localHotel.durations
+      const sorted = [...localHotel.durations].sort(
+        (a: any, b: any) => new Date(b.startDate ?? 0).getTime() - new Date(a.startDate ?? 0).getTime()
+      )
+      const firstId = sorted[0]?.id
+      const idx = localHotel.durations.findIndex((d: any) => d.id === firstId)
+      setActiveDurationTab(idx >= 0 ? idx : 0)
       setActiveTab('bookings')
     }
   } else {
