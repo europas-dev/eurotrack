@@ -614,6 +614,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         setLocalMonthFilter('all');
         setInvoiceFilter('all');
         setItemSearchQuery('');
+        setActiveDurationTab(0)
      }
   }, [isOpen]);
 
