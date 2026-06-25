@@ -609,14 +609,28 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       return () => { document.removeEventListener('keydown', handleTotalKey); }
   }, [editingTotal]);
 
-  useEffect(() => {
-     if (!isOpen) {
-        setLocalMonthFilter('all');
-        setInvoiceFilter('all');
-        setItemSearchQuery('');
-        setActiveDurationTab(0)
-     }
-  }, [isOpen]);
+  const skipTabResetRef = useRef(false)
+
+// In your chip onClick handler, BEFORE calling onToggle():
+skipTabResetRef.current = true
+onToggle()
+setActiveDurationTab(trueIdx >= 0 ? trueIdx : 0)
+
+// In the useEffect:
+useEffect(() => {
+  if (isOpen) {
+    if (skipTabResetRef.current) {
+      skipTabResetRef.current = false // chip handled it, do nothing
+    } else {
+      setActiveDurationTab(0)   // manual open → reset to first tab
+      setActiveTab('bookings')
+    }
+  } else {
+    setLocalMonthFilter('all')
+    setInvoiceFilter('all')
+    setItemSearchQuery('')
+  }
+}, [isOpen])
 
   const [localHotel, setLocalHotel] = useState({
     ...entry,
