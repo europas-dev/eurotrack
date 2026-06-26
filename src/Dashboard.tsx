@@ -581,7 +581,7 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           const getMinPrice = (hotel: any) => {
               let minPricePerBed: number | null = null;
               
-              // 1. Scan invoices for room bed prices (Exactly matches HotelRow UI logic)
+              // 1. Scan invoices for room bed prices
               const invoicesToScan = hotel.invoices || [];
               invoicesToScan.forEach((inv: any) => {
                   const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
@@ -592,7 +592,8 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
                   if (inv.billingMode !== 'total') {
                       (inv.items || []).forEach((item: any) => {
-                          if (item.type === 'room' && item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 0) {
+                          // FIX: Added the > 5 safety shield here to ignore dirty data in the dashboard sorter!
+                          if (item.type === 'room' && item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 5) {
                               const bedPrice = parseFloat(item.netto);
                               if (minPricePerBed === null || bedPrice < minPricePerBed) minPricePerBed = bedPrice;
                           }
@@ -605,15 +606,18 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
               // 2. Prioritize Manual Override if valid
               if (hotel.override_price_per_bed != null) {
                   const overrideVal = parseFloat(hotel.override_price_per_bed);
-                  if (minPricePerBed !== null && minPricePerBed < overrideVal) {
-                      finalPrice = minPricePerBed; 
-                  } else {
-                      finalPrice = overrideVal;
+                  // FIX: Shield overrides from typos too
+                  if (overrideVal > 5) {
+                      if (minPricePerBed !== null && minPricePerBed < overrideVal) {
+                          finalPrice = minPricePerBed; 
+                      } else {
+                          finalPrice = overrideVal;
+                      }
                   }
               }
               
               // If it's exactly 0, treat it as Infinity so it safely drops to the bottom
-              return (finalPrice === 0) ? Infinity : finalPrice;
+              return (finalPrice === 0 || finalPrice === Infinity) ? Infinity : finalPrice;
           };
           
           va = getMinPrice(a); 
