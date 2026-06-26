@@ -581,16 +581,18 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           const getMinPrice = (hotel: any) => {
               let minPricePerBed: number | null = null;
               
-              // 1. Scan invoices for room bed prices
+              // 1. Scan ALL invoices for room bed prices (Removed the date blocks)
               const invoicesToScan = hotel.invoices || [];
               invoicesToScan.forEach((inv: any) => {
-                  const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
-                  if (!dateStr) return;
-                  const d = new Date(dateStr);
-                  if (d.getFullYear() !== selectedYear) return;
-                  if (selectedMonth !== null && d.getMonth() !== selectedMonth) return;
-
                   if (inv.billingMode !== 'total') {
+                      (inv.items || []).forEach((item: any) => {
+                          if (item.type === 'room' && item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 5) {
+                              const bedPrice = parseFloat(item.netto);
+                              if (minPricePerBed === null || bedPrice < minPricePerBed) minPricePerBed = bedPrice;
+                          }
+                      });
+                  }
+              });
                       (inv.items || []).forEach((item: any) => {
                           // FIX: Added the > 5 safety shield here to ignore dirty data in the dashboard sorter!
                           if (item.type === 'room' && item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 5) {
