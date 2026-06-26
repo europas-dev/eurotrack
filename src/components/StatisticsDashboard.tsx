@@ -82,20 +82,20 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       const bedOverride = h.override_price_per_bed ?? h.overridePricePerBed;
       if (bedOverride != null) {
         const overrideP = parseFloat(bedOverride) || 0;
-        bedPriceSum += overrideP;
-        bedPriceCount++;
         
-        // NEW: Track lowest and highest from overrides
-        if (overrideP > 0 && overrideP < minBedPrice.price) {
-          minBedPrice = { hotelName: h.name || 'Unnamed', price: overrideP };
+        // Safety check: Ignore unrealistic prices to shield against database typos
+        if (overrideP > 5) {
+          bedPriceSum += overrideP;
+          bedPriceCount++;
+          
+          // NEW: Track lowest and highest from overrides
+          if (overrideP < minBedPrice.price) {
+            minBedPrice = { hotelName: h.name || 'Unnamed', price: overrideP };
+          }
+          if (overrideP > maxBedPrice.price) {
+            maxBedPrice = { hotelName: h.name || 'Unnamed', price: overrideP };
+          }
         }
-        if (overrideP > maxBedPrice.price) {
-          maxBedPrice = { hotelName: h.name || 'Unnamed', price: overrideP };
-        }
-      }
-      if (bedOverride != null) {
-        bedPriceSum += parseFloat(bedOverride) || 0;
-        bedPriceCount++;
       }
 
       (h.invoices || []).forEach((inv: any) => {
@@ -121,15 +121,19 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
             invBrutto += calcInvoiceItem(item, defaultN)?.brutto || 0;
             if (item.type === 'room' && item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 0) {
                const p = parseFloat(item.netto) || 0;
-               bedPriceSum += p;
-               bedPriceCount++;
                
-               // NEW: Track lowest and highest from itemized bed prices
-               if (p < minBedPrice.price) {
-                 minBedPrice = { hotelName: h.name || 'Unnamed', price: p };
-               }
-               if (p > maxBedPrice.price) {
-                 maxBedPrice = { hotelName: h.name || 'Unnamed', price: p };
+               // Safety check: Ignore old database entries where energy costs (< 5€) were accidentally saved as 'room' type
+               if (p > 5) {
+                 bedPriceSum += p;
+                 bedPriceCount++;
+                 
+                 // NEW: Track lowest and highest from itemized bed prices
+                 if (p < minBedPrice.price) {
+                   minBedPrice = { hotelName: h.name || 'Unnamed', price: p };
+                 }
+                 if (p > maxBedPrice.price) {
+                   maxBedPrice = { hotelName: h.name || 'Unnamed', price: p };
+                 }
                }
             }
           });
