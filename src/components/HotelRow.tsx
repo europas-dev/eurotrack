@@ -739,6 +739,18 @@ useEffect(() => {
     let totalUnpaid = 0;
     let nearestDueDate: string | null = null;
 
+    // --- NEW: Scan ALL invoices for the base rate, completely ignoring the month filter ---
+    (localHotel.invoices || []).forEach((inv: any) => {
+        if (inv.billingMode !== 'total') {
+            (inv.items || []).forEach((item: any) => {
+                if (item.type === 'room' && item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 5) {
+                    const bedPrice = parseFloat(item.netto);
+                    if (minPricePerBed === null || bedPrice < minPricePerBed) minPricePerBed = bedPrice;
+                }
+            });
+        }
+    });
+
     (localHotel.durations || []).forEach((d: any) => {
       const nights = calculateNights(d.startDate, d.endDate);
       (d.roomCards || []).forEach((c: any) => {
