@@ -581,20 +581,12 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
           const getMinPrice = (hotel: any) => {
               let minPricePerBed: number | null = null;
               
-              // 1. Scan ALL invoices for room bed prices (Removed the date blocks)
+              // Scan ALL invoices for room bed prices
               const invoicesToScan = hotel.invoices || [];
               invoicesToScan.forEach((inv: any) => {
                   if (inv.billingMode !== 'total') {
                       (inv.items || []).forEach((item: any) => {
-                          if (item.type === 'room' && item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 5) {
-                              const bedPrice = parseFloat(item.netto);
-                              if (minPricePerBed === null || bedPrice < minPricePerBed) minPricePerBed = bedPrice;
-                          }
-                      });
-                  }
-              });
-                      (inv.items || []).forEach((item: any) => {
-                          // FIX: Added the > 5 safety shield here to ignore dirty data in the dashboard sorter!
+                          // The "Safety Shield" (> 5)
                           if (item.type === 'room' && item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 5) {
                               const bedPrice = parseFloat(item.netto);
                               if (minPricePerBed === null || bedPrice < minPricePerBed) minPricePerBed = bedPrice;
@@ -605,10 +597,9 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
 
               let finalPrice = minPricePerBed !== null ? minPricePerBed : Infinity;
 
-              // 2. Prioritize Manual Override if valid
+              // Prioritize Manual Override if valid
               if (hotel.override_price_per_bed != null) {
                   const overrideVal = parseFloat(hotel.override_price_per_bed);
-                  // FIX: Shield overrides from typos too
                   if (overrideVal > 5) {
                       if (minPricePerBed !== null && minPricePerBed < overrideVal) {
                           finalPrice = minPricePerBed; 
@@ -618,7 +609,6 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
                   }
               }
               
-              // If it's exactly 0, treat it as Infinity so it safely drops to the bottom
               return (finalPrice === 0 || finalPrice === Infinity) ? Infinity : finalPrice;
           };
           
