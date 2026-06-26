@@ -771,7 +771,8 @@ useEffect(() => {
              invBrutto += itemBrutto;
              if (itemNetto > 0 && itemMwst !== null) buckets[itemMwst] = (buckets[itemMwst] || 0) + (itemNetto * (itemMwst/100));
              
-             if (item.type === 'room' && item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 0) {
+             // FIX: Added "> 5" safety shield to ignore old Energy Costs (e.g. 1.80€) accidentally saved as 'room'
+             if (item.type === 'room' && item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 5) {
                  const bedPrice = parseFloat(item.netto);
                  if (minPricePerBed === null || bedPrice < minPricePerBed) minPricePerBed = bedPrice;
              }
