@@ -1,7 +1,7 @@
 // src/components/HotelRow.tsx
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, ChevronRight, Loader2, Plus, Trash2, X, MapPin, MapPinned, Link,  User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, FileText, Ticket, Calendar, AlertTriangle, Edit3, Filter, RotateCcw } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Loader2, Plus, Trash2, X, MapPin, MapPinned, Link,  User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, FileText, Ticket, Calendar, AlertTriangle, Edit3, Filter, RotateCcw, Printer } from 'lucide-react';
 import {cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatLastUpdated, calculateNights, calcInvoiceItem, formatDateChip} from '../lib/utils';
 import { createDuration, updateHotel, deleteHotel } from '../lib/supabase';
 import { calcRoomCardTotal, calcRoomCardNettoSum } from '../lib/roomCardUtils';
@@ -593,6 +593,22 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [activeDurationTab, setActiveDurationTab] = useState(0);
+  const [printInvoice, setPrintInvoice] = useState<any>(null);
+
+  // Auto-trigger print dialog when invoice is ready in DOM
+  useEffect(() => {
+    if (printInvoice) {
+      const timer = setTimeout(() => { window.print(); }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [printInvoice]);
+
+  // Auto-close print view after print dialog closes
+  useEffect(() => {
+    const handleAfterPrint = () => setPrintInvoice(null);
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => window.removeEventListener('afterprint', handleAfterPrint);
+  }, []);
   const [saving, setSaving] = useState(false);
   const [creatingDuration, setCreatingDuration] = useState(false);
   const saveTimer = useRef<any>(null);
@@ -1539,24 +1555,36 @@ useEffect(() => {
 
                 <div className="flex-1 p-0 flex flex-col min-w-[660px] min-h-[450px] z-10 border-r border-slate-200 dark:border-white/10">
                    <div className={cn("px-5 h-[50px] border-b flex items-center justify-between shrink-0 border-app-border", activeInvoice ? "bg-black/5 dark:bg-white/5" : "bg-transparent")}>
-                      <div className="flex items-center gap-4 flex-1">
-                          {activeInvoice ? (
-                             <div className="flex items-center gap-3">
-                               <span className="text-[13px] text-slate-500">{lang === 'de' ? 'Leistungszeitraum:' : 'Billing period:'}</span>
-                               {(activeInvoice.startDate || activeInvoice.endDate) ? (
-                                   <div className="flex items-center gap-2 text-[11px] font-bold bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-md text-slate-600 dark:text-slate-300">
-                                      <Calendar size={12} className="opacity-50"/> 
-                                      <span>{activeInvoice.startDate ? formatShortDate(activeInvoice.startDate, lang) : '--'} - {activeInvoice.endDate ? formatShortDate(activeInvoice.endDate, lang) : '--'}</span>
-                                      <span className="opacity-30">|</span>
-                                      <span>{calculateNights(activeInvoice.startDate, activeInvoice.endDate)} {lang==='de'?'Nächte':'Nights'}</span>
-                                      <span className="opacity-30">|</span>
-                                      {activeInvoice.isPaid ? (
-                                         <span className="text-emerald-600 dark:text-emerald-400">{lang==='de'?'Bezahlt am: ':'Paid on: '} {formatShortDate(activeInvoice.paymentDate, lang)}</span>
-                                      ) : (
-                                         <span className={cn(activeInvoice.dueDate ? "text-red-500" : "text-slate-500 font-normal")}>{activeInvoice.dueDate ? (lang==='de'?'Fällig am: ':'Payment Due: ') : (lang==='de'?'Erstellt am: ':'Created on: ')} {activeInvoice.dueDate ? formatShortDate(activeInvoice.dueDate, lang) : formatShortDate(activeInvoice.created_at || new Date().toISOString(), lang)}</span>
-                                      )}
-                                   </div>
-                                ) : (
+   <div className="flex items-center gap-4 flex-1">
+      {activeInvoice ? (
+         <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-3">
+               <span className="text-[13px] text-slate-500">{lang === 'de' ? 'Leistungszeitraum:' : 'Billing period:'}</span>
+               {/* ... (keep your existing date display code here) ... */}
+               <div className="flex items-center gap-2 text-[11px] font-bold bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-md text-slate-600 dark:text-slate-300">
+                  <Calendar size={12} className="opacity-50"/> 
+                  <span>{activeInvoice.startDate ? formatShortDate(activeInvoice.startDate, lang) : '--'} - {activeInvoice.endDate ? formatShortDate(activeInvoice.endDate, lang) : '--'}</span>
+                  <span className="opacity-30">|</span>
+                  <span>{calculateNights(activeInvoice.startDate, activeInvoice.endDate)} {lang==='de'?'Nächte':'Nights'}</span>
+                  <span className="opacity-30">|</span>
+                  {activeInvoice.isPaid ? (
+                     <span className="text-emerald-600 dark:text-emerald-400">{lang==='de'?'Bezahlt am: ':'Paid on: '} {formatShortDate(activeInvoice.paymentDate, lang)}</span>
+                  ) : (
+                     <span className={cn(activeInvoice.dueDate ? "text-red-500" : "text-slate-500 font-normal")}>{activeInvoice.dueDate ? (lang==='de'?'Fällig am: ':'Payment Due: ') : (lang==='de'?'Erstellt am: ':'Created on: ')} {activeInvoice.dueDate ? formatShortDate(activeInvoice.dueDate, lang) : formatShortDate(activeInvoice.created_at || new Date().toISOString(), lang)}</span>
+                  )}
+               </div>
+            </div>
+
+            {/* NEW: Printer Button in the Top Right of the Header */}
+            <button 
+               onClick={(e) => { e.stopPropagation(); setPrintInvoice(activeInvoice); }} 
+               className={cn("p-2 rounded-lg transition-all", dk ? "text-slate-400 hover:bg-white/10 hover:text-white" : "text-slate-400 hover:bg-slate-200 hover:text-slate-800")}
+               title={lang === 'de' ? 'Rechnung drucken' : 'Print Invoice'}
+            >
+               <Printer size={18} />
+            </button>
+         </div>
+      ) : (
                                    <span className="text-[11px] font-medium italic text-slate-400">Kein Zeitraum gewählt</span>
                                 )}
                              </div>
