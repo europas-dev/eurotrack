@@ -2082,8 +2082,7 @@ useEffect(() => {
                             )}
                          </div>
                       )}
-                   </div>
-                </div>
+                   
         
                 <div className="w-full xl:w-[300px] p-5 flex flex-col shrink-0 rounded-b-2xl xl:rounded-bl-none transition-colors bg-black/[0.03] dark:bg-black/20 border-l border-app-border"> 
                  <div className="flex items-center justify-between gap-2 mb-5">
