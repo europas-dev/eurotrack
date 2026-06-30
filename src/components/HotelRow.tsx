@@ -2241,6 +2241,174 @@ useEffect(() => {
         </div>,
         document.body
       )}
+
+
+   {/* --- THE INVOICE PRINT ENGINE (DIN 5008 Standard) --- */}
+      {printInvoice && typeof document !== 'undefined' && createPortal(
+        <>
+          <style type="text/css">
+            {`
+              @media print {
+                body * { visibility: hidden; }
+                #invoice-print-container, #invoice-print-container * { visibility: visible; }
+                #invoice-print-container { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; background: white; }
+                @page { size: A4; margin: 20mm 20mm 20mm 25mm; } /* DIN 5008 margins */
+              }
+            `}
+          </style>
+          <div id="invoice-print-container" className="hidden print:block bg-white text-black font-sans min-h-screen text-[14px]">
+             
+             {/* DIN 5008 Info Block (Top Right) */}
+             <div className="absolute right-0 top-[45mm] w-[200px] text-[12px] leading-relaxed">
+                <p><span className="font-bold">{lang === 'de' ? 'Datum:' : 'Date:'}</span> {formatShortDate(printInvoice.created_at || new Date().toISOString(), lang)}</p>
+                <p><span className="font-bold">{lang === 'de' ? 'Rechnungs-Nr:' : 'Invoice No:'}</span> {printInvoice.number || 'Entwurf'}</p>
+                {printInvoice.startDate && printInvoice.endDate && (
+                   <p className="mt-2"><span className="font-bold">{lang === 'de' ? 'Leistungszeitraum:' : 'Service Period:'}</span><br/>{formatShortDate(printInvoice.startDate, lang)} - {formatShortDate(printInvoice.endDate, lang)}</p>
+                )}
+             </div>
+
+             {/* Sender Small Line */}
+             <div className="mt-[45mm]">
+                <p className="text-[10px] text-gray-500 underline mb-2 tracking-wide font-medium">EUROPAS GmbH • Auf der Reihe 2 • 45884 Gelsenkirchen</p>
+                {/* Recipient Address */}
+                <div className="text-[14px] leading-tight font-medium">
+                   <p className="font-bold text-[16px]">{localHotel.name}</p>
+                   {localHotel.contactPerson && <p>z.Hd. {localHotel.contactPerson}</p>}
+                   {localHotel.address && <p>{localHotel.address}</p>}
+                   <p>{localHotel.city || ''}</p>
+                   {localHotel.country && localHotel.country !== 'Germany' && <p>{localHotel.country}</p>}
+                </div>
+             </div>
+
+             {/* Invoice Title */}
+             <div className="mt-[35mm] mb-8">
+                <h1 className="text-3xl font-black">{lang === 'de' ? 'Rechnung' : 'Invoice'} {printInvoice.number}</h1>
+             </div>
+
+             {/* Items Table */}
+             <table className="w-full text-left border-collapse mb-10">
+                <thead>
+                   <tr className="border-b-2 border-black text-[12px]">
+                      <th className="py-2 w-[55%]">{lang === 'de' ? 'Beschreibung' : 'Description'}</th>
+                      <th className="py-2 text-right">{lang === 'de' ? 'Menge' : 'Qty'}</th>
+                      <th className="py-2 text-right">Netto</th>
+                      <th className="py-2 text-right">MwSt</th>
+                      <th className="py-2 text-right">Brutto</th>
+                   </tr>
+                </thead>
+                <tbody className="text-[13px]">
+                   {printInvoice.billingMode === 'total' ? (
+                      <tr className="border-b border-gray-200">
+                         <td className="py-3 font-medium">
+                            {lang === 'de' ? 'Logiskosten / Zimmerpreis' : 'Accommodation Costs'}
+                            {printInvoice.note && <div className="text-[11px] text-gray-500 mt-1">{printInvoice.note}</div>}
+                         </td>
+                         <td className="py-3 text-right">1</td>
+                         <td className="py-3 text-right">{formatCurrency(parseFloat(printInvoice.totalNetto)||0)}</td>
+                         <td className="py-3 text-right">{printInvoice.totalMwst || 7}%</td>
+                         <td className="py-3 text-right font-bold">{formatCurrency((parseFloat(printInvoice.totalNetto)||0) * (1 + (parseFloat(printInvoice.totalMwst)||7)/100))}</td>
+                      </tr>
+                   ) : (
+                      (printInvoice.items || []).map((item: any, idx: number) => {
+                         const n = printInvoice.startDate && printInvoice.endDate ? calculateNights(printInvoice.startDate, printInvoice.endDate) : 1;
+                         const res = calcInvoiceItem(item, n);
+                         return (
+                            <tr key={idx} className="border-b border-gray-200">
+                               <td className="py-3 font-medium">
+                                  {getTranslation(COST_TYPES, item.type || 'room', lang)}
+                                  {item.method === 'per_bed' && <div className="text-[11px] text-gray-500 mt-0.5">{item.nights || n} Nächte, {item.beds || 1} Betten</div>}
+                                  {item.note && <div className="text-[11px] text-gray-500 mt-0.5 whitespace-pre-wrap">{item.note}</div>}
+                               </td>
+                               <td className="py-3 text-right">{item.method === 'per_bed' ? ((item.nights || n) * (item.beds || 1)) : 1}</td>
+                               <td className="py-3 text-right">{formatCurrency(res.finalNetto)}</td>
+                               <td className="py-3 text-right">{res.mwst}%</td>
+                               <td className="py-3 text-right font-bold">{formatCurrency(res.brutto)}</td>
+                            </tr>
+                         )
+                      })
+                   )}
+                </tbody>
+             </table>
+
+             {/* Totals Block */}
+             <div className="flex justify-end mb-16">
+                <div className="w-[300px]">
+                   {(() => {
+                      // Inline Calculation for the Print View
+                      const n = printInvoice.startDate && printInvoice.endDate ? calculateNights(printInvoice.startDate, printInvoice.endDate) : 1;
+                      let tNetto = 0; let tBrutto = 0; const taxes: Record<number, number> = {};
+                      if (printInvoice.billingMode === 'total') {
+                         const base = parseFloat(printInvoice.totalNetto)||0;
+                         const m = parseFloat(printInvoice.totalMwst)||7;
+                         const isPct = printInvoice.discountType === 'percentage';
+                         const disc = parseFloat(printInvoice.discountValue)||0;
+                         tNetto = Math.max(0, base - (isPct ? base*(disc/100) : disc));
+                         tBrutto = tNetto * (1 + m/100);
+                         if (tNetto > 0) taxes[m] = tNetto * (m/100);
+                      } else {
+                         (printInvoice.items || []).forEach((item: any) => {
+                            const res = calcInvoiceItem(item, n);
+                            tNetto += res.finalNetto; tBrutto += res.brutto;
+                            if (res.finalNetto > 0 && res.mwst !== null) taxes[res.mwst] = (taxes[res.mwst] || 0) + (res.finalNetto * (res.mwst/100));
+                         });
+                      }
+                      return (
+                         <table className="w-full text-[13px]">
+                            <tbody>
+                               <tr className="border-b border-gray-100">
+                                  <td className="py-1.5">{lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</td>
+                                  <td className="py-1.5 text-right">{formatCurrency(tNetto)}</td>
+                               </tr>
+                               {Object.entries(taxes).map(([percent, amt]: any) => (
+                                  <tr key={percent} className="border-b border-gray-100">
+                                     <td className="py-1.5 pl-4 text-gray-600">zzgl. {percent}% MwSt</td>
+                                     <td className="py-1.5 text-right">{formatCurrency(amt)}</td>
+                                  </tr>
+                               ))}
+                               <tr className="border-t-2 border-black font-black text-[16px]">
+                                  <td className="py-2">{lang === 'de' ? 'Rechnungsbetrag' : 'Total Due'}</td>
+                                  <td className="py-2 text-right">{formatCurrency(tBrutto)}</td>
+                               </tr>
+                            </tbody>
+                         </table>
+                      )
+                   })()}
+                </div>
+             </div>
+
+             {/* Payment Terms & Footer */}
+             <div className="text-[12px] leading-relaxed">
+                <p>
+                   {lang === 'de' 
+                      ? `Bitte überweisen Sie den fälligen Betrag ${printInvoice.dueDate ? `bis zum ${formatShortDate(printInvoice.dueDate, 'de')}` : 'innerhalb von 14 Tagen'} ohne Abzug auf das unten angegebene Konto.`
+                      : `Please transfer the total amount ${printInvoice.dueDate ? `by ${formatShortDate(printInvoice.dueDate, 'en')}` : 'within 14 days'} without deduction to the bank account below.`
+                   }
+                </p>
+                <p className="mt-4">{lang === 'de' ? 'Vielen Dank für die gute Zusammenarbeit.' : 'Thank you for your business.'}</p>
+             </div>
+
+             <div className="fixed bottom-0 left-0 w-full pt-4 border-t border-gray-300 text-[9px] text-gray-500 flex justify-between">
+                <div>
+                   <p className="font-bold text-black">EUROPAS GmbH</p>
+                   <p>Auf der Reihe 2</p>
+                   <p>45884 Gelsenkirchen</p>
+                </div>
+                <div>
+                   <p>Bank: [Ihre Bank]</p>
+                   <p>IBAN: DEXX XXXX XXXX XXXX XXXX XX</p>
+                   <p>BIC: XXXXXXXX</p>
+                </div>
+                <div className="text-right">
+                   <p>Steuernummer: XXX/XXX/XXXXX</p>
+                   <p>USt-IdNr.: DE XXXXXXXXX</p>
+                   <p>HRB XXXXX Amtsgericht Gelsenkirchen</p>
+                </div>
+             </div>
+
+          </div>
+        </>,
+        document.body
+      )}
     </div>
   );
 }
