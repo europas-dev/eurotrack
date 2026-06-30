@@ -1410,6 +1410,7 @@ useEffect(() => {
                            )}
                        </div>
                     </div>
+                  </div>
                     
                     <div className="flex-1 overflow-y-auto space-y-2 pr-2 max-h-[400px] relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
                        {editingInvoiceId && invoiceDraft && !localHotel.invoices.find((i:any) => i.id === editingInvoiceId) && (
@@ -2042,7 +2043,7 @@ useEffect(() => {
                       )}
                    </div>
                 </div>
-
+           </div>
                 <div className="w-full xl:w-[300px] p-5 flex flex-col shrink-0 rounded-b-2xl xl:rounded-bl-none transition-colors bg-black/[0.03] dark:bg-black/20 border-l border-app-border"> 
                  <div className="flex items-center justify-between gap-2 mb-5">
                       {activeInvoice ? (
