@@ -1557,35 +1557,35 @@ useEffect(() => {
                    <div className={cn("px-5 h-[50px] border-b flex items-center justify-between shrink-0 border-app-border", activeInvoice ? "bg-black/5 dark:bg-white/5" : "bg-transparent")}>
                       <div className="flex items-center gap-4 flex-1">
                           {activeInvoice ? (
-                             <div className="flex items-center justify-between w-full">
-                                <div className="flex items-center gap-3">
-                                   <span className="text-[13px] text-slate-500">{lang === 'de' ? 'Leistungszeitraum:' : 'Billing period:'}</span>
-                                   {(activeInvoice.startDate || activeInvoice.endDate) ? (
-                                       <div className="flex items-center gap-2 text-[11px] font-bold bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-md text-slate-600 dark:text-slate-300">
-                                          <Calendar size={12} className="opacity-50"/> 
-                                          <span>{activeInvoice.startDate ? formatShortDate(activeInvoice.startDate, lang) : '--'} - {activeInvoice.endDate ? formatShortDate(activeInvoice.endDate, lang) : '--'}</span>
-                                          <span className="opacity-30">|</span>
-                                          <span>{calculateNights(activeInvoice.startDate, activeInvoice.endDate)} {lang==='de'?'Nächte':'Nights'}</span>
-                                          <span className="opacity-30">|</span>
-                                          {activeInvoice.isPaid ? (
-                                             <span className="text-emerald-600 dark:text-emerald-400">{lang==='de'?'Bezahlt am: ':'Paid on: '} {formatShortDate(activeInvoice.paymentDate, lang)}</span>
-                                          ) : (
-                                             <span className={cn(activeInvoice.dueDate ? "text-red-500" : "text-slate-500 font-normal")}>{activeInvoice.dueDate ? (lang==='de'?'Fällig am: ':'Payment Due: ') : (lang==='de'?'Erstellt am: ':'Created on: ')} {activeInvoice.dueDate ? formatShortDate(activeInvoice.dueDate, lang) : formatShortDate(activeInvoice.created_at || new Date().toISOString(), lang)}</span>
-                                          )}
-                                       </div>
-                                    ) : (
-                                       <span className="text-[11px] font-medium italic text-slate-400">Kein Zeitraum gewählt</span>
-                                    )}
+                                <div className="flex items-center justify-between w-full">
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-[13px] text-slate-500">{lang === 'de' ? 'Leistungszeitraum:' : 'Billing period:'}</span>
+                                    {(activeInvoice.startDate || activeInvoice.endDate) ? (
+                                        <div className="flex items-center gap-2 text-[11px] font-bold bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-md text-slate-600 dark:text-slate-300">
+                                           <Calendar size={12} className="opacity-50"/> 
+                                           <span>{activeInvoice.startDate ? formatShortDate(activeInvoice.startDate, lang) : '--'} - {activeInvoice.endDate ? formatShortDate(activeInvoice.endDate, lang) : '--'}</span>
+                                           <span className="opacity-30">|</span>
+                                           <span>{calculateNights(activeInvoice.startDate, activeInvoice.endDate)} {lang==='de'?'Nächte':'Nights'}</span>
+                                           <span className="opacity-30">|</span>
+                                           {activeInvoice.isPaid ? (
+                                              <span className="text-emerald-600 dark:text-emerald-400">{lang==='de'?'Bezahlt am: ':'Paid on: '} {formatShortDate(activeInvoice.paymentDate, lang)}</span>
+                                           ) : (
+                                              <span className={cn(activeInvoice.dueDate ? "text-red-500" : "text-slate-500 font-normal")}>{activeInvoice.dueDate ? (lang==='de'?'Fällig am: ':'Payment Due: ') : (lang==='de'?'Erstellt am: ':'Created on: ')} {activeInvoice.dueDate ? formatShortDate(activeInvoice.dueDate, lang) : formatShortDate(activeInvoice.created_at || new Date().toISOString(), lang)}</span>
+                                           )}
+                                        </div>
+                                     ) : (
+                                        <span className="text-[11px] font-medium italic text-slate-400">Kein Zeitraum gewählt</span>
+                                     )}
+                                  </div>
+                                  <button 
+                                     onClick={(e) => { e.stopPropagation(); setPrintInvoice(activeInvoice); }} 
+                                     className={cn("p-2 rounded-lg transition-all", dk ? "text-slate-400 hover:bg-white/10 hover:text-white" : "text-slate-400 hover:bg-slate-200 hover:text-slate-800")}
+                                     title={lang === 'de' ? 'Rechnung drucken' : 'Print Invoice'}
+                                  >
+                                     <Printer size={18} />
+                                  </button>
                                 </div>
-                                <button 
-                                   onClick={(e) => { e.stopPropagation(); setPrintInvoice(activeInvoice); }} 
-                                   className={cn("p-2 rounded-lg transition-all", dk ? "text-slate-400 hover:bg-white/10 hover:text-white" : "text-slate-400 hover:bg-slate-200 hover:text-slate-800")}
-                                   title={lang === 'de' ? 'Rechnung drucken' : 'Print Invoice'}
-                                >
-                                   <Printer size={18} />
-                                </button>
-                             </div>
-                          ) : (
+                             ) : (
                              <>
                                 <div className={cn("flex items-center px-2 py-1.5 rounded-lg border w-[250px] transition-colors focus-within:border-teal-500 shadow-sm", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
                                     <Search size={14} className={dk ? "text-slate-500" : "text-slate-400"} />
@@ -1605,7 +1605,6 @@ useEffect(() => {
                              </>
                           )}
                       </div>
-                   </div>
 
                       {activeInvoice && !viewOnly && (
                          <div className={cn("flex items-center p-0.5 rounded-lg border", dk ? "bg-black/40 border-white/10" : "bg-slate-100 border-slate-200")}>
@@ -2245,6 +2244,7 @@ useEffect(() => {
         document.body
       )}
 
+      {/* --- THE INVOICE PRINT ENGINE (DIN 5008 Standard) --- */}
       {printInvoice && typeof document !== 'undefined' && createPortal(
         <>
           <style type="text/css">
