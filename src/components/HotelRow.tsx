@@ -1553,7 +1553,7 @@ useEffect(() => {
                        )}
                     </div>
                 </div>
-
+ </div>
                 <div className="flex-1 p-0 flex flex-col min-w-[660px] min-h-[450px] z-10 border-r border-slate-200 dark:border-white/10">
   <div className={cn("px-5 h-[50px] border-b flex items-center justify-between shrink-0 border-app-border", activeInvoice ? "bg-black/5 dark:bg-white/5" : "bg-transparent")}>
     <div className="flex items-center gap-4 flex-1">
