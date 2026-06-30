@@ -33,7 +33,8 @@ const HighlightText = ({ text, query }: { text: string; query?: string }) => {
   if (!query || !text) return <>{text}</>;
   const parts = text.split(new RegExp(`(${query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi'));
   return (
-    <span style={{ display: 'inline', whiteSpace: 'pre' }}>
+    // FIX: Changed 'pre' to 'pre-wrap' and added 'break-word' so highlighted text can safely wrap to multiple lines!
+    <span style={{ display: 'inline', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
       {parts.map((part, i) => 
         part.toLowerCase() === query.toLowerCase() ? (
           <span key={i} className="bg-teal-400 text-black" style={{ fontWeight: 'inherit', padding: 0, margin: 0, display: 'inline' }}>{part}</span>
