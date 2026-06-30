@@ -1555,18 +1555,7 @@ useEffect(() => {
                                       ) : (
                                          <span className={cn(activeInvoice.dueDate ? "text-red-500" : "text-slate-500 font-normal")}>{activeInvoice.dueDate ? (lang==='de'?'Fällig am: ':'Payment Due: ') : (lang==='de'?'Erstellt am: ':'Created on: ')} {activeInvoice.dueDate ? formatShortDate(activeInvoice.dueDate, lang) : formatShortDate(activeInvoice.created_at || new Date().toISOString(), lang)}</span>
                                       )}
-                                     </div>
                                    </div>
-
-                                  {/* NEW: Printer Button in the Top Right of the Header */}
-                                  <button 
-                                     onClick={(e) => { e.stopPropagation(); setPrintInvoice(activeInvoice); }} 
-                                     className={cn("p-2 rounded-lg transition-all", dk ? "text-slate-400 hover:bg-white/10 hover:text-white" : "text-slate-400 hover:bg-slate-200 hover:text-slate-800")}
-                                     title={lang === 'de' ? 'Rechnung drucken' : 'Print Invoice'}
-                                  >
-                                     <Printer size={18} />
-                                  </button>
-                               </div>
                                 ) : (
                                    <span className="text-[11px] font-medium italic text-slate-400">Kein Zeitraum gewählt</span>
                                 )}
@@ -1591,7 +1580,6 @@ useEffect(() => {
                              </>
                           )}
                       </div>
-                    </div>
 
                       {activeInvoice && !viewOnly && (
                          <div className={cn("flex items-center p-0.5 rounded-lg border", dk ? "bg-black/40 border-white/10" : "bg-slate-100 border-slate-200")}>
@@ -1600,7 +1588,7 @@ useEffect(() => {
                          </div>
                       )}
                    </div>
-             
+
                    <div className="flex-1 overflow-y-auto max-h-[400px] pb-48 relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
                       {activeInvoice ? (
                          activeInvoice.billingMode === 'total' ? (() => {
