@@ -1,7 +1,7 @@
 // src/components/HotelRow.tsx
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, ChevronRight, Loader2, Plus, Trash2, X, MapPin, MapPinned, Link,  User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, FileText, Ticket, Calendar, AlertTriangle, Edit3, Filter, RotateCcw, Printer } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Loader2, Plus, Trash2, X, MapPin, MapPinned, Link,  User, Phone, Globe, Mail, Building, Star, Clock, StickyNote, ExternalLink, Search, CornerDownRight, Receipt, FileText, Ticket, Calendar, AlertTriangle, Edit3, Filter, RotateCcw } from 'lucide-react';
 import {cn, getDurationTabLabel, getEmployeeStatus, calcDurationFreeBeds, formatLastUpdated, calculateNights, calcInvoiceItem, formatDateChip} from '../lib/utils';
 import { createDuration, updateHotel, deleteHotel } from '../lib/supabase';
 import { calcRoomCardTotal, calcRoomCardNettoSum } from '../lib/roomCardUtils';
@@ -593,22 +593,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [activeDurationTab, setActiveDurationTab] = useState(0);
-  const [printInvoice, setPrintInvoice] = useState<any>(null);
-
-  // Auto-trigger print dialog when invoice is ready in DOM
-  useEffect(() => {
-    if (printInvoice) {
-      const timer = setTimeout(() => { window.print(); }, 150);
-      return () => clearTimeout(timer);
-    }
-  }, [printInvoice]);
-
-  // Auto-close print view after print dialog closes
-  useEffect(() => {
-    const handleAfterPrint = () => setPrintInvoice(null);
-    window.addEventListener('afterprint', handleAfterPrint);
-    return () => window.removeEventListener('afterprint', handleAfterPrint);
-  }, []);
   const [saving, setSaving] = useState(false);
   const [creatingDuration, setCreatingDuration] = useState(false);
   const saveTimer = useRef<any>(null);
@@ -1387,73 +1371,31 @@ useEffect(() => {
             )}
 
             {activeTab === 'billing' && (
-  <div className="flex flex-col xl:flex-row bg-app-card rounded-b-2xl animate-in fade-in">
-    <div className="w-full xl:w-[300px] shrink-0 p-5 flex flex-col gap-3 border-b xl:border-b-0 xl:border-r transition-colors border-app-border bg-black/5 dark:bg-black/20">
-      <div className="flex items-center justify-between mb-2">
-        <label className={labelCls}>
-          <Receipt size={14}/> {lang === 'de' ? 'Rechnungen' : 'Invoices'}
-        </label>
-
-        <div className="flex items-center gap-2">
-          {totalInvs > 0 && (
-            <div className={cn("flex items-center rounded-lg border shadow-sm overflow-hidden", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
-              <button
-                onClick={() => setInvoiceFilter('all')}
-                className={cn("flex items-center gap-1.5 text-[11px] font-black transition-colors px-2 py-1", invoiceFilter === 'all' ? (dk ? "bg-white/10 text-white" : "bg-slate-100 text-slate-800") : "text-slate-400 hover:text-slate-600 hover:bg-slate-50")}
-                title="All"
-              >
-                <FileText size={11} className={invoiceFilter === 'all' ? "opacity-100" : "opacity-60"} /> {totalInvs}
-              </button>
-
-              <div className={cn("w-px h-3.5", dk ? "bg-white/10" : "bg-slate-200")} />
-
-              <button
-                onClick={() => setInvoiceFilter('paid')}
-                className={cn("flex items-center gap-1 text-[11px] font-black transition-colors px-2 py-1", invoiceFilter === 'paid' ? (dk ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600") : "text-slate-400 hover:text-emerald-500 hover:bg-emerald-50/50")}
-              >
-                <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-emerald-500" /> {paidInvs}
-              </button>
-
-              <div className={cn("w-px h-3.5", dk ? "bg-white/10" : "bg-slate-200")} />
-
-              <button
-                onClick={() => setInvoiceFilter('unpaid')}
-                className={cn("flex items-center gap-1 text-[11px] font-black transition-colors px-2 py-1", invoiceFilter === 'unpaid' ? (dk ? "bg-red-500/10 text-red-400" : "bg-red-50 text-red-600") : "text-slate-400 hover:text-red-500 hover:bg-red-50/50")}
-              >
-                <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-red-500" /> {unpaidInvs}
-              </button>
-            </div>
-          )}
-
-          {!viewOnly && (
-            <button
-              onClick={() => {
-                const newId = Math.random().toString();
-                const newDraft = {
-                  id: newId,
-                  number: '',
-                  note: '',
-                  isPaid: false,
-                  billingMode: 'detailed',
-                  items: [],
-                  startDate: null,
-                  endDate: null,
-                  dueDate: null,
-                  paymentDate: null
-                };
-                setInvoiceDraft(newDraft);
-                setEditingInvoiceId(newId);
-                setSelectedInvoiceId(newId);
-              }}
-              className="p-1.5 rounded-md text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 transition-all shrink-0"
-            >
-              <Plus size={14} strokeWidth={3} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto space-y-2 pr-2 max-h-[400px] relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
+              <div className="flex flex-col xl:flex-row bg-app-card rounded-b-2xl animate-in fade-in">
+                <div className="w-full xl:w-[300px] shrink-0 p-5 flex flex-col gap-3 border-b xl:border-b-0 xl:border-r transition-colors border-app-border bg-black/5 dark:bg-black/20">
+                <div className="flex items-center justify-between mb-2">
+                       <label className={labelCls}><Receipt size={14}/> {lang === 'de' ? 'Rechnungen' : 'Invoices'}</label>
+                       <div className="flex items-center gap-2">
+                           {totalInvs > 0 && (
+                             <div className={cn("flex items-center rounded-lg border shadow-sm overflow-hidden", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
+                               <button onClick={() => setInvoiceFilter('all')} className={cn("flex items-center gap-1.5 text-[11px] font-black transition-colors px-2 py-1", invoiceFilter === 'all' ? (dk ? "bg-white/10 text-white" : "bg-slate-100 text-slate-800") : "text-slate-400 hover:text-slate-600 hover:bg-slate-50")} title="All"><FileText size={11} className={invoiceFilter === 'all' ? "opacity-100" : "opacity-60"} /> {totalInvs}</button>
+                               <div className={cn("w-px h-3.5", dk ? "bg-white/10" : "bg-slate-200")} />
+                               <button onClick={() => setInvoiceFilter('paid')} className={cn("flex items-center gap-1 text-[11px] font-black transition-colors px-2 py-1", invoiceFilter === 'paid' ? (dk ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600") : "text-slate-400 hover:text-emerald-500 hover:bg-emerald-50/50")}><span className="w-1.5 h-1.5 rounded-full shrink-0 bg-emerald-500" /> {paidInvs}</button>
+                               <div className={cn("w-px h-3.5", dk ? "bg-white/10" : "bg-slate-200")} />
+                               <button onClick={() => setInvoiceFilter('unpaid')} className={cn("flex items-center gap-1 text-[11px] font-black transition-colors px-2 py-1", invoiceFilter === 'unpaid' ? (dk ? "bg-red-500/10 text-red-400" : "bg-red-50 text-red-600") : "text-slate-400 hover:text-red-500 hover:bg-red-50/50")}><span className="w-1.5 h-1.5 rounded-full shrink-0 bg-red-500" /> {unpaidInvs}</button>
+                             </div>
+                           )}
+                           {!viewOnly && (
+                             <button onClick={() => {
+                                   const newId = Math.random().toString();
+                                   const newDraft = { id: newId, number: '', note: '', isPaid: false, billingMode: 'detailed', items: [], startDate: null, endDate: null, dueDate: null, paymentDate: null };
+                                   setInvoiceDraft(newDraft); setEditingInvoiceId(newId); setSelectedInvoiceId(newId);
+                               }} className="p-1.5 rounded-md text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 transition-all shrink-0"><Plus size={14} strokeWidth={3} /></button>
+                           )}
+                       </div>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-2 max-h-[400px] relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
                        {editingInvoiceId && invoiceDraft && !localHotel.invoices.find((i:any) => i.id === editingInvoiceId) && (
                           <div className={cn("group relative flex flex-col gap-2 p-3 rounded-xl transition-all border shadow-md", dk ? "bg-teal-900/30 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
                              <input autoFocus value={invoiceDraft.number} onChange={e => setInvoiceDraft({...invoiceDraft, number: e.target.value})} className="w-full text-[13px] font-black border-none bg-transparent outline-none p-0 focus:ring-0 placeholder:text-slate-400" placeholder="RE-..." />
@@ -1594,57 +1536,62 @@ useEffect(() => {
                        )}
                     </div>
                 </div>
-    
-                <div className="flex-1 p-0 flex flex-col min-w-[660px] min-h-[450px] z-10 border-r border-slate-200 dark:border-white/10">
-  <div className={cn("px-5 h-[50px] border-b flex items-center justify-between shrink-0 border-app-border", activeInvoice ? "bg-black/5 dark:bg-white/5" : "bg-transparent")}>
-    <div className="flex items-center gap-4 flex-1">
-      {activeInvoice ? (
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-3">
-            <span className="text-[13px] text-slate-500">{lang === 'de' ? 'Leistungszeitraum:' : 'Billing period:'}</span>
-            <div className="flex items-center gap-2 text-[11px] font-bold bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-md text-slate-600 dark:text-slate-300">
-              <Calendar size={12} className="opacity-50" />
-              <span>{activeInvoice.startDate ? formatShortDate(activeInvoice.startDate, lang) : '--'} - {activeInvoice.endDate ? formatShortDate(activeInvoice.endDate, lang) : '--'}</span>
-              <span className="opacity-30">|</span>
-              <span>{calculateNights(activeInvoice.startDate, activeInvoice.endDate)} {lang === 'de' ? 'Nächte' : 'Nights'}</span>
-              <span className="opacity-30">|</span>
-              {activeInvoice.isPaid ? (
-                <span className="text-emerald-600 dark:text-emerald-400">{lang === 'de' ? 'Bezahlt am: ' : 'Paid on: '} {formatShortDate(activeInvoice.paymentDate, lang)}</span>
-              ) : (
-                <span className={cn(activeInvoice.dueDate ? "text-red-500" : "text-slate-500 font-normal")}>{activeInvoice.dueDate ? (lang === 'de' ? 'Fällig am: ' : 'Payment Due: ') : (lang === 'de' ? 'Erstellt am: ' : 'Created on: ')} {activeInvoice.dueDate ? formatShortDate(activeInvoice.dueDate, lang) : formatShortDate(activeInvoice.created_at || new Date().toISOString(), lang)}</span>
-              )}
-            </div>
-          </div>
 
-          <button
-            onClick={(e) => { e.stopPropagation(); setPrintInvoice(activeInvoice); }}
-            className={cn("p-2 rounded-lg transition-all", dk ? "text-slate-400 hover:bg-white/10 hover:text-white" : "text-slate-400 hover:bg-slate-200 hover:text-slate-800")}
-            title={lang === 'de' ? 'Rechnung drucken' : 'Print Invoice'}
-          >
-            <Printer size={18} />
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className={cn("flex items-center px-2 py-1.5 rounded-lg border w-[250px] transition-colors focus-within:border-teal-500 shadow-sm", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
-            <Search size={14} className={dk ? "text-slate-500" : "text-slate-400"} />
-            <input value={itemSearchQuery} onChange={(e) => setItemSearchQuery(e.target.value)} className={cn("w-full bg-transparent border-none outline-none text-[12px] font-bold px-2 placeholder-slate-400 focus:ring-0", dk ? "text-white" : "text-slate-900")} placeholder={lang === 'de' ? "Suchen..." : "Search..."} />
-            {itemSearchQuery && <button onClick={() => setItemSearchQuery('')} className="text-slate-400 hover:text-slate-600"><X size={14} /></button>}
-          </div>
-          <MonthFilterDropdown
-            selectedMonth={selectedMonth}
-            localMonthFilter={localMonthFilter}
-            setLocalMonthFilter={setLocalMonthFilter}
-            selectedYear={selectedYear}
-            monthOptions={monthOptions}
-            lang={lang}
-            dk={dk}
-            disabled={selectedMonth !== null}
-          />
-        </>
-      )}
-    </div>
-  </div>
+                <div className="flex-1 p-0 flex flex-col min-w-[660px] min-h-[450px] z-10 border-r border-slate-200 dark:border-white/10">
+                   <div className={cn("px-5 h-[50px] border-b flex items-center justify-between shrink-0 border-app-border", activeInvoice ? "bg-black/5 dark:bg-white/5" : "bg-transparent")}>
+                      <div className="flex items-center gap-4 flex-1">
+                          {activeInvoice ? (
+                             <div className="flex items-center gap-3">
+                               <span className="text-[13px] text-slate-500">{lang === 'de' ? 'Leistungszeitraum:' : 'Billing period:'}</span>
+                               {(activeInvoice.startDate || activeInvoice.endDate) ? (
+                                   <div className="flex items-center gap-2 text-[11px] font-bold bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-md text-slate-600 dark:text-slate-300">
+                                      <Calendar size={12} className="opacity-50"/> 
+                                      <span>{activeInvoice.startDate ? formatShortDate(activeInvoice.startDate, lang) : '--'} - {activeInvoice.endDate ? formatShortDate(activeInvoice.endDate, lang) : '--'}</span>
+                                      <span className="opacity-30">|</span>
+                                      <span>{calculateNights(activeInvoice.startDate, activeInvoice.endDate)} {lang==='de'?'Nächte':'Nights'}</span>
+                                      <span className="opacity-30">|</span>
+                                      {activeInvoice.isPaid ? (
+                                         <span className="text-emerald-600 dark:text-emerald-400">{lang==='de'?'Bezahlt am: ':'Paid on: '} {formatShortDate(activeInvoice.paymentDate, lang)}</span>
+                                      ) : (
+                                         <span className={cn(activeInvoice.dueDate ? "text-red-500" : "text-slate-500 font-normal")}>{activeInvoice.dueDate ? (lang==='de'?'Fällig am: ':'Payment Due: ') : (lang==='de'?'Erstellt am: ':'Created on: ')} {activeInvoice.dueDate ? formatShortDate(activeInvoice.dueDate, lang) : formatShortDate(activeInvoice.created_at || new Date().toISOString(), lang)}</span>
+                                      )}
+                                     </div>
+                                   </div>
+
+                                  {/* NEW: Printer Button in the Top Right of the Header */}
+                                  <button 
+                                     onClick={(e) => { e.stopPropagation(); setPrintInvoice(activeInvoice); }} 
+                                     className={cn("p-2 rounded-lg transition-all", dk ? "text-slate-400 hover:bg-white/10 hover:text-white" : "text-slate-400 hover:bg-slate-200 hover:text-slate-800")}
+                                     title={lang === 'de' ? 'Rechnung drucken' : 'Print Invoice'}
+                                  >
+                                     <Printer size={18} />
+                                  </button>
+                               </div>
+                                ) : (
+                                   <span className="text-[11px] font-medium italic text-slate-400">Kein Zeitraum gewählt</span>
+                                )}
+                             </div>
+                     </div>
+                          ) : (
+                             <>
+                                <div className={cn("flex items-center px-2 py-1.5 rounded-lg border w-[250px] transition-colors focus-within:border-teal-500 shadow-sm", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
+                                    <Search size={14} className={dk ? "text-slate-500" : "text-slate-400"} />
+                                    <input value={itemSearchQuery} onChange={(e) => setItemSearchQuery(e.target.value)} className={cn("w-full bg-transparent border-none outline-none text-[12px] font-bold px-2 placeholder-slate-400 focus:ring-0", dk ? "text-white" : "text-slate-900")} placeholder={lang === 'de' ? "Suchen..." : "Search..."} />
+                                    {itemSearchQuery && <button onClick={() => setItemSearchQuery('')} className="text-slate-400 hover:text-slate-600"><X size={14}/></button>}
+                                </div>
+                                <MonthFilterDropdown 
+                                  selectedMonth={selectedMonth} 
+                                  localMonthFilter={localMonthFilter} 
+                                  setLocalMonthFilter={setLocalMonthFilter} 
+                                  selectedYear={selectedYear} 
+                                  monthOptions={monthOptions} 
+                                  lang={lang} 
+                                  dk={dk} 
+                                  disabled={selectedMonth !== null} 
+                                />
+                             </>
+                          )}
+                      </div>
 
                       {activeInvoice && !viewOnly && (
                          <div className={cn("flex items-center p-0.5 rounded-lg border", dk ? "bg-black/40 border-white/10" : "bg-slate-100 border-slate-200")}>
@@ -2082,8 +2029,9 @@ useEffect(() => {
                             )}
                          </div>
                       )}
-                   
-        
+                   </div>
+                </div>
+
                 <div className="w-full xl:w-[300px] p-5 flex flex-col shrink-0 rounded-b-2xl xl:rounded-bl-none transition-colors bg-black/[0.03] dark:bg-black/20 border-l border-app-border"> 
                  <div className="flex items-center justify-between gap-2 mb-5">
                       {activeInvoice ? (
@@ -2167,7 +2115,7 @@ useEffect(() => {
                 </div>
               </div>
             )}
-</div>
+
             {/* TAB 3: HOTEL INFO */}
             {activeTab === 'info' && (() => {
   const seamlessInput = cn('w-full px-2 py-1.5 rounded-lg text-sm font-bold outline-none border border-transparent transition-all h-[34px]', dk ? 'bg-transparent text-white hover:bg-white/5 focus:bg-app-card focus:border-teal-500 placeholder-slate-600' : 'bg-transparent text-slate-900 hover:bg-black/5 focus:bg-app-card focus:border-teal-500 placeholder-slate-400', viewOnly && "opacity-60 cursor-default");
@@ -2280,174 +2228,6 @@ useEffect(() => {
             </div>
           </div>
         </div>,
-        document.body
-      )}
-
-
-   {/* --- THE INVOICE PRINT ENGINE (DIN 5008 Standard) --- */}
-      {printInvoice && typeof document !== 'undefined' && createPortal(
-        <>
-          <style type="text/css">
-            {`
-              @media print {
-                body * { visibility: hidden; }
-                #invoice-print-container, #invoice-print-container * { visibility: visible; }
-                #invoice-print-container { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; background: white; }
-                @page { size: A4; margin: 20mm 20mm 20mm 25mm; } /* DIN 5008 margins */
-              }
-            `}
-          </style>
-          <div id="invoice-print-container" className="hidden print:block bg-white text-black font-sans min-h-screen text-[14px]">
-             
-             {/* DIN 5008 Info Block (Top Right) */}
-             <div className="absolute right-0 top-[45mm] w-[200px] text-[12px] leading-relaxed">
-                <p><span className="font-bold">{lang === 'de' ? 'Datum:' : 'Date:'}</span> {formatShortDate(printInvoice.created_at || new Date().toISOString(), lang)}</p>
-                <p><span className="font-bold">{lang === 'de' ? 'Rechnungs-Nr:' : 'Invoice No:'}</span> {printInvoice.number || 'Entwurf'}</p>
-                {printInvoice.startDate && printInvoice.endDate && (
-                   <p className="mt-2"><span className="font-bold">{lang === 'de' ? 'Leistungszeitraum:' : 'Service Period:'}</span><br/>{formatShortDate(printInvoice.startDate, lang)} - {formatShortDate(printInvoice.endDate, lang)}</p>
-                )}
-             </div>
-
-             {/* Sender Small Line */}
-             <div className="mt-[45mm]">
-                <p className="text-[10px] text-gray-500 underline mb-2 tracking-wide font-medium">EUROPAS GmbH • Auf der Reihe 2 • 45884 Gelsenkirchen</p>
-                {/* Recipient Address */}
-                <div className="text-[14px] leading-tight font-medium">
-                   <p className="font-bold text-[16px]">{localHotel.name}</p>
-                   {localHotel.contactPerson && <p>z.Hd. {localHotel.contactPerson}</p>}
-                   {localHotel.address && <p>{localHotel.address}</p>}
-                   <p>{localHotel.city || ''}</p>
-                   {localHotel.country && localHotel.country !== 'Germany' && <p>{localHotel.country}</p>}
-                </div>
-             </div>
-
-             {/* Invoice Title */}
-             <div className="mt-[35mm] mb-8">
-                <h1 className="text-3xl font-black">{lang === 'de' ? 'Rechnung' : 'Invoice'} {printInvoice.number}</h1>
-             </div>
-
-             {/* Items Table */}
-             <table className="w-full text-left border-collapse mb-10">
-                <thead>
-                   <tr className="border-b-2 border-black text-[12px]">
-                      <th className="py-2 w-[55%]">{lang === 'de' ? 'Beschreibung' : 'Description'}</th>
-                      <th className="py-2 text-right">{lang === 'de' ? 'Menge' : 'Qty'}</th>
-                      <th className="py-2 text-right">Netto</th>
-                      <th className="py-2 text-right">MwSt</th>
-                      <th className="py-2 text-right">Brutto</th>
-                   </tr>
-                </thead>
-                <tbody className="text-[13px]">
-                   {printInvoice.billingMode === 'total' ? (
-                      <tr className="border-b border-gray-200">
-                         <td className="py-3 font-medium">
-                            {lang === 'de' ? 'Logiskosten / Zimmerpreis' : 'Accommodation Costs'}
-                            {printInvoice.note && <div className="text-[11px] text-gray-500 mt-1">{printInvoice.note}</div>}
-                         </td>
-                         <td className="py-3 text-right">1</td>
-                         <td className="py-3 text-right">{formatCurrency(parseFloat(printInvoice.totalNetto)||0)}</td>
-                         <td className="py-3 text-right">{printInvoice.totalMwst || 7}%</td>
-                         <td className="py-3 text-right font-bold">{formatCurrency((parseFloat(printInvoice.totalNetto)||0) * (1 + (parseFloat(printInvoice.totalMwst)||7)/100))}</td>
-                      </tr>
-                   ) : (
-                      (printInvoice.items || []).map((item: any, idx: number) => {
-                         const n = printInvoice.startDate && printInvoice.endDate ? calculateNights(printInvoice.startDate, printInvoice.endDate) : 1;
-                         const res = calcInvoiceItem(item, n);
-                         return (
-                            <tr key={idx} className="border-b border-gray-200">
-                               <td className="py-3 font-medium">
-                                  {getTranslation(COST_TYPES, item.type || 'room', lang)}
-                                  {item.method === 'per_bed' && <div className="text-[11px] text-gray-500 mt-0.5">{item.nights || n} Nächte, {item.beds || 1} Betten</div>}
-                                  {item.note && <div className="text-[11px] text-gray-500 mt-0.5 whitespace-pre-wrap">{item.note}</div>}
-                               </td>
-                               <td className="py-3 text-right">{item.method === 'per_bed' ? ((item.nights || n) * (item.beds || 1)) : 1}</td>
-                               <td className="py-3 text-right">{formatCurrency(res.finalNetto)}</td>
-                               <td className="py-3 text-right">{res.mwst}%</td>
-                               <td className="py-3 text-right font-bold">{formatCurrency(res.brutto)}</td>
-                            </tr>
-                         )
-                      })
-                   )}
-                </tbody>
-             </table>
-
-             {/* Totals Block */}
-             <div className="flex justify-end mb-16">
-                <div className="w-[300px]">
-                   {(() => {
-                      // Inline Calculation for the Print View
-                      const n = printInvoice.startDate && printInvoice.endDate ? calculateNights(printInvoice.startDate, printInvoice.endDate) : 1;
-                      let tNetto = 0; let tBrutto = 0; const taxes: Record<number, number> = {};
-                      if (printInvoice.billingMode === 'total') {
-                         const base = parseFloat(printInvoice.totalNetto)||0;
-                         const m = parseFloat(printInvoice.totalMwst)||7;
-                         const isPct = printInvoice.discountType === 'percentage';
-                         const disc = parseFloat(printInvoice.discountValue)||0;
-                         tNetto = Math.max(0, base - (isPct ? base*(disc/100) : disc));
-                         tBrutto = tNetto * (1 + m/100);
-                         if (tNetto > 0) taxes[m] = tNetto * (m/100);
-                      } else {
-                         (printInvoice.items || []).forEach((item: any) => {
-                            const res = calcInvoiceItem(item, n);
-                            tNetto += res.finalNetto; tBrutto += res.brutto;
-                            if (res.finalNetto > 0 && res.mwst !== null) taxes[res.mwst] = (taxes[res.mwst] || 0) + (res.finalNetto * (res.mwst/100));
-                         });
-                      }
-                      return (
-                         <table className="w-full text-[13px]">
-                            <tbody>
-                               <tr className="border-b border-gray-100">
-                                  <td className="py-1.5">{lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</td>
-                                  <td className="py-1.5 text-right">{formatCurrency(tNetto)}</td>
-                               </tr>
-                               {Object.entries(taxes).map(([percent, amt]: any) => (
-                                  <tr key={percent} className="border-b border-gray-100">
-                                     <td className="py-1.5 pl-4 text-gray-600">zzgl. {percent}% MwSt</td>
-                                     <td className="py-1.5 text-right">{formatCurrency(amt)}</td>
-                                  </tr>
-                               ))}
-                               <tr className="border-t-2 border-black font-black text-[16px]">
-                                  <td className="py-2">{lang === 'de' ? 'Rechnungsbetrag' : 'Total Due'}</td>
-                                  <td className="py-2 text-right">{formatCurrency(tBrutto)}</td>
-                               </tr>
-                            </tbody>
-                         </table>
-                      )
-                   })()}
-                </div>
-             </div>
-
-             {/* Payment Terms & Footer */}
-             <div className="text-[12px] leading-relaxed">
-                <p>
-                   {lang === 'de' 
-                      ? `Bitte überweisen Sie den fälligen Betrag ${printInvoice.dueDate ? `bis zum ${formatShortDate(printInvoice.dueDate, 'de')}` : 'innerhalb von 14 Tagen'} ohne Abzug auf das unten angegebene Konto.`
-                      : `Please transfer the total amount ${printInvoice.dueDate ? `by ${formatShortDate(printInvoice.dueDate, 'en')}` : 'within 14 days'} without deduction to the bank account below.`
-                   }
-                </p>
-                <p className="mt-4">{lang === 'de' ? 'Vielen Dank für die gute Zusammenarbeit.' : 'Thank you for your business.'}</p>
-             </div>
-
-             <div className="fixed bottom-0 left-0 w-full pt-4 border-t border-gray-300 text-[9px] text-gray-500 flex justify-between">
-                <div>
-                   <p className="font-bold text-black">EUROPAS GmbH</p>
-                   <p>Auf der Reihe 2</p>
-                   <p>45884 Gelsenkirchen</p>
-                </div>
-                <div>
-                   <p>Bank: [Ihre Bank]</p>
-                   <p>IBAN: DEXX XXXX XXXX XXXX XXXX XX</p>
-                   <p>BIC: XXXXXXXX</p>
-                </div>
-                <div className="text-right">
-                   <p>Steuernummer: XXX/XXX/XXXXX</p>
-                   <p>USt-IdNr.: DE XXXXXXXXX</p>
-                   <p>HRB XXXXX Amtsgericht Gelsenkirchen</p>
-                </div>
-             </div>
-
-          </div>
-        </>,
         document.body
       )}
     </div>
