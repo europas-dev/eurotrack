@@ -594,21 +594,210 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [activeDurationTab, setActiveDurationTab] = useState(0);
 
-  // --- NEW: Print State & Auto-Trigger ---
-  const [printInvoice, setPrintInvoice] = useState<any>(null);
-
-  useEffect(() => {
-    if (printInvoice) {
-      const timer = setTimeout(() => { window.print(); }, 150);
-      return () => clearTimeout(timer);
+  const handlePrintNewTab = (inv: any) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert(lang === 'de' ? 'Bitte Pop-ups zulassen, um zu drucken.' : 'Please allow pop-ups to print.');
+      return;
     }
-  }, [printInvoice]);
 
-  useEffect(() => {
-    const handleAfterPrint = () => setPrintInvoice(null);
-    window.addEventListener('afterprint', handleAfterPrint);
-    return () => window.removeEventListener('afterprint', handleAfterPrint);
-  }, []);
+    const n = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
+    let tNetto = 0; let tBrutto = 0; const taxes: Record<number, number> = {};
+    let tableRows = '';
+
+    if (inv.billingMode === 'total') {
+      const base = parseFloat(inv.totalNetto) || 0;
+      const m = parseFloat(inv.totalMwst) || 7;
+      const isPct = inv.discountType === 'percentage';
+      const disc = parseFloat(inv.discountValue) || 0;
+      tNetto = Math.max(0, base - (isPct ? base * (disc / 100) : disc));
+      tBrutto = tNetto * (1 + m / 100);
+      if (tNetto > 0) taxes[m] = tNetto * (m / 100);
+
+      const datesHtml = inv.startDate && inv.endDate ? `<div class="dates">${formatShortDate(inv.startDate, lang)} - ${formatShortDate(inv.endDate, lang)}</div>` : '';
+      const noteHtml = inv.note ? `<div class="dates">${inv.note}</div>` : '';
+
+      tableRows = `
+        <tr>
+          <td>
+            <strong>${lang === 'de' ? 'Logiskosten / Zimmerpreis' : 'Accommodation Costs'}</strong>
+            ${datesHtml}
+            ${noteHtml}
+          </td>
+          <td class="right">1</td>
+          <td class="right">${formatCurrency(base)}</td>
+          <td class="right">${m}%</td>
+          <td class="right"><strong>${formatCurrency(tBrutto)}</strong></td>
+        </tr>
+      `;
+    } else {
+      (inv.items || []).forEach((item: any) => {
+        const res = calcInvoiceItem(item, n);
+        tNetto += res.finalNetto; tBrutto += res.brutto;
+        if (res.finalNetto > 0 && res.mwst !== null) {
+          taxes[res.mwst] = (taxes[res.mwst] || 0) + (res.finalNetto * (res.mwst / 100));
+        }
+
+        const datesHtml = inv.startDate && inv.endDate ? `<div class="dates">${formatShortDate(inv.startDate, lang)} - ${formatShortDate(inv.endDate, lang)}</div>` : '';
+        const bedsHtml = item.method === 'per_bed' ? `<div class="dates">${item.nights || n} ${lang === 'de' ? 'Nächte' : 'Nights'}, ${item.beds || 1} ${lang === 'de' ? 'Betten' : 'Beds'}</div>` : '';
+        const noteHtml = item.note ? `<div class="dates">${item.note}</div>` : '';
+        const qty = item.method === 'per_bed' ? ((item.nights || n) * (item.beds || 1)) : 1;
+
+        tableRows += `
+          <tr>
+            <td>
+              <strong>${getTranslation(COST_TYPES, item.type || 'room', lang)}</strong>
+              ${bedsHtml}
+              ${datesHtml}
+              ${noteHtml}
+            </td>
+            <td class="right">${qty}</td>
+            <td class="right">${formatCurrency(res.finalNetto)}</td>
+            <td class="right">${res.mwst}%</td>
+            <td class="right"><strong>${formatCurrency(res.brutto)}</strong></td>
+          </tr>
+        `;
+      });
+    }
+
+    let taxesHtml = '';
+    Object.entries(taxes).forEach(([percent, amt]) => {
+      taxesHtml += `
+        <tr>
+          <td>zzgl. ${percent}% MwSt</td>
+          <td class="right">${formatCurrency(amt as number)}</td>
+        </tr>
+      `;
+    });
+
+    const statusLabel = inv.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid');
+    const statusColor = inv.isPaid ? '#10b981' : '#ef4444';
+    
+    let paymentInfoHtml = '';
+    if (inv.isPaid) {
+      paymentInfoHtml = `<p style="margin-top: 4px;"><strong>${lang === 'de' ? 'Bezahlt am:' : 'Paid on:'}</strong> ${formatShortDate(inv.paymentDate, lang)}</p>`;
+    } else if (inv.dueDate) {
+      paymentInfoHtml = `<p style="margin-top: 4px;"><strong>${lang === 'de' ? 'Fällig am:' : 'Due Date:'}</strong> ${formatShortDate(inv.dueDate, lang)}</p>`;
+    }
+
+    let footerText = '';
+    if (inv.isPaid) {
+      footerText = lang === 'de' 
+        ? `Der Betrag wurde am ${formatShortDate(inv.paymentDate, lang)} beglichen.<br><br>Vielen Dank für die gute Zusammenarbeit.` 
+        : `The amount was settled on ${formatShortDate(inv.paymentDate, lang)}.<br><br>Thank you for your business.`;
+    } else {
+      const dueStr = inv.dueDate ? (lang === 'de' ? `bis zum ${formatShortDate(inv.dueDate, lang)}` : `by ${formatShortDate(inv.dueDate, lang)}`) : (lang === 'de' ? 'umgehend' : 'immediately');
+      footerText = lang === 'de'
+        ? `Der Betrag wird ${dueStr} auf das uns bekannte Konto überwiesen.<br><br>Vielen Dank für die gute Zusammenarbeit.`
+        : `The amount will be transferred to the known bank account ${dueStr}.<br><br>Thank you for your business.`;
+    }
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="${lang}">
+      <head>
+        <meta charset="UTF-8">
+        <title>${lang === 'de' ? 'Abrechnung' : 'Statement'} ${inv.number || 'Entwurf'}</title>
+        <style>
+          @page { size: A4; margin: 20mm 20mm 20mm 25mm; }
+          body { font-family: Arial, sans-serif; font-size: 13px; color: #000; line-height: 1.5; margin: 0; padding: 0; }
+          .header-info { position: absolute; right: 0; top: 35mm; width: 250px; font-size: 12px; }
+          .sender { margin-top: 45mm; font-size: 10px; color: #666; text-decoration: underline; font-weight: bold; margin-bottom: 10px; }
+          .recipient { font-size: 15px; font-weight: 500; line-height: 1.3; }
+          .title { margin-top: 30mm; margin-bottom: 20px; font-size: 28px; font-weight: bold; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+          th { border-bottom: 2px solid #000; padding: 8px 0; text-align: left; font-size: 12px; }
+          th.right, td.right { text-align: right; }
+          td { padding: 12px 0; border-bottom: 1px solid #eee; vertical-align: top; }
+          .totals { width: 320px; float: right; margin-bottom: 60px; }
+          .totals table { margin-bottom: 0; }
+          .totals td { padding: 6px 0; border-bottom: 1px solid #eee; }
+          .totals .grand-total td { border-top: 2px solid #000; font-weight: bold; font-size: 16px; border-bottom: none; }
+          .footer-text { clear: both; font-size: 12px; margin-top: 50px; }
+          .footer { position: fixed; bottom: 0; left: 0; width: 100%; border-top: 1px solid #ccc; padding-top: 15px; font-size: 9px; color: #666; display: flex; justify-content: space-between; }
+          .footer > div { width: 33%; }
+          .text-right { text-align: right; }
+          .dates { font-size: 11px; color: #666; margin-top: 4px; white-space: pre-wrap; }
+        </style>
+      </head>
+      <body onload="setTimeout(() => { window.print(); }, 500)">
+        
+        <div class="header-info">
+          <p><strong>${lang === 'de' ? 'Datum:' : 'Date:'}</strong> ${formatShortDate(inv.created_at || new Date().toISOString(), lang)}</p>
+          <p><strong>${lang === 'de' ? 'Beleg-Nr:' : 'Record No:'}</strong> ${inv.number || 'Entwurf'}</p>
+          ${inv.startDate && inv.endDate ? `<p style="margin-top: 8px;"><strong>${lang === 'de' ? 'Leistungszeitraum:' : 'Service Period:'}</strong><br>${formatShortDate(inv.startDate, lang)} - ${formatShortDate(inv.endDate, lang)}</p>` : ''}
+          <p style="margin-top: 8px;"><strong>${lang === 'de' ? 'Zahlungsstatus:' : 'Payment Status:'}</strong> <span style="color: ${statusColor}; font-weight: bold;">${statusLabel}</span></p>
+          ${paymentInfoHtml}
+        </div>
+
+        <div class="sender">EUROPAS GmbH • Auf der Reihe 2 • 45884 Gelsenkirchen</div>
+        <div class="recipient">
+          <strong>${localHotel.name || ''}</strong><br>
+          ${localHotel.contactPerson ? `z.Hd. ${localHotel.contactPerson}<br>` : ''}
+          ${localHotel.address ? `${localHotel.address}<br>` : ''}
+          ${localHotel.city || ''}<br>
+          ${localHotel.country && localHotel.country !== 'Germany' ? `${localHotel.country}` : ''}
+        </div>
+
+        <div class="title">${lang === 'de' ? 'Abrechnung' : 'Statement'} ${inv.number || ''}</div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 55%;">${lang === 'de' ? 'Beschreibung' : 'Description'}</th>
+              <th class="right">${lang === 'de' ? 'Menge' : 'Qty'}</th>
+              <th class="right">Netto</th>
+              <th class="right">MwSt</th>
+              <th class="right">Brutto</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
+        </table>
+
+        <div class="totals">
+          <table>
+            <tr>
+              <td>${lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</td>
+              <td class="right">${formatCurrency(tNetto)}</td>
+            </tr>
+            ${taxesHtml}
+            <tr class="grand-total">
+              <td>${lang === 'de' ? 'Gesamtbetrag' : 'Total Amount'}</td>
+              <td class="right">${formatCurrency(tBrutto)}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="footer-text">
+          <p>${footerText}</p>
+        </div>
+
+        <div class="footer">
+          <div>
+            <strong style="color: #000;">EUROPAS GmbH</strong><br>
+            Auf der Reihe 2<br>
+            45884 Gelsenkirchen
+          </div>
+          <div>
+            Telefon: 0209 / 589 023-40<br>
+            Fax: 0209 / 589 023-66<br>
+            info@europasgmbh.de<br>
+            www.europasgmbh.de
+          </div>
+          <div class="text-right">
+            USt-IdNr.: DE 306110899<br>
+            HRB 13542 Amtsgericht Gelsenkirchen
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
   const [saving, setSaving] = useState(false);
   const [creatingDuration, setCreatingDuration] = useState(false);
   const saveTimer = useRef<any>(null);
@@ -1557,35 +1746,35 @@ useEffect(() => {
                    <div className={cn("px-5 h-[50px] border-b flex items-center justify-between shrink-0 border-app-border", activeInvoice ? "bg-black/5 dark:bg-white/5" : "bg-transparent")}>
                       <div className="flex items-center gap-4 flex-1">
                           {activeInvoice ? (
-                                <div className="flex items-center justify-between w-full">
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-[13px] text-slate-500">{lang === 'de' ? 'Leistungszeitraum:' : 'Billing period:'}</span>
-                                    {(activeInvoice.startDate || activeInvoice.endDate) ? (
-                                        <div className="flex items-center gap-2 text-[11px] font-bold bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-md text-slate-600 dark:text-slate-300">
-                                           <Calendar size={12} className="opacity-50"/> 
-                                           <span>{activeInvoice.startDate ? formatShortDate(activeInvoice.startDate, lang) : '--'} - {activeInvoice.endDate ? formatShortDate(activeInvoice.endDate, lang) : '--'}</span>
-                                           <span className="opacity-30">|</span>
-                                           <span>{calculateNights(activeInvoice.startDate, activeInvoice.endDate)} {lang==='de'?'Nächte':'Nights'}</span>
-                                           <span className="opacity-30">|</span>
-                                           {activeInvoice.isPaid ? (
-                                              <span className="text-emerald-600 dark:text-emerald-400">{lang==='de'?'Bezahlt am: ':'Paid on: '} {formatShortDate(activeInvoice.paymentDate, lang)}</span>
-                                           ) : (
-                                              <span className={cn(activeInvoice.dueDate ? "text-red-500" : "text-slate-500 font-normal")}>{activeInvoice.dueDate ? (lang==='de'?'Fällig am: ':'Payment Due: ') : (lang==='de'?'Erstellt am: ':'Created on: ')} {activeInvoice.dueDate ? formatShortDate(activeInvoice.dueDate, lang) : formatShortDate(activeInvoice.created_at || new Date().toISOString(), lang)}</span>
-                                           )}
-                                        </div>
-                                     ) : (
-                                        <span className="text-[11px] font-medium italic text-slate-400">Kein Zeitraum gewählt</span>
-                                     )}
-                                  </div>
-                                  <button 
-                                     onClick={(e) => { e.stopPropagation(); setPrintInvoice(activeInvoice); }} 
-                                     className={cn("p-2 rounded-lg transition-all", dk ? "text-slate-400 hover:bg-white/10 hover:text-white" : "text-slate-400 hover:bg-slate-200 hover:text-slate-800")}
-                                     title={lang === 'de' ? 'Rechnung drucken' : 'Print Invoice'}
-                                  >
-                                     <Printer size={18} />
-                                  </button>
+                             <div className="flex items-center justify-between w-full">
+                                <div className="flex items-center gap-3">
+                                   <span className="text-[13px] text-slate-500">{lang === 'de' ? 'Leistungszeitraum:' : 'Billing period:'}</span>
+                                   {(activeInvoice.startDate || activeInvoice.endDate) ? (
+                                       <div className="flex items-center gap-2 text-[11px] font-bold bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-md text-slate-600 dark:text-slate-300">
+                                          <Calendar size={12} className="opacity-50"/> 
+                                          <span>{activeInvoice.startDate ? formatShortDate(activeInvoice.startDate, lang) : '--'} - {activeInvoice.endDate ? formatShortDate(activeInvoice.endDate, lang) : '--'}</span>
+                                          <span className="opacity-30">|</span>
+                                          <span>{calculateNights(activeInvoice.startDate, activeInvoice.endDate)} {lang==='de'?'Nächte':'Nights'}</span>
+                                          <span className="opacity-30">|</span>
+                                          {activeInvoice.isPaid ? (
+                                             <span className="text-emerald-600 dark:text-emerald-400">{lang==='de'?'Bezahlt am: ':'Paid on: '} {formatShortDate(activeInvoice.paymentDate, lang)}</span>
+                                          ) : (
+                                             <span className={cn(activeInvoice.dueDate ? "text-red-500" : "text-slate-500 font-normal")}>{activeInvoice.dueDate ? (lang==='de'?'Fällig am: ':'Payment Due: ') : (lang==='de'?'Erstellt am: ':'Created on: ')} {activeInvoice.dueDate ? formatShortDate(activeInvoice.dueDate, lang) : formatShortDate(activeInvoice.created_at || new Date().toISOString(), lang)}</span>
+                                          )}
+                                       </div>
+                                    ) : (
+                                       <span className="text-[11px] font-medium italic text-slate-400">Kein Zeitraum gewählt</span>
+                                    )}
                                 </div>
-                             ) : (
+                                <button 
+                                   onClick={(e) => { e.stopPropagation(); handlePrintNewTab(activeInvoice); }} 
+                                   className={cn("p-2 rounded-lg transition-all", dk ? "text-slate-400 hover:bg-white/10 hover:text-white" : "text-slate-400 hover:bg-slate-200 hover:text-slate-800")}
+                                   title={lang === 'de' ? 'Abrechnung drucken' : 'Print Statement'}
+                                >
+                                   <Printer size={18} />
+                                </button>
+                             </div>
+                          ) : (
                              <>
                                 <div className={cn("flex items-center px-2 py-1.5 rounded-lg border w-[250px] transition-colors focus-within:border-teal-500 shadow-sm", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
                                     <Search size={14} className={dk ? "text-slate-500" : "text-slate-400"} />
@@ -1605,6 +1794,7 @@ useEffect(() => {
                              </>
                           )}
                       </div>
+                   </div>
 
                       {activeInvoice && !viewOnly && (
                          <div className={cn("flex items-center p-0.5 rounded-lg border", dk ? "bg-black/40 border-white/10" : "bg-slate-100 border-slate-200")}>
@@ -2241,157 +2431,6 @@ useEffect(() => {
             </div>
           </div>
         </div>,
-        document.body
-      )}
-
-      {/* --- THE INVOICE PRINT ENGINE (DIN 5008 Standard) --- */}
-      {printInvoice && typeof document !== 'undefined' && createPortal(
-        <>
-          <style type="text/css">
-            {`
-              @media print {
-                body * { visibility: hidden; }
-                #invoice-print-container, #invoice-print-container * { visibility: visible; }
-                #invoice-print-container { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; background: white; }
-                @page { size: A4; margin: 20mm 20mm 20mm 25mm; }
-              }
-            `}
-          </style>
-          <div id="invoice-print-container" className="hidden print:block bg-white text-black font-sans min-h-screen text-[14px]">
-             <div className="absolute right-0 top-[45mm] w-[200px] text-[12px] leading-relaxed">
-                <p><span className="font-bold">{lang === 'de' ? 'Datum:' : 'Date:'}</span> {formatShortDate(printInvoice.created_at || new Date().toISOString(), lang)}</p>
-                <p><span className="font-bold">{lang === 'de' ? 'Rechnungs-Nr:' : 'Invoice No:'}</span> {printInvoice.number || 'Entwurf'}</p>
-                {printInvoice.startDate && printInvoice.endDate && (
-                   <p className="mt-2"><span className="font-bold">{lang === 'de' ? 'Leistungszeitraum:' : 'Service Period:'}</span><br/>{formatShortDate(printInvoice.startDate, lang)} - {formatShortDate(printInvoice.endDate, lang)}</p>
-                )}
-             </div>
-             <div className="mt-[45mm]">
-                <p className="text-[10px] text-gray-500 underline mb-2 tracking-wide font-medium">EUROPAS GmbH • Auf der Reihe 2 • 45884 Gelsenkirchen</p>
-                <div className="text-[14px] leading-tight font-medium">
-                   <p className="font-bold text-[16px]">{localHotel.name}</p>
-                   {localHotel.contactPerson && <p>z.Hd. {localHotel.contactPerson}</p>}
-                   {localHotel.address && <p>{localHotel.address}</p>}
-                   <p>{localHotel.city || ''}</p>
-                   {localHotel.country && localHotel.country !== 'Germany' && <p>{localHotel.country}</p>}
-                </div>
-             </div>
-             <div className="mt-[35mm] mb-8">
-                <h1 className="text-3xl font-black">{lang === 'de' ? 'Rechnung' : 'Invoice'} {printInvoice.number}</h1>
-             </div>
-             <table className="w-full text-left border-collapse mb-10">
-                <thead>
-                   <tr className="border-b-2 border-black text-[12px]">
-                      <th className="py-2 w-[55%]">{lang === 'de' ? 'Beschreibung' : 'Description'}</th>
-                      <th className="py-2 text-right">{lang === 'de' ? 'Menge' : 'Qty'}</th>
-                      <th className="py-2 text-right">Netto</th>
-                      <th className="py-2 text-right">MwSt</th>
-                      <th className="py-2 text-right">Brutto</th>
-                   </tr>
-                </thead>
-                <tbody className="text-[13px]">
-                   {printInvoice.billingMode === 'total' ? (
-                      <tr className="border-b border-gray-200">
-                         <td className="py-3 font-medium">
-                            {lang === 'de' ? 'Logiskosten / Zimmerpreis' : 'Accommodation Costs'}
-                            {printInvoice.note && <div className="text-[11px] text-gray-500 mt-1">{printInvoice.note}</div>}
-                         </td>
-                         <td className="py-3 text-right">1</td>
-                         <td className="py-3 text-right">{formatCurrency(parseFloat(printInvoice.totalNetto)||0)}</td>
-                         <td className="py-3 text-right">{printInvoice.totalMwst || 7}%</td>
-                         <td className="py-3 text-right font-bold">{formatCurrency((parseFloat(printInvoice.totalNetto)||0) * (1 + (parseFloat(printInvoice.totalMwst)||7)/100))}</td>
-                      </tr>
-                   ) : (
-                      (printInvoice.items || []).map((item: any, idx: number) => {
-                         const n = printInvoice.startDate && printInvoice.endDate ? calculateNights(printInvoice.startDate, printInvoice.endDate) : 1;
-                         const res = calcInvoiceItem(item, n);
-                         return (
-                            <tr key={idx} className="border-b border-gray-200">
-                               <td className="py-3 font-medium">
-                                  {getTranslation(COST_TYPES, item.type || 'room', lang)}
-                                  {item.method === 'per_bed' && <div className="text-[11px] text-gray-500 mt-0.5">{item.nights || n} Nächte, {item.beds || 1} Betten</div>}
-                                  {item.note && <div className="text-[11px] text-gray-500 mt-0.5 whitespace-pre-wrap">{item.note}</div>}
-                               </td>
-                               <td className="py-3 text-right">{item.method === 'per_bed' ? ((item.nights || n) * (item.beds || 1)) : 1}</td>
-                               <td className="py-3 text-right">{formatCurrency(res.finalNetto)}</td>
-                               <td className="py-3 text-right">{res.mwst}%</td>
-                               <td className="py-3 text-right font-bold">{formatCurrency(res.brutto)}</td>
-                            </tr>
-                         )
-                      })
-                   )}
-                </tbody>
-             </table>
-             <div className="flex justify-end mb-16">
-                <div className="w-[300px]">
-                   {(() => {
-                      const n = printInvoice.startDate && printInvoice.endDate ? calculateNights(printInvoice.startDate, printInvoice.endDate) : 1;
-                      let tNetto = 0; let tBrutto = 0; const taxes: Record<number, number> = {};
-                      if (printInvoice.billingMode === 'total') {
-                         const base = parseFloat(printInvoice.totalNetto)||0;
-                         const m = parseFloat(printInvoice.totalMwst)||7;
-                         const isPct = printInvoice.discountType === 'percentage';
-                         const disc = parseFloat(printInvoice.discountValue)||0;
-                         tNetto = Math.max(0, base - (isPct ? base*(disc/100) : disc));
-                         tBrutto = tNetto * (1 + m/100);
-                         if (tNetto > 0) taxes[m] = tNetto * (m/100);
-                      } else {
-                         (printInvoice.items || []).forEach((item: any) => {
-                            const res = calcInvoiceItem(item, n);
-                            tNetto += res.finalNetto; tBrutto += res.brutto;
-                            if (res.finalNetto > 0 && res.mwst !== null) taxes[res.mwst] = (taxes[res.mwst] || 0) + (res.finalNetto * (res.mwst/100));
-                         });
-                      }
-                      return (
-                         <table className="w-full text-[13px]">
-                            <tbody>
-                               <tr className="border-b border-gray-100">
-                                  <td className="py-1.5">{lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</td>
-                                  <td className="py-1.5 text-right">{formatCurrency(tNetto)}</td>
-                               </tr>
-                               {Object.entries(taxes).map(([percent, amt]: any) => (
-                                  <tr key={percent} className="border-b border-gray-100">
-                                     <td className="py-1.5 pl-4 text-gray-600">zzgl. {percent}% MwSt</td>
-                                     <td className="py-1.5 text-right">{formatCurrency(amt)}</td>
-                                  </tr>
-                               ))}
-                               <tr className="border-t-2 border-black font-black text-[16px]">
-                                  <td className="py-2">{lang === 'de' ? 'Rechnungsbetrag' : 'Total Due'}</td>
-                                  <td className="py-2 text-right">{formatCurrency(tBrutto)}</td>
-                               </tr>
-                            </tbody>
-                         </table>
-                      )
-                   })()}
-                </div>
-             </div>
-             <div className="text-[12px] leading-relaxed">
-                <p>
-                   {lang === 'de' 
-                      ? `Bitte überweisen Sie den fälligen Betrag ${printInvoice.dueDate ? `bis zum ${formatShortDate(printInvoice.dueDate, 'de')}` : 'innerhalb von 14 Tagen'} ohne Abzug auf das unten angegebene Konto.`
-                      : `Please transfer the total amount ${printInvoice.dueDate ? `by ${formatShortDate(printInvoice.dueDate, 'en')}` : 'within 14 days'} without deduction to the bank account below.`
-                   }
-                </p>
-                <p className="mt-4">{lang === 'de' ? 'Vielen Dank für die gute Zusammenarbeit.' : 'Thank you for your business.'}</p>
-             </div>
-             <div className="fixed bottom-0 left-0 w-full pt-4 border-t border-gray-300 text-[9px] text-gray-500 flex justify-between">
-                <div>
-                   <p className="font-bold text-black">EUROPAS GmbH</p>
-                   <p>Auf der Reihe 2</p>
-                   <p>45884 Gelsenkirchen</p>
-                </div>
-                <div>
-                   <p>Bank: [Ihre Bank]</p>
-                   <p>IBAN: DEXX XXXX XXXX XXXX XXXX XX</p>
-                   <p>BIC: XXXXXXXX</p>
-                </div>
-                <div className="text-right">
-                   <p>Steuernummer: XXX/XXX/XXXXX</p>
-                   <p>USt-IdNr.: DE XXXXXXXXX</p>
-                   <p>HRB XXXXX Amtsgericht Gelsenkirchen</p>
-                </div>
-             </div>
-          </div>
-        </>,
         document.body
       )}
     </div>
