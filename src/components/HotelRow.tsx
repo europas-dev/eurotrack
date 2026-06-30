@@ -1387,32 +1387,73 @@ useEffect(() => {
             )}
 
             {activeTab === 'billing' && (
-              <div className="flex flex-col xl:flex-row bg-app-card rounded-b-2xl animate-in fade-in">
-                <div className="w-full xl:w-[300px] shrink-0 p-5 flex flex-col gap-3 border-b xl:border-b-0 xl:border-r transition-colors border-app-border bg-black/5 dark:bg-black/20">
-                <div className="flex items-center justify-between mb-2">
-                       <label className={labelCls}><Receipt size={14}/> {lang === 'de' ? 'Rechnungen' : 'Invoices'}</label>
-                       <div className="flex items-center gap-2">
-                           {totalInvs > 0 && (
-                             <div className={cn("flex items-center rounded-lg border shadow-sm overflow-hidden", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
-                               <button onClick={() => setInvoiceFilter('all')} className={cn("flex items-center gap-1.5 text-[11px] font-black transition-colors px-2 py-1", invoiceFilter === 'all' ? (dk ? "bg-white/10 text-white" : "bg-slate-100 text-slate-800") : "text-slate-400 hover:text-slate-600 hover:bg-slate-50")} title="All"><FileText size={11} className={invoiceFilter === 'all' ? "opacity-100" : "opacity-60"} /> {totalInvs}</button>
-                               <div className={cn("w-px h-3.5", dk ? "bg-white/10" : "bg-slate-200")} />
-                               <button onClick={() => setInvoiceFilter('paid')} className={cn("flex items-center gap-1 text-[11px] font-black transition-colors px-2 py-1", invoiceFilter === 'paid' ? (dk ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600") : "text-slate-400 hover:text-emerald-500 hover:bg-emerald-50/50")}><span className="w-1.5 h-1.5 rounded-full shrink-0 bg-emerald-500" /> {paidInvs}</button>
-                               <div className={cn("w-px h-3.5", dk ? "bg-white/10" : "bg-slate-200")} />
-                               <button onClick={() => setInvoiceFilter('unpaid')} className={cn("flex items-center gap-1 text-[11px] font-black transition-colors px-2 py-1", invoiceFilter === 'unpaid' ? (dk ? "bg-red-500/10 text-red-400" : "bg-red-50 text-red-600") : "text-slate-400 hover:text-red-500 hover:bg-red-50/50")}><span className="w-1.5 h-1.5 rounded-full shrink-0 bg-red-500" /> {unpaidInvs}</button>
-                             </div>
-                           )}
-                           {!viewOnly && (
-                             <button onClick={() => {
-                                   const newId = Math.random().toString();
-                                   const newDraft = { id: newId, number: '', note: '', isPaid: false, billingMode: 'detailed', items: [], startDate: null, endDate: null, dueDate: null, paymentDate: null };
-                                   setInvoiceDraft(newDraft); setEditingInvoiceId(newId); setSelectedInvoiceId(newId);
-                               }} className="p-1.5 rounded-md text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 transition-all shrink-0"><Plus size={14} strokeWidth={3} /></button>
-                           )}
-                       </div>
-                    </div>
-                  </div>
-                    
-                    <div className="flex-1 overflow-y-auto space-y-2 pr-2 max-h-[400px] relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
+  <div className="flex flex-col xl:flex-row bg-app-card rounded-b-2xl animate-in fade-in">
+    <div className="w-full xl:w-[300px] shrink-0 p-5 flex flex-col gap-3 border-b xl:border-b-0 xl:border-r transition-colors border-app-border bg-black/5 dark:bg-black/20">
+      <div className="flex items-center justify-between mb-2">
+        <label className={labelCls}>
+          <Receipt size={14}/> {lang === 'de' ? 'Rechnungen' : 'Invoices'}
+        </label>
+
+        <div className="flex items-center gap-2">
+          {totalInvs > 0 && (
+            <div className={cn("flex items-center rounded-lg border shadow-sm overflow-hidden", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
+              <button
+                onClick={() => setInvoiceFilter('all')}
+                className={cn("flex items-center gap-1.5 text-[11px] font-black transition-colors px-2 py-1", invoiceFilter === 'all' ? (dk ? "bg-white/10 text-white" : "bg-slate-100 text-slate-800") : "text-slate-400 hover:text-slate-600 hover:bg-slate-50")}
+                title="All"
+              >
+                <FileText size={11} className={invoiceFilter === 'all' ? "opacity-100" : "opacity-60"} /> {totalInvs}
+              </button>
+
+              <div className={cn("w-px h-3.5", dk ? "bg-white/10" : "bg-slate-200")} />
+
+              <button
+                onClick={() => setInvoiceFilter('paid')}
+                className={cn("flex items-center gap-1 text-[11px] font-black transition-colors px-2 py-1", invoiceFilter === 'paid' ? (dk ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-50 text-emerald-600") : "text-slate-400 hover:text-emerald-500 hover:bg-emerald-50/50")}
+              >
+                <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-emerald-500" /> {paidInvs}
+              </button>
+
+              <div className={cn("w-px h-3.5", dk ? "bg-white/10" : "bg-slate-200")} />
+
+              <button
+                onClick={() => setInvoiceFilter('unpaid')}
+                className={cn("flex items-center gap-1 text-[11px] font-black transition-colors px-2 py-1", invoiceFilter === 'unpaid' ? (dk ? "bg-red-500/10 text-red-400" : "bg-red-50 text-red-600") : "text-slate-400 hover:text-red-500 hover:bg-red-50/50")}
+              >
+                <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-red-500" /> {unpaidInvs}
+              </button>
+            </div>
+          )}
+
+          {!viewOnly && (
+            <button
+              onClick={() => {
+                const newId = Math.random().toString();
+                const newDraft = {
+                  id: newId,
+                  number: '',
+                  note: '',
+                  isPaid: false,
+                  billingMode: 'detailed',
+                  items: [],
+                  startDate: null,
+                  endDate: null,
+                  dueDate: null,
+                  paymentDate: null
+                };
+                setInvoiceDraft(newDraft);
+                setEditingInvoiceId(newId);
+                setSelectedInvoiceId(newId);
+              }}
+              className="p-1.5 rounded-md text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 transition-all shrink-0"
+            >
+              <Plus size={14} strokeWidth={3} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto space-y-2 pr-2 max-h-[400px] relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full">
                        {editingInvoiceId && invoiceDraft && !localHotel.invoices.find((i:any) => i.id === editingInvoiceId) && (
                           <div className={cn("group relative flex flex-col gap-2 p-3 rounded-xl transition-all border shadow-md", dk ? "bg-teal-900/30 border-teal-500/50" : "bg-teal-50 border-teal-300")}>
                              <input autoFocus value={invoiceDraft.number} onChange={e => setInvoiceDraft({...invoiceDraft, number: e.target.value})} className="w-full text-[13px] font-black border-none bg-transparent outline-none p-0 focus:ring-0 placeholder:text-slate-400" placeholder="RE-..." />
