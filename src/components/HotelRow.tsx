@@ -1502,41 +1502,41 @@ useEffect(() => {
                            }
 
                            return (
-                           <div key={inv.id} onClick={() => { setSelectedInvoiceId(isActiveSelection ? null : inv.id); setEditingItemId(null); setEditingTotal(false); }} className={cn("group relative flex items-center justify-between p-2 rounded-xl transition-all cursor-pointer border shadow-sm hover:shadow-md", isActiveSelection ? "bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/50 shadow-md" : "bg-black/5 dark:bg-white/5 border-transparent hover:border-app-border")}>   
-                             <div className="flex items-center gap-2.5">
-                                    <div className={cn("relative flex items-center justify-center group/info cursor-help shrink-0")}>
-                                       <div className={cn("w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-colors", dk ? "border-slate-600 text-slate-400" : "border-slate-300 text-slate-400 group-hover/info:border-teal-500 group-hover/info:text-teal-500")}>i</div>
-                                       <div className={cn("absolute left-7 top-0 w-max min-w-[200px] max-w-[250px] p-3 rounded-xl shadow-2xl border opacity-0 group-hover/info:opacity-100 pointer-events-none transition-all z-[9999] -translate-x-2 group-hover/info:translate-x-0 flex flex-col gap-1", dk ? "bg-slate-800 border-white/10" : "bg-white border-slate-200")}>
-                                         <p className={cn("text-[13px] font-black leading-tight border-b pb-1 mb-1", dk ? "text-white border-white/10" : "text-slate-900 border-slate-100")}>{inv.number || 'Unnamed'}</p>
-                                          <p className={cn("text-[11px] font-bold", dk ? "text-slate-300" : "text-slate-600")}><span className="opacity-60">{lang === 'de' ? 'Zeitraum:' : 'Period:'}</span> {inv.startDate ? `${formatShortDate(inv.startDate, lang)} - ${formatShortDate(inv.endDate, lang)}` : '--'}</p>
-                                          <p className={cn("text-[11px] font-bold", dk ? "text-slate-300" : "text-slate-600")}><span className="opacity-60">{inv.dueDate ? (lang==='de'?'Fällig:':'Due:') : (lang==='de'?'Erstellt:':'Created:')}</span> {inv.dueDate ? formatShortDate(inv.dueDate, lang) : formatShortDate(inv.created_at || new Date().toISOString(), lang)}</p>
-                                          {inv.isPaid && <p className={cn("text-[11px] font-bold text-emerald-500")}><span className="opacity-60">{lang === 'de' ? 'Bezahlt am:' : 'Paid on:'}</span> {inv.paymentDate ? formatShortDate(inv.paymentDate, lang) : '--'}</p>}
-                                          {inv.note && <p className={cn("text-[11px] font-medium leading-relaxed break-words whitespace-pre-wrap mt-1 pt-1 border-t", dk ? "text-slate-400 border-white/10" : "text-slate-500 border-slate-100")}>{inv.note}</p>}
-                                       </div>
-                                    </div>
-                                    <div className="flex flex-col flex-1 min-w-0 pr-2">
-                                       <div className="flex items-center gap-1.5 w-full">
-                                          <span className={cn("w-2 h-2 rounded-full shrink-0", inv.isPaid ? "bg-emerald-500" : "bg-red-500")} />
-                                          <span className={cn("text-[11.5px] font-bold truncate", dk ? "text-slate-300" : "text-slate-700", isActiveSelection && "text-teal-600 dark:text-teal-400")}>
-                                             <HighlightText text={inv.number || 'Unnamed'} query={searchScope === 'all' || searchScope === 'invoice' ? searchQuery : ''} />
-                                          </span>
-                                       </div>
-                                    </div>
-                                 </div>
-                                 <div className="flex items-center gap-3 shrink-0">
-                                    <span className={cn("text-[11.5px] font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(invBrutto)}</span>
-                                    {(!viewOnly && isActiveSelection) && (
-                                       <button onClick={(e) => { e.stopPropagation(); setEditingInvoiceId(inv.id); setInvoiceDraft(inv); }} className="p-1.5 bg-black/5 dark:bg-white/5 rounded text-slate-500 hover:text-teal-600 transition-all shrink-0"><Edit3 size={14} /></button>
-                                    )}
-                                 </div>
-                              </div>
+                           <div key={inv.id} onClick={() => { setSelectedInvoiceId(isActiveSelection ? null : inv.id); setEditingItemId(null); setEditingTotal(false); }} className={cn("group relative flex items-start justify-between p-2 rounded-xl transition-all cursor-pointer border shadow-sm hover:shadow-md", isActiveSelection ? "bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]/50 shadow-md" : "bg-black/5 dark:bg-white/5 border-transparent hover:border-app-border")}>   
+                                 <div className="flex items-start gap-2.5 w-full pr-2">
+                                        <div className={cn("relative flex items-center justify-center group/info cursor-help shrink-0 mt-0.5")}>
+                                           <div className={cn("w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-bold transition-colors", dk ? "border-slate-600 text-slate-400" : "border-slate-300 text-slate-400 group-hover/info:border-teal-500 group-hover/info:text-teal-500")}>i</div>
+                                           <div className={cn("absolute left-7 top-0 w-max min-w-[200px] max-w-[250px] p-3 rounded-xl shadow-2xl border opacity-0 group-hover/info:opacity-100 pointer-events-none transition-all z-[9999] -translate-x-2 group-hover/info:translate-x-0 flex flex-col gap-1", dk ? "bg-slate-800 border-white/10" : "bg-white border-slate-200")}>
+                                             <p className={cn("text-[13px] font-black leading-tight border-b pb-1 mb-1", dk ? "text-white border-white/10" : "text-slate-900 border-slate-100")}>{inv.number || 'Unnamed'}</p>
+                                              <p className={cn("text-[11px] font-bold", dk ? "text-slate-300" : "text-slate-600")}><span className="opacity-60">{lang === 'de' ? 'Zeitraum:' : 'Period:'}</span> {inv.startDate ? `${formatShortDate(inv.startDate, lang)} - ${formatShortDate(inv.endDate, lang)}` : '--'}</p>
+                                              <p className={cn("text-[11px] font-bold", dk ? "text-slate-300" : "text-slate-600")}><span className="opacity-60">{inv.dueDate ? (lang==='de'?'Fällig:':'Due:') : (lang==='de'?'Erstellt:':'Created:')}</span> {inv.dueDate ? formatShortDate(inv.dueDate, lang) : formatShortDate(inv.created_at || new Date().toISOString(), lang)}</p>
+                                              {inv.isPaid && <p className={cn("text-[11px] font-bold text-emerald-500")}><span className="opacity-60">{lang === 'de' ? 'Bezahlt am:' : 'Paid on:'}</span> {inv.paymentDate ? formatShortDate(inv.paymentDate, lang) : '--'}</p>}
+                                              {inv.note && <p className={cn("text-[11px] font-medium leading-relaxed break-words whitespace-pre-wrap mt-1 pt-1 border-t", dk ? "text-slate-400 border-white/10" : "text-slate-500 border-slate-100")}>{inv.note}</p>}
+                                           </div>
+                                        </div>
+                                        <div className="flex flex-col flex-1 min-w-0">
+                                           <div className="flex items-start gap-1.5 w-full">
+                                              <span className={cn("w-2 h-2 rounded-full shrink-0 mt-[5px]", inv.isPaid ? "bg-emerald-500" : "bg-red-500")} />
+                                              <span className={cn("text-[11.5px] font-bold break-words leading-tight", dk ? "text-slate-300" : "text-slate-700", isActiveSelection && "text-teal-600 dark:text-teal-400")}>
+                                                 <HighlightText text={inv.number || 'Unnamed'} query={searchScope === 'all' || searchScope === 'invoice' ? searchQuery : ''} />
+                                              </span>
+                                           </div>
+                                        </div>
+                                     </div>
+                                     <div className="flex items-start gap-3 shrink-0 pt-[3px]">
+                                        <span className={cn("text-[11.5px] font-black", dk ? "text-white" : "text-slate-900")}>{formatCurrency(invBrutto)}</span>
+                                        {(!viewOnly && isActiveSelection) && (
+                                           <button onClick={(e) => { e.stopPropagation(); setEditingInvoiceId(inv.id); setInvoiceDraft(inv); }} className="p-1 bg-black/5 dark:bg-white/5 rounded text-slate-500 hover:text-teal-600 transition-all shrink-0 -mt-1"><Edit3 size={14} /></button>
+                                        )}
+                                     </div>
+                                  </div>
                            );
                          })
                        )}
                     </div>
                 </div>
 
-                <div className="flex-1 p-0 flex flex-col min-w-[660px] z-10 border-r border-slate-200 dark:border-white/10">
+                <div className="flex-1 p-0 flex flex-col min-w-[660px] min-h-[450px] z-10 border-r border-slate-200 dark:border-white/10">
                    <div className={cn("px-5 h-[50px] border-b flex items-center justify-between shrink-0 border-app-border", activeInvoice ? "bg-black/5 dark:bg-white/5" : "bg-transparent")}>
                       <div className="flex items-center gap-4 flex-1">
                           {activeInvoice ? (
