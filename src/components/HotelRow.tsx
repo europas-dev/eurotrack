@@ -597,7 +597,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const handlePrintNewTab = (inv: any) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      alert(lang === 'de' ? 'Bitte Pop-ups zulassen, um zu drucken.' : 'Please allow pop-ups to print.');
+      alert(lang === 'de' ? 'Bitte Pop-ups zulassen.' : 'Please allow pop-ups.');
       return;
     }
 
@@ -605,198 +605,87 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     let tNetto = 0; let tBrutto = 0; const taxes: Record<number, number> = {};
     let tableRows = '';
 
-    if (inv.billingMode === 'total') {
-      const base = parseFloat(inv.totalNetto) || 0;
-      const m = parseFloat(inv.totalMwst) || 7;
-      const isPct = inv.discountType === 'percentage';
-      const disc = parseFloat(inv.discountValue) || 0;
-      tNetto = Math.max(0, base - (isPct ? base * (disc / 100) : disc));
-      tBrutto = tNetto * (1 + m / 100);
-      if (tNetto > 0) taxes[m] = tNetto * (m / 100);
+    const items = inv.billingMode === 'total' 
+        ? [{ type: 'room', method: 'total', netto: inv.totalNetto, mwst: inv.totalMwst, discountValue: inv.discountValue, discountType: inv.discountType, note: inv.note }]
+        : (inv.items || []);
 
-      const datesHtml = inv.startDate && inv.endDate ? `<div class="dates">${formatShortDate(inv.startDate, lang)} - ${formatShortDate(inv.endDate, lang)}</div>` : '';
-      const noteHtml = inv.note ? `<div class="dates">${inv.note}</div>` : '';
-
-      tableRows = `
-        <tr>
-          <td>
-            <strong>${lang === 'de' ? 'Logiskosten / Zimmerpreis' : 'Accommodation Costs'}</strong>
-            ${datesHtml}
-            ${noteHtml}
-          </td>
-          <td class="right">1</td>
-          <td class="right">${formatCurrency(base)}</td>
-          <td class="right">${m}%</td>
-          <td class="right"><strong>${formatCurrency(tBrutto)}</strong></td>
-        </tr>
-      `;
-    } else {
-      (inv.items || []).forEach((item: any) => {
+    items.forEach((item: any) => {
         const res = calcInvoiceItem(item, n);
         tNetto += res.finalNetto; tBrutto += res.brutto;
-        if (res.finalNetto > 0 && res.mwst !== null) {
-          taxes[res.mwst] = (taxes[res.mwst] || 0) + (res.finalNetto * (res.mwst / 100));
-        }
+        if (res.finalNetto > 0 && res.mwst !== null) taxes[res.mwst] = (taxes[res.mwst] || 0) + (res.finalNetto * (res.mwst / 100));
 
-        const datesHtml = inv.startDate && inv.endDate ? `<div class="dates">${formatShortDate(inv.startDate, lang)} - ${formatShortDate(inv.endDate, lang)}</div>` : '';
-        const bedsHtml = item.method === 'per_bed' ? `<div class="dates">${item.nights || n} ${lang === 'de' ? 'Nächte' : 'Nights'}, ${item.beds || 1} ${lang === 'de' ? 'Betten' : 'Beds'}</div>` : '';
-        const noteHtml = item.note ? `<div class="dates">${item.note}</div>` : '';
-        const qty = item.method === 'per_bed' ? ((item.nights || n) * (item.beds || 1)) : 1;
-
+        const datesHtml = (item.startDate || inv.startDate) ? `<div class="dates">${formatShortDate(item.startDate || inv.startDate, lang)} - ${formatShortDate(item.endDate || inv.endDate, lang)}</div>` : '';
+        const bedInfo = item.method === 'per_bed' ? ` (${item.nights || n} ${lang === 'de' ? 'Nächte' : 'Nights'}, ${item.beds || 1} ${lang === 'de' ? 'Betten' : 'Beds'})` : '';
+        
         tableRows += `
           <tr>
             <td>
-              <strong>${getTranslation(COST_TYPES, item.type || 'room', lang)}</strong>
-              ${bedsHtml}
+              <strong>${getTranslation(COST_TYPES, item.type || 'room', lang)}${bedInfo}</strong>
               ${datesHtml}
-              ${noteHtml}
+              ${item.note ? `<div class="dates">${item.note}</div>` : ''}
             </td>
-            <td class="right">${qty}</td>
+            <td class="right">${item.netto ? formatCurrency(parseFloat(item.netto)) : '--'}</td>
             <td class="right">${formatCurrency(res.finalNetto)}</td>
             <td class="right">${res.mwst}%</td>
             <td class="right"><strong>${formatCurrency(res.brutto)}</strong></td>
           </tr>
         `;
-      });
-    }
-
-    let taxesHtml = '';
-    Object.entries(taxes).forEach(([percent, amt]) => {
-      taxesHtml += `
-        <tr>
-          <td>zzgl. ${percent}% MwSt</td>
-          <td class="right">${formatCurrency(amt as number)}</td>
-        </tr>
-      `;
     });
 
-    const statusLabel = inv.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid');
-    const statusColor = inv.isPaid ? '#10b981' : '#ef4444';
-    
-    let paymentInfoHtml = '';
-    if (inv.isPaid) {
-      paymentInfoHtml = `<p style="margin-top: 4px;"><strong>${lang === 'de' ? 'Bezahlt am:' : 'Paid on:'}</strong> ${formatShortDate(inv.paymentDate, lang)}</p>`;
-    } else if (inv.dueDate) {
-      paymentInfoHtml = `<p style="margin-top: 4px;"><strong>${lang === 'de' ? 'Fällig am:' : 'Due Date:'}</strong> ${formatShortDate(inv.dueDate, lang)}</p>`;
-    }
-
-    let footerText = '';
-    if (inv.isPaid) {
-      footerText = lang === 'de' 
-        ? `Der Betrag wurde am ${formatShortDate(inv.paymentDate, lang)} beglichen.<br><br>Vielen Dank für die gute Zusammenarbeit.` 
-        : `The amount was settled on ${formatShortDate(inv.paymentDate, lang)}.<br><br>Thank you for your business.`;
-    } else {
-      const dueStr = inv.dueDate ? (lang === 'de' ? `bis zum ${formatShortDate(inv.dueDate, lang)}` : `by ${formatShortDate(inv.dueDate, lang)}`) : (lang === 'de' ? 'umgehend' : 'immediately');
-      footerText = lang === 'de'
-        ? `Der Betrag wird ${dueStr} auf das uns bekannte Konto überwiesen.<br><br>Vielen Dank für die gute Zusammenarbeit.`
-        : `The amount will be transferred to the known bank account ${dueStr}.<br><br>Thank you for your business.`;
-    }
+    let taxesHtml = Object.entries(taxes).map(([p, a]) => `<tr><td>zzgl. ${p}% MwSt</td><td class="right">${formatCurrency(a as number)}</td></tr>`).join('');
 
     const html = `
-      <!DOCTYPE html>
-      <html lang="${lang}">
+      <html>
       <head>
-        <meta charset="UTF-8">
-        <title>${lang === 'de' ? 'Abrechnung' : 'Statement'} ${inv.number || 'Entwurf'}</title>
         <style>
-          @page { size: A4; margin: 20mm 20mm 20mm 25mm; }
-          body { font-family: Arial, sans-serif; font-size: 13px; color: #000; line-height: 1.5; margin: 0; padding: 0; }
-          .header-info { position: absolute; right: 0; top: 35mm; width: 250px; font-size: 12px; }
-          .sender { margin-top: 45mm; font-size: 10px; color: #666; text-decoration: underline; font-weight: bold; margin-bottom: 10px; }
-          .recipient { font-size: 15px; font-weight: 500; line-height: 1.3; }
-          .title { margin-top: 30mm; margin-bottom: 20px; font-size: 28px; font-weight: bold; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-          th { border-bottom: 2px solid #000; padding: 8px 0; text-align: left; font-size: 12px; }
-          th.right, td.right { text-align: right; }
-          td { padding: 12px 0; border-bottom: 1px solid #eee; vertical-align: top; }
-          .totals { width: 320px; float: right; margin-bottom: 60px; }
-          .totals table { margin-bottom: 0; }
-          .totals td { padding: 6px 0; border-bottom: 1px solid #eee; }
-          .totals .grand-total td { border-top: 2px solid #000; font-weight: bold; font-size: 16px; border-bottom: none; }
-          .footer-text { clear: both; font-size: 12px; margin-top: 50px; }
-          .footer { position: fixed; bottom: 0; left: 0; width: 100%; border-top: 1px solid #ccc; padding-top: 15px; font-size: 9px; color: #666; display: flex; justify-content: space-between; }
-          .footer > div { width: 33%; }
-          .text-right { text-align: right; }
-          .dates { font-size: 11px; color: #666; margin-top: 4px; white-space: pre-wrap; }
+          @page { size: A4; margin: 20mm; }
+          body { font-family: sans-serif; font-size: 12px; color: #000; line-height: 1.4; }
+          .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+          .address { margin-bottom: 30px; }
+          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          th { border-bottom: 1px solid #000; text-align: left; padding: 5px 0; }
+          td { padding: 8px 0; border-bottom: 1px solid #eee; vertical-align: top; }
+          .right { text-align: right; }
+          .footer { position: fixed; bottom: 0; width: 100%; border-top: 1px solid #ccc; padding-top: 10px; font-size: 9px; display: flex; justify-content: space-between; }
+          .dates { font-style: italic; color: #666; font-size: 11px; }
         </style>
       </head>
-      <body onload="setTimeout(() => { window.print(); }, 500)">
-        
-        <div class="header-info">
-          <p><strong>${lang === 'de' ? 'Datum:' : 'Date:'}</strong> ${formatShortDate(inv.created_at || new Date().toISOString(), lang)}</p>
-          <p><strong>${lang === 'de' ? 'Beleg-Nr:' : 'Record No:'}</strong> ${inv.number || 'Entwurf'}</p>
-          ${inv.startDate && inv.endDate ? `<p style="margin-top: 8px;"><strong>${lang === 'de' ? 'Leistungszeitraum:' : 'Service Period:'}</strong><br>${formatShortDate(inv.startDate, lang)} - ${formatShortDate(inv.endDate, lang)}</p>` : ''}
-          <p style="margin-top: 8px;"><strong>${lang === 'de' ? 'Zahlungsstatus:' : 'Payment Status:'}</strong> <span style="color: ${statusColor}; font-weight: bold;">${statusLabel}</span></p>
-          ${paymentInfoHtml}
+      <body>
+        <div class="header">
+          <div><p><strong>EUROPAS GmbH</strong><br>Auf der Reihe 2<br>45884 Gelsenkirchen</p></div>
+          <div><p><strong>${lang === 'de' ? 'Datum' : 'Date'}:</strong> ${formatShortDate(new Date().toISOString(), lang)}<br>
+          <strong>${lang === 'de' ? 'Rechnungs-Nr' : 'Invoice Nr'}:</strong> ${inv.number || 'Draft'}</p></div>
         </div>
-
-        <div class="sender">EUROPAS GmbH • Auf der Reihe 2 • 45884 Gelsenkirchen</div>
-        <div class="recipient">
-          <strong>${localHotel.name || ''}</strong><br>
-          ${localHotel.contactPerson ? `z.Hd. ${localHotel.contactPerson}<br>` : ''}
-          ${localHotel.address ? `${localHotel.address}<br>` : ''}
-          ${localHotel.city || ''}<br>
-          ${localHotel.country && localHotel.country !== 'Germany' ? `${localHotel.country}` : ''}
+        <div class="address">
+          <strong>${localHotel.name}</strong><br>${localHotel.address || ''}<br>${localHotel.city || ''}
         </div>
-
-        <div class="title">${lang === 'de' ? 'Abrechnung' : 'Statement'} ${inv.number || ''}</div>
-
+        <h1>${lang === 'de' ? 'Rechnung' : 'Invoice'} ${inv.number || ''}</h1>
         <table>
-          <thead>
-            <tr>
-              <th style="width: 55%;">${lang === 'de' ? 'Beschreibung' : 'Description'}</th>
-              <th class="right">${lang === 'de' ? 'Menge' : 'Qty'}</th>
-              <th class="right">Netto</th>
-              <th class="right">MwSt</th>
-              <th class="right">Brutto</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${tableRows}
-          </tbody>
+          <thead><tr><th>${lang === 'de' ? 'Beschreibung' : 'Description'}</th><th class="right">Netto (Bett)</th><th class="right">Netto</th><th>MwSt</th><th class="right">Brutto</th></tr></thead>
+          <tbody>${tableRows}</tbody>
         </table>
-
-        <div class="totals">
-          <table>
-            <tr>
-              <td>${lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</td>
-              <td class="right">${formatCurrency(tNetto)}</td>
-            </tr>
-            ${taxesHtml}
-            <tr class="grand-total">
-              <td>${lang === 'de' ? 'Gesamtbetrag' : 'Total Amount'}</td>
-              <td class="right">${formatCurrency(tBrutto)}</td>
-            </tr>
-          </table>
+        <div style="float:right; width: 200px;">
+           <table style="margin:0">
+             <tr><td>Netto:</td><td class="right">${formatCurrency(tNetto)}</td></tr>
+             ${taxesHtml}
+             <tr style="font-weight:bold; font-size: 15px;"><td>Total:</td><td class="right">${formatCurrency(tBrutto)}</td></tr>
+           </table>
         </div>
-
-        <div class="footer-text">
-          <p>${footerText}</p>
+        <div class="footer-text" style="margin-top: 100px;">
+           ${inv.isPaid ? (lang==='de' ? `Bezahlt am ${formatShortDate(inv.paymentDate, lang)}.` : `Paid on ${formatShortDate(inv.paymentDate, lang)}.`) : (lang==='de' ? 'Bitte überweisen Sie den Betrag bis zum ' + formatShortDate(inv.dueDate, lang) : 'Please pay by ' + formatShortDate(inv.dueDate, lang))}
+           <br>${lang === 'de' ? 'Vielen Dank!' : 'Thank you!'}
         </div>
-
         <div class="footer">
-          <div>
-            <strong style="color: #000;">EUROPAS GmbH</strong><br>
-            Auf der Reihe 2<br>
-            45884 Gelsenkirchen
-          </div>
-          <div>
-            Telefon: 0209 / 589 023-40<br>
-            Fax: 0209 / 589 023-66<br>
-            info@europasgmbh.de<br>
-            www.europasgmbh.de
-          </div>
-          <div class="text-right">
-            USt-IdNr.: DE 306110899<br>
-            HRB 13542 Amtsgericht Gelsenkirchen
-          </div>
+           <div>EUROPAS GmbH<br>Auf der Reihe 2, 45884 Gelsenkirchen</div>
+           <div>Tel: 0209 / 589 023-40<br>info@europasgmbh.de</div>
+           <div>USt-IdNr: DE 306110899<br>HRB 13542 Gelsenkirchen</div>
         </div>
       </body>
       </html>
     `;
-
     printWindow.document.write(html);
     printWindow.document.close();
+    printWindow.print();
   };
   const [saving, setSaving] = useState(false);
   const [creatingDuration, setCreatingDuration] = useState(false);
