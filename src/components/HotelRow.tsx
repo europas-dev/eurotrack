@@ -1767,12 +1767,12 @@ useEffect(() => {
                                      )}
                                   </div>
                                   <button 
-                                     onClick={(e) => { e.stopPropagation(); setPrintInvoice(activeInvoice); }} 
-                                     className={cn("p-2 rounded-lg transition-all", dk ? "text-slate-400 hover:bg-white/10 hover:text-white" : "text-slate-400 hover:bg-slate-200 hover:text-slate-800")}
-                                     title={lang === 'de' ? 'Rechnung drucken' : 'Print Invoice'}
-                                  >
-                                     <Printer size={18} />
-                                  </button>
+                                   onClick={(e) => { e.stopPropagation(); handlePrintNewTab(activeInvoice); }} 
+                                   className={cn("p-2 rounded-lg transition-all", dk ? "text-slate-400 hover:bg-white/10 hover:text-white" : "text-slate-400 hover:bg-slate-200 hover:text-slate-800")}
+                                   title={lang === 'de' ? 'Abrechnung drucken' : 'Print Statement'}
+                                >
+                                   <Printer size={18} />
+                                </button>
                                 </div>
                              ) : (
                              <>
