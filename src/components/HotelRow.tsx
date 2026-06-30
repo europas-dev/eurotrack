@@ -2167,7 +2167,7 @@ useEffect(() => {
                 </div>
               </div>
             )}
-
+</div>
             {/* TAB 3: HOTEL INFO */}
             {activeTab === 'info' && (() => {
   const seamlessInput = cn('w-full px-2 py-1.5 rounded-lg text-sm font-bold outline-none border border-transparent transition-all h-[34px]', dk ? 'bg-transparent text-white hover:bg-white/5 focus:bg-app-card focus:border-teal-500 placeholder-slate-600' : 'bg-transparent text-slate-900 hover:bg-black/5 focus:bg-app-card focus:border-teal-500 placeholder-slate-400', viewOnly && "opacity-60 cursor-default");
