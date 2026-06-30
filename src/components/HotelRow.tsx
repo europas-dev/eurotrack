@@ -1571,7 +1571,6 @@ useEffect(() => {
                                    <span className="text-[11px] font-medium italic text-slate-400">Kein Zeitraum gewählt</span>
                                 )}
                              </div>
-                     </div>
                           ) : (
                              <>
                                 <div className={cn("flex items-center px-2 py-1.5 rounded-lg border w-[250px] transition-colors focus-within:border-teal-500 shadow-sm", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
