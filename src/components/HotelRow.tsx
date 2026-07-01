@@ -1777,7 +1777,7 @@ useEffect(() => {
                                 </>
                              )}
                          </div>
-                      </div>
+                  
                   
                       {activeInvoice && !viewOnly && (
                          <div className={cn("flex items-center p-0.5 rounded-lg border", dk ? "bg-black/40 border-white/10" : "bg-slate-100 border-slate-200")}>
