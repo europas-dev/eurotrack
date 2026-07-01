@@ -605,91 +605,66 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     let tNetto = 0; let tBrutto = 0; const taxes: Record<number, number> = {};
     let tableRows = '';
 
-    if (inv.billingMode === 'total') {
-      const base = parseFloat(inv.totalNetto) || 0;
-      const m = parseFloat(inv.totalMwst) || 7;
-      const isPct = inv.discountType === 'percentage';
-      const disc = parseFloat(inv.discountValue) || 0;
-      tNetto = Math.max(0, base - (isPct ? base * (disc / 100) : disc));
-      tBrutto = tNetto * (1 + m / 100);
-      if (tNetto > 0) taxes[m] = tNetto * (m / 100);
+    // Check if we need the Netto (Bed) column
+    let hasBedPrices = false;
+    const items = inv.billingMode === 'total' 
+        ? [{ type: 'room', method: 'total', netto: inv.totalNetto, mwst: inv.totalMwst, discountValue: inv.discountValue, discountType: inv.discountType, note: inv.note }]
+        : (inv.items || []);
 
-      const datesHtml = inv.startDate && inv.endDate ? `<div class="dates">${formatShortDate(inv.startDate, lang)} - ${formatShortDate(inv.endDate, lang)}</div>` : '';
-      const noteHtml = inv.note ? `<div class="dates">${inv.note}</div>` : '';
+    items.forEach((item: any) => {
+        if (item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 0) hasBedPrices = true;
+    });
 
-      tableRows = `
-        <tr>
-          <td>
-            <strong>${lang === 'de' ? 'Logiskosten / Zimmerpreis' : 'Accommodation Costs'}</strong>
-            ${datesHtml}
-            ${noteHtml}
-          </td>
-          <td class="right">1</td>
-          <td class="right">${formatCurrency(base)}</td>
-          <td class="right">${m}%</td>
-          <td class="right"><strong>${formatCurrency(tBrutto)}</strong></td>
-        </tr>
-      `;
-    } else {
-      (inv.items || []).forEach((item: any) => {
+    items.forEach((item: any) => {
         const res = calcInvoiceItem(item, n);
         tNetto += res.finalNetto; tBrutto += res.brutto;
         if (res.finalNetto > 0 && res.mwst !== null) {
           taxes[res.mwst] = (taxes[res.mwst] || 0) + (res.finalNetto * (res.mwst / 100));
         }
 
-        const datesHtml = inv.startDate && inv.endDate ? `<div class="dates">${formatShortDate(inv.startDate, lang)} - ${formatShortDate(inv.endDate, lang)}</div>` : '';
-        const bedsHtml = item.method === 'per_bed' ? `<div class="dates">${item.nights || n} ${lang === 'de' ? 'Nächte' : 'Nights'}, ${item.beds || 1} ${lang === 'de' ? 'Betten' : 'Beds'}</div>` : '';
-        const noteHtml = item.note ? `<div class="dates">${item.note}</div>` : '';
-        const qty = item.method === 'per_bed' ? ((item.nights || n) * (item.beds || 1)) : 1;
+        const datesHtml = (item.startDate || inv.startDate) && (item.endDate || inv.endDate) 
+            ? `<br><i class="dates">${formatShortDate(item.startDate || inv.startDate, lang)} - ${formatShortDate(item.endDate || inv.endDate, lang)}</i>` : '';
+        
+        const bedInfo = item.method === 'per_bed' ? ` (${item.nights || n} ${lang === 'de' ? 'Nächte' : 'Nights'}, ${item.beds || 1} ${lang === 'de' ? 'Betten' : 'Beds'})` : '';
+        const nettoBett = item.method === 'per_bed' ? item.netto : '--';
+        const noteHtml = item.note ? `<div class="dates" style="margin-top:2px;">${item.note}</div>` : '';
+        
+        const bedColHtml = hasBedPrices ? `<td class="right">${nettoBett !== '--' ? formatCurrency(parseFloat(nettoBett)) : '--'}</td>` : '';
 
         tableRows += `
           <tr>
             <td>
-              <strong>${getTranslation(COST_TYPES, item.type || 'room', lang)}</strong>
-              ${bedsHtml}
-              ${datesHtml}
+              <strong>${getTranslation(COST_TYPES, item.type || 'room', lang)}${bedInfo}</strong>${datesHtml}
               ${noteHtml}
             </td>
-            <td class="right">${qty}</td>
+            ${bedColHtml}
             <td class="right">${formatCurrency(res.finalNetto)}</td>
             <td class="right">${res.mwst}%</td>
             <td class="right"><strong>${formatCurrency(res.brutto)}</strong></td>
           </tr>
         `;
-      });
-    }
+    });
 
     let taxesHtml = '';
     Object.entries(taxes).forEach(([percent, amt]) => {
-      taxesHtml += `
-        <tr>
-          <td>zzgl. ${percent}% MwSt</td>
-          <td class="right">${formatCurrency(amt as number)}</td>
-        </tr>
-      `;
+      taxesHtml += `<tr><td style="color: #666;">zzgl. ${percent}% MwSt</td><td class="right">${formatCurrency(amt as number)}</td></tr>`;
     });
 
-    const statusLabel = inv.isPaid ? (lang === 'de' ? 'Bezahlt' : 'Paid') : (lang === 'de' ? 'Offen' : 'Unpaid');
-    const statusColor = inv.isPaid ? '#10b981' : '#ef4444';
-    
-    let paymentInfoHtml = '';
-    if (inv.isPaid) {
-      paymentInfoHtml = `<p style="margin-top: 4px;"><strong>${lang === 'de' ? 'Bezahlt am:' : 'Paid on:'}</strong> ${formatShortDate(inv.paymentDate, lang)}</p>`;
-    } else if (inv.dueDate) {
-      paymentInfoHtml = `<p style="margin-top: 4px;"><strong>${lang === 'de' ? 'Fällig am:' : 'Due Date:'}</strong> ${formatShortDate(inv.dueDate, lang)}</p>`;
-    }
+    const isOverdue = !inv.isPaid && inv.dueDate && new Date(inv.dueDate) < new Date();
+    const statusLabel = inv.isPaid ? (lang === 'de' ? 'BEZAHLT' : 'PAID') : isOverdue ? (lang === 'de' ? 'ÜBERFÄLLIG' : 'OVERDUE') : (lang === 'de' ? 'OFFEN' : 'UNPAID');
+    const statusColor = inv.isPaid ? '#10b981' : isOverdue ? '#ef4444' : '#f59e0b';
+    const bedThHtml = hasBedPrices ? `<th class="right">${lang === 'de' ? 'Netto (Bett)' : 'Netto (Bed)'}</th>` : '';
 
-    let footerText = '';
+    let footerActionText = '';
     if (inv.isPaid) {
-      footerText = lang === 'de' 
-        ? `Der Betrag wurde am ${formatShortDate(inv.paymentDate, lang)} beglichen.<br><br>Vielen Dank für die gute Zusammenarbeit.` 
-        : `The amount was settled on ${formatShortDate(inv.paymentDate, lang)}.<br><br>Thank you for your business.`;
+      footerActionText = lang === 'de' 
+        ? `Wir haben diese Rechnung am <strong>${formatShortDate(inv.paymentDate || new Date().toISOString(), lang)}</strong> beglichen.<br>Vielen Dank für die gute Zusammenarbeit.` 
+        : `We settled this invoice on <strong>${formatShortDate(inv.paymentDate || new Date().toISOString(), lang)}</strong>.<br>Thank you for your business.`;
     } else {
-      const dueStr = inv.dueDate ? (lang === 'de' ? `bis zum ${formatShortDate(inv.dueDate, lang)}` : `by ${formatShortDate(inv.dueDate, lang)}`) : (lang === 'de' ? 'umgehend' : 'immediately');
-      footerText = lang === 'de'
-        ? `Der Betrag wird ${dueStr} auf das uns bekannte Konto überwiesen.<br><br>Vielen Dank für die gute Zusammenarbeit.`
-        : `The amount will be transferred to the known bank account ${dueStr}.<br><br>Thank you for your business.`;
+      const dueStr = inv.dueDate ? (lang === 'de' ? `bis zum <strong>${formatShortDate(inv.dueDate, lang)}</strong>` : `by <strong>${formatShortDate(inv.dueDate, lang)}</strong>`) : (lang === 'de' ? 'umgehend' : 'immediately');
+      footerActionText = lang === 'de'
+        ? `Der fällige Betrag ist zur Zahlung vorgemerkt und wird ${dueStr} angewiesen.<br>Vielen Dank für die gute Zusammenarbeit.`
+        : `The due amount is scheduled for payment and will be transferred ${dueStr}.<br>Thank you for your business.`;
     }
 
     const html = `
@@ -698,54 +673,58 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       <head>
         <meta charset="UTF-8">
         <title>${lang === 'de' ? 'Abrechnung' : 'Statement'} ${inv.number || 'Entwurf'}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,700;0,900&display=swap" rel="stylesheet">
         <style>
-          @page { size: A4; margin: 20mm 20mm 20mm 25mm; }
-          body { font-family: Arial, sans-serif; font-size: 13px; color: #000; line-height: 1.5; margin: 0; padding: 0; }
-          .header-info { position: absolute; right: 0; top: 35mm; width: 250px; font-size: 12px; }
-          .sender { margin-top: 45mm; font-size: 10px; color: #666; text-decoration: underline; font-weight: bold; margin-bottom: 10px; }
+          @page { size: A4; margin: 15mm 20mm 25mm 20mm; }
+          body { font-family: 'Poppins', Arial, sans-serif; font-size: 13px; color: #000; line-height: 1.5; margin: 0; padding: 0; }
+          .document-wrapper { display: table; width: 100%; height: 100%; }
+          .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; }
+          .sender-line { font-size: 10px; color: #666; text-decoration: underline; font-weight: bold; margin-bottom: 10px; }
           .recipient { font-size: 15px; font-weight: 500; line-height: 1.3; }
-          .title { margin-top: 30mm; margin-bottom: 20px; font-size: 28px; font-weight: bold; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-          th { border-bottom: 2px solid #000; padding: 8px 0; text-align: left; font-size: 12px; }
-          th.right, td.right { text-align: right; }
-          td { padding: 12px 0; border-bottom: 1px solid #eee; vertical-align: top; }
-          .totals { width: 320px; float: right; margin-bottom: 60px; }
-          .totals table { margin-bottom: 0; }
+          .meta-box { font-size: 12px; text-align: right; }
+          .title { margin-bottom: 20px; font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
+          table.items { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+          table.items th { border-bottom: 2px solid #000; padding: 8px 0; text-align: left; font-size: 12px; text-transform: uppercase; color: #666; }
+          table.items th.right, table.items td.right { text-align: right; }
+          table.items td { padding: 12px 0; border-bottom: 1px solid #eee; vertical-align: top; }
+          .totals-wrapper { display: flex; justify-content: flex-end; align-items: flex-start; margin-bottom: 40px; page-break-inside: avoid; }
+          .stamp { margin-right: 40px; margin-top: 10px; font-weight: 900; font-size: 22px; text-transform: uppercase; border: 4px solid; border-radius: 8px; padding: 8px 16px; transform: rotate(-5deg); opacity: 0.85; color: ${statusColor}; border-color: ${statusColor}; }
+          .totals { width: 280px; }
+          .totals table { width: 100%; border-collapse: collapse; }
           .totals td { padding: 6px 0; border-bottom: 1px solid #eee; }
-          .totals .grand-total td { border-top: 2px solid #000; font-weight: bold; font-size: 16px; border-bottom: none; }
-          .footer-text { clear: both; font-size: 12px; margin-top: 50px; }
-          .footer { position: fixed; bottom: 0; left: 0; width: 100%; border-top: 1px solid #ccc; padding-top: 15px; font-size: 9px; color: #666; display: flex; justify-content: space-between; }
-          .footer > div { width: 33%; }
-          .text-right { text-align: right; }
-          .dates { font-size: 11px; color: #666; margin-top: 4px; white-space: pre-wrap; }
+          .totals .grand-total td { border-top: 2px solid #000; font-weight: 900; font-size: 16px; border-bottom: none; }
+          .action-text { font-size: 13px; line-height: 1.6; page-break-inside: avoid; }
+          .footer { position: fixed; bottom: 0; left: 0; width: 100%; border-top: 1px solid #ccc; padding-top: 12px; font-size: 9px; color: #666; display: flex; justify-content: space-between; background: white; }
+          .dates { font-size: 11px; color: #666; }
+          .page-number:after { content: "Page " counter(page); }
         </style>
       </head>
       <body onload="setTimeout(() => { window.print(); }, 500)">
         
-        <div class="header-info">
-          <p><strong>${lang === 'de' ? 'Datum:' : 'Date:'}</strong> ${formatShortDate(inv.created_at || new Date().toISOString(), lang)}</p>
-          <p><strong>${lang === 'de' ? 'Beleg-Nr:' : 'Record No:'}</strong> ${inv.number || 'Entwurf'}</p>
-          ${inv.startDate && inv.endDate ? `<p style="margin-top: 8px;"><strong>${lang === 'de' ? 'Leistungszeitraum:' : 'Service Period:'}</strong><br>${formatShortDate(inv.startDate, lang)} - ${formatShortDate(inv.endDate, lang)}</p>` : ''}
-          <p style="margin-top: 8px;"><strong>${lang === 'de' ? 'Zahlungsstatus:' : 'Payment Status:'}</strong> <span style="color: ${statusColor}; font-weight: bold;">${statusLabel}</span></p>
-          ${paymentInfoHtml}
+        <div class="header-container">
+           <div>
+              <div class="sender-line">EUROPAS GmbH • Auf der Reihe 2 • 45884 Gelsenkirchen</div>
+              <div class="recipient">
+                <strong>${localHotel.name || ''}</strong><br>
+                ${localHotel.contactPerson ? `z.Hd. ${localHotel.contactPerson}<br>` : ''}
+                ${localHotel.address ? `${localHotel.address}<br>` : ''}
+                ${localHotel.city || ''}<br>
+                ${localHotel.country && localHotel.country !== 'Germany' ? `${localHotel.country}` : ''}
+              </div>
+           </div>
+           <div class="meta-box">
+              <p><strong>${lang === 'de' ? 'Datum:' : 'Date:'}</strong> ${formatShortDate(inv.created_at || new Date().toISOString(), lang)}</p>
+              <p><strong>${lang === 'de' ? 'Rechnungs-Nr:' : 'Invoice Nr:'}</strong> ${inv.number || 'Entwurf'}</p>
+           </div>
         </div>
 
-        <div class="sender">EUROPAS GmbH • Auf der Reihe 2 • 45884 Gelsenkirchen</div>
-        <div class="recipient">
-          <strong>${localHotel.name || ''}</strong><br>
-          ${localHotel.contactPerson ? `z.Hd. ${localHotel.contactPerson}<br>` : ''}
-          ${localHotel.address ? `${localHotel.address}<br>` : ''}
-          ${localHotel.city || ''}<br>
-          ${localHotel.country && localHotel.country !== 'Germany' ? `${localHotel.country}` : ''}
-        </div>
+        <div class="title">${lang === 'de' ? 'Rechnung' : 'Invoice'} ${inv.number || ''}</div>
 
-        <div class="title">${lang === 'de' ? 'Abrechnung' : 'Statement'} ${inv.number || ''}</div>
-
-        <table>
+        <table class="items">
           <thead>
             <tr>
-              <th style="width: 55%;">${lang === 'de' ? 'Beschreibung' : 'Description'}</th>
-              <th class="right">${lang === 'de' ? 'Menge' : 'Qty'}</th>
+              <th style="width: 50%;">${lang === 'de' ? 'Beschreibung' : 'Description'}</th>
+              ${bedThHtml}
               <th class="right">Netto</th>
               <th class="right">MwSt</th>
               <th class="right">Brutto</th>
@@ -756,39 +735,42 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
           </tbody>
         </table>
 
-        <div class="totals">
-          <table>
-            <tr>
-              <td>${lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</td>
-              <td class="right">${formatCurrency(tNetto)}</td>
-            </tr>
-            ${taxesHtml}
-            <tr class="grand-total">
-              <td>${lang === 'de' ? 'Gesamtbetrag' : 'Total Amount'}</td>
-              <td class="right">${formatCurrency(tBrutto)}</td>
-            </tr>
-          </table>
+        <div class="totals-wrapper">
+          <div class="stamp">${statusLabel}</div>
+          <div class="totals">
+            <table>
+              <tr>
+                <td>${lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</td>
+                <td class="right">${formatCurrency(tNetto)}</td>
+              </tr>
+              ${taxesHtml}
+              <tr class="grand-total">
+                <td>${lang === 'de' ? 'Gesamtbetrag' : 'Total Amount'}</td>
+                <td class="right">${formatCurrency(tBrutto)}</td>
+              </tr>
+            </table>
+          </div>
         </div>
 
-        <div class="footer-text">
-          <p>${footerText}</p>
+        <div class="action-text">
+          ${footerActionText}
         </div>
 
         <div class="footer">
-          <div>
-            <strong style="color: #000;">EUROPAS GmbH</strong><br>
-            Auf der Reihe 2<br>
-            45884 Gelsenkirchen
+          <div style="width: 33%;">
+            <strong style="color: #000; font-size: 10px;">EUROPAS GmbH</strong><br>
+            Auf der Reihe 2<br>45884 Gelsenkirchen
           </div>
-          <div>
+          <div style="width: 33%;">
             Telefon: 0209 / 589 023-40<br>
             Fax: 0209 / 589 023-66<br>
-            info@europasgmbh.de<br>
-            www.europasgmbh.de
+            info@europasgmbh.de<br>www.europasgmbh.de
           </div>
-          <div class="text-right">
+          <div style="width: 33%; text-align: right;">
+            Steuernummer: 318/5707/5847<br>
             USt-IdNr.: DE 306110899<br>
-            HRB 13542 Amtsgericht Gelsenkirchen
+            HRB 13542 Amtsgericht Gelsenkirchen<br>
+            <span class="page-number" style="display:inline-block; margin-top:4px; font-weight:bold;"></span>
           </div>
         </div>
       </body>
@@ -798,6 +780,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     printWindow.document.write(html);
     printWindow.document.close();
   };
+
   const [saving, setSaving] = useState(false);
   const [creatingDuration, setCreatingDuration] = useState(false);
   const saveTimer = useRef<any>(null);
@@ -1767,34 +1750,35 @@ useEffect(() => {
                                      )}
                                   </div>
                                   <button 
-                                   onClick={(e) => { e.stopPropagation(); handlePrintNewTab(activeInvoice); }} 
-                                   className={cn("p-2 rounded-lg transition-all", dk ? "text-slate-400 hover:bg-white/10 hover:text-white" : "text-slate-400 hover:bg-slate-200 hover:text-slate-800")}
-                                   title={lang === 'de' ? 'Abrechnung drucken' : 'Print Statement'}
-                                >
-                                   <Printer size={18} />
-                                </button>
+                                     onClick={(e) => { e.stopPropagation(); handlePrintNewTab(activeInvoice); }} 
+                                     className={cn("p-2 rounded-lg transition-all", dk ? "text-slate-400 hover:bg-white/10 hover:text-white" : "text-slate-400 hover:bg-slate-200 hover:text-slate-800")}
+                                     title={lang === 'de' ? 'Rechnung drucken' : 'Print Invoice'}
+                                  >
+                                     <Printer size={18} />
+                                  </button>
                                 </div>
                              ) : (
-                             <>
-                                <div className={cn("flex items-center px-2 py-1.5 rounded-lg border w-[250px] transition-colors focus-within:border-teal-500 shadow-sm", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
-                                    <Search size={14} className={dk ? "text-slate-500" : "text-slate-400"} />
-                                    <input value={itemSearchQuery} onChange={(e) => setItemSearchQuery(e.target.value)} className={cn("w-full bg-transparent border-none outline-none text-[12px] font-bold px-2 placeholder-slate-400 focus:ring-0", dk ? "text-white" : "text-slate-900")} placeholder={lang === 'de' ? "Suchen..." : "Search..."} />
-                                    {itemSearchQuery && <button onClick={() => setItemSearchQuery('')} className="text-slate-400 hover:text-slate-600"><X size={14}/></button>}
-                                </div>
-                                <MonthFilterDropdown 
-                                  selectedMonth={selectedMonth} 
-                                  localMonthFilter={localMonthFilter} 
-                                  setLocalMonthFilter={setLocalMonthFilter} 
-                                  selectedYear={selectedYear} 
-                                  monthOptions={monthOptions} 
-                                  lang={lang} 
-                                  dk={dk} 
-                                  disabled={selectedMonth !== null} 
-                                />
-                             </>
-                          )}
+                                <>
+                                   <div className={cn("flex items-center px-2 py-1.5 rounded-lg border w-[250px] transition-colors focus-within:border-teal-500 shadow-sm", dk ? "bg-black/40 border-white/10" : "bg-white border-slate-200")}>
+                                       <Search size={14} className={dk ? "text-slate-500" : "text-slate-400"} />
+                                       <input value={itemSearchQuery} onChange={(e) => setItemSearchQuery(e.target.value)} className={cn("w-full bg-transparent border-none outline-none text-[12px] font-bold px-2 placeholder-slate-400 focus:ring-0", dk ? "text-white" : "text-slate-900")} placeholder={lang === 'de' ? "Suchen..." : "Search..."} />
+                                       {itemSearchQuery && <button onClick={() => setItemSearchQuery('')} className="text-slate-400 hover:text-slate-600"><X size={14}/></button>}
+                                   </div>
+                                   <MonthFilterDropdown 
+                                     selectedMonth={selectedMonth} 
+                                     localMonthFilter={localMonthFilter} 
+                                     setLocalMonthFilter={setLocalMonthFilter} 
+                                     selectedYear={selectedYear} 
+                                     monthOptions={monthOptions} 
+                                     lang={lang} 
+                                     dk={dk} 
+                                     disabled={selectedMonth !== null} 
+                                   />
+                                </>
+                             )}
+                         </div>
                       </div>
-
+                  
                       {activeInvoice && !viewOnly && (
                          <div className={cn("flex items-center p-0.5 rounded-lg border", dk ? "bg-black/40 border-white/10" : "bg-slate-100 border-slate-200")}>
                             <button disabled={activeInvoice.items?.length > 0} onClick={() => { patchHotel({ invoices: localHotel.invoices.map((i:any) => i.id === activeInvoice.id ? {...i, billingMode: 'total'} : i) }); setEditingTotal(false); setEditingItemId(null); }} className={cn("px-3 py-1 text-[10px] font-bold rounded-md transition-all", activeInvoice.billingMode === 'total' ? (dk ? "bg-teal-500 text-white" : "bg-white shadow-sm text-teal-700") : "text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed")}>💰 {lang === 'de' ? 'Gesamtbetrag' : 'Total'}</button>
