@@ -7,6 +7,7 @@ import { createDuration, updateHotel, deleteHotel } from '../lib/supabase';
 import { calcRoomCardTotal, calcRoomCardNettoSum } from '../lib/roomCardUtils';
 import { enqueue } from '../lib/offlineSync';
 import DurationCard from './DurationCard';
+import { printHotelSummary } from './HotelSummary';
 
 export const DEFAULT_COUNTRIES = ['Germany', 'Switzerland', 'Austria', 'Netherlands', 'Poland', 'Belgium', 'France', 'Luxembourg'];
 export function getCountryOptions() { return DEFAULT_COUNTRIES; }
@@ -1543,10 +1544,18 @@ useEffect(() => {
         {isOpen && (
           <div className="rounded-b-2xl border-t shadow-inner flex flex-col bg-black/5 dark:bg-black/20 border-app-border" onClick={e => e.stopPropagation()}>
             
-            <div className="flex items-center px-4 pt-2 gap-2 border-b border-app-border">
-               <button onClick={() => setActiveTab('bookings')} className={cn("px-5 py-2.5 text-sm font-bold transition-all border-b-2", activeTab === 'bookings' ? "border-[var(--accent-primary)] text-[var(--accent-primary)]" : "border-transparent text-app-muted hover:text-app-text")}>{lang === 'de' ? 'Buchungszeiträume' : 'Booking Periods'}</button>
-               <button onClick={() => setActiveTab('billing')} className={cn("px-5 py-2.5 text-sm font-bold transition-all border-b-2", activeTab === 'billing' ? "border-[var(--accent-primary)] text-[var(--accent-primary)]" : "border-transparent text-app-muted hover:text-app-text")}>{lang === 'de' ? 'Abrechnung & Rechnungen' : 'Billing & Invoice'}</button>
-               <button onClick={() => setActiveTab('info')} className={cn("px-5 py-2.5 text-sm font-bold transition-all border-b-2", activeTab === 'info' ? "border-[var(--accent-primary)] text-[var(--accent-primary)]" : "border-transparent text-app-muted hover:text-app-text")}>{lang === 'de' ? 'Hotel Info' : 'Hotel Info'}</button>
+            <div className="flex items-center justify-between px-4 pt-2 border-b border-app-border w-full">
+               <div className="flex items-center gap-2">
+                 <button onClick={() => setActiveTab('bookings')} className={cn("px-5 py-2.5 text-sm font-bold transition-all border-b-2", activeTab === 'bookings' ? "border-[var(--accent-primary)] text-[var(--accent-primary)]" : "border-transparent text-app-muted hover:text-app-text")}>{lang === 'de' ? 'Buchungszeiträume' : 'Booking Periods'}</button>
+                 <button onClick={() => setActiveTab('billing')} className={cn("px-5 py-2.5 text-sm font-bold transition-all border-b-2", activeTab === 'billing' ? "border-[var(--accent-primary)] text-[var(--accent-primary)]" : "border-transparent text-app-muted hover:text-app-text")}>{lang === 'de' ? 'Abrechnung & Rechnungen' : 'Billing & Invoice'}</button>
+                 <button onClick={() => setActiveTab('info')} className={cn("px-5 py-2.5 text-sm font-bold transition-all border-b-2", activeTab === 'info' ? "border-[var(--accent-primary)] text-[var(--accent-primary)]" : "border-transparent text-app-muted hover:text-app-text")}>{lang === 'de' ? 'Hotel Info' : 'Hotel Info'}</button>
+               </div>
+               <button 
+                  onClick={(e) => { e.stopPropagation(); printHotelSummary(localHotel, masterMath, selectedMonth, selectedYear, lang); }}
+                  className={cn("flex items-center gap-2 px-4 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-widest transition-all shadow-sm mb-1", dk ? "bg-teal-500/20 text-teal-400 hover:bg-teal-500/30" : "bg-teal-50 text-teal-700 hover:bg-teal-100")}
+               >
+                  <FileText size={14} /> {lang === 'de' ? 'Übersicht Drucken' : 'View Summary'}
+               </button>
             </div>
 
             {activeTab === 'bookings' && (
