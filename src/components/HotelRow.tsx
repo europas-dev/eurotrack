@@ -662,12 +662,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     if (inv.isPaid) {
       footerActionText = lang === 'de' 
         ? `Der Betrag wurde am <strong>${formatShortDate(inv.paymentDate || new Date().toISOString(), lang)}</strong> beglichen.<br><br>Vielen Dank für die gute Zusammenarbeit.` 
-        : `We settled this invoice on <strong>${formatShortDate(inv.paymentDate || new Date().toISOString(), lang)}</strong>.<br><br>Thank you for your business.`;
+        : `We settled this invoice on <strong>${formatShortDate(inv.paymentDate || new Date().toISOString(), lang)}</strong>.<br><br>Thank you for your cooperation.`;
     } else {
       const dueStr = inv.dueDate ? (lang === 'de' ? `bis zum <strong>${formatShortDate(inv.dueDate, lang)}</strong>` : `by <strong>${formatShortDate(inv.dueDate, lang)}</strong>`) : (lang === 'de' ? 'umgehend' : 'immediately');
       footerActionText = lang === 'de'
-        ? `Der fällige Betrag ist zur Zahlung vorgemerkt und wird ${dueStr} angewiesen.<br><br>Vielen Dank für die gute Zusammenarbeit.`
-        : `The due amount is scheduled for payment and will be transferred ${dueStr}.<br><br>Thank you for your business.`;
+        ? `Das Fälligkeitsdatum ist der ${dueStr} und der Betrag wird in Kürze überwiesen.<br><br>Vielen Dank für die gute Zusammenarbeit.`
+        : `The due date is ${dueStr} and the amount will be transferred soon.<br><br>Thank you for your cooperation.`;
     }
 
     const html = `
