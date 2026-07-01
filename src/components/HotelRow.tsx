@@ -605,7 +605,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     let tNetto = 0; let tBrutto = 0; const taxes: Record<number, number> = {};
     let tableRows = '';
 
-    // Check if we need the Netto (Bed) column
+    // Check if we need the Netto (Bett) column
     let hasBedPrices = false;
     const items = inv.billingMode === 'total' 
         ? [{ type: 'room', method: 'total', netto: inv.totalNetto, mwst: inv.totalMwst, discountValue: inv.discountValue, discountType: inv.discountType, note: inv.note }]
@@ -623,31 +623,32 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         }
 
         const datesHtml = (item.startDate || inv.startDate) && (item.endDate || inv.endDate) 
-            ? `<br><i class="dates">${formatShortDate(item.startDate || inv.startDate, lang)} - ${formatShortDate(item.endDate || inv.endDate, lang)}</i>` : '';
+            ? `<div class="dates">${formatShortDate(item.startDate || inv.startDate, lang)} - ${formatShortDate(item.endDate || inv.endDate, lang)}</div>` : '';
         
         const bedInfo = item.method === 'per_bed' ? ` (${item.nights || n} ${lang === 'de' ? 'Nächte' : 'Nights'}, ${item.beds || 1} ${lang === 'de' ? 'Betten' : 'Beds'})` : '';
-        const nettoBett = item.method === 'per_bed' ? item.netto : '--';
-        const noteHtml = item.note ? `<div class="dates" style="margin-top:2px;">${item.note}</div>` : '';
+        const nettoBett = item.method === 'per_bed' ? item.netto : null;
+        const noteHtml = item.note ? `<div class="dates note">${item.note}</div>` : '';
         
-        const bedColHtml = hasBedPrices ? `<td class="right">${nettoBett !== '--' ? formatCurrency(parseFloat(nettoBett)) : '--'}</td>` : '';
+        const bedColHtml = hasBedPrices ? `<td class="right">${nettoBett ? formatCurrency(parseFloat(nettoBett)) : '--'}</td>` : '';
 
         tableRows += `
           <tr>
             <td>
-              <strong>${getTranslation(COST_TYPES, item.type || 'room', lang)}${bedInfo}</strong>${datesHtml}
+              <strong style="font-weight: 600;">${getTranslation(COST_TYPES, item.type || 'room', lang)}${bedInfo}</strong>
+              ${datesHtml}
               ${noteHtml}
             </td>
             ${bedColHtml}
             <td class="right">${formatCurrency(res.finalNetto)}</td>
             <td class="right">${res.mwst}%</td>
-            <td class="right"><strong>${formatCurrency(res.brutto)}</strong></td>
+            <td class="right"><strong style="font-weight: 600;">${formatCurrency(res.brutto)}</strong></td>
           </tr>
         `;
     });
 
     let taxesHtml = '';
     Object.entries(taxes).forEach(([percent, amt]) => {
-      taxesHtml += `<tr><td style="color: #666;">zzgl. ${percent}% MwSt</td><td class="right">${formatCurrency(amt as number)}</td></tr>`;
+      taxesHtml += `<div class="total-row"><span style="color: #666;">zzgl. ${percent}% MwSt</span><span>${formatCurrency(amt as number)}</span></div>`;
     });
 
     const isOverdue = !inv.isPaid && inv.dueDate && new Date(inv.dueDate) < new Date();
@@ -658,13 +659,12 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     let footerActionText = '';
     if (inv.isPaid) {
       footerActionText = lang === 'de' 
-        ? `Wir haben diese Rechnung am <strong>${formatShortDate(inv.paymentDate || new Date().toISOString(), lang)}</strong> beglichen.<br>Vielen Dank für die gute Zusammenarbeit.` 
-        : `We settled this invoice on <strong>${formatShortDate(inv.paymentDate || new Date().toISOString(), lang)}</strong>.<br>Thank you for your business.`;
+        ? `Der Betrag wurde am ${formatShortDate(inv.paymentDate || new Date().toISOString(), lang)} beglichen.<br><br>Vielen Dank für die gute Zusammenarbeit.` 
+        : `The amount was settled on ${formatShortDate(inv.paymentDate || new Date().toISOString(), lang)}.<br><br>Thank you for your business.`;
     } else {
-      const dueStr = inv.dueDate ? (lang === 'de' ? `bis zum <strong>${formatShortDate(inv.dueDate, lang)}</strong>` : `by <strong>${formatShortDate(inv.dueDate, lang)}</strong>`) : (lang === 'de' ? 'umgehend' : 'immediately');
       footerActionText = lang === 'de'
-        ? `Der fällige Betrag ist zur Zahlung vorgemerkt und wird ${dueStr} angewiesen.<br>Vielen Dank für die gute Zusammenarbeit.`
-        : `The due amount is scheduled for payment and will be transferred ${dueStr}.<br>Thank you for your business.`;
+        ? `Vielen Dank für die gute Zusammenarbeit.`
+        : `Thank you for your business.`;
     }
 
     const html = `
@@ -673,39 +673,39 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       <head>
         <meta charset="UTF-8">
         <title>${lang === 'de' ? 'Abrechnung' : 'Statement'} ${inv.number || 'Entwurf'}</title>
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,700;0,900&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700&display=swap" rel="stylesheet">
         <style>
-          @page { size: A4; margin: 15mm 20mm 25mm 20mm; }
-          body { font-family: 'Poppins', Arial, sans-serif; font-size: 13px; color: #000; line-height: 1.5; margin: 0; padding: 0; }
-          .document-wrapper { display: table; width: 100%; height: 100%; }
-          .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; }
-          .sender-line { font-size: 10px; color: #666; text-decoration: underline; font-weight: bold; margin-bottom: 10px; }
+          @page { size: A4; margin: 20mm; }
+          body { font-family: 'Poppins', Arial, sans-serif; font-size: 13px; color: #000; line-height: 1.5; margin: 0; padding: 0; padding-bottom: 40mm; }
+          .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 15mm; margin-bottom: 30px; }
+          .sender-line { font-size: 10px; color: #666; text-decoration: underline; font-weight: 600; margin-bottom: 10px; }
           .recipient { font-size: 15px; font-weight: 500; line-height: 1.3; }
-          .meta-box { font-size: 12px; text-align: right; }
-          .title { margin-bottom: 20px; font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
+          .meta-box { font-size: 13px; text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; min-width: 200px; }
+          .meta-box p { margin: 0 0 5px 0; }
+          .meta-box p:last-child { margin-bottom: 0; }
+          .title { margin-bottom: 25px; font-size: 24px; font-weight: 700; }
           table.items { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-          table.items th { border-bottom: 2px solid #000; padding: 8px 0; text-align: left; font-size: 12px; text-transform: uppercase; color: #666; }
+          table.items th { border-bottom: 1px solid #000; padding: 8px 0; text-align: left; font-size: 12px; font-weight: 600; }
           table.items th.right, table.items td.right { text-align: right; }
           table.items td { padding: 12px 0; border-bottom: 1px solid #eee; vertical-align: top; }
-          .totals-wrapper { display: flex; justify-content: flex-end; align-items: flex-start; margin-bottom: 40px; page-break-inside: avoid; }
-          .stamp { margin-right: 40px; margin-top: 10px; font-weight: 900; font-size: 22px; text-transform: uppercase; border: 4px solid; border-radius: 8px; padding: 8px 16px; transform: rotate(-5deg); opacity: 0.85; color: ${statusColor}; border-color: ${statusColor}; }
+          .totals-wrapper { display: flex; justify-content: flex-end; align-items: flex-start; margin-top: 20px; gap: 40px; page-break-inside: avoid; }
+          .stamp { font-weight: 700; font-size: 20px; letter-spacing: 1px; border: 3px solid; border-radius: 6px; padding: 6px 14px; transform: rotate(-5deg); opacity: 0.85; color: ${statusColor}; border-color: ${statusColor}; margin-top: 5px; }
           .totals { width: 280px; }
-          .totals table { width: 100%; border-collapse: collapse; }
-          .totals td { padding: 6px 0; border-bottom: 1px solid #eee; }
-          .totals .grand-total td { border-top: 2px solid #000; font-weight: 900; font-size: 16px; border-bottom: none; }
-          .action-text { font-size: 13px; line-height: 1.6; page-break-inside: avoid; }
-          .footer { position: fixed; bottom: 0; left: 0; width: 100%; border-top: 1px solid #ccc; padding-top: 12px; font-size: 9px; color: #666; display: flex; justify-content: space-between; background: white; }
-          .dates { font-size: 11px; color: #666; }
-          .page-number:after { content: "Page " counter(page); }
+          .total-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee; }
+          .total-row.grand-total { border-top: 2px solid #000; font-weight: 700; font-size: 16px; border-bottom: none; margin-top: 2px; }
+          .action-text { font-size: 13px; line-height: 1.6; margin-top: 60px; page-break-inside: avoid; }
+          .footer { position: fixed; bottom: 0; left: 0; width: 100%; border-top: 1px solid #ccc; padding-top: 15px; font-size: 10px; color: #666; display: flex; justify-content: space-between; background: white; }
+          .dates { font-style: italic; color: #666; font-size: 11px; margin-top: 2px; }
+          .note { margin-top: 4px; font-style: normal; }
         </style>
       </head>
-      <body onload="setTimeout(() => { window.print(); }, 500)">
+      <body>
         
         <div class="header-container">
            <div>
               <div class="sender-line">EUROPAS GmbH • Auf der Reihe 2 • 45884 Gelsenkirchen</div>
               <div class="recipient">
-                <strong>${localHotel.name || ''}</strong><br>
+                <strong style="font-weight: 600;">${localHotel.name || ''}</strong><br>
                 ${localHotel.contactPerson ? `z.Hd. ${localHotel.contactPerson}<br>` : ''}
                 ${localHotel.address ? `${localHotel.address}<br>` : ''}
                 ${localHotel.city || ''}<br>
@@ -715,10 +715,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
            <div class="meta-box">
               <p><strong>${lang === 'de' ? 'Datum:' : 'Date:'}</strong> ${formatShortDate(inv.created_at || new Date().toISOString(), lang)}</p>
               <p><strong>${lang === 'de' ? 'Rechnungs-Nr:' : 'Invoice Nr:'}</strong> ${inv.number || 'Entwurf'}</p>
+              ${inv.startDate && inv.endDate ? `<p style="margin-top: 8px;"><strong>${lang === 'de' ? 'Leistungszeitraum:' : 'Billing Period:'}</strong><br>${formatShortDate(inv.startDate, lang)} - ${formatShortDate(inv.endDate, lang)}</p>` : ''}
+              ${inv.isPaid && inv.paymentDate ? `<p style="margin-top: 8px;"><strong>${lang === 'de' ? 'Bezahlt am:' : 'Paid On:'}</strong> ${formatShortDate(inv.paymentDate, lang)}</p>` : ''}
+              ${!inv.isPaid && inv.dueDate ? `<p style="margin-top: 8px;"><strong>${lang === 'de' ? 'Fällig am:' : 'Due Date:'}</strong> ${formatShortDate(inv.dueDate, lang)}</p>` : ''}
            </div>
         </div>
 
-        <div class="title">${lang === 'de' ? 'Rechnung' : 'Invoice'} ${inv.number || ''}</div>
+        <div class="title">${lang === 'de' ? 'Abrechnung' : 'Statement'} ${inv.number || ''}</div>
 
         <table class="items">
           <thead>
@@ -738,17 +741,15 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         <div class="totals-wrapper">
           <div class="stamp">${statusLabel}</div>
           <div class="totals">
-            <table>
-              <tr>
-                <td>${lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</td>
-                <td class="right">${formatCurrency(tNetto)}</td>
-              </tr>
-              ${taxesHtml}
-              <tr class="grand-total">
-                <td>${lang === 'de' ? 'Gesamtbetrag' : 'Total Amount'}</td>
-                <td class="right">${formatCurrency(tBrutto)}</td>
-              </tr>
-            </table>
+             <div class="total-row">
+               <span>${lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</span>
+               <span>${formatCurrency(tNetto)}</span>
+             </div>
+             ${taxesHtml}
+             <div class="total-row grand-total">
+               <span>${lang === 'de' ? 'Gesamtbetrag' : 'Total Amount'}</span>
+               <span>${formatCurrency(tBrutto)}</span>
+             </div>
           </div>
         </div>
 
@@ -758,19 +759,20 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
 
         <div class="footer">
           <div style="width: 33%;">
-            <strong style="color: #000; font-size: 10px;">EUROPAS GmbH</strong><br>
-            Auf der Reihe 2<br>45884 Gelsenkirchen
+            <strong style="color: #000; font-size: 11px;">EUROPAS GmbH</strong><br>
+            Auf der Reihe 2<br>
+            45884 Gelsenkirchen
           </div>
           <div style="width: 33%;">
             Telefon: 0209 / 589 023-40<br>
             Fax: 0209 / 589 023-66<br>
-            info@europasgmbh.de<br>www.europasgmbh.de
+            info@europasgmbh.de<br>
+            www.europasgmbh.de
           </div>
           <div style="width: 33%; text-align: right;">
             Steuernummer: 318/5707/5847<br>
             USt-IdNr.: DE 306110899<br>
-            HRB 13542 Amtsgericht Gelsenkirchen<br>
-            <span class="page-number" style="display:inline-block; margin-top:4px; font-weight:bold;"></span>
+            HRB 13542 Amtsgericht Gelsenkirchen
           </div>
         </div>
       </body>
