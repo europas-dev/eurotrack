@@ -1236,11 +1236,22 @@ useEffect(() => {
            <SeamlessInput disabled={viewOnly} value={localHotel.name} options={hotelOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ name: val })} placeholder={lang === 'de' ? 'Hotelname...' : 'Hotel Name...'} textClass={cn('text-[14px] font-bold leading-tight', dk ? 'text-white' : 'text-slate-900')} searchQuery={searchScope === 'all' || searchScope === 'hotel' ? searchQuery : ''} />
             <SeamlessInput disabled={viewOnly} value={localHotel.city} options={cityOptions} isDarkMode={dk} onChange={(val:any) => patchHotel({ city: val })} placeholder={lang === 'de' ? 'Stadt...' : 'City...'} className="mt-0.5" textClass={cn("text-[10px] font-bold uppercase tracking-widest gap-1.5", dk ? "text-slate-500" : "text-slate-400")} searchQuery={searchScope === 'all' || searchScope === 'city' ? searchQuery : ''} />
             {hiddenMatchText && (
-               <button onClick={(e) => { e.stopPropagation(); if (!isOpen) onToggle(); setActiveTab('billing'); }} className={cn("mt-1.5 w-max flex items-center gap-1.5 px-2 py-0.5 rounded border text-[10px] font-medium transition-colors cursor-pointer shadow-sm", dk ? "border-teal-500/30 text-teal-400 hover:bg-teal-500/10" : "border-teal-200 text-teal-700 hover:bg-teal-50")}>
+               <button 
+                 onClick={(e) => { 
+                   e.stopPropagation(); 
+                   if (!isOpen) {
+                     // FIX: Tell the useEffect to NOT reset the tab back to 'bookings' when opening!
+                     skipTabResetRef.current = true;
+                     onToggle(); 
+                   }
+                   setActiveTab('billing'); 
+                 }} 
+                 className={cn("mt-1.5 w-max flex items-center gap-1.5 px-2 py-0.5 rounded border text-[10px] font-medium transition-colors cursor-pointer shadow-sm", dk ? "border-teal-500/30 text-teal-400 hover:bg-teal-500/10" : "border-teal-200 text-teal-700 hover:bg-teal-50")}
+               >
                   <Search size={10} /> <span className="tracking-wide">{hiddenMatchText}</span>
                </button>
             )}
-          </div>
+         </div>
           
 
           <div className="w-[140px] shrink-0 pr-6" onClick={e => e.stopPropagation()}>
