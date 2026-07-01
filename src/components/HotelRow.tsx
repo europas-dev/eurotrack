@@ -625,7 +625,8 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         const datesHtml = (item.startDate || inv.startDate) && (item.endDate || inv.endDate) 
             ? `<div class="dates">${formatShortDate(item.startDate || inv.startDate, lang)} - ${formatShortDate(item.endDate || inv.endDate, lang)}</div>` : '';
         
-        const bedInfo = item.method === 'per_bed' ? ` (${item.nights || n} ${lang === 'de' ? 'Nächte' : 'Nights'}, ${item.beds || 1} ${lang === 'de' ? 'Betten' : 'Beds'})` : '';
+        // Formats as requested: Zimmerpreis (7 Nächte, 1 Betten)
+        const bedInfo = item.method === 'per_bed' ? ` <span style="font-weight:normal; font-size:11px; color:#555;">(${item.nights || n} ${lang === 'de' ? 'Nächte' : 'Nights'}, ${item.beds || 1} ${lang === 'de' ? 'Betten' : 'Beds'})</span>` : '';
         const nettoBett = item.method === 'per_bed' ? item.netto : null;
         const noteHtml = item.note ? `<div class="dates note">${item.note}</div>` : '';
         
@@ -634,7 +635,7 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         tableRows += `
           <tr>
             <td>
-              <strong style="font-weight: 600;">${getTranslation(COST_TYPES, item.type || 'room', lang)}${bedInfo}</strong>
+              <strong style="font-weight: 600;">${getTranslation(COST_TYPES, item.type || 'room', lang)}</strong>${bedInfo}
               ${datesHtml}
               ${noteHtml}
             </td>
@@ -659,12 +660,13 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
     let footerActionText = '';
     if (inv.isPaid) {
       footerActionText = lang === 'de' 
-        ? `Der Betrag wurde am ${formatShortDate(inv.paymentDate || new Date().toISOString(), lang)} beglichen.<br><br>Vielen Dank für die gute Zusammenarbeit.` 
-        : `The amount was settled on ${formatShortDate(inv.paymentDate || new Date().toISOString(), lang)}.<br><br>Thank you for your business.`;
+        ? `Der Betrag wurde am <strong>${formatShortDate(inv.paymentDate || new Date().toISOString(), lang)}</strong> beglichen.<br><br>Vielen Dank für die gute Zusammenarbeit.` 
+        : `We settled this invoice on <strong>${formatShortDate(inv.paymentDate || new Date().toISOString(), lang)}</strong>.<br><br>Thank you for your business.`;
     } else {
+      const dueStr = inv.dueDate ? (lang === 'de' ? `bis zum <strong>${formatShortDate(inv.dueDate, lang)}</strong>` : `by <strong>${formatShortDate(inv.dueDate, lang)}</strong>`) : (lang === 'de' ? 'umgehend' : 'immediately');
       footerActionText = lang === 'de'
-        ? `Vielen Dank für die gute Zusammenarbeit.`
-        : `Thank you for your business.`;
+        ? `Der fällige Betrag ist zur Zahlung vorgemerkt und wird ${dueStr} angewiesen.<br><br>Vielen Dank für die gute Zusammenarbeit.`
+        : `The due amount is scheduled for payment and will be transferred ${dueStr}.<br><br>Thank you for your business.`;
     }
 
     const html = `
@@ -676,25 +678,31 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
         <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700&display=swap" rel="stylesheet">
         <style>
           @page { size: A4; margin: 20mm; }
-          body { font-family: 'Poppins', Arial, sans-serif; font-size: 13px; color: #000; line-height: 1.5; margin: 0; padding: 0; padding-bottom: 40mm; }
-          .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 15mm; margin-bottom: 30px; }
+          body { font-family: 'Poppins', Arial, sans-serif; font-size: 12px; color: #000; line-height: 1.5; margin: 0; padding: 0; padding-bottom: 40mm; }
+          .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; }
           .sender-line { font-size: 10px; color: #666; text-decoration: underline; font-weight: 600; margin-bottom: 10px; }
           .recipient { font-size: 15px; font-weight: 500; line-height: 1.3; }
-          .meta-box { font-size: 13px; text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; min-width: 200px; }
-          .meta-box p { margin: 0 0 5px 0; }
+          
+          /* Refined Meta Box */
+          .meta-box { font-size: 11px; text-align: left; min-width: 200px; }
+          .meta-box p { margin: 0 0 4px 0; }
           .meta-box p:last-child { margin-bottom: 0; }
-          .title { margin-bottom: 25px; font-size: 24px; font-weight: 700; }
+          
+          .title { margin-bottom: 25px; font-size: 24px; font-weight: 600; }
           table.items { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-          table.items th { border-bottom: 1px solid #000; padding: 8px 0; text-align: left; font-size: 12px; font-weight: 600; }
+          table.items th { border-bottom: 1px solid #000; padding: 8px 0; text-align: left; font-size: 11px; font-weight: 600; }
           table.items th.right, table.items td.right { text-align: right; }
-          table.items td { padding: 12px 0; border-bottom: 1px solid #eee; vertical-align: top; }
+          table.items td { padding: 10px 0; border-bottom: 1px solid #eee; vertical-align: top; }
+          
+          /* Flexbox alignment for Stamp & Totals */
           .totals-wrapper { display: flex; justify-content: flex-end; align-items: flex-start; margin-top: 20px; gap: 40px; page-break-inside: avoid; }
           .stamp { font-weight: 700; font-size: 20px; letter-spacing: 1px; border: 3px solid; border-radius: 6px; padding: 6px 14px; transform: rotate(-5deg); opacity: 0.85; color: ${statusColor}; border-color: ${statusColor}; margin-top: 5px; }
           .totals { width: 280px; }
           .total-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee; }
-          .total-row.grand-total { border-top: 2px solid #000; font-weight: 700; font-size: 16px; border-bottom: none; margin-top: 2px; }
-          .action-text { font-size: 13px; line-height: 1.6; margin-top: 60px; page-break-inside: avoid; }
-          .footer { position: fixed; bottom: 0; left: 0; width: 100%; border-top: 1px solid #ccc; padding-top: 15px; font-size: 10px; color: #666; display: flex; justify-content: space-between; background: white; }
+          .total-row.grand-total { border-top: 2px solid #000; font-weight: 700; font-size: 15px; border-bottom: none; margin-top: 2px; }
+          
+          .action-text { font-size: 12px; line-height: 1.6; margin-top: 60px; page-break-inside: avoid; }
+          .footer { position: fixed; bottom: 0; left: 0; width: 100%; border-top: 1px solid #ccc; padding-top: 12px; font-size: 9px; color: #666; display: flex; justify-content: space-between; background: white; }
           .dates { font-style: italic; color: #666; font-size: 11px; margin-top: 2px; }
           .note { margin-top: 4px; font-style: normal; }
         </style>
@@ -715,9 +723,9 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
            <div class="meta-box">
               <p><strong>${lang === 'de' ? 'Datum:' : 'Date:'}</strong> ${formatShortDate(inv.created_at || new Date().toISOString(), lang)}</p>
               <p><strong>${lang === 'de' ? 'Rechnungs-Nr:' : 'Invoice Nr:'}</strong> ${inv.number || 'Entwurf'}</p>
-              ${inv.startDate && inv.endDate ? `<p style="margin-top: 8px;"><strong>${lang === 'de' ? 'Leistungszeitraum:' : 'Billing Period:'}</strong><br>${formatShortDate(inv.startDate, lang)} - ${formatShortDate(inv.endDate, lang)}</p>` : ''}
-              ${inv.isPaid && inv.paymentDate ? `<p style="margin-top: 8px;"><strong>${lang === 'de' ? 'Bezahlt am:' : 'Paid On:'}</strong> ${formatShortDate(inv.paymentDate, lang)}</p>` : ''}
-              ${!inv.isPaid && inv.dueDate ? `<p style="margin-top: 8px;"><strong>${lang === 'de' ? 'Fällig am:' : 'Due Date:'}</strong> ${formatShortDate(inv.dueDate, lang)}</p>` : ''}
+              ${inv.startDate && inv.endDate ? `<p><strong>${lang === 'de' ? 'Leistungszeitraum:' : 'Billing Period:'}</strong> ${formatShortDate(inv.startDate, lang)} - ${formatShortDate(inv.endDate, lang)}</p>` : ''}
+              ${inv.isPaid && inv.paymentDate ? `<p><strong>${lang === 'de' ? 'Bezahlt am:' : 'Paid On:'}</strong> ${formatShortDate(inv.paymentDate, lang)}</p>` : ''}
+              ${!inv.isPaid && inv.dueDate ? `<p><strong>${lang === 'de' ? 'Fällig am:' : 'Due Date:'}</strong> ${formatShortDate(inv.dueDate, lang)}</p>` : ''}
            </div>
         </div>
 
@@ -775,6 +783,14 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
             HRB 13542 Amtsgericht Gelsenkirchen
           </div>
         </div>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 300);
+          };
+        </script>
       </body>
       </html>
     `;
