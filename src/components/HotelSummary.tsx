@@ -118,7 +118,8 @@ export const printHotelSummary = (hotel: any, masterMath: any, selectedMonth: nu
     return selectedMonth === null || overlapNights > 0;
   });
 
-  validDurations.sort((a: any, b: any) => new Date(b.startDate || 0).getTime() - new Date(a.startDate || 0).getTime()).forEach((d: any) => {
+  // Process Bookings, Rooms, Beds, and Employees in a nested tree
+  validDurations.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()).forEach((d: any) => {
     const { totalNights, overlapNights, isPartial } = getOverlap(d.startDate, d.endDate, selectedMonth, selectedYear);
     const roomCount = (d.roomCards || []).length;
     const totalBeds = (d.roomCards || []).reduce((sum: number, rc: any) => sum + (rc.bedCount || 1), 0);
@@ -127,23 +128,22 @@ export const printHotelSummary = (hotel: any, masterMath: any, selectedMonth: nu
       ? `<span style="color: #0284c7; font-weight: bold;">${overlapNights}</span> / ${totalNights}`
       : `${totalNights}`;
 
-    // 1. Duration Header (Grey Left Border)
+    // 1. Duration Header (Main Booking Row)
     bookingsHtml += `
-      <tr style="border-left: 4px solid #94a3b8; background: #f8fafc; border-top: 1px solid #cbd5e1;">
+      <tr style="background: #f8fafc; border-top: 2px solid #e2e8f0; border-left: 4px solid #94a3b8;">
         <td class="center font-semibold" style="color: #0f172a;">${roomCount}</td>
         <td class="center font-semibold" style="color: #0f172a;">${totalBeds}</td>
-        <td><strong style="color: #0f172a;">${lang === 'de' ? 'Buchung' : 'Booking'}</strong></td>
-        <td style="font-size: 10px; color: #475569;">${formatShortDate(d.startDate, lang)} - ${formatShortDate(d.endDate, lang)}</td>
+        <td colspan="2"><strong style="color: #0f172a;">${lang === 'de' ? 'Buchung' : 'Booking'}</strong> <span style="font-size:10px; color:#64748b; margin-left:8px;">${formatShortDate(d.startDate, lang)} - ${formatShortDate(d.endDate, lang)}</span></td>
         <td class="center font-semibold" style="color: #0f172a;">${nightStr}</td>
       </tr>
     `;
 
-    // 2. Rooms & Beds Loop
+    // 2. Room Loop
     (d.roomCards || []).forEach((rc: any) => {
-      const rType = rc.roomType || 'Zimmer';
-      const rNo = rc.roomNo ? ` ${rc.roomNo}` : '';
+      const rType = rc.roomType || 'WG';
       const bCount = rc.bedCount || 1;
 
+      // 3. Bed Loop
       for (let i = 0; i < bCount; i++) {
         const empsInSlot = (rc.employees || []).filter((e: any) => e.slotIndex === i);
         empsInSlot.sort((a: any, b: any) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime());
@@ -156,16 +156,15 @@ export const printHotelSummary = (hotel: any, masterMath: any, selectedMonth: nu
         if (validEmps.length === 0) {
           // Empty Bed Row
           bookingsHtml += `
-            <tr style="border-left: 4px solid #cbd5e1; border-bottom: 1px dashed #e2e8f0;">
-              <td class="center" style="color: #64748b; font-size: 10px;"><strong>${i===0 ? `${rType}${rNo}` : ''}</strong></td>
-              <td class="center" style="color: #64748b; font-size: 10px;">${lang === 'de' ? 'Bett' : 'Bed'} ${i + 1}</td>
-              <td style="color: #94a3b8; font-style: italic;">${lang === 'de' ? 'Leer' : 'Empty'}</td>
-              <td></td>
-              <td></td>
+            <tr style="border-bottom: 1px dashed #e2e8f0; border-left: 4px solid #cbd5e1;">
+              <td class="center" style="font-size: 10px; color: #64748b;"><strong>${i===0 ? rType : ''}</strong></td>
+              <td class="center" style="font-size: 10px; color: #64748b;">${lang === 'de' ? 'Bett' : 'Bed'} ${i + 1}</td>
+              <td style="color: #94a3b8; font-style: italic; padding-left: 10px;">${lang === 'de' ? 'Leer' : 'Empty'}</td>
+              <td></td><td></td>
             </tr>
           `;
         } else {
-          // Filled Bed Rows (Includes Substitute handling)
+          // Filled Bed Rows
           validEmps.forEach((e: any, empIndex: number) => {
             const { overlapNights: eOverlap, isPartial: ePartial, totalNights: eTotal } = getOverlap(e.checkIn, e.checkOut, selectedMonth, selectedYear);
             let eNightStr = ePartial 
@@ -173,18 +172,18 @@ export const printHotelSummary = (hotel: any, masterMath: any, selectedMonth: nu
               : `${eTotal}`;
 
             const isSubstitute = empIndex > 0;
-            const prefix = isSubstitute ? '<span style="color: #64748b; margin-right: 4px; font-size: 14px;">↳</span>' : '';
+            const prefix = isSubstitute ? '<span style="color: #64748b; margin-right: 6px; font-size: 14px;">↳</span>' : '';
             
-            // Only show Room & Bed labels on the first row of that specific bed
-            const roomLabel = (empIndex === 0 && i === 0) ? `<strong>${rType}${rNo}</strong>` : '';
+            // Only show Room/Bed labels on the first row of that bed slot
+            const roomLabel = (empIndex === 0 && i === 0) ? `<strong>${rType}</strong>` : '';
             const bedLabel = empIndex === 0 ? `${lang === 'de' ? 'Bett' : 'Bed'} ${i + 1}` : '';
 
             bookingsHtml += `
-              <tr style="border-left: 4px solid #cbd5e1; border-bottom: 1px dashed #e2e8f0;">
-                <td class="center" style="color: #64748b; font-size: 10px;">${roomLabel}</td>
-                <td class="center" style="color: #64748b; font-size: 10px;">${bedLabel}</td>
-                <td>${prefix}<strong style="color: #0f172a;">${e.name || 'Unknown'}</strong></td>
-                <td style="color: #475569; font-size: 10px;">${formatShortDate(e.checkIn, lang)} - ${formatShortDate(e.checkOut, lang)}</td>
+              <tr style="border-bottom: 1px dashed #e2e8f0; border-left: 4px solid #cbd5e1;">
+                <td class="center" style="font-size: 10px; color: #475569;">${roomLabel}</td>
+                <td class="center" style="font-size: 10px; color: #475569;">${bedLabel}</td>
+                <td style="padding-left: 10px;">${prefix}<strong style="color: #0f172a;">${e.name || 'Unknown'}</strong></td>
+                <td style="font-size: 10px; color: #475569;">${formatShortDate(e.checkIn, lang)} - ${formatShortDate(e.checkOut, lang)}</td>
                 <td class="center" style="color: #475569;">${eNightStr}</td>
               </tr>
             `;
