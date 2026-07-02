@@ -53,7 +53,6 @@ export const printHotelSummary = (hotel: any, masterMath: any, selectedMonth: nu
   const validInvoices = (hotel.invoices || []).filter((inv: any) => {
     if (selectedMonth === null) return true;
     
-    // Check if billing period overlaps
     const fStart = new Date(selectedYear, selectedMonth, 1);
     const fEnd = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59);
     if (inv.startDate && inv.endDate) {
@@ -62,7 +61,6 @@ export const printHotelSummary = (hotel: any, masterMath: any, selectedMonth: nu
         if (dStart <= fEnd && dEnd >= fStart) return true;
     }
     
-    // Check if issue, payment, or due date falls in month
     const checkDates = [inv.created_at, inv.paymentDate, inv.dueDate].filter(Boolean);
     return checkDates.some(dStr => {
         const d = new Date(dStr);
@@ -73,19 +71,17 @@ export const printHotelSummary = (hotel: any, masterMath: any, selectedMonth: nu
   validInvoices.sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()).forEach((inv: any) => {
     const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
     let invBrutto = 0;
-    let invNetto = 0;
 
     if (inv.billingMode === 'total') {
         const base = parseFloat(inv.totalNetto) || 0;
         const m = parseFloat(inv.totalMwst) || 0;
         const disc = parseFloat(inv.discountValue) || 0;
         const isPct = inv.discountType === 'percentage';
-        invNetto = Math.max(0, base - (isPct ? base * (disc / 100) : disc));
+        const invNetto = Math.max(0, base - (isPct ? base * (disc / 100) : disc));
         invBrutto = invNetto * (1 + m / 100);
     } else {
         (inv.items || []).forEach((it: any) => {
             const res = calcInvoiceItem(it, defaultN);
-            invNetto += res.finalNetto;
             invBrutto += res.brutto;
         });
     }
@@ -105,17 +101,16 @@ export const printHotelSummary = (hotel: any, masterMath: any, selectedMonth: nu
            <span style="color:${statusColor}; font-weight:700;">${statusLabel}</span><br>
            <span style="font-size:9px; color:#64748b;">${dateLabel}</span>
         </td>
-        <td class="right">${formatCurrency(invNetto)}</td>
         <td class="right"><strong>${formatCurrency(invBrutto)}</strong></td>
       </tr>
     `;
   });
 
-  if (!invoicesHtml) invoicesHtml = `<tr><td colspan="5" class="empty">${lang === 'de' ? 'Keine Rechnungen in diesem Zeitraum.' : 'No invoices in this period.'}</td></tr>`;
+  if (!invoicesHtml) invoicesHtml = `<tr><td colspan="4" class="empty">${lang === 'de' ? 'Keine Rechnungen in diesem Zeitraum.' : 'No invoices in this period.'}</td></tr>`;
 
 
   // ==========================================
-  // 2. PROCESS BOOKINGS & EMPLOYEES
+  // 2. PROCESS BOOKINGS & EMPLOYEES (Nested)
   // ==========================================
   let bookingsHtml = '';
   const validDurations = (hotel.durations || []).filter((d: any) => {
@@ -123,53 +118,80 @@ export const printHotelSummary = (hotel: any, masterMath: any, selectedMonth: nu
     return selectedMonth === null || overlapNights > 0;
   });
 
-  validDurations.sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()).forEach((d: any) => {
+  validDurations.sort((a: any, b: any) => new Date(b.startDate || 0).getTime() - new Date(a.startDate || 0).getTime()).forEach((d: any) => {
     const { totalNights, overlapNights, isPartial } = getOverlap(d.startDate, d.endDate, selectedMonth, selectedYear);
-    const rooms = (d.roomCards || []).length;
-    const beds = (d.roomCards || []).reduce((sum: number, rc: any) => sum + (rc.bedCount || 1), 0);
+    const roomCount = (d.roomCards || []).length;
+    const totalBeds = (d.roomCards || []).reduce((sum: number, rc: any) => sum + (rc.bedCount || 1), 0);
     
     let nightStr = isPartial 
       ? `<span style="color: #0284c7; font-weight: bold;">${overlapNights}</span> / ${totalNights}`
       : `${totalNights}`;
 
+    // 1. Duration Header (Grey Left Border)
     bookingsHtml += `
-      <tr class="booking-row">
-        <td><strong>${formatShortDate(d.startDate, lang)} - ${formatShortDate(d.endDate, lang)}</strong></td>
-        <td>--</td>
-        <td class="center">${nightStr}</td>
-        <td class="center">${rooms}</td>
-        <td class="center">${beds}</td>
+      <tr style="border-left: 4px solid #94a3b8; background: #f8fafc; border-top: 1px solid #cbd5e1;">
+        <td class="center font-semibold" style="color: #0f172a;">${roomCount}</td>
+        <td class="center font-semibold" style="color: #0f172a;">${totalBeds}</td>
+        <td><strong style="color: #0f172a;">${lang === 'de' ? 'Buchung' : 'Booking'}</strong></td>
+        <td style="font-size: 10px; color: #475569;">${formatShortDate(d.startDate, lang)} - ${formatShortDate(d.endDate, lang)}</td>
+        <td class="center font-semibold" style="color: #0f172a;">${nightStr}</td>
       </tr>
     `;
 
-    // Process Employees for this duration
-    const emps: any[] = [];
+    // 2. Rooms & Beds Loop
     (d.roomCards || []).forEach((rc: any) => {
-      (rc.employees || []).forEach((e: any) => {
-        const eOverlap = getOverlap(e.checkIn, e.checkOut, selectedMonth, selectedYear);
-        if (selectedMonth === null || eOverlap.overlapNights > 0) {
-          emps.push({ ...e, ...eOverlap, roomType: rc.roomType });
+      const rType = rc.roomType || 'Zimmer';
+      const rNo = rc.roomNo ? ` ${rc.roomNo}` : '';
+      const bCount = rc.bedCount || 1;
+
+      for (let i = 0; i < bCount; i++) {
+        const empsInSlot = (rc.employees || []).filter((e: any) => e.slotIndex === i);
+        empsInSlot.sort((a: any, b: any) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime());
+
+        const validEmps = empsInSlot.filter((e:any) => {
+            const eOverlap = getOverlap(e.checkIn, e.checkOut, selectedMonth, selectedYear);
+            return selectedMonth === null || eOverlap.overlapNights > 0;
+        });
+
+        if (validEmps.length === 0) {
+          // Empty Bed Row
+          bookingsHtml += `
+            <tr style="border-left: 4px solid #cbd5e1; border-bottom: 1px dashed #e2e8f0;">
+              <td class="center" style="color: #64748b; font-size: 10px;"><strong>${i===0 ? `${rType}${rNo}` : ''}</strong></td>
+              <td class="center" style="color: #64748b; font-size: 10px;">${lang === 'de' ? 'Bett' : 'Bed'} ${i + 1}</td>
+              <td style="color: #94a3b8; font-style: italic;">${lang === 'de' ? 'Leer' : 'Empty'}</td>
+              <td></td>
+              <td></td>
+            </tr>
+          `;
+        } else {
+          // Filled Bed Rows (Includes Substitute handling)
+          validEmps.forEach((e: any, empIndex: number) => {
+            const { overlapNights: eOverlap, isPartial: ePartial, totalNights: eTotal } = getOverlap(e.checkIn, e.checkOut, selectedMonth, selectedYear);
+            let eNightStr = ePartial 
+              ? `<span style="color: #0284c7; font-weight: 600;">${eOverlap}</span> / ${eTotal}`
+              : `${eTotal}`;
+
+            const isSubstitute = empIndex > 0;
+            const prefix = isSubstitute ? '<span style="color: #64748b; margin-right: 4px; font-size: 14px;">↳</span>' : '';
+            
+            // Only show Room & Bed labels on the first row of that specific bed
+            const roomLabel = (empIndex === 0 && i === 0) ? `<strong>${rType}${rNo}</strong>` : '';
+            const bedLabel = empIndex === 0 ? `${lang === 'de' ? 'Bett' : 'Bed'} ${i + 1}` : '';
+
+            bookingsHtml += `
+              <tr style="border-left: 4px solid #cbd5e1; border-bottom: 1px dashed #e2e8f0;">
+                <td class="center" style="color: #64748b; font-size: 10px;">${roomLabel}</td>
+                <td class="center" style="color: #64748b; font-size: 10px;">${bedLabel}</td>
+                <td>${prefix}<strong style="color: #0f172a;">${e.name || 'Unknown'}</strong></td>
+                <td style="color: #475569; font-size: 10px;">${formatShortDate(e.checkIn, lang)} - ${formatShortDate(e.checkOut, lang)}</td>
+                <td class="center" style="color: #475569;">${eNightStr}</td>
+              </tr>
+            `;
+          });
         }
-      });
+      }
     });
-
-    if (emps.length > 0) {
-      emps.sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime()).forEach(e => {
-        let eNightStr = e.isPartial 
-          ? `<span style="color: #0284c7; font-weight: 600;">${e.overlapNights}</span> / ${e.totalNights}`
-          : `${e.totalNights}`;
-
-        bookingsHtml += `
-          <tr class="emp-row">
-            <td style="padding-left: 25px; color: #475569;">↳ ${e.name || 'Unknown'}</td>
-            <td style="color: #475569; font-size: 10px;">${formatShortDate(e.checkIn, lang)} - ${formatShortDate(e.checkOut, lang)}</td>
-            <td class="center" style="color: #475569;">${eNightStr}</td>
-            <td class="center" style="color: #94a3b8; font-size: 10px;">${e.roomType || '--'}</td>
-            <td class="center">--</td>
-          </tr>
-        `;
-      });
-    }
   });
 
   if (!bookingsHtml) bookingsHtml = `<tr><td colspan="5" class="empty">${lang === 'de' ? 'Keine Buchungen in diesem Zeitraum.' : 'No bookings in this period.'}</td></tr>`;
@@ -191,7 +213,6 @@ export const printHotelSummary = (hotel: any, masterMath: any, selectedMonth: nu
         
         .header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; border-bottom: 2px solid #0f172a; padding-bottom: 10px; }
         .header-left h1 { font-size: 24px; margin: 0; color: #0f172a; font-weight: 700; text-transform: uppercase; }
-        .header-left p { margin: 2px 0 0 0; color: #64748b; font-size: 12px; }
         .header-right { text-align: right; }
         .badge { background: #0f172a; color: white; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 13px; display: inline-block; }
         
@@ -215,14 +236,11 @@ export const printHotelSummary = (hotel: any, masterMath: any, selectedMonth: nu
         th { background: #f1f5f9; padding: 8px 10px; text-align: left; font-size: 10px; text-transform: uppercase; color: #475569; }
         th.center, td.center { text-align: center; }
         th.right, td.right { text-align: right; }
-        td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 11px; vertical-align: middle; }
+        td { padding: 8px 10px; font-size: 11px; vertical-align: middle; }
         
-        .booking-row td { background: #f8fafc; font-weight: 500; border-top: 1px solid #cbd5e1; }
-        .emp-row td { border-bottom: 1px dashed #e2e8f0; }
         td.empty { text-align: center; font-style: italic; color: #94a3b8; padding: 20px; }
 
         .footer { position: fixed; bottom: 0; left: 0; width: 100%; border-top: 1px solid #e2e8f0; padding-top: 10px; font-size: 9px; color: #94a3b8; display: flex; justify-content: space-between; background: white; }
-        .page-number:after { content: "Page " counter(page); }
       </style>
     </head>
     <body>
@@ -230,7 +248,6 @@ export const printHotelSummary = (hotel: any, masterMath: any, selectedMonth: nu
       <div class="header">
         <div class="header-left">
           <h1>${lang === 'de' ? 'Hotelübersicht' : 'Hotel Summary'}</h1>
-          <p>EUROPAS GmbH • Dokument generiert am ${formatShortDate(new Date().toISOString(), lang)}</p>
         </div>
         <div class="header-right">
           <div class="badge">${periodStr}</div>
@@ -259,7 +276,7 @@ export const printHotelSummary = (hotel: any, masterMath: any, selectedMonth: nu
           <h3>${lang === 'de' ? 'Finanzübersicht (Gefiltert)' : 'Financial Overview (Filtered)'}</h3>
           <div class="fin-grid">
             <div class="fin-item"><span class="fin-label">${lang === 'de' ? 'Gesamt Netto' : 'Total Netto'}</span><span class="fin-val">${formatCurrency(masterMath.displayNetto)}</span></div>
-            <div class="fin-item"><span class="fin-label">${lang === 'de' ? 'Gesamt Brutto' : 'Total Brutto'}</span><span class="fin-val">${formatCurrency(masterMath.displayBrutto)}</span></div>
+            <div class="fin-item"><span class="fin-label">${lang === 'de' ? 'Gesamtkosten' : 'Total Cost'}</span><span class="fin-val">${formatCurrency(masterMath.displayBrutto)}</span></div>
             <div class="fin-item"><span class="fin-label">${lang === 'de' ? 'Total Bezahlt' : 'Total Paid'}</span><span class="fin-val val-green">${formatCurrency(masterMath.totalPaid)}</span></div>
             <div class="fin-item"><span class="fin-label">${lang === 'de' ? 'Total Offen' : 'Total Unpaid'}</span><span class="fin-val val-red">${formatCurrency(masterMath.totalUnpaid)}</span></div>
           </div>
@@ -271,14 +288,13 @@ export const printHotelSummary = (hotel: any, masterMath: any, selectedMonth: nu
       </div>
 
       <div class="section-title">${lang === 'de' ? 'Rechnungshistorie' : 'Invoice History'}</div>
-      <table>
+      <table style="border-bottom: 1px solid #e2e8f0;">
         <thead>
           <tr>
             <th style="padding-left: 10px;">${lang === 'de' ? 'Rechnungs-Nr.' : 'Invoice No.'}</th>
             <th>${lang === 'de' ? 'Leistungszeitraum' : 'Billing Period'}</th>
             <th>Status</th>
-            <th class="right">Netto</th>
-            <th class="right">Brutto</th>
+            <th class="right">${lang === 'de' ? 'Gesamtkosten' : 'Total Cost'}</th>
           </tr>
         </thead>
         <tbody>
@@ -286,15 +302,15 @@ export const printHotelSummary = (hotel: any, masterMath: any, selectedMonth: nu
         </tbody>
       </table>
 
-      <div class="section-title">${lang === 'de' ? 'Buchungen & Mitarbeiter' : 'Bookings & Employees'}</div>
+      <div class="section-title" style="margin-top: 40px;">${lang === 'de' ? 'Buchungen & Mitarbeiter' : 'Bookings & Employees'}</div>
       <table>
         <thead>
           <tr>
-            <th>${lang === 'de' ? 'Zeitraum / Mitarbeiter' : 'Period / Employee'}</th>
-            <th>Details</th>
+            <th class="center" style="width: 80px;">${lang === 'de' ? 'Zimmer' : 'Rooms'}</th>
+            <th class="center" style="width: 80px;">${lang === 'de' ? 'Betten' : 'Beds'}</th>
+            <th>${lang === 'de' ? 'Name / Buchung' : 'Name / Booking'}</th>
+            <th>${lang === 'de' ? 'Zeitraum' : 'Period'}</th>
             <th class="center">${lang === 'de' ? 'Nächte' : 'Nights'}</th>
-            <th class="center">${lang === 'de' ? 'Zimmer' : 'Rooms'}</th>
-            <th class="center">${lang === 'de' ? 'Betten' : 'Beds'}</th>
           </tr>
         </thead>
         <tbody>
@@ -304,8 +320,8 @@ export const printHotelSummary = (hotel: any, masterMath: any, selectedMonth: nu
 
       <div class="footer">
         <div>EUROPAS GmbH Internal System</div>
-        <div>Hotel ID: ${hotel.id}</div>
-        <div class="page-number"></div>
+        <div style="text-align: center;">${lang === 'de' ? 'Dokument generiert am' : 'Document generated on'}: ${formatShortDate(new Date().toISOString(), lang)}</div>
+        <div style="text-align: right;">Hotel ID: ${hotel.id}</div>
       </div>
 
       <script>
