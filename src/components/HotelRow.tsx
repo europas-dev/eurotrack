@@ -596,12 +596,6 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
   const [activeDurationTab, setActiveDurationTab] = useState(0);
 
   const handlePrintNewTab = (inv: any) => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert(lang === 'de' ? 'Bitte Pop-ups zulassen, um zu drucken.' : 'Please allow pop-ups to print.');
-      return;
-    }
-
     const n = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
     let tNetto = 0; let tBrutto = 0; const taxes: Record<number, number> = {};
     let tableRows = '';
@@ -796,8 +790,16 @@ export function HotelRow({ entry, index, isDarkMode: dk, lang = 'de', searchQuer
       </html>
     `;
 
-    printWindow.document.write(html);
-    printWindow.document.close();
+    // FIX: Blob URL + noopener completely isolates the print thread, preventing dashboard freeze
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const printWindow = window.open(url, '_blank', 'noopener,noreferrer');
+    
+    if (!printWindow) {
+      alert(lang === 'de' ? 'Bitte Pop-ups zulassen, um zu drucken.' : 'Please allow pop-ups to print.');
+    }
+    
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
   };
 
   const [saving, setSaving] = useState(false);
