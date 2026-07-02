@@ -33,14 +33,8 @@ function getOverlap(startDate: string, endDate: string, month: number | null, ye
 }
 
 export const printHotelSummary = (hotel: any, masterMath: any, selectedMonth: number | null, selectedYear: number, lang: string) => {
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) {
-    alert(lang === 'de' ? 'Bitte Pop-ups zulassen.' : 'Please allow pop-ups.');
-    return;
-  }
-
   const monthNamesDe = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
-  const monthNamesEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const monthNamesEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   
   const periodStr = selectedMonth !== null 
     ? `${lang === 'de' ? monthNamesDe[selectedMonth] : monthNamesEn[selectedMonth]} ${selectedYear}`
@@ -332,6 +326,14 @@ export const printHotelSummary = (hotel: any, masterMath: any, selectedMonth: nu
     </html>
   `;
 
-  printWindow.document.write(html);
-  printWindow.document.close();
+  // FIX: Blob URL + noopener completely isolates the print thread, preventing dashboard freeze
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const printWindow = window.open(url, '_blank', 'noopener,noreferrer');
+  
+  if (!printWindow) {
+    alert(lang === 'de' ? 'Bitte Pop-ups zulassen.' : 'Please allow pop-ups.');
+  }
+
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
 };
