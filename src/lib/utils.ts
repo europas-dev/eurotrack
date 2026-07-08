@@ -117,7 +117,6 @@ export function calcDurationFreeBeds(duration: any, targetDateIso: string): numb
     totalBeds += bedCount;
     
     const emps = rc.employees || [];
-    let isSlotOccupied = false;
 
     emps.forEach((emp: any) => {
       if (!emp.checkIn || !emp.checkOut) return;
@@ -125,12 +124,12 @@ export function calcDurationFreeBeds(duration: any, targetDateIso: string): numb
       // Rule 2: Use the exact same real-time logic that controls the UI colors!
       const status = getEmployeeStatus(emp.checkIn, emp.checkOut);
       
-      // If they are 'active' (green) or 'ending-soon' (red), the bed is OCCUPIED.
-      // It only becomes free when they turn 'completed' (grey) exactly at 12:00 PM.
+      // FIX: Every single active or ending-soon employee occupies exactly ONE bed.
       if (status === 'active' || status === 'ending-soon') {
-         isSlotOccupied = true;
+         occupiedBeds += 1;
       }
     });
+  });
     
     if (isSlotOccupied) occupiedBeds += 1;
   });
