@@ -283,13 +283,18 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
     if (leastBooked.count === Infinity) leastBooked.name = '-';
     if (minBedPrice.price === Infinity) minBedPrice.hotelName = '-';
 
+    // Ensure all monthly buckets are rounded to match the global KPI logic
     months.forEach(m => {
+        // 1. First, round the total and paid values
         m.total = Math.round(m.total * 100) / 100;
         m.paid = Math.round(m.paid * 100) / 100;
-        // FORCE Unpaid to be the mathematical remainder (Total - Paid)
+        
+        // 2. FORCE Unpaid to be the remainder (Total - Paid).
+        // This guarantees that Paid + Unpaid always equals Total in the tooltip.
         m.unpaid = Math.round((m.total - m.paid) * 100) / 100;
+        
+        // 3. Round Overdue and force Pending to be the remainder of Unpaid
         m.overdue = Math.round(m.overdue * 100) / 100;
-        // FORCE Pending to be the mathematical remainder of Unpaid
         m.pending = Math.round((m.unpaid - m.overdue) * 100) / 100;
     });
 
