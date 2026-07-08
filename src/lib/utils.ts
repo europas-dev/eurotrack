@@ -98,13 +98,16 @@ export function getEmployeeStatus(checkIn?: string | null, checkOut?: string | n
   return 'active';
 }
 
+// FREE BED Calculation LOGIC
 
 export function calcDurationFreeBeds(duration: any, targetDateIso: string): number {
   if (!duration.startDate || !duration.endDate || !duration.roomCards) return 0;
-  const targetDate = new Date(targetDateIso);
-  const durEnd = new Date(duration.endDate);
   
-  if (targetDate > durEnd) return 0;
+  const todayStr = new Date().toISOString().split('T')[0];
+  
+  // Rule 1: If the overarching duration contract ends today (or earlier), 
+  // there are 0 free beds because you cannot book anyone for *tonight*.
+  if (duration.endDate <= todayStr) return 0;
 
   let totalBeds = 0;
   let occupiedBeds = 0;
@@ -114,14 +117,22 @@ export function calcDurationFreeBeds(duration: any, targetDateIso: string): numb
     totalBeds += bedCount;
     
     const emps = rc.employees || [];
+    let isSlotOccupied = false;
+
     emps.forEach((emp: any) => {
       if (!emp.checkIn || !emp.checkOut) return;
-      const inDate = new Date(emp.checkIn);
-      const outDate = new Date(emp.checkOut);
-      if (targetDate >= inDate && targetDate < outDate) {
-        occupiedBeds += 1;
+      
+      // Rule 2: Use the exact same real-time logic that controls the UI colors!
+      const status = getEmployeeStatus(emp.checkIn, emp.checkOut);
+      
+      // If they are 'active' (green) or 'ending-soon' (red), the bed is OCCUPIED.
+      // It only becomes free when they turn 'completed' (grey) exactly at 12:00 PM.
+      if (status === 'active' || status === 'ending-soon') {
+         isSlotOccupied = true;
       }
     });
+    
+    if (isSlotOccupied) occupiedBeds += 1;
   });
 
   return Math.max(0, totalBeds - occupiedBeds);
