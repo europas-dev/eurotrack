@@ -144,13 +144,14 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         
         // ALWAYS add to the month array so the whole year chart works
         const mIdx = d.getMonth();
-        months[mIdx].total += invBrutto;
+        const roundedInv = Math.round(invBrutto * 100) / 100;
+        months[mIdx].total += roundedInv;
         if (inv.isPaid) {
-          months[mIdx].paid += invBrutto;
+          months[mIdx].paid += roundedInv;
         } else {
-          months[mIdx].unpaid += invBrutto;
-          if (inv.dueDate && new Date(inv.dueDate) < today) months[mIdx].overdue += invBrutto;
-          else months[mIdx].pending += invBrutto;
+          months[mIdx].unpaid += roundedInv;
+          if (inv.dueDate && new Date(inv.dueDate) < today) months[mIdx].overdue += roundedInv;
+          else months[mIdx].pending += roundedInv;
         }
 
         // Apply specific month filter for top KPIs
@@ -281,6 +282,16 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
     // Cleanup if no bookings found or prices tracked
     if (leastBooked.count === Infinity) leastBooked.name = '-';
     if (minBedPrice.price === Infinity) minBedPrice.hotelName = '-';
+
+    months.forEach(m => {
+        m.total = Math.round(m.total * 100) / 100;
+        m.paid = Math.round(m.paid * 100) / 100;
+        // FORCE Unpaid to be the mathematical remainder (Total - Paid)
+        m.unpaid = Math.round((m.total - m.paid) * 100) / 100;
+        m.overdue = Math.round(m.overdue * 100) / 100;
+        // FORCE Pending to be the mathematical remainder of Unpaid
+        m.pending = Math.round((m.unpaid - m.overdue) * 100) / 100;
+    });
 
     return { totalSpend, totalPaid, totalUnpaid, totalOverdue, totalDeposits, months, maxMonth, maxPaid, maxUnpaid, sortedGroups, maxGroupValue, mostBooked, leastBooked, avgBedPrice, minBedPrice, maxBedPrice };
   }, [hotels, selectedYear, selectedMonth, localGroup, sortAsc, lang]);
