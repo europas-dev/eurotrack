@@ -184,19 +184,29 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         finalTotal = parseFloat(overrideTotal) || 0;
       }
 
-      // Final sanitize check before sums
+      // 1. Calculate the final total for the hotel (already rounded above)
       finalTotal = Math.round(finalTotal * 100) / 100;
       totalSpend += finalTotal;
 
       const rawTotal = rawPaid + rawUnpaid;
+      
       if (rawTotal > 0) {
-        totalPaid += Math.round((finalTotal * (rawPaid / rawTotal)) * 100) / 100;
-        totalUnpaid += Math.round((finalTotal * (rawUnpaid / rawTotal)) * 100) / 100;
-        totalOverdue += Math.round ((finalTotal * (rawOverdue / rawTotal)) * 100) / 100;
+          // Use Math.round for all three to ensure cent-precision across the board
+          totalPaid += Math.round((finalTotal * (rawPaid / rawTotal)) * 100) / 100;
+          totalUnpaid += Math.round((finalTotal * (rawUnpaid / rawTotal)) * 100) / 100;
+          totalOverdue += Math.round((finalTotal * (rawOverdue / rawTotal)) * 100) / 100;
       } else if (finalTotal > 0 && selectedMonth === null) {
-        const isHotelPaid = h.isPaid ?? h.is_paid;
-        if (isHotelPaid) totalPaid += finalTotal;
-        else totalUnpaid += finalTotal;
+          const isHotelPaid = h.isPaid ?? h.is_paid;
+          // Apply rounding here too!
+          if (isHotelPaid) {
+              totalPaid += finalTotal;
+          } else {
+              totalUnpaid += finalTotal;
+              // If it's unpaid and we have no invoice breakdown (total mode), 
+              // check if the whole hotel is overdue based on due dates
+              const isOverdue = (h.invoices || []).some((inv: any) => inv.dueDate && new Date(inv.dueDate) < today);
+              if (isOverdue) totalOverdue += finalTotal;
+          }
       }
 
       // Group dynamic data keys based on active state criteria (IGNORE FOR EMPLOYEES)
