@@ -130,9 +130,6 @@ export function calcDurationFreeBeds(duration: any, targetDateIso: string): numb
       }
     });
   });
-    
-    if (isSlotOccupied) occupiedBeds += 1;
-  });
 
   return Math.max(0, totalBeds - occupiedBeds);
 }
