@@ -542,22 +542,31 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
         );
         if (!hasMatch) return false;
       }
+      // FIX: Synchronized Free Beds Filter
       if (fbType !== 'all') {
-         let targetDate = new Date().toISOString().split('T')[0];
-         if (fbType === 'tomorrow') { const d = new Date(); d.setDate(d.getDate()+1); targetDate = d.toISOString().split('T')[0]; }
-         if (fbType === '3days') { const d = new Date(); d.setDate(d.getDate()+3); targetDate = d.toISOString().split('T')[0]; }
-         if (fbType === '7days') { const d = new Date(); d.setDate(d.getDate()+7); targetDate = d.toISOString().split('T')[0]; }
-         
-         let hasFree = false;
-         (h.durations || []).forEach((dur: any) => {
-            if (dur.startDate <= targetDate && dur.endDate >= targetDate) {
-               (dur.roomCards || []).forEach((rc: any) => {
-                  const emps = (rc.employees || []).filter((e: any) => e.checkIn <= targetDate && e.checkOut > targetDate);
-                  if ((rc.bedCount || 0) > emps.length) hasFree = true;
-               });
-            }
-         });
-         if (!hasFree) return false;
+         if (fbType === 'today') {
+            // Force the filter to use the EXACT same math that the UI number uses!
+            if (calcHotelFreeBedsToday(h) <= 0) return false;
+         } else {
+            // For future days (tomorrow, 3 days, 7 days), use strict calendar boundaries.
+            let targetDate = new Date().toISOString().split('T')[0];
+            if (fbType === 'tomorrow') { const d = new Date(); d.setDate(d.getDate()+1); targetDate = d.toISOString().split('T')[0]; }
+            if (fbType === '3days') { const d = new Date(); d.setDate(d.getDate()+3); targetDate = d.toISOString().split('T')[0]; }
+            if (fbType === '7days') { const d = new Date(); d.setDate(d.getDate()+7); targetDate = d.toISOString().split('T')[0]; }
+            
+            let hasFree = false;
+            (h.durations || []).forEach((dur: any) => {
+               // A room is only bookable if the target night is strictly BEFORE the contract end date.
+               if (dur.startDate <= targetDate && dur.endDate > targetDate) {
+                  (dur.roomCards || []).forEach((rc: any) => {
+                     const emps = (rc.employees || []).filter((e: any) => e.checkIn <= targetDate && e.checkOut > targetDate);
+                     const bedCount = rc.roomType === 'EZ' ? 1 : rc.roomType === 'DZ' ? 2 : rc.roomType === 'TZ' ? 3 : (rc.bedCount || 2);
+                     if (bedCount > emps.length) hasFree = true;
+                  });
+               }
+            });
+            if (!hasFree) return false;
+         }
       }
 
     // EMPLOYEE STATUS FILTER
