@@ -838,8 +838,8 @@ finalFiltered.forEach(h => {
 
   const rawTotal = rawPaid + rawUnpaid;
   if (rawTotal > 0) {
-     totalPaidGlobal += total * (rawPaid / rawTotal);
-     totalUnpaidGlobal += total * (rawUnpaid / rawTotal);
+     totalPaidGlobal += Math.round((total * (rawPaid / rawTotal)) * 100) / 100;
+     totalUnpaidGlobal += Math.round((total * (rawUnpaid / rawTotal)) * 100) / 100;
   } else if (total > 0 && selectedMonth === null) {
      if (h.isPaid) totalPaidGlobal += total;
      else totalUnpaidGlobal += total;
