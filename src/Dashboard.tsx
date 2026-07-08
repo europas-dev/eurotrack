@@ -831,7 +831,7 @@ finalFiltered.forEach(h => {
       total = parseFloat(override);
   }
 
-  totalSpend += total;
+  totalSpend += Math.round(total * 100) / 100;
 
   const rawTotal = rawPaid + rawUnpaid;
   if (rawTotal > 0) {
