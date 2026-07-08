@@ -807,8 +807,11 @@ finalFiltered.forEach(h => {
       });
     }
 
-    if (inv.isPaid) rawPaid += invBrutto;
-    else rawUnpaid += invBrutto;
+    if (inv.isPaid) {
+        rawPaid += Math.round(invBrutto * 100) / 100;
+    } else {
+        rawUnpaid += Math.round(invBrutto * 100) / 100;
+    }
   });
 
   let discountedBrutto = finalBrutto;
