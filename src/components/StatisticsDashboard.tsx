@@ -473,8 +473,12 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                         
                         {(chartTab === 'all' || chartTab === 'unpaid') && (
                           <>
-                            <div className="flex justify-between gap-4"><span className="text-slate-500 dark:text-slate-400">{lang === 'de' ? 'Total Offen:' : 'Total Due:'}</span> <span className="font-bold">{formatCurrency(m.unpaid)}</span></div>
-                            <div className="flex justify-between gap-4 pl-2"><span className="text-amber-500 text-[10px]">{lang === 'de' ? '└ Ausstehend:' : '└ Pending:'}</span> <span className="font-bold text-[10px]">{formatCurrency(m.pending)}</span></div>
+                            {/* FORCE Remainder: Unpaid = Total - Paid */}
+                            <div className="flex justify-between gap-4"><span className="text-slate-500 dark:text-slate-400">{lang === 'de' ? 'Total Offen:' : 'Total Due:'}</span> <span className="font-bold">{formatCurrency(Math.round((m.total - m.paid) * 100) / 100)}</span></div>
+                            
+                            {/* FORCE Remainder: Pending = Unpaid - Overdue */}
+                            <div className="flex justify-between gap-4 pl-2"><span className="text-amber-500 text-[10px]">{lang === 'de' ? '└ Ausstehend:' : '└ Pending:'}</span> <span className="font-bold text-[10px]">{formatCurrency(Math.round((Math.max(0, m.total - m.paid) - m.overdue) * 100) / 100)}</span></div>
+                            
                             <div className="flex justify-between gap-4 pl-2"><span className="text-red-500 text-[10px]">{lang === 'de' ? '└ Überfällig:' : '└ Overdue:'}</span> <span className="font-bold text-[10px]">{formatCurrency(m.overdue)}</span></div>
                           </>
                         )}
