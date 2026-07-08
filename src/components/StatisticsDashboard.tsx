@@ -185,14 +185,14 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       }
 
       // Final sanitize check before sums
-      finalTotal = isNaN(finalTotal) ? 0 : finalTotal;
+      finalTotal = Math.round(finalTotal * 100) / 100;
       totalSpend += finalTotal;
 
       const rawTotal = rawPaid + rawUnpaid;
       if (rawTotal > 0) {
-        totalPaid += finalTotal * (rawPaid / rawTotal);
-        totalUnpaid += finalTotal * (rawUnpaid / rawTotal);
-        totalOverdue += finalTotal * (rawOverdue / rawTotal);
+        totalPaid += Math.round((finalTotal * (rawPaid / rawTotal)) * 100) / 100;
+        totalUnpaid += Math.round((finalTotal * (rawUnpaid / rawTotal)) * 100) / 100;
+        totalOverdue += Math.round ((finalTotal * (rawOverdue / rawTotal)) * 100) / 100;
       } else if (finalTotal > 0 && selectedMonth === null) {
         const isHotelPaid = h.isPaid ?? h.is_paid;
         if (isHotelPaid) totalPaid += finalTotal;
