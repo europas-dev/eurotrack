@@ -765,97 +765,98 @@ export default function Dashboard({ theme, lang, toggleTheme, setLang, viewOnly 
     } catch (err: any) { alert("Duplicate failed: " + err.message); } finally { setLoading(false); }
   };
 
-  // --- DASHBOARD MATH FOR TOP BAR (INVOICES ONLY) ---
-let totalSpend = 0;
-let totalPaidGlobal = 0;
-let totalUnpaidGlobal = 0;
+ // --- DASHBOARD MATH FOR TOP BAR (INVOICES ONLY) ---
+  let totalSpend = 0;
+  let totalPaidGlobal = 0;
+  let totalUnpaidGlobal = 0;
 
-finalFiltered.forEach(h => {
-  let finalNetto = 0;
-  let finalBrutto = 0;
-  let rawPaid = 0;
-  let rawUnpaid = 0;
+  finalFiltered.forEach(h => {
+    let finalNetto = 0;
+    let finalBrutto = 0;
+    let rawPaid = 0;
+    let rawUnpaid = 0;
 
-  (h.invoices || []).forEach((inv: any) => {
-    const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
-    if (!dateStr) return;
-    const d = new Date(dateStr);
-    
-    // STRICT FINANCIAL BOUNDARY: Must belong to the selected year
-    if (d.getFullYear() !== selectedYear) return;
-    // Strict month boundary (if active)
-    if (selectedMonth !== null && d.getMonth() !== selectedMonth) return;
+    (h.invoices || []).forEach((inv: any) => {
+      const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
+      if (!dateStr) return;
+      const d = new Date(dateStr);
+      
+      // STRICT FINANCIAL BOUNDARY: Must belong to the selected year
+      if (d.getFullYear() !== selectedYear) return;
+      // Strict month boundary (if active)
+      if (selectedMonth !== null && d.getMonth() !== selectedMonth) return;
 
-    let invBrutto = 0;
-        if (inv.billingMode === 'total') {
-          const baseN = parseFloat(inv.totalNetto) || 0;
-          const m = parseFloat(inv.totalMwst) || 0;
-          const disc = parseFloat(inv.discountValue) || 0;
-          const isPct = inv.discountType === 'percentage';
-          const n = Math.max(0, baseN - (isPct ? baseN * (disc/100) : disc));
-          const b = n * (1 + m / 100);
-          finalNetto += n;
-          finalBrutto += b;
-          invBrutto += b;
-        } else {
-      const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
-      (inv.items || []).forEach((item: any) => {
-        const { finalNetto: itemNetto, brutto: itemB } = calcInvoiceItem(item, defaultN);
-        finalNetto += itemNetto;
-        finalBrutto += itemB;
-        invBrutto += itemB;
-      });
+      let invBrutto = 0;
+      if (inv.billingMode === 'total') {
+        const baseN = parseFloat(inv.totalNetto) || 0;
+        const m = parseFloat(inv.totalMwst) || 0;
+        const disc = parseFloat(inv.discountValue) || 0;
+        const isPct = inv.discountType === 'percentage';
+        const n = Math.max(0, baseN - (isPct ? baseN * (disc/100) : disc));
+        const b = n * (1 + m / 100);
+        finalNetto += n;
+        finalBrutto += b;
+        invBrutto += b;
+      } else {
+        const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
+        (inv.items || []).forEach((item: any) => {
+          const { finalNetto: itemNetto, brutto: itemB } = calcInvoiceItem(item, defaultN);
+          finalNetto += itemNetto;
+          finalBrutto += itemB;
+          invBrutto += itemB;
+        });
+      }
+
+      // DO NOT ROUND HERE. Keep raw floats for accurate ratios!
+      if (inv.isPaid) {
+          rawPaid += invBrutto;
+      } else {
+          rawUnpaid += invBrutto;
+      }
+    });
+
+    let discountedBrutto = finalBrutto;
+    if (h.has_global_discount && h.global_discount_value) {
+       const gVal = parseFloat(h.global_discount_value);
+       const isFixed = h.global_discount_type === 'fixed';
+       const target = h.global_discount_target || 'netto';
+       if (target === 'netto') {
+          let ratio = isFixed ? (gVal / finalNetto) : (gVal / 100);
+          if (!isFinite(ratio)) ratio = 0;
+          discountedBrutto = Math.max(0, finalBrutto - (finalBrutto * ratio));
+       } else {
+          discountedBrutto = Math.max(0, finalBrutto - (isFixed ? gVal : finalBrutto * (gVal/100)));
+       }
     }
 
-    if (inv.isPaid) {
-        rawPaid += Math.round(invBrutto * 100) / 100;
-    } else {
-        rawUnpaid += Math.round(invBrutto * 100) / 100;
+    let total = discountedBrutto;
+    const override = h.override_total_brutto ?? h.overrideTotalBrutto;
+    if (override != null && selectedMonth === null) {
+        total = parseFloat(override);
+    }
+
+    // 1. Calculate the exact rounded total for this hotel FIRST
+    const hotelTotal = Math.round(total * 100) / 100;
+    totalSpend += hotelTotal;
+
+    const rawTotal = rawPaid + rawUnpaid;
+    if (rawTotal > 0) {
+       // 2. Calculate the exact rounded Paid portion based on raw ratio
+       const hotelPaid = Math.round((hotelTotal * (rawPaid / rawTotal)) * 100) / 100;
+       
+       // 3. FORCE Unpaid to be the remainder (Total - Paid). This instantly kills the 0.01 drift.
+       const hotelUnpaid = Math.round((hotelTotal - hotelPaid) * 100) / 100;
+       
+       totalPaidGlobal += hotelPaid;
+       totalUnpaidGlobal += hotelUnpaid;
+    } else if (hotelTotal > 0 && selectedMonth === null) {
+       if (h.isPaid) {
+           totalPaidGlobal += hotelTotal;
+       } else {
+           totalUnpaidGlobal += hotelTotal;
+       }
     }
   });
-
-  let discountedBrutto = finalBrutto;
-  if (h.has_global_discount && h.global_discount_value) {
-     const gVal = parseFloat(h.global_discount_value);
-     const isFixed = h.global_discount_type === 'fixed';
-     const target = h.global_discount_target || 'netto';
-     if (target === 'netto') {
-        let ratio = isFixed ? (gVal / finalNetto) : (gVal / 100);
-        if (!isFinite(ratio)) ratio = 0;
-        discountedBrutto = Math.max(0, finalBrutto - (finalBrutto * ratio));
-     } else {
-        discountedBrutto = Math.max(0, finalBrutto - (isFixed ? gVal : finalBrutto * (gVal/100)));
-     }
-  }
-
-  let total = discountedBrutto;
-  const override = h.override_total_brutto ?? h.overrideTotalBrutto;
-  if (override != null && selectedMonth === null) {
-      total = parseFloat(override);
-  }
-
-  // 1. Calculate the exact rounded total for this hotel
-  const hotelTotal = Math.round(total * 100) / 100;
-  totalSpend += hotelTotal;
-
-  const rawTotal = rawPaid + rawUnpaid;
-  if (rawTotal > 0) {
-     // 2. Calculate the exact rounded Paid portion
-     const hotelPaid = Math.round((hotelTotal * (rawPaid / rawTotal)) * 100) / 100;
-     
-     // 3. FORCE Unpaid to be the remainder (Total - Paid). This instantly kills the 0.01 drift.
-     const hotelUnpaid = Math.round((hotelTotal - hotelPaid) * 100) / 100;
-     
-     totalPaidGlobal += hotelPaid;
-     totalUnpaidGlobal += hotelUnpaid;
-  } else if (hotelTotal > 0 && selectedMonth === null) {
-     if (h.isPaid) {
-         totalPaidGlobal += hotelTotal;
-     } else {
-         totalUnpaidGlobal += hotelTotal;
-     }
-  }
-});
 
 
   const freeBedsTotal = finalFiltered.reduce((s, h) => s + calcHotelFreeBedsToday(h), 0);
