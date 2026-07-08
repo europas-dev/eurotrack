@@ -834,15 +834,26 @@ finalFiltered.forEach(h => {
       total = parseFloat(override);
   }
 
-  totalSpend += Math.round(total * 100) / 100;
+  // 1. Calculate the exact rounded total for this hotel
+  const hotelTotal = Math.round(total * 100) / 100;
+  totalSpend += hotelTotal;
 
   const rawTotal = rawPaid + rawUnpaid;
   if (rawTotal > 0) {
-     totalPaidGlobal += Math.round((total * (rawPaid / rawTotal)) * 100) / 100;
-     totalUnpaidGlobal += Math.round((total * (rawUnpaid / rawTotal)) * 100) / 100;
-  } else if (total > 0 && selectedMonth === null) {
-     if (h.isPaid) totalPaidGlobal += total;
-     else totalUnpaidGlobal += total;
+     // 2. Calculate the exact rounded Paid portion
+     const hotelPaid = Math.round((hotelTotal * (rawPaid / rawTotal)) * 100) / 100;
+     
+     // 3. FORCE Unpaid to be the remainder (Total - Paid). This instantly kills the 0.01 drift.
+     const hotelUnpaid = Math.round((hotelTotal - hotelPaid) * 100) / 100;
+     
+     totalPaidGlobal += hotelPaid;
+     totalUnpaidGlobal += hotelUnpaid;
+  } else if (hotelTotal > 0 && selectedMonth === null) {
+     if (h.isPaid) {
+         totalPaidGlobal += hotelTotal;
+     } else {
+         totalUnpaidGlobal += hotelTotal;
+     }
   }
 });
 
