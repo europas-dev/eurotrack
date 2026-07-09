@@ -1,6 +1,6 @@
 //src/components/StatisticsDashboard.tsx
 import React, { useMemo, useState, useEffect } from 'react';
-import { cn, formatCurrency, calculateNights, calcInvoiceItem, calcHotelBreakdown } from '../lib/utils';
+import { cn, formatCurrency, calculateNights, calcInvoiceItem } from '../lib/utils';
 import { TrendingUp, TrendingDown, CreditCard, AlertCircle, ShieldCheck, Clock, Trophy, BedDouble, Building2, MapPin,ReceiptEuro, Building, ArrowDownWideNarrow, ArrowUpNarrowWide } from 'lucide-react';
 
 interface Props {
@@ -55,141 +55,247 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
     today.setHours(0, 0, 0, 0);
 
     (hotels || []).forEach(h => {
-  if (!h) return;
+      if (!h) return;
+      
+      let hotelBruttoBeforeDiscount = 0;
+      let rawPaid = 0;
+      let rawUnpaid = 0;
+      let rawOverdue = 0;
+      let hasInvoicesInContext = false;
+      const hotelMonthly: Record<number, { total: number; paid: number; unpaid: number; overdue: number }> = {};
 
-  const isDepEnabled = h.depositEnabled ?? h.deposit_enabled;
-  const depAmt = h.depositAmount ?? h.deposit_amount;
-  if (isDepEnabled && depAmt) totalDeposits += parseFloat(depAmt) || 0;
+      // Safe parse for deposits (checking both camelCase and snake_case)
+      const isDepEnabled = h.depositEnabled ?? h.deposit_enabled;
+      const depAmt = h.depositAmount ?? h.deposit_amount;
+      if (isDepEnabled && depAmt) {
+         totalDeposits += parseFloat(depAmt) || 0;
+      }
+      
+      const dCount = (h.durations || []).length;
+      if (dCount > mostBooked.count) {
+        mostBooked = { name: h.name || 'Unnamed', count: dCount };
+      }
+      // NEW: Track least booked (ignore hotels with zero bookings)
+      if (dCount > 0 && dCount < leastBooked.count) {
+        leastBooked = { name: h.name || 'Unnamed', count: dCount };
+      }
 
-  const dCount = (h.durations || []).length;
-  if (dCount > mostBooked.count) mostBooked = { name: h.name || 'Unnamed', count: dCount };
-  if (dCount > 0 && dCount < leastBooked.count) leastBooked = { name: h.name || 'Unnamed', count: dCount };
+      const bedOverride = h.override_price_per_bed ?? h.overridePricePerBed;
+      if (bedOverride != null) {
+        const overrideP = parseFloat(bedOverride) || 0;
+        
+        // Safety check: Ignore unrealistic prices to shield against database typos
+        if (overrideP > 5) {
+          bedPriceSum += overrideP;
+          bedPriceCount++;
+          
+          // NEW: Track lowest and highest from overrides
+          if (overrideP < minBedPrice.price) {
+            minBedPrice = { hotelName: h.name || 'Unnamed', price: overrideP };
+          }
+          if (overrideP > maxBedPrice.price) {
+            maxBedPrice = { hotelName: h.name || 'Unnamed', price: overrideP };
+          }
+        }
+      }
 
-  const bedOverride = h.override_price_per_bed ?? h.overridePricePerBed;
-  if (bedOverride != null) {
-    const overrideP = parseFloat(bedOverride) || 0;
-    if (overrideP > 5) {
-      bedPriceSum += overrideP;
-      bedPriceCount++;
-      if (overrideP < minBedPrice.price) minBedPrice = { hotelName: h.name || 'Unnamed', price: overrideP };
-      if (overrideP > maxBedPrice.price) maxBedPrice = { hotelName: h.name || 'Unnamed', price: overrideP };
-    }
-  }
+      (h.invoices || []).forEach((inv: any) => {
+        if (!inv) return;
+        const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
+        if (!dateStr) return;
+        const d = new Date(dateStr);
+        
+        // Strict global year filter constraint
+        if (d.getFullYear() !== selectedYear) return;
+        
+        let invBrutto = 0;
+        if (inv.billingMode === 'total') {
+          const baseN = parseFloat(inv.totalNetto) || 0;
+          const m = parseFloat(inv.totalMwst) || 0;
+          const disc = parseFloat(inv.discountValue) || 0;
+          const isPct = inv.discountType === 'percentage';
+          invBrutto = Math.max(0, baseN - (isPct ? baseN * (disc / 100) : disc)) * (1 + m / 100);
+        } else {
+          const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
+          (inv.items || []).forEach((item: any) => {
+            if (!item) return;
+            invBrutto += calcInvoiceItem(item, defaultN)?.brutto || 0;
+            if (item.type === 'room' && item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 0) {
+               const p = parseFloat(item.netto) || 0;
+               
+               // Safety check: Ignore old database entries where energy costs (< 5€) were accidentally saved as 'room' type
+               if (p > 5) {
+                 bedPriceSum += p;
+                 bedPriceCount++;
+                 
+                 // NEW: Track lowest and highest from itemized bed prices
+                 if (p < minBedPrice.price) {
+                   minBedPrice = { hotelName: h.name || 'Unnamed', price: p };
+                 }
+                 if (p > maxBedPrice.price) {
+                   maxBedPrice = { hotelName: h.name || 'Unnamed', price: p };
+                 }
+               }
+            }
+          });
+        }
 
-  // MONTHLY BREAKDOWN — SAME ENGINE AS MAIN DASHBOARD
-  // Get the SINGLE correct total for the whole year (respects override, exactly like main dashboard)
-const yearBreakdown = calcHotelBreakdown(h, null, selectedYear);
-const hotelYearTotal = yearBreakdown.total;
-const hotelYearPaidTarget = yearBreakdown.paid;
-
-// Get RAW (un-overridden) per-month weights just to know the SHAPE of distribution
-const rawMonthWeights: { idx: number; total: number; paid: number; overdue: number }[] = [];
-(h.invoices || []).forEach((inv: any) => {
-  const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
-  if (!dateStr) return;
-  const d = new Date(dateStr);
-  if (d.getFullYear() !== selectedYear) return;
-  const mIdx = d.getMonth();
-
-  let invBrutto = 0;
-  if (inv.billingMode === 'total') {
-    const n = parseFloat(inv.totalNetto) || 0;
-    const m = parseFloat(inv.totalMwst) || 0;
-    const disc = parseFloat(inv.discountValue) || 0;
-    const isPct = inv.discountType === 'percentage';
-    invBrutto = Math.max(0, n - (isPct ? n * (disc / 100) : disc)) * (1 + m / 100);
-  } else {
-    const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
-    (inv.items || []).forEach((item: any) => { invBrutto += calcInvoiceItem(item, defaultN)?.brutto || 0; });
-  }
-  invBrutto = isNaN(invBrutto) ? 0 : invBrutto;
-
-  let entry = rawMonthWeights.find(e => e.idx === mIdx);
-  if (!entry) { entry = { idx: mIdx, total: 0, paid: 0, overdue: 0 }; rawMonthWeights.push(entry); }
-  entry.total += invBrutto;
-  if (inv.isPaid) entry.paid += invBrutto;
-  else if (inv.dueDate && new Date(inv.dueDate) < today) entry.overdue += invBrutto;
-});
-
-const rawSum = rawMonthWeights.reduce((s, e) => s + e.total, 0);
-const rawPaidSum = rawMonthWeights.reduce((s, e) => s + e.paid, 0);
-const rawOverdueSum = rawMonthWeights.reduce((s, e) => s + e.overdue, 0);
-
-let distTotal = 0, distPaid = 0, distOverdue = 0;
-rawMonthWeights.sort((a, b) => a.idx - b.idx).forEach((entry, i) => {
-  const isLast = i === rawMonthWeights.length - 1;
-  const share = rawSum > 0 ? entry.total / rawSum : 0;
-  const paidShare = rawPaidSum > 0 ? entry.paid / rawPaidSum : 0;
-  const overdueShare = rawOverdueSum > 0 ? entry.overdue / rawOverdueSum : 0;
-
-  const mTotal = isLast ? Math.round((hotelYearTotal - distTotal) * 100) / 100 : Math.round(hotelYearTotal * share * 100) / 100;
-  const mPaid = isLast ? Math.round((hotelYearPaidTarget - distPaid) * 100) / 100 : Math.round(hotelYearPaidTarget * paidShare * 100) / 100;
-  const mOverdue = Math.round(yearBreakdown.overdue * overdueShare * 100) / 100;
-
-  distTotal += mTotal;
-  distPaid += mPaid;
-  distOverdue += mOverdue;
-
-  months[entry.idx].total += mTotal;
-  months[entry.idx].paid += mPaid;
-  months[entry.idx].unpaid += Math.round((mTotal - mPaid) * 100) / 100;
-  months[entry.idx].overdue += mOverdue;
-});
-
-  // TOP KPI FIGURES — filtered by selectedMonth (or full year if null)
-  const hotelBreakdown = selectedMonth === null ? yearBreakdown : calcHotelBreakdown(h, selectedMonth, selectedYear);
-  const finalTotal = hotelBreakdown.total;
-totalSpend += finalTotal;
-totalPaid += hotelBreakdown.paid;
-totalUnpaid += hotelBreakdown.unpaid;
-totalOverdue += hotelBreakdown.overdue;
-
-  const hasInvoicesInContext = (h.invoices || []).some((inv: any) => {
-    const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
-    if (!dateStr) return false;
-    const d = new Date(dateStr);
-    return d.getFullYear() === selectedYear && (selectedMonth === null || d.getMonth() === selectedMonth);
-  });
-
-  if (localGroup !== 'employee') {
-    if (finalTotal > 0 || (selectedMonth === null && hasInvoicesInContext)) {
-      let groupKey = 'Unknown';
-      if (localGroup === 'hotel') groupKey = h.name || 'Unnamed Hotel';
-      else if (localGroup === 'company') groupKey = (h.companyTag && h.companyTag.length > 0) ? h.companyTag[0] : (lang === 'de' ? 'Ohne Firma' : 'Unassigned');
-      else if (localGroup === 'city') groupKey = h.city || (lang === 'de' ? 'Unbekannte Stadt' : 'Unknown City');
-      else if (localGroup === 'country') groupKey = h.country || (lang === 'de' ? 'Unbekanntes Land' : 'Unknown Country');
-      groupedTotals[groupKey] = (groupedTotals[groupKey] || 0) + finalTotal;
-    }
-  }
-
-  // employee nights calculator — UNCHANGED, keep exactly as-is
-  if (localGroup === 'employee') {
-    (h.durations || []).forEach((dur: any) => {
-      (dur.roomCards || []).forEach((rc: any) => {
-        (rc.employees || []).forEach((emp: any) => {
-          if (!emp.name || (!emp.checkIn && !emp.checkin) || (!emp.checkOut && !emp.checkout)) return;
-          let start = new Date(emp.checkIn || emp.checkin);
-          let end = new Date(emp.checkOut || emp.checkout);
-          if (selectedMonth !== null) {
-            const mStart = new Date(selectedYear, selectedMonth, 1);
-            const mEnd = new Date(selectedYear, selectedMonth + 1, 0);
-            if (start < mStart) start = mStart;
-            if (end > mEnd) end = mEnd;
+        // Safeguard against NaN values poisoning the month matrix
+        invBrutto = isNaN(invBrutto) ? 0 : invBrutto;
+          const mIdx = d.getMonth();
+          
+          if (!hotelMonthly[mIdx]) hotelMonthly[mIdx] = { total: 0, paid: 0, unpaid: 0, overdue: 0 };
+          hotelMonthly[mIdx].total += invBrutto;
+          if (inv.isPaid) {
+            hotelMonthly[mIdx].paid += invBrutto;
           } else {
-            const yStart = new Date(selectedYear, 0, 1);
-            const yEnd = new Date(selectedYear, 11, 31);
-            if (start < yStart) start = yStart;
-            if (end > yEnd) end = yEnd;
+            hotelMonthly[mIdx].unpaid += invBrutto;
+            if (inv.dueDate && new Date(inv.dueDate) < today) hotelMonthly[mIdx].overdue += invBrutto;
           }
-          if (start < end) {
-            const nights = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-            if (nights > 0) groupedTotals[emp.name] = (groupedTotals[emp.name] || 0) + nights;
+
+        // Apply specific month filter for top KPIs
+        if (selectedMonth !== null && d.getMonth() !== selectedMonth) return;
+
+        hasInvoicesInContext = true;
+        hotelBruttoBeforeDiscount += invBrutto;
+
+        if (inv.isPaid) {
+          rawPaid += invBrutto;
+        } else {
+          rawUnpaid += invBrutto;
+          if (inv.dueDate && new Date(inv.dueDate) < today) {
+            rawOverdue += invBrutto;
           }
-        });
+        }
       });
-    });
-  }
+
+      // Mirror global discount evaluation architecture
+      let discountedBrutto = hotelBruttoBeforeDiscount;
+      const hasGlobDisc = h.has_global_discount ?? h.hasGlobalDiscount;
+      if (hasGlobDisc) {
+        const gVal = parseFloat(h.global_discount_value ?? h.globalDiscountValue) || 0;
+        const gType = h.global_discount_type ?? h.globalDiscountType;
+        discountedBrutto = Math.max(0, hotelBruttoBeforeDiscount - (gType === 'fixed' ? gVal : hotelBruttoBeforeDiscount * (gVal / 100)));
+      }
+
+      let finalTotal = discountedBrutto;
+      const overrideTotal = h.override_total_brutto ?? h.overrideTotalBrutto;
+      if (overrideTotal != null && selectedMonth === null) {
+        finalTotal = parseFloat(overrideTotal) || 0;
+      }
+
+      // 1. Calculate the final total for the hotel (already rounded above)
+      // 1. Calculate and round the final total for the hotel
+      finalTotal = Math.round(finalTotal * 100) / 100;
+totalSpend += finalTotal;
+
+const scaleRatio = hotelBruttoBeforeDiscount > 0 ? finalTotal / hotelBruttoBeforeDiscount : 0;
+const rawTotalForScale = rawPaid + rawUnpaid;
+const hotelPaidTarget = rawTotalForScale > 0
+  ? Math.round((finalTotal * (rawPaid / rawTotalForScale)) * 100) / 100
+  : ((h.isPaid ?? h.is_paid) ? finalTotal : 0);
+
+const monthKeys = Object.keys(hotelMonthly).map(Number).sort((a, b) => a - b);
+let distTotal = 0;
+let distPaid = 0;
+
+monthKeys.forEach((idx, i) => {
+  const vals = hotelMonthly[idx];
+  const isLast = i === monthKeys.length - 1;
+
+  const scaledTotal = isLast
+    ? Math.round((finalTotal - distTotal) * 100) / 100
+    : Math.round(vals.total * scaleRatio * 100) / 100;
+
+  const scaledPaid = isLast
+    ? Math.round((hotelPaidTarget - distPaid) * 100) / 100
+    : Math.round(vals.paid * scaleRatio * 100) / 100;
+
+  distTotal += scaledTotal;
+  distPaid += scaledPaid;
+
+  months[idx].total += scaledTotal;
+  months[idx].paid += scaledPaid;
+  months[idx].unpaid += Math.round((scaledTotal - scaledPaid) * 100) / 100;
+  months[idx].overdue += Math.round(vals.overdue * scaleRatio * 100) / 100;
 });
+      
+            const rawTotal = rawPaid + rawUnpaid;
+            
+            if (rawTotal > 0) {
+              // Calculate rounded components
+              const hotelPaidPart = Math.round((finalTotal * (rawPaid / rawTotal)) * 100) / 100;
+              
+              // FORCE the Unpaid part to be the remainder (Total - Paid). 
+              // This ensures Paid + Unpaid ALWAYS = Total.
+              const hotelUnpaidPart = Math.round((finalTotal - hotelPaidPart) * 100) / 100;
+              
+              totalPaid += hotelPaidPart;
+              totalUnpaid += hotelUnpaidPart;
+              
+              // Calculate overdue based on the proportion of the total
+              totalOverdue += Math.round((finalTotal * (rawOverdue / rawTotal)) * 100) / 100;
+              
+            } else if (finalTotal > 0 && selectedMonth === null) {
+              const isHotelPaid = h.isPaid ?? h.is_paid;
+              
+              if (isHotelPaid) {
+                totalPaid += finalTotal;
+              } else {
+                totalUnpaid += finalTotal;
+                
+                const isOverdue = (h.invoices || []).some((inv: any) => inv.dueDate && new Date(inv.dueDate) < today);
+                if (isOverdue) totalOverdue += finalTotal;
+              }
+            }
+
+      // Group dynamic data keys based on active state criteria (IGNORE FOR EMPLOYEES)
+      if (localGroup !== 'employee') {
+        if (finalTotal > 0 || (selectedMonth === null && hasInvoicesInContext)) {
+          let groupKey = 'Unknown';
+          if (localGroup === 'hotel') groupKey = h.name || 'Unnamed Hotel';
+          else if (localGroup === 'company') groupKey = (h.companyTag && h.companyTag.length > 0) ? h.companyTag[0] : (lang === 'de' ? 'Ohne Firma' : 'Unassigned');
+          else if (localGroup === 'city') groupKey = h.city || (lang === 'de' ? 'Unbekannte Stadt' : 'Unknown City');
+          else if (localGroup === 'country') groupKey = h.country || (lang === 'de' ? 'Unbekanntes Land' : 'Unknown Country');
+
+          groupedTotals[groupKey] = (groupedTotals[groupKey] || 0) + finalTotal;
+        }
+      }
+    
+      // --- NEW: SMART EMPLOYEE NIGHTS CALCULATOR ---
+      if (localGroup === 'employee') {
+        (h.durations || []).forEach((dur: any) => {
+          (dur.roomCards || []).forEach((rc: any) => {
+            (rc.employees || []).forEach((emp: any) => {
+              if (!emp.name || (!emp.checkIn && !emp.checkin) || (!emp.checkOut && !emp.checkout)) return;
+              
+              let start = new Date(emp.checkIn || emp.checkin);
+              let end = new Date(emp.checkOut || emp.checkout);
+              
+              // Constrain the dates strictly to the active Dashboard Filter
+              if (selectedMonth !== null) {
+                const mStart = new Date(selectedYear, selectedMonth, 1);
+                const mEnd = new Date(selectedYear, selectedMonth + 1, 0);
+                if (start < mStart) start = mStart;
+                if (end > mEnd) end = mEnd;
+              } else {
+                const yStart = new Date(selectedYear, 0, 1);
+                const yEnd = new Date(selectedYear, 11, 31);
+                if (start < yStart) start = yStart;
+                if (end > yEnd) end = yEnd;
+              }
+              
+              if (start < end) {
+                const nights = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                if (nights > 0) {
+                  groupedTotals[emp.name] = (groupedTotals[emp.name] || 0) + nights;
+                }
+              }
+            });
+          });
+        });
+      }
+    });
 
     const maxMonth = Math.max(...months.map(m => m.total), 1);
     const maxPaid = Math.max(...months.map(m => m.paid), 1);
@@ -209,11 +315,17 @@ totalOverdue += hotelBreakdown.overdue;
 
     // Ensure all monthly buckets are rounded to match the global KPI logic
     months.forEach(m => {
-      m.total = Math.round(m.total * 100) / 100;
-      m.paid = Math.round(m.paid * 100) / 100;
-      m.unpaid = Math.round((m.total - m.paid) * 100) / 100;
-      m.overdue = Math.round(m.overdue * 100) / 100;
-      m.pending = Math.round((m.unpaid - m.overdue) * 100) / 100;
+        // 1. First, round the total and paid values
+        m.total = Math.round(m.total * 100) / 100;
+        m.paid = Math.round(m.paid * 100) / 100;
+        
+        // 2. FORCE Unpaid to be the remainder (Total - Paid).
+        // This guarantees that Paid + Unpaid always equals Total in the tooltip.
+        m.unpaid = Math.round((m.total - m.paid) * 100) / 100;
+        
+        // 3. Round Overdue and force Pending to be the remainder of Unpaid
+        m.overdue = Math.round(m.overdue * 100) / 100;
+        m.pending = Math.round((m.unpaid - m.overdue) * 100) / 100;
     });
 
     return { totalSpend, totalPaid, totalUnpaid, totalOverdue, totalDeposits, months, maxMonth, maxPaid, maxUnpaid, sortedGroups, maxGroupValue, mostBooked, leastBooked, avgBedPrice, minBedPrice, maxBedPrice };
