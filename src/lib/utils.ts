@@ -33,7 +33,10 @@ export function getOverlappingNights(bookingStart: string, bookingEnd: string, f
 }
 
 export function formatCurrency(amount: number): string {
-  return amount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+  let safe = amount;
+  if (!isFinite(safe)) safe = 0;
+  if (Math.abs(safe) < 0.005) safe = 0; // kills -0 and 0.001-type float dust
+  return safe.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 }
 
 export function normalizeNumberInput(val: string): number {
