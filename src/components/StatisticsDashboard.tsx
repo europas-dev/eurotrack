@@ -62,6 +62,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       let rawUnpaid = 0;
       let rawOverdue = 0;
       let hasInvoicesInContext = false;
+      const hotelMonthly: Record<number, { total: number; paid: number; unpaid: number; overdue: number }> = {};
 
       // Safe parse for deposits (checking both camelCase and snake_case)
       const isDepEnabled = h.depositEnabled ?? h.deposit_enabled;
@@ -141,19 +142,16 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
 
         // Safeguard against NaN values poisoning the month matrix
         invBrutto = isNaN(invBrutto) ? 0 : invBrutto;
-        
-        // ALWAYS add to the month array so the whole year chart works
         const mIdx = d.getMonth();
+        const roundedInv = Math.round(invBrutto * 100) / 100;
         
-        // FIX: Accumulate RAW values here, exactly like the top KPIs do. 
-        // We will let the loop at the very end handle the rounding and remainder rule.
-        months[mIdx].total += invBrutto;
+        if (!hotelMonthly[mIdx]) hotelMonthly[mIdx] = { total: 0, paid: 0, unpaid: 0, overdue: 0 };
+        hotelMonthly[mIdx].total += roundedInv;
         if (inv.isPaid) {
-          months[mIdx].paid += invBrutto;
+          hotelMonthly[mIdx].paid += roundedInv;
         } else {
-          months[mIdx].unpaid += invBrutto;
-          if (inv.dueDate && new Date(inv.dueDate) < today) months[mIdx].overdue += invBrutto;
-          else months[mIdx].pending += invBrutto;
+          hotelMonthly[mIdx].unpaid += roundedInv;
+          if (inv.dueDate && new Date(inv.dueDate) < today) hotelMonthly[mIdx].overdue += roundedInv;
         }
 
         // Apply specific month filter for top KPIs
@@ -191,6 +189,16 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       // 1. Calculate and round the final total for the hotel
       finalTotal = Math.round(finalTotal * 100) / 100;
       totalSpend += finalTotal;
+      const scaleRatio = hotelBruttoBeforeDiscount > 0 ? finalTotal / hotelBruttoBeforeDiscount : 0;
+      Object.entries(hotelMonthly).forEach(([idxStr, vals]) => {
+        const idx = Number(idxStr);
+        const scaledTotal = Math.round(vals.total * scaleRatio * 100) / 100;
+        const scaledPaid = Math.round(vals.paid * scaleRatio * 100) / 100;
+        months[idx].total += scaledTotal;
+        months[idx].paid += scaledPaid;
+        months[idx].unpaid += Math.round((scaledTotal - scaledPaid) * 100) / 100;
+        months[idx].overdue += Math.round(vals.overdue * scaleRatio * 100) / 100;
+      });
 
       const rawTotal = rawPaid + rawUnpaid;
       
