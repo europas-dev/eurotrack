@@ -142,17 +142,16 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
 
         // Safeguard against NaN values poisoning the month matrix
         invBrutto = isNaN(invBrutto) ? 0 : invBrutto;
-        const mIdx = d.getMonth();
-        const roundedInv = Math.round(invBrutto * 100) / 100;
-        
-        if (!hotelMonthly[mIdx]) hotelMonthly[mIdx] = { total: 0, paid: 0, unpaid: 0, overdue: 0 };
-        hotelMonthly[mIdx].total += roundedInv;
-        if (inv.isPaid) {
-          hotelMonthly[mIdx].paid += roundedInv;
-        } else {
-          hotelMonthly[mIdx].unpaid += roundedInv;
-          if (inv.dueDate && new Date(inv.dueDate) < today) hotelMonthly[mIdx].overdue += roundedInv;
-        }
+          const mIdx = d.getMonth();
+          
+          if (!hotelMonthly[mIdx]) hotelMonthly[mIdx] = { total: 0, paid: 0, unpaid: 0, overdue: 0 };
+          hotelMonthly[mIdx].total += invBrutto;
+          if (inv.isPaid) {
+            hotelMonthly[mIdx].paid += invBrutto;
+          } else {
+            hotelMonthly[mIdx].unpaid += invBrutto;
+            if (inv.dueDate && new Date(inv.dueDate) < today) hotelMonthly[mIdx].overdue += invBrutto;
+          }
 
         // Apply specific month filter for top KPIs
         if (selectedMonth !== null && d.getMonth() !== selectedMonth) return;
