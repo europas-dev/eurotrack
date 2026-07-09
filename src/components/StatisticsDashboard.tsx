@@ -19,12 +19,10 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
   const [sortAsc, setSortAsc] = useState(false);
   const [chartTab, setChartTab] = useState<'all' | 'total' | 'paid' | 'unpaid'>('all'); 
 
-  // Auto-sync with parent dashboard if the parent filter changes
   useEffect(() => {
     setLocalGroup(groupBy === 'none' ? 'hotel' : (groupBy as any));
   }, [groupBy]);
 
-  // NEW: Auto-sync sort direction IF the parent is actively sorting by 'cost'
   useEffect(() => {
     if (parentSortBy === 'cost' && parentSortDir) {
       setSortAsc(parentSortDir === 'asc');
@@ -43,7 +41,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
     let groupedTotals: Record<string, number> = {};
     
     let mostBooked = { name: '-', count: 0 };
-    let leastBooked = { name: '-', count: Infinity };
+    let leastBooked = { name: '-', count: Infinity }; 
     
     let bedPriceSum = 0;
     let bedPriceCount = 0;
@@ -62,10 +60,9 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       let rawOverdue = 0;
       let hasInvoicesInContext = false;
 
-      // TRACK PER-HOTEL MONTHS (This fixes the tooltip drift!)
-      let hotelMonths = Array.from({ length: 12 }, () => ({ total: 0, paid: 0, unpaid: 0, overdue: 0 }));
+      // TRACK RAW AMOUNTS PER MONTH FOR THIS SPECIFIC HOTEL
+      let hMonths = Array.from({ length: 12 }, () => ({ total: 0, paid: 0, overdue: 0 }));
 
-      // Safe parse for deposits
       const isDepEnabled = h.depositEnabled ?? h.deposit_enabled;
       const depAmt = h.depositAmount ?? h.deposit_amount;
       if (isDepEnabled && depAmt) {
@@ -96,7 +93,6 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
         if (!dateStr) return;
         const d = new Date(dateStr);
-        
         if (d.getFullYear() !== selectedYear) return;
         
         let invBrutto = 0;
@@ -125,26 +121,21 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
 
         invBrutto = isNaN(invBrutto) ? 0 : invBrutto;
         
-        // Add raw numbers to the HOTEL'S month array
-        const mIdx = d.getMonth();
-        hotelMonths[mIdx].total += invBrutto;
-        if (inv.isPaid) {
-          hotelMonths[mIdx].paid += invBrutto;
-        } else {
-          hotelMonths[mIdx].unpaid += invBrutto;
-          if (inv.dueDate && new Date(inv.dueDate) < today) hotelMonths[mIdx].overdue += invBrutto;
-        }
-
+        // Month filter applies to the KPI and Global accumulation
         if (selectedMonth !== null && d.getMonth() !== selectedMonth) return;
 
+        const mIdx = d.getMonth();
+        hMonths[mIdx].total += invBrutto;
         hasInvoicesInContext = true;
         hotelBruttoBeforeDiscount += invBrutto;
 
         if (inv.isPaid) {
+          hMonths[mIdx].paid += invBrutto;
           rawPaid += invBrutto;
         } else {
           rawUnpaid += invBrutto;
           if (inv.dueDate && new Date(inv.dueDate) < today) {
+            hMonths[mIdx].overdue += invBrutto;
             rawOverdue += invBrutto;
           }
         }
@@ -164,60 +155,77 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         finalTotal = parseFloat(overrideTotal) || 0;
       }
 
-      // Calculate and round the final total for the hotel
+      // Exact rounded total for this hotel
       finalTotal = Math.round(finalTotal * 100) / 100;
       totalSpend += finalTotal;
 
       const rawTotal = rawPaid + rawUnpaid;
+      let hotelPaidPart = 0;
+      let hotelOverduePart = 0;
       
       if (rawTotal > 0) {
-        // Calculate rounded components for global KPIs
-        const hotelPaidPart = Math.round((finalTotal * (rawPaid / rawTotal)) * 100) / 100;
-        const hotelUnpaidPart = Math.round((finalTotal - hotelPaidPart) * 100) / 100;
-        const hotelOverduePart = Math.round((finalTotal * (rawOverdue / rawTotal)) * 100) / 100;
-
-        totalPaid += hotelPaidPart;
-        totalUnpaid += hotelUnpaidPart;
-        totalOverdue += Math.min(hotelOverduePart, hotelUnpaidPart);
-
-        // DISTRIBUTE TO GLOBAL MONTHS based on the perfectly rounded per-hotel ratio
-        hotelMonths.forEach((hm, idx) => {
-            if (hm.total > 0) {
-                const mTotal = Math.round((finalTotal * (hm.total / rawTotal)) * 100) / 100;
-                const mPaid = Math.round((finalTotal * (hm.paid / rawTotal)) * 100) / 100;
-                const mUnpaid = Math.round((mTotal - mPaid) * 100) / 100;
-                const mOverdue = Math.round((finalTotal * (hm.overdue / rawTotal)) * 100) / 100;
-
-                months[idx].total += mTotal;
-                months[idx].paid += mPaid;
-                months[idx].unpaid += mUnpaid;
-                months[idx].overdue += Math.min(mOverdue, mUnpaid);
-            }
-        });
-        
+        hotelPaidPart = Math.round((finalTotal * (rawPaid / rawTotal)) * 100) / 100;
+        hotelOverduePart = Math.round((finalTotal * (rawOverdue / rawTotal)) * 100) / 100;
       } else if (finalTotal > 0 && selectedMonth === null) {
         const isHotelPaid = h.isPaid ?? h.is_paid;
-        
-        let targetMonth = 0;
-        if (h.durations && h.durations.length > 0 && h.durations[0].startDate) {
-            targetMonth = new Date(h.durations[0].startDate).getMonth();
-        }
-
-        if (isHotelPaid) {
-          totalPaid += finalTotal;
-          months[targetMonth].total += finalTotal;
-          months[targetMonth].paid += finalTotal;
-        } else {
-          totalUnpaid += finalTotal;
-          months[targetMonth].total += finalTotal;
-          months[targetMonth].unpaid += finalTotal;
-          
+        if (isHotelPaid) hotelPaidPart = finalTotal;
+        else {
           const isOverdue = (h.invoices || []).some((inv: any) => inv.dueDate && new Date(inv.dueDate) < today);
-          if (isOverdue) {
-              totalOverdue += finalTotal;
-              months[targetMonth].overdue += finalTotal;
-          }
+          if (isOverdue) hotelOverduePart = finalTotal;
         }
+      }
+
+      // Remainder for hotel unpaid
+      const hotelUnpaidPart = Math.round((finalTotal - hotelPaidPart) * 100) / 100;
+      
+      totalPaid += hotelPaidPart;
+      totalUnpaid += hotelUnpaidPart;
+      totalOverdue += Math.min(hotelOverduePart, hotelUnpaidPart);
+
+      // --- THE FIX: PROPORTIONAL ALLOCATOR FOR TOOLTIP MONTHS ---
+      // Distributes the fully discounted/rounded final total perfectly across active months
+      if (rawTotal > 0) {
+          let allocatedTotal = 0;
+          let allocatedPaid = 0;
+          let allocatedOverdue = 0;
+          
+          let lastActiveIdx = 11;
+          for (let i = 11; i >= 0; i--) {
+              if (hMonths[i].total > 0) { lastActiveIdx = i; break; }
+          }
+
+          hMonths.forEach((hm, idx) => {
+              if (hm.total === 0) return;
+
+              let mTotal = 0; let mPaid = 0; let mOverdue = 0;
+
+              if (idx === lastActiveIdx) {
+                  // Dump any remainder drift cents into the last active month
+                  mTotal = Math.round((finalTotal - allocatedTotal) * 100) / 100;
+                  mPaid = Math.round((hotelPaidPart - allocatedPaid) * 100) / 100;
+                  mOverdue = Math.round((hotelOverduePart - allocatedOverdue) * 100) / 100;
+              } else {
+                  mTotal = Math.round((finalTotal * (hm.total / rawTotal)) * 100) / 100;
+                  mPaid = rawPaid > 0 ? Math.round((hotelPaidPart * (hm.paid / rawPaid)) * 100) / 100 : 0;
+                  mOverdue = rawOverdue > 0 ? Math.round((hotelOverduePart * (hm.overdue / rawOverdue)) * 100) / 100 : 0;
+
+                  allocatedTotal += mTotal;
+                  allocatedPaid += mPaid;
+                  allocatedOverdue += mOverdue;
+              }
+
+              months[idx].total += mTotal;
+              months[idx].paid += mPaid;
+              months[idx].overdue += mOverdue;
+          });
+      } else if (finalTotal > 0 && selectedMonth === null) {
+          let fallbackMonth = 0;
+          if (h.durations && h.durations.length > 0 && h.durations[0].startDate) {
+              fallbackMonth = new Date(h.durations[0].startDate).getMonth();
+          }
+          months[fallbackMonth].total += finalTotal;
+          months[fallbackMonth].paid += hotelPaidPart;
+          months[fallbackMonth].overdue += hotelOverduePart;
       }
 
       if (localGroup !== 'employee') {
@@ -265,13 +273,13 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       }
     });
 
-    // FINAL LOCK: Ensure months array cleans up any 0.01 drift for the tooltip
+    // FINAL MONTH TOOLTIP CLEANUP
     months.forEach(m => {
         m.total = Math.round(m.total * 100) / 100;
         m.paid = Math.round(m.paid * 100) / 100;
-        m.unpaid = Math.round((m.total - m.paid) * 100) / 100;
+        m.unpaid = Math.round((m.total - m.paid) * 100) / 100; 
         m.overdue = Math.round(m.overdue * 100) / 100;
-        m.pending = Math.round((m.unpaid - m.overdue) * 100) / 100;
+        m.pending = Math.round((m.unpaid - m.overdue) * 100) / 100; 
     });
 
     const maxMonth = Math.max(...months.map(m => m.total), 1);
@@ -384,7 +392,6 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         {/* LEFT: CONDITIONAL CHART (MONTHLY BARS OR MONTH DONUT) */}
         <div className="p-6 rounded-2xl border shadow-sm flex flex-col h-full bg-app-card border-app-border">
           
-          {/* HEADER & TABS IN ONE LINE */}
           <div className="flex items-center justify-between mb-6">
             <h3 className={cn("text-sm font-black uppercase tracking-widest", dk ? "text-slate-300" : "text-slate-700")}>
               {selectedMonth === null 
@@ -393,7 +400,6 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
               }
             </h3>
             
-            {/* CHART TABS */}
             {selectedMonth === null && (
               <div className={cn("flex p-0.5 rounded-lg", dk ? "bg-black/20" : "bg-slate-100")}>
                 {[
@@ -417,7 +423,6 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
           </div>
           
           {selectedMonth === null ? (
-            // --- BAR CHART (ALL MONTHS) ---
             <div className="flex flex-col flex-1">
               <div className="flex-1 flex items-end gap-2 relative min-h-[260px]">
                 <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10 dark:opacity-5">
@@ -485,7 +490,6 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
               </div>
             </div>
             ) : (
-            // --- GLOWING SINGLE-RING DONUT ---
             <div className="flex-1 flex items-center justify-center min-h-[320px] mt-2 animate-in fade-in zoom-in-95 duration-500 w-full relative">
                {(() => {
                  const paidPct = stats.totalSpend > 0 ? (stats.totalPaid / stats.totalSpend) * 100 : 0;
