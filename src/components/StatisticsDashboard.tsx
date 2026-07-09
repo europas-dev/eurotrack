@@ -315,6 +315,10 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         m.pending = Math.round((m.unpaid - m.overdue) * 100) / 100;
     });
 
+    const maxMonth = Math.max(...months.map(m => m.total), 1);
+    const maxPaid = Math.max(...months.map(m => m.paid), 1);
+    const maxUnpaid = Math.max(...months.map(m => m.unpaid), 1);
+
     return { totalSpend, totalPaid, totalUnpaid, totalOverdue, totalDeposits, months, maxMonth, maxPaid, maxUnpaid, sortedGroups, maxGroupValue, mostBooked, leastBooked, avgBedPrice, minBedPrice, maxBedPrice };
   }, [hotels, selectedYear, selectedMonth, localGroup, sortAsc, lang]);
 
