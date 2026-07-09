@@ -216,6 +216,65 @@ export function calcHotelTotalCost(hotel: any, selectedMonth?: number | null, se
   return finalBrutto;
 }
 
+export function calcHotelBreakdown(hotel: any, selectedMonth: number | null, selectedYear: number | null) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let rawPaid = 0;
+  let rawUnpaid = 0;
+  let rawOverdue = 0;
+
+  (hotel.invoices || []).forEach((inv: any) => {
+    const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
+    if (!dateStr) return;
+    const d = new Date(dateStr);
+    if (selectedYear != null && d.getFullYear() !== selectedYear) return;
+    if (selectedMonth !== null && d.getMonth() !== selectedMonth) return;
+
+    let invBrutto = 0;
+    if (inv.billingMode === 'total') {
+      const n = parseFloat(inv.totalNetto) || 0;
+      const m = parseFloat(inv.totalMwst) || 0;
+      const disc = parseFloat(inv.discountValue) || 0;
+      const isPct = inv.discountType === 'percentage';
+      invBrutto = Math.max(0, n - (isPct ? n * (disc / 100) : disc)) * (1 + m / 100);
+    } else {
+      const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
+      (inv.items || []).forEach((item: any) => {
+        invBrutto += calcInvoiceItem(item, defaultN)?.brutto || 0;
+      });
+    }
+    invBrutto = isNaN(invBrutto) ? 0 : invBrutto;
+
+    if (inv.isPaid) {
+      rawPaid += invBrutto;
+    } else {
+      rawUnpaid += invBrutto;
+      if (inv.dueDate && new Date(inv.dueDate) < today) rawOverdue += invBrutto;
+    }
+  });
+
+  const finalTotal = calcHotelTotalCost(hotel, selectedMonth, selectedYear);
+  const rawTotal = rawPaid + rawUnpaid;
+
+  let paid = 0, unpaid = 0, overdue = 0;
+  if (rawTotal > 0) {
+    paid = Math.round((finalTotal * (rawPaid / rawTotal)) * 100) / 100;
+    unpaid = Math.round((finalTotal - paid) * 100) / 100;
+    overdue = Math.round((finalTotal * (rawOverdue / rawTotal)) * 100) / 100;
+  } else if (finalTotal > 0) {
+    const isHotelPaid = hotel.isPaid ?? hotel.is_paid;
+    if (isHotelPaid) paid = finalTotal;
+    else {
+      unpaid = finalTotal;
+      const isOverdue = (hotel.invoices || []).some((inv: any) => inv.dueDate && new Date(inv.dueDate) < today);
+      if (isOverdue) overdue = finalTotal;
+    }
+  }
+
+  return { total: finalTotal, paid, unpaid, overdue };
+}
+
 export function calcHotelFreeBedsToday(hotel: any): number {
   const today = new Date().toISOString().split('T')[0];
   return (hotel.durations || []).reduce((total: number, d: any) => {
