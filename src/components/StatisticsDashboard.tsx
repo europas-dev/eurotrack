@@ -444,26 +444,38 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                       
                       {/* SMART TOOLTIP */}
                       <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-[11px] p-3 rounded-xl pointer-events-none z-[9999] whitespace-nowrap shadow-2xl flex flex-col gap-1.5">
-                        <span className="font-black text-slate-500 dark:text-slate-400 mb-1">{labels[i]}</span>
-                        
-                        {(chartTab === 'all' || chartTab === 'total') && (
-                          <div className="flex justify-between gap-4"><span className="text-blue-500">{lang === 'de' ? 'Gesamt:' : 'Total:'}</span> <span className="font-bold">{formatCurrency(m.total)}</span></div>
-                        )}
-                        
-                        {(chartTab === 'all' || chartTab === 'paid') && (
-                          <div className="flex justify-between gap-4"><span className="text-emerald-500">{lang === 'de' ? 'Bezahlt:' : 'Paid:'}</span> <span className="font-bold">{formatCurrency(m.paid)}</span></div>
-                        )}
-                        
-                        {chartTab === 'all' && <div className="w-full h-px bg-slate-100 dark:bg-slate-800 my-0.5"></div>}
-                        
-                        {(chartTab === 'all' || chartTab === 'unpaid') && (
-                          <>
-                            <div className="flex justify-between gap-4"><span className="text-slate-500 dark:text-slate-400">{lang === 'de' ? 'Total Offen:' : 'Total Due:'}</span> <span className="font-bold">{formatCurrency(m.unpaid)}</span></div>
-                            <div className="flex justify-between gap-4 pl-2"><span className="text-amber-500 text-[10px]">{lang === 'de' ? '└ Ausstehend:' : '└ Pending:'}</span> <span className="font-bold text-[10px]">{formatCurrency(m.pending)}</span></div>
-                            <div className="flex justify-between gap-4 pl-2"><span className="text-red-500 text-[10px]">{lang === 'de' ? '└ Überfällig:' : '└ Overdue:'}</span> <span className="font-bold text-[10px]">{formatCurrency(m.overdue)}</span></div>
-                          </>
-                        )}
-                      </div>
+    <span className="font-black text-slate-500 dark:text-slate-400 mb-1">{labels[i]}</span>
+    
+    {(chartTab === 'all' || chartTab === 'total') && (
+        <div className="flex justify-between gap-4"><span className="text-blue-500">{lang === 'de' ? 'Gesamt:' : 'Total:'}</span> <span className="font-bold">{formatCurrency(m.total)}</span></div>
+    )}
+    
+    {(chartTab === 'all' || chartTab === 'paid') && (
+        <div className="flex justify-between gap-4"><span className="text-emerald-500">{lang === 'de' ? 'Bezahlt:' : 'Paid:'}</span> <span className="font-bold">{formatCurrency(m.paid)}</span></div>
+    )}
+    
+    {chartTab === 'all' && <div className="w-full h-px bg-slate-100 dark:bg-slate-800 my-0.5"></div>}
+    
+    {(chartTab === 'all' || chartTab === 'unpaid') && (
+        <>
+            {/* THIS IS THE FIX: Calculated on-the-fly to ensure it matches the KPI exactly */}
+            <div className="flex justify-between gap-4">
+                <span className="text-slate-500 dark:text-slate-400">{lang === 'de' ? 'Total Offen:' : 'Total Due:'}</span> 
+                <span className="font-bold">{formatCurrency(Math.round((m.total - m.paid) * 100) / 100)}</span>
+            </div>
+            
+            <div className="flex justify-between gap-4 pl-2">
+                <span className="text-amber-500 text-[10px]">{lang === 'de' ? '└ Ausstehend:' : '└ Pending:'}</span> 
+                <span className="font-bold text-[10px]">{formatCurrency(Math.round((Math.max(0, m.total - m.paid) - m.overdue) * 100) / 100)}</span>
+            </div>
+            
+            <div className="flex justify-between gap-4 pl-2">
+                <span className="text-red-500 text-[10px]">{lang === 'de' ? '└ Überfällig:' : '└ Overdue:'}</span> 
+                <span className="font-bold text-[10px]">{formatCurrency(m.overdue)}</span>
+            </div>
+        </>
+    )}
+</div>
                       
                       <div className="w-full flex items-end justify-center h-full relative gap-0.5 lg:gap-1">
                          {chartTab === 'all' && (
