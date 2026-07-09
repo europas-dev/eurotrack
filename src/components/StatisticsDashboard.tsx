@@ -188,45 +188,67 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       // 1. Calculate and round the final total for the hotel
       finalTotal = Math.round(finalTotal * 100) / 100;
       totalSpend += finalTotal;
+      const rawTotalForScale = rawPaid + rawUnpaid;
+      const hotelPaidTotalScaled = rawTotalForScale > 0
+        ? Math.round((finalTotal * (rawPaid / rawTotalForScale)) * 100) / 100
+        : (h.isPaid ?? h.is_paid ? finalTotal : 0);
       const scaleRatio = hotelBruttoBeforeDiscount > 0 ? finalTotal / hotelBruttoBeforeDiscount : 0;
-      Object.entries(hotelMonthly).forEach(([idxStr, vals]) => {
-        const idx = Number(idxStr);
-        const scaledTotal = Math.round(vals.total * scaleRatio * 100) / 100;
-        const scaledPaid = Math.round(vals.paid * scaleRatio * 100) / 100;
+      const monthKeys = Object.keys(hotelMonthly).map(Number).sort((a, b) => a - b);
+      
+      let distributedTotal = 0;
+      let distributedPaid = 0;
+      
+      monthKeys.forEach((idx, i) => {
+        const vals = hotelMonthly[idx];
+        const isLast = i === monthKeys.length - 1;
+      
+        let scaledTotal = isLast
+          ? Math.round((finalTotal - distributedTotal) * 100) / 100
+          : Math.round(vals.total * scaleRatio * 100) / 100;
+      
+        let scaledPaid = isLast
+          ? Math.round((hotelPaidTotalScaled - distributedPaid) * 100) / 100
+          : Math.round(vals.paid * scaleRatio * 100) / 100;
+      
+        const scaledOverdue = Math.round(vals.overdue * scaleRatio * 100) / 100;
+      
+        distributedTotal += scaledTotal;
+        distributedPaid += scaledPaid;
+      
         months[idx].total += scaledTotal;
         months[idx].paid += scaledPaid;
         months[idx].unpaid += Math.round((scaledTotal - scaledPaid) * 100) / 100;
-        months[idx].overdue += Math.round(vals.overdue * scaleRatio * 100) / 100;
+        months[idx].overdue += scaledOverdue;
       });
-
-      const rawTotal = rawPaid + rawUnpaid;
       
-      if (rawTotal > 0) {
-        // Calculate rounded components
-        const hotelPaidPart = Math.round((finalTotal * (rawPaid / rawTotal)) * 100) / 100;
-        
-        // FORCE the Unpaid part to be the remainder (Total - Paid). 
-        // This ensures Paid + Unpaid ALWAYS = Total.
-        const hotelUnpaidPart = Math.round((finalTotal - hotelPaidPart) * 100) / 100;
-        
-        totalPaid += hotelPaidPart;
-        totalUnpaid += hotelUnpaidPart;
-        
-        // Calculate overdue based on the proportion of the total
-        totalOverdue += Math.round((finalTotal * (rawOverdue / rawTotal)) * 100) / 100;
-        
-      } else if (finalTotal > 0 && selectedMonth === null) {
-        const isHotelPaid = h.isPaid ?? h.is_paid;
-        
-        if (isHotelPaid) {
-          totalPaid += finalTotal;
-        } else {
-          totalUnpaid += finalTotal;
-          
-          const isOverdue = (h.invoices || []).some((inv: any) => inv.dueDate && new Date(inv.dueDate) < today);
-          if (isOverdue) totalOverdue += finalTotal;
-        }
-      }
+            const rawTotal = rawPaid + rawUnpaid;
+            
+            if (rawTotal > 0) {
+              // Calculate rounded components
+              const hotelPaidPart = Math.round((finalTotal * (rawPaid / rawTotal)) * 100) / 100;
+              
+              // FORCE the Unpaid part to be the remainder (Total - Paid). 
+              // This ensures Paid + Unpaid ALWAYS = Total.
+              const hotelUnpaidPart = Math.round((finalTotal - hotelPaidPart) * 100) / 100;
+              
+              totalPaid += hotelPaidPart;
+              totalUnpaid += hotelUnpaidPart;
+              
+              // Calculate overdue based on the proportion of the total
+              totalOverdue += Math.round((finalTotal * (rawOverdue / rawTotal)) * 100) / 100;
+              
+            } else if (finalTotal > 0 && selectedMonth === null) {
+              const isHotelPaid = h.isPaid ?? h.is_paid;
+              
+              if (isHotelPaid) {
+                totalPaid += finalTotal;
+              } else {
+                totalUnpaid += finalTotal;
+                
+                const isOverdue = (h.invoices || []).some((inv: any) => inv.dueDate && new Date(inv.dueDate) < today);
+                if (isOverdue) totalOverdue += finalTotal;
+              }
+            }
 
       // Group dynamic data keys based on active state criteria (IGNORE FOR EMPLOYEES)
       if (localGroup !== 'employee') {
