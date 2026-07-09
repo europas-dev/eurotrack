@@ -187,12 +187,9 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       // 1. Calculate the final total for the hotel (already rounded above)
       // 1. Calculate and round the final total for the hotel
       finalTotal = Math.round(finalTotal * 100) / 100;
-      totalSpend += finalTotal;
-      const rawTotalForScale = rawPaid + rawUnpaid;
-      const hotelPaidTotalScaled = rawTotalForScale > 0
-        ? Math.round((finalTotal * (rawPaid / rawTotalForScale)) * 100) / 100
-        : (h.isPaid ?? h.is_paid ? finalTotal : 0);
-      const scaleRatio = hotelBruttoBeforeDiscount > 0 ? finalTotal / hotelBruttoBeforeDiscount : 0;
+totalSpend += finalTotal;
+
+const scaleRatio = hotelBruttoBeforeDiscount > 0 ? finalTotal / hotelBruttoBeforeDiscount : 0;
 const rawTotalForScale = rawPaid + rawUnpaid;
 const hotelPaidTarget = rawTotalForScale > 0
   ? Math.round((finalTotal * (rawPaid / rawTotalForScale)) * 100) / 100
