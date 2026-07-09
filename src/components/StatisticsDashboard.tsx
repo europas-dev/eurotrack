@@ -195,31 +195,48 @@ const hotelPaidTarget = rawTotalForScale > 0
   ? Math.round((finalTotal * (rawPaid / rawTotalForScale)) * 100) / 100
   : ((h.isPaid ?? h.is_paid) ? finalTotal : 0);
 
+function distributeExact(entries, target) {
+  const raw = entries.map(v => v * scaleRatio * 100);
+  const floors = raw.map(v => Math.floor(v));
+  let sumFloors = floors.reduce((a, b) => a + b, 0);
+  let remainderCents = Math.round(target * 100) - sumFloors;
+
+  const order = raw
+    .map((v, i) => ({ i, frac: v - floors[i] }))
+    .sort((a, b) => b.frac - a.frac);
+
+  const result = [...floors];
+  for (let k = 0; k < order.length && remainderCents > 0; k++) {
+    result[order[k].i] += 1;
+    remainderCents--;
+  }
+  for (let k = order.length - 1; k >= 0 && remainderCents < 0; k--) {
+    result[order[k].i] -= 1;
+    remainderCents++;
+  }
+  return result.map(v => v / 100);
+}
+
 const monthKeys = Object.keys(hotelMonthly).map(Number).sort((a, b) => a - b);
-let distTotal = 0;
-let distPaid = 0;
+const totalArr = monthKeys.map(idx => hotelMonthly[idx].total);
+const paidArr = monthKeys.map(idx => hotelMonthly[idx].paid);
+const overdueArr = monthKeys.map(idx => hotelMonthly[idx].overdue);
+
+const distributedTotals = distributeExact(totalArr, finalTotal);
+const distributedPaids = distributeExact(paidArr, hotelPaidTarget);
+const overdueTarget = Math.round(overdueArr.reduce((s, v) => s + v * scaleRatio, 0) * 100) / 100;
+const distributedOverdues = distributeExact(overdueArr, overdueTarget);
 
 monthKeys.forEach((idx, i) => {
-  const vals = hotelMonthly[idx];
-  const isLast = i === monthKeys.length - 1;
-
-  const scaledTotal = isLast
-    ? Math.round((finalTotal - distTotal) * 100) / 100
-    : Math.round(vals.total * scaleRatio * 100) / 100;
-
-  const scaledPaid = isLast
-    ? Math.round((hotelPaidTarget - distPaid) * 100) / 100
-    : Math.round(vals.paid * scaleRatio * 100) / 100;
-
-  distTotal += scaledTotal;
-  distPaid += scaledPaid;
+  const scaledTotal = distributedTotals[i];
+  const scaledPaid = Math.min(distributedPaids[i], scaledTotal);
+  const scaledOverdue = Math.min(distributedOverdues[i], Math.round((scaledTotal - scaledPaid) * 100) / 100);
 
   months[idx].total += scaledTotal;
   months[idx].paid += scaledPaid;
   months[idx].unpaid += Math.round((scaledTotal - scaledPaid) * 100) / 100;
-  months[idx].overdue += Math.round(vals.overdue * scaleRatio * 100) / 100;
-});
-      
+  months[idx].overdue += scaledOverdue;
+});   
             const rawTotal = rawPaid + rawUnpaid;
             
             if (rawTotal > 0) {
