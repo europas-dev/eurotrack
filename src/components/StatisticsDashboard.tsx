@@ -77,21 +77,72 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
   }
 
   // MONTHLY BREAKDOWN — SAME ENGINE AS MAIN DASHBOARD
-  for (let mi = 0; mi < 12; mi++) {
-    const b = calcHotelBreakdown(h, mi, selectedYear);
-    months[mi].total += b.total;
-    months[mi].paid += b.paid;
-    months[mi].unpaid += b.unpaid;
-    months[mi].overdue += b.overdue;
+  // Get the SINGLE correct total for the whole year (respects override, exactly like main dashboard)
+const yearBreakdown = calcHotelBreakdown(h, null, selectedYear);
+const hotelYearTotal = yearBreakdown.total;
+const hotelYearPaidTarget = yearBreakdown.paid;
+
+// Get RAW (un-overridden) per-month weights just to know the SHAPE of distribution
+const rawMonthWeights: { idx: number; total: number; paid: number; overdue: number }[] = [];
+(h.invoices || []).forEach((inv: any) => {
+  const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
+  if (!dateStr) return;
+  const d = new Date(dateStr);
+  if (d.getFullYear() !== selectedYear) return;
+  const mIdx = d.getMonth();
+
+  let invBrutto = 0;
+  if (inv.billingMode === 'total') {
+    const n = parseFloat(inv.totalNetto) || 0;
+    const m = parseFloat(inv.totalMwst) || 0;
+    const disc = parseFloat(inv.discountValue) || 0;
+    const isPct = inv.discountType === 'percentage';
+    invBrutto = Math.max(0, n - (isPct ? n * (disc / 100) : disc)) * (1 + m / 100);
+  } else {
+    const defaultN = inv.startDate && inv.endDate ? calculateNights(inv.startDate, inv.endDate) : 1;
+    (inv.items || []).forEach((item: any) => { invBrutto += calcInvoiceItem(item, defaultN)?.brutto || 0; });
   }
+  invBrutto = isNaN(invBrutto) ? 0 : invBrutto;
+
+  let entry = rawMonthWeights.find(e => e.idx === mIdx);
+  if (!entry) { entry = { idx: mIdx, total: 0, paid: 0, overdue: 0 }; rawMonthWeights.push(entry); }
+  entry.total += invBrutto;
+  if (inv.isPaid) entry.paid += invBrutto;
+  else if (inv.dueDate && new Date(inv.dueDate) < today) entry.overdue += invBrutto;
+});
+
+const rawSum = rawMonthWeights.reduce((s, e) => s + e.total, 0);
+const rawPaidSum = rawMonthWeights.reduce((s, e) => s + e.paid, 0);
+const rawOverdueSum = rawMonthWeights.reduce((s, e) => s + e.overdue, 0);
+
+let distTotal = 0, distPaid = 0, distOverdue = 0;
+rawMonthWeights.sort((a, b) => a.idx - b.idx).forEach((entry, i) => {
+  const isLast = i === rawMonthWeights.length - 1;
+  const share = rawSum > 0 ? entry.total / rawSum : 0;
+  const paidShare = rawPaidSum > 0 ? entry.paid / rawPaidSum : 0;
+  const overdueShare = rawOverdueSum > 0 ? entry.overdue / rawOverdueSum : 0;
+
+  const mTotal = isLast ? Math.round((hotelYearTotal - distTotal) * 100) / 100 : Math.round(hotelYearTotal * share * 100) / 100;
+  const mPaid = isLast ? Math.round((hotelYearPaidTarget - distPaid) * 100) / 100 : Math.round(hotelYearPaidTarget * paidShare * 100) / 100;
+  const mOverdue = Math.round(yearBreakdown.overdue * overdueShare * 100) / 100;
+
+  distTotal += mTotal;
+  distPaid += mPaid;
+  distOverdue += mOverdue;
+
+  months[entry.idx].total += mTotal;
+  months[entry.idx].paid += mPaid;
+  months[entry.idx].unpaid += Math.round((mTotal - mPaid) * 100) / 100;
+  months[entry.idx].overdue += mOverdue;
+});
 
   // TOP KPI FIGURES — filtered by selectedMonth (or full year if null)
-  const hotelBreakdown = calcHotelBreakdown(h, selectedMonth, selectedYear);
+  const hotelBreakdown = selectedMonth === null ? yearBreakdown : calcHotelBreakdown(h, selectedMonth, selectedYear);
   const finalTotal = hotelBreakdown.total;
-  totalSpend += finalTotal;
-  totalPaid += hotelBreakdown.paid;
-  totalUnpaid += hotelBreakdown.unpaid;
-  totalOverdue += hotelBreakdown.overdue;
+totalSpend += finalTotal;
+totalPaid += hotelBreakdown.paid;
+totalUnpaid += hotelBreakdown.unpaid;
+totalOverdue += hotelBreakdown.overdue;
 
   const hasInvoicesInContext = (h.invoices || []).some((inv: any) => {
     const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
