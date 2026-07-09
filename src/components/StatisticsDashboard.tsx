@@ -1,3 +1,4 @@
+//src/components/StatisticsDashboard.tsx
 import React, { useMemo, useState, useEffect } from 'react';
 import { cn, formatCurrency, calculateNights, calcInvoiceItem } from '../lib/utils';
 import { TrendingUp, TrendingDown, CreditCard, AlertCircle, ShieldCheck, Clock, Trophy, BedDouble, Building2, MapPin,ReceiptEuro, Building, ArrowDownWideNarrow, ArrowUpNarrowWide } from 'lucide-react';
@@ -19,10 +20,12 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
   const [sortAsc, setSortAsc] = useState(false);
   const [chartTab, setChartTab] = useState<'all' | 'total' | 'paid' | 'unpaid'>('all'); 
 
+  // Auto-sync with parent dashboard if the parent filter changes
   useEffect(() => {
     setLocalGroup(groupBy === 'none' ? 'hotel' : (groupBy as any));
   }, [groupBy]);
 
+  // NEW: Auto-sync sort direction IF the parent is actively sorting by 'cost'
   useEffect(() => {
     if (parentSortBy === 'cost' && parentSortDir) {
       setSortAsc(parentSortDir === 'asc');
@@ -41,7 +44,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
     let groupedTotals: Record<string, number> = {};
     
     let mostBooked = { name: '-', count: 0 };
-    let leastBooked = { name: '-', count: Infinity }; 
+    let leastBooked = { name: '-', count: Infinity }; // Start with Infinity for finding the minimum
     
     let bedPriceSum = 0;
     let bedPriceCount = 0;
@@ -60,9 +63,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       let rawOverdue = 0;
       let hasInvoicesInContext = false;
 
-      // TRACK RAW AMOUNTS PER MONTH FOR THIS SPECIFIC HOTEL
-      let hMonths = Array.from({ length: 12 }, () => ({ total: 0, paid: 0, overdue: 0 }));
-
+      // Safe parse for deposits (checking both camelCase and snake_case)
       const isDepEnabled = h.depositEnabled ?? h.deposit_enabled;
       const depAmt = h.depositAmount ?? h.deposit_amount;
       if (isDepEnabled && depAmt) {
@@ -73,6 +74,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       if (dCount > mostBooked.count) {
         mostBooked = { name: h.name || 'Unnamed', count: dCount };
       }
+      // NEW: Track least booked (ignore hotels with zero bookings)
       if (dCount > 0 && dCount < leastBooked.count) {
         leastBooked = { name: h.name || 'Unnamed', count: dCount };
       }
@@ -80,11 +82,19 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       const bedOverride = h.override_price_per_bed ?? h.overridePricePerBed;
       if (bedOverride != null) {
         const overrideP = parseFloat(bedOverride) || 0;
+        
+        // Safety check: Ignore unrealistic prices to shield against database typos
         if (overrideP > 5) {
           bedPriceSum += overrideP;
           bedPriceCount++;
-          if (overrideP < minBedPrice.price) minBedPrice = { hotelName: h.name || 'Unnamed', price: overrideP };
-          if (overrideP > maxBedPrice.price) maxBedPrice = { hotelName: h.name || 'Unnamed', price: overrideP };
+          
+          // NEW: Track lowest and highest from overrides
+          if (overrideP < minBedPrice.price) {
+            minBedPrice = { hotelName: h.name || 'Unnamed', price: overrideP };
+          }
+          if (overrideP > maxBedPrice.price) {
+            maxBedPrice = { hotelName: h.name || 'Unnamed', price: overrideP };
+          }
         }
       }
 
@@ -93,6 +103,8 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         const dateStr = inv.isPaid ? inv.paymentDate : (inv.dueDate || inv.created_at || new Date().toISOString());
         if (!dateStr) return;
         const d = new Date(dateStr);
+        
+        // Strict global year filter constraint
         if (d.getFullYear() !== selectedYear) return;
         
         let invBrutto = 0;
@@ -109,38 +121,58 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
             invBrutto += calcInvoiceItem(item, defaultN)?.brutto || 0;
             if (item.type === 'room' && item.method === 'per_bed' && item.netto && parseFloat(item.netto) > 0) {
                const p = parseFloat(item.netto) || 0;
+               
+               // Safety check: Ignore old database entries where energy costs (< 5€) were accidentally saved as 'room' type
                if (p > 5) {
                  bedPriceSum += p;
                  bedPriceCount++;
-                 if (p < minBedPrice.price) minBedPrice = { hotelName: h.name || 'Unnamed', price: p };
-                 if (p > maxBedPrice.price) maxBedPrice = { hotelName: h.name || 'Unnamed', price: p };
+                 
+                 // NEW: Track lowest and highest from itemized bed prices
+                 if (p < minBedPrice.price) {
+                   minBedPrice = { hotelName: h.name || 'Unnamed', price: p };
+                 }
+                 if (p > maxBedPrice.price) {
+                   maxBedPrice = { hotelName: h.name || 'Unnamed', price: p };
+                 }
                }
             }
           });
         }
 
+        // Safeguard against NaN values poisoning the month matrix
         invBrutto = isNaN(invBrutto) ? 0 : invBrutto;
         
-        // Month filter applies to the KPI and Global accumulation
+        // ALWAYS add to the month array so the whole year chart works
+        const mIdx = d.getMonth();
+        
+        // FIX: Accumulate RAW values here, exactly like the top KPIs do. 
+        // We will let the loop at the very end handle the rounding and remainder rule.
+        months[mIdx].total += invBrutto;
+        if (inv.isPaid) {
+          months[mIdx].paid += invBrutto;
+        } else {
+          months[mIdx].unpaid += invBrutto;
+          if (inv.dueDate && new Date(inv.dueDate) < today) months[mIdx].overdue += invBrutto;
+          else months[mIdx].pending += invBrutto;
+        }
+
+        // Apply specific month filter for top KPIs
         if (selectedMonth !== null && d.getMonth() !== selectedMonth) return;
 
-        const mIdx = d.getMonth();
-        hMonths[mIdx].total += invBrutto;
         hasInvoicesInContext = true;
         hotelBruttoBeforeDiscount += invBrutto;
 
         if (inv.isPaid) {
-          hMonths[mIdx].paid += invBrutto;
           rawPaid += invBrutto;
         } else {
           rawUnpaid += invBrutto;
           if (inv.dueDate && new Date(inv.dueDate) < today) {
-            hMonths[mIdx].overdue += invBrutto;
             rawOverdue += invBrutto;
           }
         }
       });
 
+      // Mirror global discount evaluation architecture
       let discountedBrutto = hotelBruttoBeforeDiscount;
       const hasGlobDisc = h.has_global_discount ?? h.hasGlobalDiscount;
       if (hasGlobDisc) {
@@ -155,79 +187,41 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         finalTotal = parseFloat(overrideTotal) || 0;
       }
 
-      // Exact rounded total for this hotel
+      // 1. Calculate the final total for the hotel (already rounded above)
+      // 1. Calculate and round the final total for the hotel
       finalTotal = Math.round(finalTotal * 100) / 100;
       totalSpend += finalTotal;
 
       const rawTotal = rawPaid + rawUnpaid;
-      let hotelPaidPart = 0;
-      let hotelOverduePart = 0;
       
       if (rawTotal > 0) {
-        hotelPaidPart = Math.round((finalTotal * (rawPaid / rawTotal)) * 100) / 100;
-        hotelOverduePart = Math.round((finalTotal * (rawOverdue / rawTotal)) * 100) / 100;
+        // Calculate rounded components
+        const hotelPaidPart = Math.round((finalTotal * (rawPaid / rawTotal)) * 100) / 100;
+        
+        // FORCE the Unpaid part to be the remainder (Total - Paid). 
+        // This ensures Paid + Unpaid ALWAYS = Total.
+        const hotelUnpaidPart = Math.round((finalTotal - hotelPaidPart) * 100) / 100;
+        
+        totalPaid += hotelPaidPart;
+        totalUnpaid += hotelUnpaidPart;
+        
+        // Calculate overdue based on the proportion of the total
+        totalOverdue += Math.round((finalTotal * (rawOverdue / rawTotal)) * 100) / 100;
+        
       } else if (finalTotal > 0 && selectedMonth === null) {
         const isHotelPaid = h.isPaid ?? h.is_paid;
-        if (isHotelPaid) hotelPaidPart = finalTotal;
-        else {
+        
+        if (isHotelPaid) {
+          totalPaid += finalTotal;
+        } else {
+          totalUnpaid += finalTotal;
+          
           const isOverdue = (h.invoices || []).some((inv: any) => inv.dueDate && new Date(inv.dueDate) < today);
-          if (isOverdue) hotelOverduePart = finalTotal;
+          if (isOverdue) totalOverdue += finalTotal;
         }
       }
 
-      // Remainder for hotel unpaid
-      const hotelUnpaidPart = Math.round((finalTotal - hotelPaidPart) * 100) / 100;
-      
-      totalPaid += hotelPaidPart;
-      totalUnpaid += hotelUnpaidPart;
-      totalOverdue += Math.min(hotelOverduePart, hotelUnpaidPart);
-
-      // --- THE FIX: PROPORTIONAL ALLOCATOR FOR TOOLTIP MONTHS ---
-      // Distributes the fully discounted/rounded final total perfectly across active months
-      if (rawTotal > 0) {
-          let allocatedTotal = 0;
-          let allocatedPaid = 0;
-          let allocatedOverdue = 0;
-          
-          let lastActiveIdx = 11;
-          for (let i = 11; i >= 0; i--) {
-              if (hMonths[i].total > 0) { lastActiveIdx = i; break; }
-          }
-
-          hMonths.forEach((hm, idx) => {
-              if (hm.total === 0) return;
-
-              let mTotal = 0; let mPaid = 0; let mOverdue = 0;
-
-              if (idx === lastActiveIdx) {
-                  // Dump any remainder drift cents into the last active month
-                  mTotal = Math.round((finalTotal - allocatedTotal) * 100) / 100;
-                  mPaid = Math.round((hotelPaidPart - allocatedPaid) * 100) / 100;
-                  mOverdue = Math.round((hotelOverduePart - allocatedOverdue) * 100) / 100;
-              } else {
-                  mTotal = Math.round((finalTotal * (hm.total / rawTotal)) * 100) / 100;
-                  mPaid = rawPaid > 0 ? Math.round((hotelPaidPart * (hm.paid / rawPaid)) * 100) / 100 : 0;
-                  mOverdue = rawOverdue > 0 ? Math.round((hotelOverduePart * (hm.overdue / rawOverdue)) * 100) / 100 : 0;
-
-                  allocatedTotal += mTotal;
-                  allocatedPaid += mPaid;
-                  allocatedOverdue += mOverdue;
-              }
-
-              months[idx].total += mTotal;
-              months[idx].paid += mPaid;
-              months[idx].overdue += mOverdue;
-          });
-      } else if (finalTotal > 0 && selectedMonth === null) {
-          let fallbackMonth = 0;
-          if (h.durations && h.durations.length > 0 && h.durations[0].startDate) {
-              fallbackMonth = new Date(h.durations[0].startDate).getMonth();
-          }
-          months[fallbackMonth].total += finalTotal;
-          months[fallbackMonth].paid += hotelPaidPart;
-          months[fallbackMonth].overdue += hotelOverduePart;
-      }
-
+      // Group dynamic data keys based on active state criteria (IGNORE FOR EMPLOYEES)
       if (localGroup !== 'employee') {
         if (finalTotal > 0 || (selectedMonth === null && hasInvoicesInContext)) {
           let groupKey = 'Unknown';
@@ -239,7 +233,8 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
           groupedTotals[groupKey] = (groupedTotals[groupKey] || 0) + finalTotal;
         }
       }
-      
+    
+      // --- NEW: SMART EMPLOYEE NIGHTS CALCULATOR ---
       if (localGroup === 'employee') {
         (h.durations || []).forEach((dur: any) => {
           (dur.roomCards || []).forEach((rc: any) => {
@@ -249,6 +244,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
               let start = new Date(emp.checkIn || emp.checkin);
               let end = new Date(emp.checkOut || emp.checkout);
               
+              // Constrain the dates strictly to the active Dashboard Filter
               if (selectedMonth !== null) {
                 const mStart = new Date(selectedYear, selectedMonth, 1);
                 const mEnd = new Date(selectedYear, selectedMonth + 1, 0);
@@ -273,25 +269,36 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
       }
     });
 
-    // FINAL MONTH TOOLTIP CLEANUP
-    months.forEach(m => {
-        m.total = Math.round(m.total * 100) / 100;
-        m.paid = Math.round(m.paid * 100) / 100;
-        m.unpaid = Math.round((m.total - m.paid) * 100) / 100; 
-        m.overdue = Math.round(m.overdue * 100) / 100;
-        m.pending = Math.round((m.unpaid - m.overdue) * 100) / 100; 
-    });
-
     const maxMonth = Math.max(...months.map(m => m.total), 1);
     const maxPaid = Math.max(...months.map(m => m.paid), 1);
     const maxUnpaid = Math.max(...months.map(m => m.unpaid), 1);
     
+    // Support sorting both High-to-Low and Low-to-High
     const sortedGroups = Object.entries(groupedTotals).sort((a, b) => sortAsc ? a[1] - b[1] : b[1] - a[1]);
+    
+    // Find the actual maximum value for the visual bar scaling
     const maxGroupValue = Math.max(...sortedGroups.map(g => g[1]), 1);
+    
     const avgBedPrice = bedPriceCount > 0 ? bedPriceSum / bedPriceCount : 0;
 
+    // Cleanup if no bookings found or prices tracked
     if (leastBooked.count === Infinity) leastBooked.name = '-';
     if (minBedPrice.price === Infinity) minBedPrice.hotelName = '-';
+
+    // Ensure all monthly buckets are rounded to match the global KPI logic
+    months.forEach(m => {
+        // 1. First, round the total and paid values
+        m.total = Math.round(m.total * 100) / 100;
+        m.paid = Math.round(m.paid * 100) / 100;
+        
+        // 2. FORCE Unpaid to be the remainder (Total - Paid).
+        // This guarantees that Paid + Unpaid always equals Total in the tooltip.
+        m.unpaid = Math.round((m.total - m.paid) * 100) / 100;
+        
+        // 3. Round Overdue and force Pending to be the remainder of Unpaid
+        m.overdue = Math.round(m.overdue * 100) / 100;
+        m.pending = Math.round((m.unpaid - m.overdue) * 100) / 100;
+    });
 
     return { totalSpend, totalPaid, totalUnpaid, totalOverdue, totalDeposits, months, maxMonth, maxPaid, maxUnpaid, sortedGroups, maxGroupValue, mostBooked, leastBooked, avgBedPrice, minBedPrice, maxBedPrice };
   }, [hotels, selectedYear, selectedMonth, localGroup, sortAsc, lang]);
@@ -310,6 +317,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
     </div>
   );
 
+  // --- NEW HELPER COMPONENTS ---
   const HighlightChip = ({ text, colorCls, bgCls }: { text: string; colorCls: string; bgCls: string }) => (
     <div className={cn("w-fit self-start inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold px-3 py-1.5 rounded-lg mt-1.5 border shadow-sm backdrop-blur-md", colorCls, bgCls)}>
       {text}
@@ -354,6 +362,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
   );
 
   return (
+    // Added [zoom:85%] for standard screens (laptops/24"), and [zoom:100%] for ultra-wide 2xl screens (27"+)
     <div className="flex flex-col gap-6 w-full animate-in slide-in-from-bottom-4 fade-in duration-500 pb-10 xl:[zoom:85%] 2xl:[zoom:100%]">
       
       {/* 1. TOP KPI ROW */}
@@ -371,6 +380,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
             <span className="text-2xl lg:text-3xl font-black truncate text-app-text">{formatCurrency(stats.totalUnpaid)}</span>
           </div>
           
+          {/* Right Side: Centered vertically to match the card height naturally */}
           <div className="flex flex-col justify-center gap-3 pl-6 lg:pl-8 border-l border-slate-200 dark:border-white/10 shrink-0">
             <div className="flex flex-col">
               <span className="text-[11px] font-black uppercase text-amber-500 tracking-widest mb-0.5">{lang === 'de' ? 'Ausstehend' : 'Pending'}</span>
@@ -392,6 +402,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         {/* LEFT: CONDITIONAL CHART (MONTHLY BARS OR MONTH DONUT) */}
         <div className="p-6 rounded-2xl border shadow-sm flex flex-col h-full bg-app-card border-app-border">
           
+          {/* HEADER & TABS IN ONE LINE */}
           <div className="flex items-center justify-between mb-6">
             <h3 className={cn("text-sm font-black uppercase tracking-widest", dk ? "text-slate-300" : "text-slate-700")}>
               {selectedMonth === null 
@@ -400,6 +411,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
               }
             </h3>
             
+            {/* CHART TABS (Only show when looking at ALL months) */}
             {selectedMonth === null && (
               <div className={cn("flex p-0.5 rounded-lg", dk ? "bg-black/20" : "bg-slate-100")}>
                 {[
@@ -414,6 +426,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                     className={cn("px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all flex items-center gap-1.5", 
                       chartTab === t.id ? (dk ? "bg-slate-700 text-white shadow-sm" : "bg-white text-slate-800 shadow-sm") : "text-slate-500 hover:text-slate-700 dark:text-slate-400")}
                   >
+                    {/* Modern vertical line indicator matching the bar colors */}
                     {t.color && <div className={cn("w-1 h-2.5 rounded-full shrink-0", t.color)} />}
                     {t.label}
                   </button>
@@ -423,7 +436,11 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
           </div>
           
           {selectedMonth === null ? (
+            // --- BAR CHART (ALL MONTHS) ---
             <div className="flex flex-col flex-1">
+              
+
+              {/* BARS CONTAINER */}
               <div className="flex-1 flex items-end gap-2 relative min-h-[260px]">
                 <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10 dark:opacity-5">
                    <div className="w-full h-px bg-slate-900 dark:bg-white"></div>
@@ -444,39 +461,32 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                       
                       {/* SMART TOOLTIP */}
                       <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-[11px] p-3 rounded-xl pointer-events-none z-[9999] whitespace-nowrap shadow-2xl flex flex-col gap-1.5">
-    <span className="font-black text-slate-500 dark:text-slate-400 mb-1">{labels[i]}</span>
-    
-    {(chartTab === 'all' || chartTab === 'total') && (
-        <div className="flex justify-between gap-4"><span className="text-blue-500">{lang === 'de' ? 'Gesamt:' : 'Total:'}</span> <span className="font-bold">{formatCurrency(m.total)}</span></div>
-    )}
-    
-    {(chartTab === 'all' || chartTab === 'paid') && (
-        <div className="flex justify-between gap-4"><span className="text-emerald-500">{lang === 'de' ? 'Bezahlt:' : 'Paid:'}</span> <span className="font-bold">{formatCurrency(m.paid)}</span></div>
-    )}
-    
-    {chartTab === 'all' && <div className="w-full h-px bg-slate-100 dark:bg-slate-800 my-0.5"></div>}
-    
-    {(chartTab === 'all' || chartTab === 'unpaid') && (
-        <>
-            {/* THIS IS THE FIX: Calculated on-the-fly to ensure it matches the KPI exactly */}
-            <div className="flex justify-between gap-4">
-                <span className="text-slate-500 dark:text-slate-400">{lang === 'de' ? 'Total Offen:' : 'Total Due:'}</span> 
-                <span className="font-bold">{formatCurrency(Math.round((m.total - m.paid) * 100) / 100)}</span>
-            </div>
-            
-            <div className="flex justify-between gap-4 pl-2">
-                <span className="text-amber-500 text-[10px]">{lang === 'de' ? '└ Ausstehend:' : '└ Pending:'}</span> 
-                <span className="font-bold text-[10px]">{formatCurrency(Math.round((Math.max(0, m.total - m.paid) - m.overdue) * 100) / 100)}</span>
-            </div>
-            
-            <div className="flex justify-between gap-4 pl-2">
-                <span className="text-red-500 text-[10px]">{lang === 'de' ? '└ Überfällig:' : '└ Overdue:'}</span> 
-                <span className="font-bold text-[10px]">{formatCurrency(m.overdue)}</span>
-            </div>
-        </>
-    )}
-</div>
+                        <span className="font-black text-slate-500 dark:text-slate-400 mb-1">{labels[i]}</span>
+                        
+                        {(chartTab === 'all' || chartTab === 'total') && (
+                          <div className="flex justify-between gap-4"><span className="text-blue-500">{lang === 'de' ? 'Gesamt:' : 'Total:'}</span> <span className="font-bold">{formatCurrency(m.total)}</span></div>
+                        )}
+                        
+                        {(chartTab === 'all' || chartTab === 'paid') && (
+                          <div className="flex justify-between gap-4"><span className="text-emerald-500">{lang === 'de' ? 'Bezahlt:' : 'Paid:'}</span> <span className="font-bold">{formatCurrency(m.paid)}</span></div>
+                        )}
+                        
+                        {chartTab === 'all' && <div className="w-full h-px bg-slate-100 dark:bg-slate-800 my-0.5"></div>}
+                        
+                        {(chartTab === 'all' || chartTab === 'unpaid') && (
+                          <>
+                            {/* FORCE Remainder: Unpaid = Total - Paid */}
+                            <div className="flex justify-between gap-4"><span className="text-slate-500 dark:text-slate-400">{lang === 'de' ? 'Total Offen:' : 'Total Due:'}</span> <span className="font-bold">{formatCurrency(Math.round((m.total - m.paid) * 100) / 100)}</span></div>
+                            
+                            {/* FORCE Remainder: Pending = Unpaid - Overdue */}
+                            <div className="flex justify-between gap-4 pl-2"><span className="text-amber-500 text-[10px]">{lang === 'de' ? '└ Ausstehend:' : '└ Pending:'}</span> <span className="font-bold text-[10px]">{formatCurrency(Math.round((Math.max(0, m.total - m.paid) - m.overdue) * 100) / 100)}</span></div>
+                            
+                            <div className="flex justify-between gap-4 pl-2"><span className="text-red-500 text-[10px]">{lang === 'de' ? '└ Überfällig:' : '└ Overdue:'}</span> <span className="font-bold text-[10px]">{formatCurrency(m.overdue)}</span></div>
+                          </>
+                        )}
+                      </div>
                       
+                      {/* DYNAMIC BARS */}
                       <div className="w-full flex items-end justify-center h-full relative gap-0.5 lg:gap-1">
                          {chartTab === 'all' && (
                            <>
@@ -502,6 +512,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
               </div>
             </div>
             ) : (
+            // --- NEW: GLOWING SINGLE-RING DONUT WITH NON-OVERLAPPING POINTERS ---
             <div className="flex-1 flex items-center justify-center min-h-[320px] mt-2 animate-in fade-in zoom-in-95 duration-500 w-full relative">
                {(() => {
                  const paidPct = stats.totalSpend > 0 ? (stats.totalPaid / stats.totalSpend) * 100 : 0;
@@ -509,6 +520,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                  const pendingVal = Math.max(0, stats.totalUnpaid - stats.totalOverdue);
                  const pendingPct = stats.totalSpend > 0 ? (pendingVal / stats.totalSpend) * 100 : 0;
                  
+                 // Canvas Math: Larger center, perfectly balanced
                  const cx = 350;
                  const cy = 160;
                  const r = 95; 
@@ -534,6 +546,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                      { id: 'overdue', title: lang === 'de' ? 'Überfällig' : 'Overdue', val: overduePct, valStr: formatCurrency(stats.totalOverdue), color: '#ef4444', mid: midOverdue },
                  ].filter(i => i.val > 0);
 
+                 // Iterative separation to push points far away from each other on the ring
                  const MIN_PTR_GAP = 25; 
                  let midPointsSeparated = [...items].sort((a, b) => a.mid - b.mid);
                  for (let i = 0; i < 5; i++) {
@@ -552,6 +565,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                     });
                  }
 
+                 // Group labels left/right, STRICTLY sorted by Y coordinate so lines never cross
                  const finalItems = items.map(item => midPointsSeparated.find(m => m.id === item.id) || item);
                  const rightItems = finalItems.filter(i => getPt(i.mid, 100).x >= cx).sort((a, b) => getPt(a.mid, 100).y - getPt(b.mid, 100).y);
                  const leftItems = finalItems.filter(i => getPt(i.mid, 100).x < cx).sort((a, b) => getPt(a.mid, 100).y - getPt(b.mid, 100).y);
@@ -561,9 +575,9 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                      const gap = 85; 
                      const startY = cy - ((list.length - 1) * gap) / 2;
                      list.forEach((item, index) => {
-                         const endX = isRight ? 530 : 170; 
+                         const endX = isRight ? 530 : 170; // Placed firmly on sides
                          const endY = startY + (index * gap);
-                         const start = getPt(item.mid, 106); 
+                         const start = getPt(item.mid, 106); // Point attaches slightly off donut
                          const sign = isRight ? 1 : -1;
                          
                          const elbow1X = start.x + sign * 15;
@@ -579,10 +593,15 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                  
                  return (
                    <div className="relative w-full max-w-[700px] aspect-[7/3] shrink-0 drop-shadow-xl">
+                     
                      <svg viewBox="0 0 700 320" className="w-full h-full absolute inset-0 z-10 pointer-events-none">
+                       {/* Subtle Glow Ring behind the donut */}
                        <circle cx={cx} cy={cy} r={r} fill="transparent" stroke={dk ? '#10b981' : '#10b981'} strokeWidth="40" className="opacity-10 blur-xl" />
+
+                       {/* Background Track */}
                        <circle cx={cx} cy={cy} r={r} fill="transparent" stroke={dk ? '#1E293B' : '#f1f5f9'} strokeWidth="32" />
 
+                       {/* Data Segments */}
                        {stats.totalSpend > 0 && (
                          <>
                            <circle cx={cx} cy={cy} r={r} transform={`rotate(-90 ${cx} ${cy})`} fill="transparent" stroke="#10b981" strokeWidth="32" strokeDasharray={`${paidLen} ${circ}`} strokeDashoffset={0} strokeLinecap="butt" className="transition-all duration-1000 ease-out" />
@@ -591,14 +610,17 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                          </>
                        )}
 
+                       {/* Connective Lines */}
                        {mappedItems.map(item => (
                           <path key={item.id} d={item.path} fill="none" stroke={item.color} strokeWidth="2.5" className={dk ? "opacity-70" : "opacity-40"} />
                        ))}
                      </svg>
                      
+                     {/* HTML OVERLAYS: LABELS */}
                      {mappedItems.map(item => (
                         <div 
                            key={item.id} 
+                           // FIX: Changed w-[150px] to w-max and min-w-[150px] so it expands for long German words
                            className={cn("absolute flex flex-col justify-center w-max min-w-[150px] px-3", item.isRight ? "items-start border-l-[4px] text-left" : "items-end border-r-[4px] text-right")}
                            style={{ 
                               top: `${(item.endY / 320) * 100}%`, 
@@ -608,6 +630,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                               transform: 'translateY(-50%)'
                            }}
                         >
+                           {/* FIX: Added whitespace-nowrap here and shrink-0 to the dots */}
                            <span className="text-[10px] font-black uppercase tracking-widest mb-0.5 flex items-center gap-1.5 drop-shadow-sm whitespace-nowrap">
                               {!item.isRight && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />}
                               <span style={{ color: item.color }}>{item.title}</span>
@@ -618,6 +641,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                         </div>
                      ))}
 
+                     {/* CENTER TOTALS: Perfectly centered within absolute inset */}
                      <div className={cn("absolute inset-0 m-auto flex flex-col items-center justify-center rounded-full shadow-inner border z-20", dk ? "bg-[#0F172A]/90 border-white/5 backdrop-blur-sm" : "bg-white/90 border-slate-100 backdrop-blur-sm")} style={{ width: '150px', height: '150px' }}>
                        <span className={cn("text-[11px] font-black uppercase tracking-widest mb-1", dk ? "text-slate-500" : "text-slate-400")}>{labels[selectedMonth]}</span>
                        <span className={cn("text-[20px] font-black tracking-tight px-2 text-center", dk ? "text-white" : "text-slate-900")}>
@@ -635,12 +659,14 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         {/* RIGHT: LEADERBOARD WIDGET */}
         <div className="p-6 rounded-2xl border shadow-sm flex flex-col bg-app-card border-app-border">
           
+          {/* COMPACT HEADER: Title Left, Controls Right */}
           <div className="flex items-center justify-between mb-6">
             <h3 className={cn("text-sm font-black uppercase tracking-widest", dk ? "text-slate-300" : "text-slate-700")}>
               Leaderboard
             </h3>
             
             <div className="flex items-center gap-2">
+              {/* COMPACT SWITCHING TABS */}
               <div className={cn("flex p-0.5 rounded-lg", dk ? "bg-black/20" : "bg-slate-100")}>
                 {[
                   { id: 'hotel', label: lang === 'de' ? 'Hotel' : 'Hotel' },
@@ -661,6 +687,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
                 ))}
               </div>
 
+              {/* SORT TOGGLE */}
               <button 
                 onClick={() => setSortAsc(!sortAsc)} 
                 className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors text-slate-500 dark:text-slate-400"
@@ -671,6 +698,7 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
             </div>
           </div>
 
+          {/* LIST WITH CUSTOM SCROLLBAR & EXTRA PADDING */}
           <div className="flex flex-col gap-5 overflow-y-auto pr-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full" style={{ maxHeight: '320px' }}>
           {stats.sortedGroups.length === 0 ? (
                <div className="h-full flex items-center justify-center text-slate-400 text-sm font-bold italic py-12">{lang === 'de' ? 'Keine Daten in dieser Ansicht verfügbar' : 'No data available in this view'}</div>
@@ -699,14 +727,16 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         </div>
       </div>
 
-      {/* --- BOTTOM HIGHLIGHTS --- */}
+      {/* --- NEW: COMPREHENSIVE BOTTOM HIGHLIGHTS --- */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           
+          {/* A. BOOKING COUNTS */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <BookingCard title={lang === 'de' ? 'Meistgebuchtes Hotel' : 'Most Booked Hotel'} hotelName={stats.mostBooked.name} count={stats.mostBooked.count} icon={Trophy} isMost={true} />
               <BookingCard title={lang === 'de' ? 'Am wenigsten gebucht' : 'Least Booked Hotel'} hotelName={stats.leastBooked.name} count={stats.leastBooked.count === Infinity ? 0 : stats.leastBooked.count} icon={AlertCircle} isMost={false} />
           </div>
 
+          {/* B. BED PRICE ANALYSIS */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <PriceCard 
                 title={lang === 'de' ? 'Ø Preis pro Bett' : 'Average Price/Bed'} 
