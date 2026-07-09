@@ -144,14 +144,16 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         
         // ALWAYS add to the month array so the whole year chart works
         const mIdx = d.getMonth();
-        const roundedInv = Math.round(invBrutto * 100) / 100;
-        months[mIdx].total += roundedInv;
+        
+        // FIX: Accumulate RAW values here, exactly like the top KPIs do. 
+        // We will let the loop at the very end handle the rounding and remainder rule.
+        months[mIdx].total += invBrutto;
         if (inv.isPaid) {
-          months[mIdx].paid += roundedInv;
+          months[mIdx].paid += invBrutto;
         } else {
-          months[mIdx].unpaid += roundedInv;
-          if (inv.dueDate && new Date(inv.dueDate) < today) months[mIdx].overdue += roundedInv;
-          else months[mIdx].pending += roundedInv;
+          months[mIdx].unpaid += invBrutto;
+          if (inv.dueDate && new Date(inv.dueDate) < today) months[mIdx].overdue += invBrutto;
+          else months[mIdx].pending += invBrutto;
         }
 
         // Apply specific month filter for top KPIs
