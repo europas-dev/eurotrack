@@ -193,33 +193,35 @@ export default function StatisticsDashboard({ hotels, selectedYear, selectedMont
         ? Math.round((finalTotal * (rawPaid / rawTotalForScale)) * 100) / 100
         : (h.isPaid ?? h.is_paid ? finalTotal : 0);
       const scaleRatio = hotelBruttoBeforeDiscount > 0 ? finalTotal / hotelBruttoBeforeDiscount : 0;
-      const monthKeys = Object.keys(hotelMonthly).map(Number).sort((a, b) => a - b);
-      
-      let distributedTotal = 0;
-      let distributedPaid = 0;
-      
-      monthKeys.forEach((idx, i) => {
-        const vals = hotelMonthly[idx];
-        const isLast = i === monthKeys.length - 1;
-      
-        let scaledTotal = isLast
-          ? Math.round((finalTotal - distributedTotal) * 100) / 100
-          : Math.round(vals.total * scaleRatio * 100) / 100;
-      
-        let scaledPaid = isLast
-          ? Math.round((hotelPaidTotalScaled - distributedPaid) * 100) / 100
-          : Math.round(vals.paid * scaleRatio * 100) / 100;
-      
-        const scaledOverdue = Math.round(vals.overdue * scaleRatio * 100) / 100;
-      
-        distributedTotal += scaledTotal;
-        distributedPaid += scaledPaid;
-      
-        months[idx].total += scaledTotal;
-        months[idx].paid += scaledPaid;
-        months[idx].unpaid += Math.round((scaledTotal - scaledPaid) * 100) / 100;
-        months[idx].overdue += scaledOverdue;
-      });
+const rawTotalForScale = rawPaid + rawUnpaid;
+const hotelPaidTarget = rawTotalForScale > 0
+  ? Math.round((finalTotal * (rawPaid / rawTotalForScale)) * 100) / 100
+  : ((h.isPaid ?? h.is_paid) ? finalTotal : 0);
+
+const monthKeys = Object.keys(hotelMonthly).map(Number).sort((a, b) => a - b);
+let distTotal = 0;
+let distPaid = 0;
+
+monthKeys.forEach((idx, i) => {
+  const vals = hotelMonthly[idx];
+  const isLast = i === monthKeys.length - 1;
+
+  const scaledTotal = isLast
+    ? Math.round((finalTotal - distTotal) * 100) / 100
+    : Math.round(vals.total * scaleRatio * 100) / 100;
+
+  const scaledPaid = isLast
+    ? Math.round((hotelPaidTarget - distPaid) * 100) / 100
+    : Math.round(vals.paid * scaleRatio * 100) / 100;
+
+  distTotal += scaledTotal;
+  distPaid += scaledPaid;
+
+  months[idx].total += scaledTotal;
+  months[idx].paid += scaledPaid;
+  months[idx].unpaid += Math.round((scaledTotal - scaledPaid) * 100) / 100;
+  months[idx].overdue += Math.round(vals.overdue * scaleRatio * 100) / 100;
+});
       
             const rawTotal = rawPaid + rawUnpaid;
             
