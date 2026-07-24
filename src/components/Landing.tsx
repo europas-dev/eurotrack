@@ -51,7 +51,7 @@ export default function Landing({
     de: {
       tag:        'Mitarbeiter- und Kostenmanagement',
       title:      'Präzises Hotel Management',
-      desc:       'Optimieren Sie Hotelbelegungen und tracken Sie Mitarbeiter-Substitutionen in Echtzeit für Europas GmbH',
+      desc:       'Optimieren Sie Hotelbelegungen und tracken Sie Mitarbeiter-Substitutionen in Echtzeit für Ihr Unternehmen.',
       login:      'Anmelden',
       signup:     'Registrieren',
       getStarted: 'Zum Dashboard',
@@ -66,7 +66,7 @@ export default function Landing({
     en: {
       tag:        'Employee & Cost Management',
       title:      'Precision Hotel Management',
-      desc:       'Optimize hotel occupancies and track employee substitutions in real-time for Europas GmbH',
+      desc:       'Optimize hotel occupancies and track employee substitutions in real-time for your company',
       login:      'Log In',
       signup:     'Sign Up',
       getStarted: 'Go to Dashboard',
