@@ -117,13 +117,15 @@ export default function App() {
     persistView(v);
   }, []);
 
-  const applyRole = useCallback((role: string, persisted: View | null = null) => {
+    const applyRole = useCallback((role: string, persisted: View | null = null) => {
     if (role === 'superadmin') {
       const target = persisted ?? 'superadmin-home';
       setView(target);
     } else if (role === 'admin') {
-      // Admins use the administrator home to access User Management.
-      setView('superadmin-home');
+      // Admins can access Dashboard and User Management.
+      // Restore their last valid page after refresh.
+      const target = persisted ?? 'superadmin-home';
+      setView(target);
     } else if (role === 'pending') {
       setView('pending');
     } else {
