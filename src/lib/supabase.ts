@@ -120,7 +120,10 @@ export async function updateMyPassword(current: string, next: string) {
 }
 
 export async function sendPasswordReset(email: string) {
-  await supabase.auth.resetPasswordForEmail(email)
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/`,
+  })
+  if (error) throw error
 }
 
 export async function grantUserAccess(userId: string, role: string) {
