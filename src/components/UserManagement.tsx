@@ -685,7 +685,18 @@ export default function UserManagement({ theme, lang, currentRole, toggleTheme, 
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
         {actionError && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">{actionError}</div>}
         {actionMessage && <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs">{actionMessage}</div>}
-        {showArchived && <div className="flex items-center justify-between mb-3"><div><h2 className="font-black text-sm">{lang === 'de' ? 'Archivierte Benutzer' : 'Archived Users'}</h2><p className="text-xs opacity-60">{archivedUsers.length} {lang === 'de' ? 'archiviert' : 'archived'}</p></div><button onClick={() => setShowArchived(false)} className="text-xs text-blue-500 hover:underline">{lang === 'de' ? 'Zurück zu Benutzern' : 'Back to users'}</button></div>}
+        {showArchived && (
+  <div className="flex items-center justify-between mb-3">
+    <div>
+      <h2 className="font-black text-sm">
+        {lang === 'de' ? 'Archivierte Benutzer' : 'Archived Users'}
+      </h2>
+      <p className="text-xs opacity-60">
+        {archivedUsers.length} {lang === 'de' ? 'archiviert' : 'archived'}
+      </p>
+    </div>
+  </div>
+)}
         {!showArchived && loading && Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className={cn('h-[64px] rounded-2xl border animate-pulse',
             dk ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-white border-slate-100')} />
