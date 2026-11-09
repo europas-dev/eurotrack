@@ -263,7 +263,7 @@ function UserRow({
       ) : (
         <>
           <div className="relative shrink-0">
-            <select
+                        <select
               value={selectedRole}
               onChange={e => onDropdownChange(e.target.value as UserRole)}
               disabled={isLocked}
@@ -273,12 +273,24 @@ function UserRow({
                 isDirty
                   ? 'bg-blue-600 border-blue-500 text-white'
                   : dk
-                    ? 'bg-white/8 border-white/10 text-slate-300 hover:bg-white/12'
+                    ? 'border-white/10 text-slate-200 hover:border-white/20'
                     : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
               )}
+              style={{
+                backgroundColor: isDirty ? '#2563EB' : dk ? '#111827' : '#F8FAFC',
+                color: isDirty || !dk ? (isDirty ? '#FFFFFF' : '#334155') : '#E2E8F0',
+                colorScheme: dk ? 'dark' : 'light'
+              }}
             >
               {ASSIGNABLE_ROLES.map(r => (
-                <option key={r} value={r}>
+                <option
+                  key={r}
+                  value={r}
+                  style={{
+                    backgroundColor: dk ? '#111827' : '#FFFFFF',
+                    color: dk ? '#E2E8F0' : '#334155'
+                  }}
+                >
                   {r === 'admin'  ? 'Admin' :
                    r === 'editor' ? (lang === 'de' ? 'Bearbeiter' : 'Editor') :
                    r === 'viewer' ? (lang === 'de' ? 'Betrachter' : 'Viewer') :
@@ -396,8 +408,22 @@ export default function UserManagement({ theme, lang, currentRole, toggleTheme, 
       ));
       setSelectedRole(prev => { const n = { ...prev }; delete n[pendingChange.user.id]; return n; });
       setPendingChange(null);
-    } catch (err: any) {
-      setSaveError(err.message ?? 'Failed to update role');
+       } catch (err: any) {
+      const message = err?.message ?? '';
+
+      if (message.includes('The last Admin cannot be demoted')) {
+        setSaveError(
+          lang === 'de'
+            ? 'Der letzte Administrator kann nicht herabgestuft werden. Bitte ernennen Sie zuerst einen weiteren Administrator.'
+            : 'The last Admin cannot be demoted. Appoint another Admin first.'
+        );
+      } else {
+        setSaveError(
+          lang === 'de'
+            ? 'Die Rolle konnte nicht geändert werden. Bitte versuchen Sie es erneut.'
+            : message || 'Failed to update role'
+        );
+      }
     } finally {
       setSaving(false);
     }
