@@ -121,6 +121,9 @@ export default function App() {
     if (role === 'superadmin') {
       const target = persisted ?? 'superadmin-home';
       setView(target);
+    } else if (role === 'admin') {
+      // Admins use the administrator home to access User Management.
+      setView('superadmin-home');
     } else if (role === 'pending') {
       setView('pending');
     } else {
@@ -291,7 +294,7 @@ export default function App() {
     </div>
   );
 
-  if (view === 'superadmin-home' && accessLevel?.role === 'superadmin') return (
+ if (view === 'superadmin-home' && (accessLevel?.role === 'superadmin' || accessLevel?.role === 'admin')) return (
     <SuperAdminHome
       onDashboard={()      => navigate('dashboard')}
       onUserManagement={() => navigate('user-management')}
@@ -301,7 +304,7 @@ export default function App() {
     />
   );
 
-  if (view === 'user-management' && accessLevel?.role === 'superadmin') return (
+  if (view === 'user-management' && (accessLevel?.role === 'superadmin' || accessLevel?.role === 'admin')) return (
     <div className={cn('flex flex-col h-screen overflow-hidden',
       dk ? 'bg-slate-950 text-white' : 'bg-slate-100 text-slate-900')}>
       <ErrorBoundary>
