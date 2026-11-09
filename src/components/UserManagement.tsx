@@ -1,11 +1,11 @@
 // src/components/UserManagement.tsx
 import React, { useEffect, useState, useMemo } from 'react';
-import { getAllUsers, setUserRole, UserRole } from '../lib/supabase';
+import { getAllUsers, setUserRole, generateAdminPasswordRecoveryLink, UserRole } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import {
   Users, Shield, Crown, Eye, Edit3, Clock,
   Sun, Moon, Globe, ArrowLeft,
-  Check, XCircle, Search, RefreshCw, ChevronDown, Lock,
+  Check, XCircle, Search, RefreshCw, ChevronDown, Lock, KeyRound, Copy, X,
 } from 'lucide-react';
 
 interface Props {
@@ -199,11 +199,11 @@ function StatCard({ role, count, active, lang, onClick, theme }: {
 // ── User row ────────────────────────────────────────────────────────────────
 function UserRow({
   user, lang, theme,
-  selectedRole, onDropdownChange, onApply, isSelf,
+  selectedRole, onDropdownChange, onApply, isSelf, onGenerateRecoveryLink, recoveryLoading,
 }: {
   user: any; lang: 'de' | 'en'; theme: 'dark' | 'light';
   selectedRole: UserRole; onDropdownChange: (r: UserRole) => void;
-  onApply: () => void; isSelf: boolean;
+  onApply: () => void; isSelf: boolean; onGenerateRecoveryLink: () => void; recoveryLoading: boolean;
 }) {
   const dk          = theme === 'dark';
   const currentRole = (user.role as UserRole) ?? 'pending';
@@ -318,6 +318,22 @@ function UserRow({
           </button>
         </>
       )}
+
+      <button
+        type="button"
+        onClick={onGenerateRecoveryLink}
+        disabled={recoveryLoading || !user.email}
+        title={lang === 'de' ? 'Passwort-Reset-Link erstellen' : 'Generate password reset link'}
+        aria-label={lang === 'de' ? `Reset-Link für ${user.email} erstellen` : `Generate reset link for ${user.email}`}
+        className={cn(
+          'shrink-0 p-2 rounded-xl border transition-all disabled:opacity-40 disabled:cursor-not-allowed',
+          dk ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
+        )}
+      >
+        {recoveryLoading
+          ? <span className="block w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
+          : <KeyRound size={16} />}
+      </button>
     </div>
   );
 }
@@ -337,6 +353,11 @@ export default function UserManagement({ theme, lang, currentRole, toggleTheme, 
   const [saving,        setSaving]        = useState(false);
   const [saveError,     setSaveError]     = useState('');
   const [selectedRole,  setSelectedRole]  = useState<Record<string, UserRole>>({});
+  const [recoveryTarget, setRecoveryTarget] = useState<any | null>(null);
+  const [recoveryLink, setRecoveryLink] = useState('');
+  const [recoveryLoadingId, setRecoveryLoadingId] = useState<string | null>(null);
+  const [recoveryError, setRecoveryError] = useState('');
+  const [copiedRecoveryLink, setCopiedRecoveryLink] = useState(false);
 
   async function loadUsers(silent = false) {
     if (!silent) setLoading(true);
@@ -426,6 +447,36 @@ export default function UserManagement({ theme, lang, currentRole, toggleTheme, 
       }
     } finally {
       setSaving(false);
+    }
+  }
+
+
+  async function handleGenerateRecoveryLink(user: any) {
+    setRecoveryError('');
+    setRecoveryLink('');
+    setCopiedRecoveryLink(false);
+    setRecoveryTarget(user);
+    setRecoveryLoadingId(user.id);
+    try {
+      const link = await generateAdminPasswordRecoveryLink(user.id);
+      setRecoveryLink(link);
+    } catch (error: any) {
+      setRecoveryError(error?.message || (lang === 'de'
+        ? 'Der Passwort-Reset-Link konnte nicht erstellt werden.'
+        : 'Could not generate the password reset link.'));
+    } finally {
+      setRecoveryLoadingId(null);
+    }
+  }
+
+  async function copyRecoveryLink() {
+    try {
+      await navigator.clipboard.writeText(recoveryLink);
+      setCopiedRecoveryLink(true);
+    } catch {
+      setRecoveryError(lang === 'de'
+        ? 'Kopieren nicht möglich. Bitte kopieren Sie den Link manuell.'
+        : 'Clipboard access failed. Please copy the link manually.');
     }
   }
 
@@ -558,6 +609,8 @@ export default function UserManagement({ theme, lang, currentRole, toggleTheme, 
             selectedRole={selectedRole[user.id] ?? (user.role as UserRole)}
             onDropdownChange={r => handleDropdownChange(user.id, r)}
             onApply={() => handleApplyClick(user)}
+            onGenerateRecoveryLink={() => handleGenerateRecoveryLink(user)}
+            recoveryLoading={recoveryLoadingId === user.id}
           />
         ))}
       </div>
@@ -581,6 +634,56 @@ export default function UserManagement({ theme, lang, currentRole, toggleTheme, 
               {counts.pending} {lang === 'de' ? 'ausstehend' : 'pending'}
             </button>
           )}
+        </div>
+      )}
+
+      {recoveryTarget && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.72)' }}>
+          <div className={cn(
+            'w-full max-w-lg rounded-2xl border shadow-2xl p-5 sm:p-6',
+            dk ? 'bg-[#0D1625] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+          )}>
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <h3 className="font-black text-base">{lang === 'de' ? 'Passwort-Reset-Link' : 'Password reset link'}</h3>
+                <p className={cn('text-xs mt-1', dk ? 'text-slate-400' : 'text-slate-500')}>
+                  {lang === 'de' ? 'Einmaliger Link für' : 'One-time recovery link for'} {recoveryTarget.email}
+                </p>
+              </div>
+              <button type="button" onClick={() => { setRecoveryTarget(null); setRecoveryLink(''); setRecoveryError(''); }}
+                className={cn('p-1.5 rounded-lg', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {recoveryError && (
+              <div className="mb-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">{recoveryError}</div>
+            )}
+
+            {recoveryLink ? (
+              <>
+                <textarea readOnly value={recoveryLink} rows={4}
+                  className={cn('w-full resize-none rounded-xl border p-3 text-xs break-all outline-none',
+                    dk ? 'bg-black/20 border-white/10 text-slate-200' : 'bg-slate-50 border-slate-200 text-slate-700')} />
+                <p className={cn('text-xs mt-2 mb-4', dk ? 'text-amber-300' : 'text-amber-700')}>
+                  {lang === 'de'
+                    ? 'Behandeln Sie diesen Link wie ein Passwort. Teilen Sie ihn nur über einen verifizierten Kanal. Er kann nur einmal verwendet werden und läuft gemäß Ihrer Supabase-OTP-Einstellung ab.'
+                    : 'Treat this link like a password. Share it only through a verified channel. It is single-use and expires according to your Supabase OTP settings.'}
+                </p>
+                <button type="button" onClick={copyRecoveryLink}
+                  className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm flex items-center justify-center gap-2">
+                  <Copy size={15} /> {copiedRecoveryLink
+                    ? (lang === 'de' ? 'Kopiert' : 'Copied')
+                    : (lang === 'de' ? 'Link kopieren' : 'Copy link')}
+                </button>
+              </>
+            ) : !recoveryError && (
+              <div className="py-8 flex items-center justify-center gap-2 text-sm opacity-70">
+                <span className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
+                {lang === 'de' ? 'Link wird erstellt…' : 'Generating link…'}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
