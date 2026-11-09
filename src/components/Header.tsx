@@ -299,11 +299,20 @@ export default function Header({
         {c.username && <p className="text-[12px] font-semibold text-[var(--accent-primary)]">@{c.username}</p>}
         <p className="text-[11px] truncate opacity-50 opacity-60">{c.email}</p>
       </div>
-      <select 
-        onMouseDown={e => e.stopPropagation()} 
-        value={pendingRole[c.userId] ?? c.role} 
-        onChange={e => setPendingRole(p => ({ ...p, [c.userId]: e.target.value }))} 
-        className={cn('text-xs font-bold rounded-lg border px-2 py-1.5 outline-none transition-all', dk ? 'bg-[#1E293B] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}
+            <select
+        value={pendingRole[c.userId] ?? c.role}
+        onChange={e => setPendingRole(p => ({ ...p, [c.userId]: e.target.value }))}
+        onClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
+        className={cn(
+          'relative z-10 text-xs font-bold rounded-lg border px-2 py-1.5 outline-none transition-all cursor-pointer',
+          dk
+            ? 'bg-[#1E293B] border-white/10 text-white'
+            : 'bg-white border-slate-200 text-slate-900'
+        )}
+        style={{
+          colorScheme: dk ? 'dark' : 'light'
+        }}
       >
         <option value="viewer">{isDe ? 'Betrachter' : 'Viewer'}</option>
         <option value="editor">Editor</option>
