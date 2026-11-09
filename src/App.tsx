@@ -310,6 +310,7 @@ export default function App() {
       <ErrorBoundary>
         <UserManagement
           theme={theme} lang={lang}
+          currentRole={accessLevel.role}
           toggleTheme={handleToggleTheme}
           setLang={handleSetLang}
           onSignOut={handleSignOut}
