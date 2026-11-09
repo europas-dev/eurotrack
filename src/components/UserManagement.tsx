@@ -11,6 +11,7 @@ import {
 interface Props {
   theme:       'dark' | 'light';
   lang:        'de' | 'en';
+  currentRole: 'admin' | 'superadmin';
   toggleTheme: () => void;
   setLang:     (l: 'de' | 'en') => void;
   onSignOut:   () => void;
@@ -21,7 +22,7 @@ type Filter = 'all' | UserRole;
 
 // superadmin is intentionally excluded from the assignable dropdown options
 const ASSIGNABLE_ROLES: UserRole[] = ['admin', 'editor', 'viewer', 'pending'];
-const ALL_ROLES:        UserRole[] = ['superadmin', 'admin', 'editor', 'viewer', 'pending'];
+const ALL_ROLES: UserRole[] = ['superadmin', 'admin', 'editor', 'viewer', 'pending'];
 
 const ROLE_META: Record<UserRole, {
   en: string; de: string;
@@ -310,8 +311,9 @@ function UserRow({
 }
 
 // ── Main component ──────────────────────────────────────────────────────────
-export default function UserManagement({ theme, lang, toggleTheme, setLang, onBack }: Props) {
+export default function UserManagement({ theme, lang, currentRole, toggleTheme, setLang, onBack }: Props) {
   const dk = theme === 'dark';
+  const isSuperAdmin = currentRole === 'superadmin';
 
   const [users,         setUsers]         = useState<any[]>([]);
   const [loading,       setLoading]       = useState(true);
@@ -341,23 +343,37 @@ export default function UserManagement({ theme, lang, toggleTheme, setLang, onBa
 
   useEffect(() => { loadUsers(); }, []);
 
+    // Admins see all users except Super Admin.
+  // Super Admin continues to see every profile.
+  const visibleUsers = useMemo(() => {
+    return isSuperAdmin
+      ? users
+      : users.filter(u => u.role !== 'superadmin');
+  }, [users, isSuperAdmin]);
+
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: users.length };
-    ALL_ROLES.forEach(r => { c[r] = users.filter(u => u.role === r).length; });
+    const c: Record<string, number> = { all: visibleUsers.length };
+
+    ALL_ROLES.forEach(r => {
+      c[r] = visibleUsers.filter(u => u.role === r).length;
+    });
+
     return c;
-  }, [users]);
+  }, [visibleUsers]);
 
   const filtered = useMemo(() => {
-    return users.filter(u => {
+    return visibleUsers.filter(u => {
       const matchFilter = filter === 'all' || u.role === filter;
       const q = search.trim().toLowerCase();
+
       const matchSearch = !q ||
         u.email?.toLowerCase().includes(q) ||
         u.full_name?.toLowerCase().includes(q) ||
         u.username?.toLowerCase().includes(q);
+
       return matchFilter && matchSearch;
     });
-  }, [users, filter, search]);
+  }, [visibleUsers, filter, search]);
 
   function handleDropdownChange(userId: string, newRole: UserRole) {
     setSelectedRole(prev => ({ ...prev, [userId]: newRole }));
@@ -416,7 +432,7 @@ export default function UserManagement({ theme, lang, toggleTheme, setLang, onBa
                   {lang === 'de' ? 'Benutzerverwaltung' : 'User Management'}
                 </h1>
                 <p className={cn('text-xs leading-tight', dk ? 'text-slate-500' : 'text-slate-400')}>
-                  EuroTrack &mdash; Super Admin
+                    EuroTrack &mdash; {isSuperAdmin ? 'Super Admin' : 'Admin'}
                 </p>
               </div>
             </div>
@@ -441,7 +457,11 @@ export default function UserManagement({ theme, lang, toggleTheme, setLang, onBa
         {/* Stats filter row */}
         <div className="flex items-center gap-2.5 px-6 py-4 overflow-x-auto no-scrollbar">
           <StatCard role="all"        count={counts.all}        active={filter === 'all'}        lang={lang} onClick={() => setFilter('all')}        theme={theme} />
-          <StatCard role="superadmin" count={counts.superadmin} active={filter === 'superadmin'} lang={lang} onClick={() => setFilter('superadmin')} theme={theme} />
+
+          {isSuperAdmin && (
+            <StatCard role="superadmin" count={counts.superadmin} active={filter === 'superadmin'} lang={lang} onClick={() => setFilter('superadmin')} theme={theme} />
+          )}
+
           <StatCard role="admin"      count={counts.admin}      active={filter === 'admin'}      lang={lang} onClick={() => setFilter('admin')}      theme={theme} />
           <StatCard role="editor"     count={counts.editor}     active={filter === 'editor'}     lang={lang} onClick={() => setFilter('editor')}     theme={theme} />
           <StatCard role="viewer"     count={counts.viewer}     active={filter === 'viewer'}     lang={lang} onClick={() => setFilter('viewer')}     theme={theme} />
