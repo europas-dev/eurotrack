@@ -225,9 +225,9 @@ export default function App() {
           setLoading(false);
         }
       } else if (event === 'SIGNED_OUT') {
-        if (!signingOut.current) return;
+        // Handle both app-initiated sign-out and the sign-out after a successful
+        // password recovery. Supabase may emit this event from Auth.tsx too.
         signingOut.current = false;
-        
         currentUser.current = null; 
         stopPoll();
         clearPersistedView();
