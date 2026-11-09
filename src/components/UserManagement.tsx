@@ -579,10 +579,36 @@ export default function UserManagement({ theme, lang, currentRole, toggleTheme, 
       <div className={cn('shrink-0 border-b', dk ? 'bg-[#0A1120] border-white/10' : 'bg-white border-slate-200')}>
         <div className="flex items-center justify-between px-6 pt-5 pb-2">
           <div className="flex items-center gap-3">
-            <button onClick={onBack}
-              className={cn('p-2 rounded-xl transition-all', dk ? 'hover:bg-white/10 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-500')}>
-              <ArrowLeft size={18} />
-            </button>
+            <button
+  type="button"
+  onClick={() => {
+    if (showArchived) {
+      setShowArchived(false);
+      setActionError('');
+      setActionMessage('');
+    } else {
+      onBack();
+    }
+  }}
+  title={
+    showArchived
+      ? (lang === 'de' ? 'Zurück zur Benutzerverwaltung' : 'Back to User Management')
+      : (lang === 'de' ? 'Zurück' : 'Back')
+  }
+  aria-label={
+    showArchived
+      ? (lang === 'de' ? 'Zurück zur Benutzerverwaltung' : 'Back to User Management')
+      : (lang === 'de' ? 'Zurück' : 'Back')
+  }
+  className={cn(
+    'p-2 rounded-xl transition-all',
+    dk
+      ? 'hover:bg-white/10 text-slate-400 hover:text-white'
+      : 'hover:bg-slate-100 text-slate-500'
+  )}
+>
+  <ArrowLeft size={18} />
+</button>
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/30">
                 <Users size={17} className="text-white" />
@@ -602,8 +628,7 @@ export default function UserManagement({ theme, lang, currentRole, toggleTheme, 
               title={lang === 'de' ? 'Archivierte Benutzer' : 'Archived users'}
               className={cn('relative p-2 rounded-xl transition-all', showArchived ? 'text-blue-500 bg-blue-500/10' : dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
               <Archive size={16} />
-              {archivedUsers.length > 0 && <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center">{archivedUsers.length}</span>}
-            </button>
+        
             <button onClick={() => loadUsers(true)} disabled={refreshing}
               className={cn('p-2 rounded-xl transition-all', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
               <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
