@@ -308,7 +308,8 @@ export default function App() {
     <Auth 
       initialMode={view === 'signup' ? 'signup' : view === 'reset-password' ? 'reset' : 'login'} 
       onBack={() => setView('landing')} 
-      lang={lang} 
+      lang={lang}
+      setLang={handleSetLang}
       theme={activeTheme as 'dark' | 'light'} 
     />
   );
