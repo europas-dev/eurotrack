@@ -289,41 +289,7 @@ export default function Header({
     );
   }
 
-  const CollabRow = ({ c }: { c: any }) => (
-    <div title={`${c.fullName || ''}\n${c.email}`} className={cn('flex items-center gap-3 px-3 py-3 rounded-xl border', dk ? 'bg-white/3 border-white/8' : 'bg-slate-50 border-slate-200')}>
-      <div className={cn('w-9 h-9 rounded-full flex items-center justify-center font-black text-xs shrink-0 overflow-hidden', dk ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600')}>
-        {AVATARS.find(a => a.id === c.avatar)?.emoji || (c.fullName || c.email)[0].toUpperCase()}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold truncate">{c.fullName || 'User'}</p>
-        {c.username && <p className="text-[12px] font-semibold text-[var(--accent-primary)]">@{c.username}</p>}
-        <p className="text-[11px] truncate opacity-50 opacity-60">{c.email}</p>
-      </div>
-            <select
-        value={pendingRole[c.userId] ?? c.role}
-        onChange={e => setPendingRole(p => ({ ...p, [c.userId]: e.target.value }))}
-        onClick={e => e.stopPropagation()}
-        onKeyDown={e => e.stopPropagation()}
-        className={cn(
-          'relative z-10 text-xs font-bold rounded-lg border px-2 py-1.5 outline-none transition-all cursor-pointer',
-          dk
-            ? 'bg-[#1E293B] border-white/10 text-white'
-            : 'bg-white border-slate-200 text-slate-900'
-        )}
-        style={{
-          colorScheme: dk ? 'dark' : 'light'
-        }}
-      >
-        <option value="viewer">{isDe ? 'Betrachter' : 'Viewer'}</option>
-        <option value="editor">Editor</option>
-        <option value="admin">Admin</option>
-      </select>
-      <button onMouseDown={e => e.stopPropagation()} onClick={() => handleChangeCollabRole(c.userId)} disabled={changingRole === c.userId} className="px-3 py-1.5 bg-[var(--accent-primary)] hover:opacity-80 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-all">
-        {changingRole === c.userId ? <Loader2 size={12} className="animate-spin" /> : (isDe ? 'Ändern' : 'Change')}
-      </button>
-    </div>
-  );
-
+  
   return (
     <>
       <div className="flex-1 flex items-center h-full min-w-0">
@@ -702,7 +668,61 @@ export default function Header({
                     <SectionLabel dk={dk}>{isDe ? 'Aktueller Zugriff' : 'Current Access'}</SectionLabel>
                     {collabsLoading ? <div className="flex items-center gap-2 py-3"><Loader2 size={14} className="animate-spin text-blue-500" /><span className={cn('text-xs', dk ? 'text-slate-400' : 'text-slate-500')}>Loading...</span></div>
                       : collabs.length === 0 ? <p className={cn('text-xs py-3', dk ? 'text-slate-500' : 'text-slate-400')}>{isDe ? 'Noch keine Mitarbeiter' : 'No collaborators yet'}</p>
-                        : <div className="space-y-2">{collabs.map(c => <CollabRow key={c.userId} c={c} />)}</div>}
+                                                : (
+                          <div className="space-y-2">
+                            {collabs.map(c => (
+                              <div
+                                key={c.userId}
+                                title={`${c.fullName || ''}\n${c.email}`}
+                                className={cn(
+                                  'flex items-center gap-3 px-3 py-3 rounded-xl border',
+                                  dk ? 'bg-white/3 border-white/8' : 'bg-slate-50 border-slate-200'
+                                )}
+                              >
+                                <div className={cn(
+                                  'w-9 h-9 rounded-full flex items-center justify-center font-black text-xs shrink-0 overflow-hidden',
+                                  dk ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600'
+                                )}>
+                                  {AVATARS.find(a => a.id === c.avatar)?.emoji || (c.fullName || c.email)[0].toUpperCase()}
+                                </div>
+
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-bold truncate">{c.fullName || 'User'}</p>
+                                  {c.username && (
+                                    <p className="text-[12px] font-semibold text-[var(--accent-primary)]">@{c.username}</p>
+                                  )}
+                                  <p className="text-[11px] truncate opacity-60">{c.email}</p>
+                                </div>
+
+                                <select
+                                  value={pendingRole[c.userId] ?? c.role}
+                                  onChange={e => setPendingRole(p => ({ ...p, [c.userId]: e.target.value }))}
+                                  className={cn(
+                                    'text-xs font-bold rounded-lg border px-2 py-1.5 outline-none transition-all cursor-pointer',
+                                    dk
+                                      ? 'bg-[#1E293B] border-white/10 text-white'
+                                      : 'bg-white border-slate-200 text-slate-900'
+                                  )}
+                                  style={{ colorScheme: dk ? 'dark' : 'light' }}
+                                >
+                                  <option value="viewer">{isDe ? 'Betrachter' : 'Viewer'}</option>
+                                  <option value="editor">Editor</option>
+                                  <option value="admin">Admin</option>
+                                </select>
+
+                                <button
+                                  onClick={() => handleChangeCollabRole(c.userId)}
+                                  disabled={changingRole === c.userId}
+                                  className="px-3 py-1.5 bg-[var(--accent-primary)] hover:opacity-80 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-all"
+                                >
+                                  {changingRole === c.userId
+                                    ? <Loader2 size={12} className="animate-spin" />
+                                    : (isDe ? 'Ändern' : 'Change')}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                   </div>
                 </div>
               )}
