@@ -16,7 +16,7 @@ function isEmail(val: string) {
 }
 
 export default function Auth({ onBack, lang, theme, initialMode = 'login' }: AuthProps) {
-  const [mode, setMode]         = useState<'login' | 'signup'>(initialMode);
+  const [mode, setMode]         = useState<'login' | 'signup' | 'recovery'>(initialMode);
   const [loading, setLoading]   = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -25,6 +25,7 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
   // Login
   const [loginId,   setLoginId]   = useState('');
   const [loginPass, setLoginPass] = useState('');
+  const [recoveryEmail, setRecoveryEmail] = useState('');
 
   // Signup
   const [regName,     setRegName]     = useState('');
@@ -51,6 +52,29 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
       if (error) throw error;
     } catch (err: any) {
       setErrorMsg(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── PASSWORD RECOVERY ────────────────────────────────────────────────────
+  async function handlePasswordRecovery(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true); setErrorMsg(''); setSuccess('');
+    try {
+      const email = recoveryEmail.trim();
+      if (!isEmail(email)) {
+        throw new Error(lang === 'de' ? 'Bitte geben Sie eine gültige E-Mail-Adresse ein.' : 'Please enter a valid email address.');
+      }
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/`
+      });
+      if (error) throw error;
+      setSuccess(lang === 'de'
+        ? 'Falls ein Konto mit dieser E-Mail-Adresse besteht, erhalten Sie eine E-Mail zum Zurücksetzen des Passworts.'
+        : 'If an account exists for this email address, you will receive a password reset email.');
+    } catch (err: any) {
+      setErrorMsg(err?.message || (lang === 'de' ? 'Passwort zurücksetzen fehlgeschlagen.' : 'Could not request a password reset.'));
     } finally {
       setLoading(false);
     }
@@ -135,12 +159,16 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
         <h2 className="text-3xl font-black mb-2">
           {mode === 'login'
             ? (lang === 'de' ? 'Willkommen zurück' : 'Welcome Back')
-            : (lang === 'de' ? 'Konto erstellen'   : 'Create Account')}
+            : mode === 'signup'
+              ? (lang === 'de' ? 'Konto erstellen' : 'Create Account')
+              : (lang === 'de' ? 'Passwort zurücksetzen' : 'Reset Password')}
         </h2>
         <p className="text-sm opacity-50 mb-8">
           {mode === 'login'
             ? (lang === 'de' ? 'Benutzername oder E-Mail + Passwort' : 'Username or email + password')
-            : (lang === 'de' ? 'Alle Felder ausfüllen'               : 'Fill in all fields to get started')}
+            : mode === 'signup'
+              ? (lang === 'de' ? 'Alle Felder ausfüllen' : 'Fill in all fields to get started')
+              : (lang === 'de' ? 'Geben Sie Ihre registrierte E-Mail-Adresse ein.' : 'Enter the email address registered to your account.')}
         </p>
 
         {errorMsg && (
@@ -177,6 +205,31 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
   className="w-full py-4 bg-blue-600 text-white font-black rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 shadow-lg shadow-blue-600/20 disabled:opacity-50 transition-all whitespace-nowrap">
               {loading ? <Loader2 className="animate-spin" size={20} /> : <LogIn size={20} />}
               {lang === 'de' ? 'Anmelden' : 'Log In'}
+            </button>
+          </form>
+        )}
+
+        {mode === 'login' && (
+          <div className="mt-3 text-right">
+            <button type="button" onClick={() => { setMode('recovery'); setRecoveryEmail(isEmail(loginId) ? loginId.trim() : ''); setErrorMsg(''); setSuccess(''); }}
+              className="text-xs font-bold text-blue-500 hover:underline">
+              {lang === 'de' ? 'Passwort vergessen?' : 'Forgot Password?'}
+            </button>
+          </div>
+        )}
+
+        {mode === 'recovery' && (
+          <form onSubmit={handlePasswordRecovery} className="space-y-4">
+            <div className="relative">
+              <Mail className="absolute left-4 top-4 opacity-30" size={20} />
+              <input type="email" placeholder={lang === 'de' ? 'Registrierte E-Mail-Adresse' : 'Registered email address'}
+                required value={recoveryEmail} onChange={e => setRecoveryEmail(e.target.value)}
+                autoComplete="email" className={inputClass} />
+            </div>
+            <button type="submit" disabled={loading}
+              className="w-full py-4 bg-blue-600 text-white font-black rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 shadow-lg shadow-blue-600/20 disabled:opacity-50 transition-all">
+              {loading ? <Loader2 className="animate-spin" size={20} /> : <Mail size={20} />}
+              {lang === 'de' ? 'Link zum Zurücksetzen senden' : 'Send Reset Link'}
             </button>
           </form>
         )}
@@ -226,9 +279,11 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
 
         <div className={cn('mt-8 pt-8 border-t text-center text-sm', isDark ? 'border-white/10' : 'border-slate-200')}>
           <span className="opacity-50">
-            {mode === 'login'
-              ? (lang === 'de' ? 'Noch kein Konto?' : 'No account yet?')
-              : (lang === 'de' ? 'Bereits ein Konto?' : 'Already have an account?')}
+            {mode === 'signup'
+              ? (lang === 'de' ? 'Bereits ein Konto?' : 'Already have an account?')
+              : mode === 'recovery'
+                ? (lang === 'de' ? 'Zurück zur Anmeldung?' : 'Back to login?')
+                : (lang === 'de' ? 'Noch kein Konto?' : 'No account yet?')}
           </span>
           <button onClick={() => { setMode(m => m === 'login' ? 'signup' : 'login'); setErrorMsg(''); setSuccess(''); }}
             className="ml-2 font-black text-blue-500 hover:underline">
