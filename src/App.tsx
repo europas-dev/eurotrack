@@ -341,7 +341,7 @@ export default function App() {
               onToggleOfflineMode={handleToggleOffline}
               viewOnly={isViewOnly}
               accessLevel={accessLevel}
-              onSignOut={accessLevel?.role === 'superadmin' ? () => { clearPersistedView(); setView('superadmin-home'); } : handleSignOut}
+              onSignOut={['superadmin', 'admin'].includes(accessLevel?.role ?? '') ? () => { clearPersistedView(); setView('superadmin-home'); } : handleSignOut}
             />
           </ErrorBoundary>
         </div>
@@ -367,7 +367,7 @@ export default function App() {
             onToggleOfflineMode={handleToggleOffline}
             viewOnly={isViewOnly}
             accessLevel={accessLevel}
-            onSignOut={accessLevel?.role === 'superadmin' ? () => { clearPersistedView(); setView('superadmin-home'); } : handleSignOut}
+            onSignOut={['superadmin', 'admin'].includes(accessLevel?.role ?? '') ? () => { clearPersistedView(); setView('superadmin-home'); } : handleSignOut}
           />
         </ErrorBoundary>
       </div>
