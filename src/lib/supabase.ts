@@ -46,6 +46,25 @@ export async function getAllUsers(): Promise<any[]> {
   return (data ?? []).map((p: any) => ({ ...p, fullName: p.full_name ?? '' }))
 }
 
+/**
+ * Ask the trusted Supabase Edge Function to generate a one-time recovery link.
+ * The service-role key is never exposed to this browser client.
+ */
+export async function generateAdminPasswordRecoveryLink(userId: string): Promise<string> {
+  if (!userId) throw new Error('A target user is required.');
+
+  const { data, error } = await supabase.functions.invoke('admin-generate-recovery-link', {
+    body: { userId },
+  });
+
+  if (error) throw error;
+  if (!data?.actionLink || typeof data.actionLink !== 'string') {
+    throw new Error(data?.error || 'The recovery link could not be generated.');
+  }
+
+  return data.actionLink;
+}
+
 export async function setUserRole(userId: string, role: UserRole): Promise<void> {
   // Change the user's role through the protected database function.
   const { error } = await supabase.rpc('set_user_role', {
