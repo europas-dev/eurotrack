@@ -8,7 +8,7 @@ interface AuthProps {
   onBack: () => void;
   lang: 'de' | 'en';
   theme: 'dark' | 'light';
-  initialMode?: 'login' | 'signup';
+  initialMode?: 'login' | 'signup' | 'reset';
 }
 
 function isEmail(val: string) {
@@ -16,7 +16,7 @@ function isEmail(val: string) {
 }
 
 export default function Auth({ onBack, lang, theme, initialMode = 'login' }: AuthProps) {
-  const [mode, setMode]         = useState<'login' | 'signup' | 'recovery'>(initialMode);
+  const [mode, setMode]         = useState<'login' | 'signup' | 'recovery' | 'reset'>(initialMode);
   const [loading, setLoading]   = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -32,6 +32,8 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
   const [regUsername, setRegUsername] = useState('');
   const [regEmail,    setRegEmail]    = useState('');
   const [regPass,     setRegPass]     = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   const isDark = theme === 'dark';
 
@@ -178,14 +180,18 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
             ? (lang === 'de' ? 'Willkommen zurück' : 'Welcome Back')
             : mode === 'signup'
               ? (lang === 'de' ? 'Konto erstellen' : 'Create Account')
-              : (lang === 'de' ? 'Passwort zurücksetzen' : 'Reset Password')}
+              : mode === 'reset'
+                ? (lang === 'de' ? 'Neues Passwort festlegen' : 'Set New Password')
+                : (lang === 'de' ? 'Passwort zurücksetzen' : 'Reset Password')}
         </h2>
         <p className="text-sm opacity-50 mb-8">
           {mode === 'login'
             ? (lang === 'de' ? 'Benutzername oder E-Mail + Passwort' : 'Username or email + password')
             : mode === 'signup'
               ? (lang === 'de' ? 'Alle Felder ausfüllen' : 'Fill in all fields to get started')
-              : (lang === 'de' ? 'Geben Sie Ihren Benutzernamen oder Ihre registrierte E-Mail-Adresse ein.' : 'Enter your username or registered email address.')}
+              : mode === 'reset'
+                ? (lang === 'de' ? 'Wählen Sie ein neues Passwort für Ihr Konto.' : 'Choose a new password for your account.')
+                : (lang === 'de' ? 'Geben Sie Ihren Benutzernamen oder Ihre registrierte E-Mail-Adresse ein.' : 'Enter your username or registered email address.')}
         </p>
 
         {errorMsg && (
@@ -233,6 +239,33 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
               {lang === 'de' ? 'Passwort vergessen?' : 'Forgot Password?'}
             </button>
           </div>
+        )}
+
+        {mode === 'reset' && (
+          <form onSubmit={handleSetNewPassword} className="space-y-4">
+            <div className="relative">
+              <Lock className="absolute left-4 top-4 opacity-30" size={20} />
+              <input type={showPass ? 'text' : 'password'} required minLength={8}
+                placeholder={lang === 'de' ? 'Neues Passwort (mind. 8 Zeichen)' : 'New password (at least 8 characters)'}
+                value={newPassword} onChange={e => setNewPassword(e.target.value)} autoComplete="new-password"
+                className={cn(inputClass, 'pr-12')} />
+              <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-4 top-4 opacity-50 hover:opacity-100">
+                {showPass ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+            <div className="relative">
+              <Lock className="absolute left-4 top-4 opacity-30" size={20} />
+              <input type="password" required minLength={8}
+                placeholder={lang === 'de' ? 'Neues Passwort bestätigen' : 'Confirm new password'}
+                value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} autoComplete="new-password"
+                className={inputClass} />
+            </div>
+            <button type="submit" disabled={loading}
+              className="w-full py-4 bg-blue-600 text-white font-black rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 shadow-lg shadow-blue-600/20 disabled:opacity-50 transition-all">
+              {loading ? <Loader2 className="animate-spin" size={20} /> : <Lock size={20} />}
+              {lang === 'de' ? 'Passwort aktualisieren' : 'Update Password'}
+            </button>
+          </form>
         )}
 
         {mode === 'recovery' && (
@@ -298,7 +331,7 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
           <span className="opacity-50">
             {mode === 'signup'
               ? (lang === 'de' ? 'Bereits ein Konto?' : 'Already have an account?')
-              : mode === 'recovery'
+              : mode === 'recovery' || mode === 'reset'
                 ? (lang === 'de' ? 'Zurück zur Anmeldung?' : 'Back to login?')
                 : (lang === 'de' ? 'Noch kein Konto?' : 'No account yet?')}
           </span>
