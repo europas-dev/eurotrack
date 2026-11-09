@@ -7,6 +7,7 @@ import { cn } from '../lib/utils';
 interface AuthProps {
   onBack: () => void;
   lang: 'de' | 'en';
+  setLang?: (lang: 'de' | 'en') => void;
   theme: 'dark' | 'light';
   initialMode?: 'login' | 'signup' | 'reset';
 }
@@ -15,7 +16,7 @@ function isEmail(val: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim());
 }
 
-export default function Auth({ onBack, lang, theme, initialMode = 'login' }: AuthProps) {
+export default function Auth({ onBack, lang, setLang, theme, initialMode = 'login' }: AuthProps) {
   const [mode, setMode]         = useState<'login' | 'signup' | 'recovery' | 'reset'>(initialMode);
   const [loading, setLoading]   = useState(false);
   const [showPass, setShowPass] = useState(false);
@@ -213,9 +214,23 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
 
   return (
     <div 
-      className={cn('min-h-screen w-full flex flex-col items-center justify-center p-6', isDark ? 'bg-[#020617]' : 'bg-slate-100')}
+      className={cn('relative min-h-screen w-full flex flex-col items-center justify-center p-6', isDark ? 'bg-[#020617]' : 'bg-slate-100')}
       style={{ fontFamily: '"Poppins", sans-serif' }}
     >
+          {/* Language Switch */}
+    <button
+      type="button"
+      onClick={() => setLang?.(lang === 'de' ? 'en' : 'de')}
+      className={cn(
+        'absolute top-5 right-5 px-3 py-2 rounded-xl text-xs font-black transition-all',
+        isDark
+          ? 'bg-white/10 text-white hover:bg-white/20'
+          : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+      )}
+      aria-label={lang === 'de' ? 'Switch to English' : 'Zu Deutsch wechseln'}
+    >
+      {lang === 'de' ? 'EN' : 'DE'}
+    </button>
       {/* Added mb-8 sm:mb-10 to restore the gap! */}
       <button onClick={onBack} className="mb-8 sm:mb-10 flex items-center text-2xl font-black italic hover:scale-105 transition-all">
   <span className={isDark ? 'text-white' : 'text-slate-900'}>Euro</span>
