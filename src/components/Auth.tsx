@@ -25,7 +25,7 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
   // Login
   const [loginId,   setLoginId]   = useState('');
   const [loginPass, setLoginPass] = useState('');
-  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoveryIdentifier, setRecoveryIdentifier] = useState('');
 
   // Signup
   const [regName,     setRegName]     = useState('');
@@ -62,14 +62,31 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
     e.preventDefault();
     setLoading(true); setErrorMsg(''); setSuccess('');
     try {
-      const email = recoveryEmail.trim();
-      if (!isEmail(email)) {
-        throw new Error(lang === 'de' ? 'Bitte geben Sie eine gültige E-Mail-Adresse ein.' : 'Please enter a valid email address.');
+      const identifier = recoveryIdentifier.trim();
+      if (!identifier) {
+        throw new Error(lang === 'de' ? 'Bitte geben Sie Ihren Benutzernamen oder Ihre E-Mail-Adresse ein.' : 'Please enter your username or email address.');
       }
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/`
-      });
-      if (error) throw error;
+
+      // Resolve usernames to their registered email, matching the login flow.
+      // Keep the response generic so the form does not reveal whether an account exists.
+      let email = identifier;
+      if (!isEmail(identifier)) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('username', identifier)
+          .maybeSingle();
+
+        if (profileError) throw profileError;
+        email = profile?.email || '';
+      }
+
+      if (email) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/`
+        });
+        if (error) throw error;
+      }
       setSuccess(lang === 'de'
         ? 'Falls ein Konto mit dieser E-Mail-Adresse besteht, erhalten Sie eine E-Mail zum Zurücksetzen des Passworts.'
         : 'If an account exists for this email address, you will receive a password reset email.');
@@ -168,7 +185,7 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
             ? (lang === 'de' ? 'Benutzername oder E-Mail + Passwort' : 'Username or email + password')
             : mode === 'signup'
               ? (lang === 'de' ? 'Alle Felder ausfüllen' : 'Fill in all fields to get started')
-              : (lang === 'de' ? 'Geben Sie Ihre registrierte E-Mail-Adresse ein.' : 'Enter the email address registered to your account.')}
+              : (lang === 'de' ? 'Geben Sie Ihren Benutzernamen oder Ihre registrierte E-Mail-Adresse ein.' : 'Enter your username or registered email address.')}
         </p>
 
         {errorMsg && (
@@ -211,7 +228,7 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
 
         {mode === 'login' && (
           <div className="mt-3 text-right">
-            <button type="button" onClick={() => { setMode('recovery'); setRecoveryEmail(isEmail(loginId) ? loginId.trim() : ''); setErrorMsg(''); setSuccess(''); }}
+            <button type="button" onClick={() => { setMode('recovery'); setRecoveryIdentifier(loginId.trim()); setErrorMsg(''); setSuccess(''); }}
               className="text-xs font-bold text-blue-500 hover:underline">
               {lang === 'de' ? 'Passwort vergessen?' : 'Forgot Password?'}
             </button>
@@ -222,9 +239,9 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
           <form onSubmit={handlePasswordRecovery} className="space-y-4">
             <div className="relative">
               <Mail className="absolute left-4 top-4 opacity-30" size={20} />
-              <input type="email" placeholder={lang === 'de' ? 'Registrierte E-Mail-Adresse' : 'Registered email address'}
-                required value={recoveryEmail} onChange={e => setRecoveryEmail(e.target.value)}
-                autoComplete="email" className={inputClass} />
+              <input type="text" placeholder={lang === 'de' ? 'Benutzername oder E-Mail-Adresse' : 'Username or email address'}
+                required value={recoveryIdentifier} onChange={e => setRecoveryIdentifier(e.target.value)}
+                autoComplete="username" className={inputClass} />
             </div>
             <button type="submit" disabled={loading}
               className="w-full py-4 bg-blue-600 text-white font-black rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 shadow-lg shadow-blue-600/20 disabled:opacity-50 transition-all">
