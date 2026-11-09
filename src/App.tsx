@@ -123,8 +123,9 @@ export default function App() {
       const target = persisted ?? 'superadmin-home';
       setView(target);
     } else if (role === 'admin') {
-      // Admins use the administrator home to access User Management.
-      setView('superadmin-home');
+      // Restore the last permitted Admin view after refresh.
+      // The home selector is used only when there is no saved destination.
+      setView(persisted ?? 'superadmin-home');
     } else if (role === 'pending') {
       setView('pending');
     } else {
@@ -266,6 +267,18 @@ export default function App() {
     signingOut.current = false;
   }
 
+  // Leaving the Admin/Super Admin dashboard returns to the two-card selector.
+  // It does not terminate the authenticated session. Actual sign-out remains
+  // available from the selector and continues to use handleSignOut above.
+  const handleDashboardExit = useCallback(() => {
+    if (accessLevel?.role === 'admin' || accessLevel?.role === 'superadmin') {
+      clearPersistedView();
+      setView('superadmin-home');
+      return;
+    }
+    void handleSignOut();
+  }, [accessLevel]);
+
   const handleToggleOffline = () => {
     setOfflineMode(prev => !prev);
   };
@@ -354,7 +367,7 @@ export default function App() {
               onToggleOfflineMode={handleToggleOffline}
               viewOnly={isViewOnly}
               accessLevel={accessLevel}
-              onSignOut={accessLevel?.role === 'superadmin' ? () => { clearPersistedView(); setView('superadmin-home'); } : handleSignOut}
+              onSignOut={handleDashboardExit}
             />
           </ErrorBoundary>
         </div>
@@ -380,7 +393,7 @@ export default function App() {
             onToggleOfflineMode={handleToggleOffline}
             viewOnly={isViewOnly}
             accessLevel={accessLevel}
-            onSignOut={accessLevel?.role === 'superadmin' ? () => { clearPersistedView(); setView('superadmin-home'); } : handleSignOut}
+            onSignOut={handleDashboardExit}
           />
         </ErrorBoundary>
       </div>
