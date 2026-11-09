@@ -33,17 +33,47 @@ export async function getMyAccessLevel(): Promise<AccessLevel> {
   try {
     const { data: { user }, error: authErr } = await supabase.auth.getUser()
     if (authErr || !user) return { role: 'pending' }
-    const { data, error } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
-    if (error) return { role: 'pending' }
+    const { data, error } = await supabase.from('profiles').select('role, archived_at').eq('id', user.id).maybeSingle()
+    if (error || !data || data.archived_at) return { role: 'pending' }
     return { role: (data as any)?.role || 'pending' }
   } catch { return { role: 'pending' } }
 }
 
 // ─── User management ──────────────────────────────────────────────────────
 export async function getAllUsers(): Promise<any[]> {
-  const { data, error } = await supabase.from('profiles').select('id, email, full_name, username, role, created_at').order('created_at', { ascending: false })
+  const { data, error } = await supabase.from('profiles')
+    .select('id, email, full_name, username, role, created_at, archived_at')
+    .is('archived_at', null)
+    .order('created_at', { ascending: false })
   if (error) throw error
   return (data ?? []).map((p: any) => ({ ...p, fullName: p.full_name ?? '' }))
+}
+
+export async function getArchivedUsers(): Promise<any[]> {
+  const { data, error } = await supabase.from('profiles')
+    .select('id, email, full_name, username, role, created_at, archived_at')
+    .not('archived_at', 'is', null)
+    .order('archived_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map((p: any) => ({ ...p, fullName: p.full_name ?? '' }))
+}
+
+export async function archivePendingUser(userId: string): Promise<void> {
+  const { error } = await supabase.rpc('archive_pending_user', { target_id: userId })
+  if (error) throw error
+}
+
+export async function restoreArchivedUser(userId: string): Promise<void> {
+  const { error } = await supabase.rpc('restore_archived_user', { target_id: userId })
+  if (error) throw error
+}
+
+export async function sendAdminPasswordResetEmail(email: string): Promise<void> {
+  if (!email) throw new Error('The selected account has no registered email address.')
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/`,
+  })
+  if (error) throw error
 }
 
 /**
