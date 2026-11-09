@@ -14,7 +14,7 @@ import {
   User, Lock, UserPlus, ChevronDown,
   ChevronRight, Pencil, Shield, Minus, Plus,
   Mail, KeyRound, AtSign, Eye, EyeOff, HelpCircle,
-  FileText, Info, Wifi, WifiOff, Upload, EyeIcon, EyeOffIcon, LogOut, LayoutList, BarChart3
+  FileText, Info, Wifi, WifiOff, Upload, EyeIcon, EyeOffIcon, LayoutList, BarChart3
 } from 'lucide-react';
 
 const AVATARS = [
@@ -776,21 +776,29 @@ export default function Header({
         </button>
       </div>
 
-      {/* Error message */}
-      {collabRoleErrors[c.userId] && (
-        <div className={cn(
-          'flex items-start gap-2 px-3 py-2.5 rounded-lg border text-xs leading-relaxed',
-          dk
-            ? 'bg-red-500/10 border-red-500/25 text-red-300'
-            : 'bg-red-50 border-red-200 text-red-700'
-        )}>
-          <span className="shrink-0 font-bold">!</span>
-          <span>{collabRoleErrors[c.userId]}</span>
-        </div>
-      )}
-    </div>
-  ))}
-</div>
+                                  {/* Error message */}
+                      {collabRoleErrors[c.userId] && (
+                        <div className={cn(
+                          'flex items-start gap-2 px-3 py-2.5 rounded-lg border text-xs leading-relaxed',
+                          dk
+                            ? 'bg-red-500/10 border-red-500/25 text-red-300'
+                            : 'bg-red-50 border-red-200 text-red-700'
+                        )}>
+                          <span className="shrink-0 font-bold">!</span>
+                          <span>{collabRoleErrors[c.userId]}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                      )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>,
+      document.body
       )}
 
       <style>{`
@@ -800,7 +808,7 @@ export default function Header({
           -webkit-font-feature-settings: "lnum", "tnum";
           font-feature-settings: "lnum", "tnum";
         }
-        
+
         /* Crisp font rendering for modern UI */
         body {
           -webkit-font-smoothing: antialiased;
