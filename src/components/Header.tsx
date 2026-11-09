@@ -195,6 +195,7 @@ export default function Header({
   const [collabsLoading, setCollabsLoading] = useState(false);
   const [pendingRole, setPendingRole] = useState<Record<string, string>>({});
   const [changingRole, setChangingRole] = useState<string | null>(null);
+  const [collabRoleErrors, setCollabRoleErrors] = useState<Record<string, string>>({});
 
   const surface = dk ? 'bg-[#0F172A] border-white/5 text-white' : 'bg-white border-slate-200 text-slate-900';
   const drawerBg = dk ? 'bg-[#0F172A]' : 'bg-white';
@@ -271,7 +272,48 @@ export default function Header({
   async function handleSavePassword() { if (newPass !== confirmPass) { setPassMsg(isDe ? 'Passwörter stimmen nicht überein' : 'Passwords do not match'); return; } setSavingPass(true); setPassMsg(''); try { await updateMyPassword(currentPass, newPass); setCurrentPass(''); setNewPass(''); setConfirmPass(''); setPassMsg(isDe ? '✓ Passwort geändert' : '✓ Password changed'); setTimeout(() => setPassMsg(''), 3000); } catch (e: any) { setPassMsg(`Error: ${e.message}`); } finally { setSavingPass(false); } }
   async function handleForgotPassword() { if (!profile?.email) return; setSendingReset(true); setResetMsg(''); try { await sendPasswordReset(profile.email); setResetMsg(isDe ? '✓ Reset-Link gesendet' : '✓ Reset link sent'); setTimeout(() => setResetMsg(''), 4000); } catch (e: any) { setResetMsg(`Error: ${e.message}`); } finally { setSendingReset(false); } }
   async function handleGrantAccess() { if (!selectedUser) return; setGranting(true); setGrantMsg(''); try { await grantUserAccess(selectedUser.id, grantRole); setGrantMsg(isDe ? `✓ Zugriff erteilt` : `✓ Access granted`); setSelectedUser(null); setAccessSearch(''); setAccessResults([]); await loadCollabs(); setTimeout(() => setGrantMsg(''), 3000); } catch (e: any) { setGrantMsg(`Error: ${e.message}`); } finally { setGranting(false); } }
-  async function handleChangeCollabRole(userId: string) { const role = pendingRole[userId] as any; if (!role) return; setChangingRole(userId); try { await updateCollaboratorPermission(userId, role); setCollabs(p => p.map(c => c.userId === userId ? { ...c, role } : c)); } catch { } finally { setChangingRole(null); } }
+    async function handleChangeCollabRole(userId: string) {
+    const role = pendingRole[userId] as any;
+    if (!role) return;
+
+    const originalUser = collabs.find(c => c.userId === userId);
+    if (!originalUser || originalUser.role === role) return;
+
+    setChangingRole(userId);
+    setCollabRoleErrors(p => ({ ...p, [userId]: '' }));
+
+    try {
+      await updateCollaboratorPermission(userId, role);
+
+      // Update the displayed role only after backend confirmation.
+      setCollabs(p =>
+        p.map(c => c.userId === userId ? { ...c, role } : c)
+      );
+
+      setPendingRole(p => ({ ...p, [userId]: role }));
+    } catch (err: any) {
+      const message = err?.message ?? '';
+
+      // Restore the original role after a rejected update.
+      setPendingRole(p => ({ ...p, [userId]: originalUser.role }));
+
+      const isLastAdminError =
+        message.toLowerCase().includes('last admin');
+
+      setCollabRoleErrors(p => ({
+        ...p,
+        [userId]: isLastAdminError
+          ? (isDe
+              ? 'Der letzte Administrator kann nicht herabgestuft werden. Bitte ernennen Sie zuerst einen weiteren Administrator.'
+              : 'The last Admin cannot be demoted. Appoint another Admin first.')
+          : (isDe
+              ? 'Die Rolle konnte nicht geändert werden. Bitte versuchen Sie es erneut.'
+              : message || 'Failed to update role.')
+      }));
+    } finally {
+      setChangingRole(null);
+    }
+  }
   async function handleRemove(userId: string) { try { await removeCollaborator(userId); setCollabs(p => p.filter(c => c.userId !== userId)); } catch { } }
 
   function AvatarDisplay({ size = 64 }: { size?: number }) {
@@ -670,66 +712,85 @@ export default function Header({
                       : collabs.length === 0 ? <p className={cn('text-xs py-3', dk ? 'text-slate-500' : 'text-slate-400')}>{isDe ? 'Noch keine Mitarbeiter' : 'No collaborators yet'}</p>
                                                 : (
                           <div className="space-y-2">
-                            {collabs.map(c => (
-                              <div
-                                key={c.userId}
-                                title={`${c.fullName || ''}\n${c.email}`}
-                                className={cn(
-                                  'flex items-center gap-3 px-3 py-3 rounded-xl border',
-                                  dk ? 'bg-white/3 border-white/8' : 'bg-slate-50 border-slate-200'
-                                )}
-                              >
-                                <div className={cn(
-                                  'w-9 h-9 rounded-full flex items-center justify-center font-black text-xs shrink-0 overflow-hidden',
-                                  dk ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600'
-                                )}>
-                                  {AVATARS.find(a => a.id === c.avatar)?.emoji || (c.fullName || c.email)[0].toUpperCase()}
-                                </div>
+  {collabs.map(c => (
+    <div key={c.userId} className="space-y-2">
+      {/* Collaborator row */}
+      <div
+        title={`${c.fullName || ''}\n${c.email}`}
+        className={cn(
+          'flex items-center gap-3 px-3 py-3 rounded-xl border',
+          dk ? 'bg-white/3 border-white/8' : 'bg-slate-50 border-slate-200'
+        )}
+      >
+        {/* Avatar */}
+        <div className={cn(
+          'w-9 h-9 rounded-full flex items-center justify-center font-black text-xs shrink-0 overflow-hidden',
+          dk ? 'bg-slate-700 text-slate-300' : 'bg-slate-200 text-slate-600'
+        )}>
+          {AVATARS.find(a => a.id === c.avatar)?.emoji || (c.fullName || c.email)[0].toUpperCase()}
+        </div>
 
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-bold truncate">{c.fullName || 'User'}</p>
-                                  {c.username && (
-                                    <p className="text-[12px] font-semibold text-[var(--accent-primary)]">@{c.username}</p>
-                                  )}
-                                  <p className="text-[11px] truncate opacity-60">{c.email}</p>
-                                </div>
+        {/* User information */}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold truncate">{c.fullName || 'User'}</p>
 
-                                <select
-                                  value={pendingRole[c.userId] ?? c.role}
-                                  onChange={e => setPendingRole(p => ({ ...p, [c.userId]: e.target.value }))}
-                                  className={cn(
-                                    'text-xs font-bold rounded-lg border px-2 py-1.5 outline-none transition-all cursor-pointer',
-                                    dk
-                                      ? 'bg-[#1E293B] border-white/10 text-white'
-                                      : 'bg-white border-slate-200 text-slate-900'
-                                  )}
-                                  style={{ colorScheme: dk ? 'dark' : 'light' }}
-                                >
-                                  <option value="viewer">{isDe ? 'Betrachter' : 'Viewer'}</option>
-                                  <option value="editor">Editor</option>
-                                  <option value="admin">Admin</option>
-                                </select>
+          {c.username && (
+            <p className="text-[12px] font-semibold text-[var(--accent-primary)]">
+              @{c.username}
+            </p>
+          )}
 
-                                <button
-                                  onClick={() => handleChangeCollabRole(c.userId)}
-                                  disabled={changingRole === c.userId}
-                                  className="px-3 py-1.5 bg-[var(--accent-primary)] hover:opacity-80 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-all"
-                                >
-                                  {changingRole === c.userId
-                                    ? <Loader2 size={12} className="animate-spin" />
-                                    : (isDe ? 'Ändern' : 'Change')}
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>,
-      document.body
+          <p className="text-[11px] truncate opacity-60">{c.email}</p>
+        </div>
+
+        {/* Role dropdown */}
+        <select
+          value={pendingRole[c.userId] ?? c.role}
+          onChange={e => {
+            const value = e.target.value;
+            setPendingRole(p => ({ ...p, [c.userId]: value }));
+            setCollabRoleErrors(p => ({ ...p, [c.userId]: '' }));
+          }}
+          className={cn(
+            'text-xs font-bold rounded-lg border px-2 py-1.5 outline-none transition-all cursor-pointer',
+            dk
+              ? 'bg-[#1E293B] border-white/10 text-white'
+              : 'bg-white border-slate-200 text-slate-900'
+          )}
+          style={{ colorScheme: dk ? 'dark' : 'light' }}
+        >
+          <option value="viewer">{isDe ? 'Betrachter' : 'Viewer'}</option>
+          <option value="editor">Editor</option>
+          <option value="admin">Admin</option>
+        </select>
+
+        {/* Change button */}
+        <button
+          onClick={() => handleChangeCollabRole(c.userId)}
+          disabled={changingRole === c.userId}
+          className="px-3 py-1.5 bg-[var(--accent-primary)] hover:opacity-80 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-all"
+        >
+          {changingRole === c.userId
+            ? <Loader2 size={12} className="animate-spin" />
+            : (isDe ? 'Ändern' : 'Change')}
+        </button>
+      </div>
+
+      {/* Error message */}
+      {collabRoleErrors[c.userId] && (
+        <div className={cn(
+          'flex items-start gap-2 px-3 py-2.5 rounded-lg border text-xs leading-relaxed',
+          dk
+            ? 'bg-red-500/10 border-red-500/25 text-red-300'
+            : 'bg-red-50 border-red-200 text-red-700'
+        )}>
+          <span className="shrink-0 font-bold">!</span>
+          <span>{collabRoleErrors[c.userId]}</span>
+        </div>
+      )}
+    </div>
+  ))}
+</div>
       )}
 
       <style>{`
