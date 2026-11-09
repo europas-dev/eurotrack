@@ -99,6 +99,56 @@ export default function Auth({ onBack, lang, theme, initialMode = 'login' }: Aut
     }
   }
 
+  // ── SET NEW PASSWORD FROM A RECOVERY SESSION ─────────────────────────────
+  async function handleSetNewPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg('');
+    setSuccess('');
+
+    try {
+      if (newPassword.length < 8) {
+        throw new Error(lang === 'de'
+          ? 'Das Passwort muss mindestens 8 Zeichen lang sein.'
+          : 'The password must be at least 8 characters long.');
+      }
+      if (newPassword !== confirmPassword) {
+        throw new Error(lang === 'de'
+          ? 'Die Passwörter stimmen nicht überein.'
+          : 'The passwords do not match.');
+      }
+
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!sessionData.session) {
+        throw new Error(lang === 'de'
+          ? 'Die Wiederherstellungssitzung ist abgelaufen. Bitte fordern Sie einen neuen Link an.'
+          : 'Your recovery session has expired. Please request a new reset link.');
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateError) throw updateError;
+
+      // End the temporary recovery session so the user can sign in normally.
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) throw signOutError;
+
+      setNewPassword('');
+      setConfirmPassword('');
+      setLoginPass('');
+      setMode('login');
+      setSuccess(lang === 'de'
+        ? 'Ihr Passwort wurde aktualisiert. Sie können sich jetzt mit Ihrem neuen Passwort anmelden.'
+        : 'Your password has been updated. You can now sign in with your new password.');
+    } catch (err: any) {
+      setErrorMsg(err?.message || (lang === 'de'
+        ? 'Das Passwort konnte nicht aktualisiert werden.'
+        : 'Could not update the password.'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   // ── SIGNUP ───────────────────────────────────────────────────────────────
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
