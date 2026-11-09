@@ -1,11 +1,12 @@
 // src/components/UserManagement.tsx
 import React, { useEffect, useState, useMemo } from 'react';
-import { getAllUsers, setUserRole, generateAdminPasswordRecoveryLink, UserRole } from '../lib/supabase';
+import { getAllUsers, getArchivedUsers, archivePendingUser, restoreArchivedUser, sendAdminPasswordResetEmail, setUserRole, generateAdminPasswordRecoveryLink, UserRole } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import {
   Users, Shield, Crown, Eye, Edit3, Clock,
   Sun, Moon, Globe, ArrowLeft,
   Check, XCircle, Search, RefreshCw, ChevronDown, Lock, KeyRound, Copy, X,
+  MoreVertical, Mail, Archive, ArchiveRestore,
 } from 'lucide-react';
 
 interface Props {
@@ -199,11 +200,12 @@ function StatCard({ role, count, active, lang, onClick, theme }: {
 // ── User row ────────────────────────────────────────────────────────────────
 function UserRow({
   user, lang, theme,
-  selectedRole, onDropdownChange, onApply, isSelf, onGenerateRecoveryLink, recoveryLoading,
+  selectedRole, onDropdownChange, onApply, isSelf, onSendResetEmail, onGenerateRecoveryLink, onArchive, recoveryLoading, sendLoading, archiveLoading,
 }: {
   user: any; lang: 'de' | 'en'; theme: 'dark' | 'light';
   selectedRole: UserRole; onDropdownChange: (r: UserRole) => void;
-  onApply: () => void; isSelf: boolean; onGenerateRecoveryLink: () => void; recoveryLoading: boolean;
+  onApply: () => void; isSelf: boolean; onSendResetEmail: () => void; onGenerateRecoveryLink: () => void; onArchive: () => void;
+  recoveryLoading: boolean; sendLoading: boolean; archiveLoading: boolean;
 }) {
   const dk          = theme === 'dark';
   const currentRole = (user.role as UserRole) ?? 'pending';
@@ -213,6 +215,7 @@ function UserRow({
   const isDirty      = !isLocked && selectedRole !== currentRole;
   const initials     = (user.full_name || user.username || user.email || '?')[0].toUpperCase();
   const grad         = avatarGradient(initials);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <div className={cn(
@@ -319,21 +322,46 @@ function UserRow({
         </>
       )}
 
-      <button
-        type="button"
-        onClick={onGenerateRecoveryLink}
-        disabled={recoveryLoading || !user.email}
-        title={lang === 'de' ? 'Passwort-Reset-Link erstellen' : 'Generate password reset link'}
-        aria-label={lang === 'de' ? `Reset-Link für ${user.email} erstellen` : `Generate reset link for ${user.email}`}
-        className={cn(
-          'shrink-0 p-2 rounded-xl border transition-all disabled:opacity-40 disabled:cursor-not-allowed',
-          dk ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-600 hover:bg-slate-100'
+      <div className="relative shrink-0">
+        <button
+          type="button"
+          onClick={() => setMenuOpen(v => !v)}
+          aria-label={lang === 'de' ? 'Benutzeraktionen' : 'User actions'}
+          aria-expanded={menuOpen}
+          className={cn('p-2 rounded-xl border transition-all',
+            dk ? 'border-white/10 text-slate-300 hover:bg-white/10' : 'border-slate-200 text-slate-600 hover:bg-slate-100')}
+        >
+          <MoreVertical size={17} />
+        </button>
+        {menuOpen && (
+          <>
+            <button aria-label="Close menu" className="fixed inset-0 z-30 cursor-default" onClick={() => setMenuOpen(false)} />
+            <div className={cn('absolute right-0 top-full mt-2 z-40 w-64 rounded-xl border shadow-2xl p-1.5',
+              dk ? 'bg-[#111827] border-white/10 text-slate-100' : 'bg-white border-slate-200 text-slate-800')}>
+              <button type="button" disabled={sendLoading || !user.email} onClick={() => { setMenuOpen(false); onSendResetEmail(); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-xs font-semibold hover:bg-blue-500/10 disabled:opacity-50">
+                {sendLoading ? <span className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" /> : <Mail size={15} />}
+                {lang === 'de' ? 'Passwort-Reset-Link senden' : 'Send Password Reset Link'}
+              </button>
+              <button type="button" disabled={recoveryLoading || !user.email} onClick={() => { setMenuOpen(false); onGenerateRecoveryLink(); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-xs font-semibold hover:bg-blue-500/10 disabled:opacity-50">
+                {recoveryLoading ? <span className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" /> : <KeyRound size={15} />}
+                {lang === 'de' ? 'Passwort-Reset-Link generieren' : 'Generate Password Reset Link'}
+              </button>
+              {currentRole === 'pending' && (
+                <>
+                  <div className={cn('my-1 border-t', dk ? 'border-white/10' : 'border-slate-100')} />
+                  <button type="button" disabled={archiveLoading} onClick={() => { setMenuOpen(false); onArchive(); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-xs font-semibold text-amber-500 hover:bg-amber-500/10 disabled:opacity-50">
+                    {archiveLoading ? <span className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" /> : <Archive size={15} />}
+                    {lang === 'de' ? 'Benutzer archivieren' : 'Archive User'}
+                  </button>
+                </>
+              )}
+            </div>
+          </>
         )}
-      >
-        {recoveryLoading
-          ? <span className="block w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
-          : <KeyRound size={16} />}
-      </button>
+      </div>
     </div>
   );
 }
@@ -358,6 +386,14 @@ export default function UserManagement({ theme, lang, currentRole, toggleTheme, 
   const [recoveryLoadingId, setRecoveryLoadingId] = useState<string | null>(null);
   const [recoveryError, setRecoveryError] = useState('');
   const [copiedRecoveryLink, setCopiedRecoveryLink] = useState(false);
+  const [archivedUsers, setArchivedUsers] = useState<any[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
+  const [archiveTarget, setArchiveTarget] = useState<any | null>(null);
+  const [archiveLoadingId, setArchiveLoadingId] = useState<string | null>(null);
+  const [sendLoadingId, setSendLoadingId] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [restoreTarget, setRestoreTarget] = useState<any | null>(null);
 
   async function loadUsers(silent = false) {
     if (!silent) setLoading(true);
@@ -374,7 +410,16 @@ export default function UserManagement({ theme, lang, currentRole, toggleTheme, 
     }
   }
 
-  useEffect(() => { loadUsers(); }, []);
+  async function loadArchivedUsers() {
+    try {
+      const rows = await getArchivedUsers();
+      setArchivedUsers(rows);
+    } catch (e: any) {
+      setActionError(e?.message || (lang === 'de' ? 'Archivierte Benutzer konnten nicht geladen werden.' : 'Could not load archived users.'));
+    }
+  }
+
+  useEffect(() => { loadUsers(); loadArchivedUsers(); }, []);
 
     // Admins see all users except Super Admin.
   // Super Admin continues to see every profile.
@@ -469,6 +514,44 @@ export default function UserManagement({ theme, lang, currentRole, toggleTheme, 
     }
   }
 
+  async function handleSendResetEmail(user: any) {
+    setActionError(''); setActionMessage(''); setSendLoadingId(user.id);
+    try {
+      await sendAdminPasswordResetEmail(user.email);
+      setActionMessage(lang === 'de' ? `Reset-E-Mail wurde an ${user.email} angefordert.` : `Password reset email requested for ${user.email}.`);
+    } catch (error: any) {
+      setActionError(error?.message || (lang === 'de' ? 'Reset-E-Mail konnte nicht gesendet werden.' : 'Could not send password reset email.'));
+    } finally { setSendLoadingId(null); }
+  }
+
+  async function confirmArchive() {
+    if (!archiveTarget) return;
+    setArchiveLoadingId(archiveTarget.id); setActionError(''); setActionMessage('');
+    try {
+      await archivePendingUser(archiveTarget.id);
+      setUsers(prev => prev.filter(u => u.id !== archiveTarget.id));
+      setArchivedUsers(prev => [{ ...archiveTarget, archived_at: new Date().toISOString() }, ...prev]);
+      setArchiveTarget(null);
+      setActionMessage(lang === 'de' ? 'Benutzer wurde archiviert.' : 'User archived successfully.');
+    } catch (error: any) {
+      setActionError(error?.message || (lang === 'de' ? 'Benutzer konnte nicht archiviert werden.' : 'Could not archive user.'));
+    } finally { setArchiveLoadingId(null); }
+  }
+
+  async function confirmRestore() {
+    if (!restoreTarget) return;
+    setArchiveLoadingId(restoreTarget.id); setActionError(''); setActionMessage('');
+    try {
+      await restoreArchivedUser(restoreTarget.id);
+      setArchivedUsers(prev => prev.filter(u => u.id !== restoreTarget.id));
+      setUsers(prev => [{ ...restoreTarget, archived_at: null }, ...prev]);
+      setRestoreTarget(null);
+      setActionMessage(lang === 'de' ? 'Benutzer wurde wiederhergestellt.' : 'User restored successfully.');
+    } catch (error: any) {
+      setActionError(error?.message || (lang === 'de' ? 'Benutzer konnte nicht wiederhergestellt werden.' : 'Could not restore user.'));
+    } finally { setArchiveLoadingId(null); }
+  }
+
   async function copyRecoveryLink() {
     try {
       await navigator.clipboard.writeText(recoveryLink);
@@ -515,6 +598,12 @@ export default function UserManagement({ theme, lang, currentRole, toggleTheme, 
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={() => { setShowArchived(v => !v); setActionError(''); setActionMessage(''); loadArchivedUsers(); }}
+              title={lang === 'de' ? 'Archivierte Benutzer' : 'Archived users'}
+              className={cn('relative p-2 rounded-xl transition-all', showArchived ? 'text-blue-500 bg-blue-500/10' : dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
+              <Archive size={16} />
+              {archivedUsers.length > 0 && <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center justify-center">{archivedUsers.length}</span>}
+            </button>
             <button onClick={() => loadUsers(true)} disabled={refreshing}
               className={cn('p-2 rounded-xl transition-all', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
               <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
@@ -531,6 +620,7 @@ export default function UserManagement({ theme, lang, currentRole, toggleTheme, 
           </div>
         </div>
 
+        {!showArchived && <>
         {/* Stats filter row */}
         <div className="flex items-center gap-2.5 px-6 py-4 overflow-x-auto no-scrollbar">
           <StatCard role="all"        count={counts.all}        active={filter === 'all'}        lang={lang} onClick={() => setFilter('all')}        theme={theme} />
@@ -563,16 +653,20 @@ export default function UserManagement({ theme, lang, currentRole, toggleTheme, 
             />
           </div>
         </div>
+        </>}
       </div>
 
-      {/* ── User list ── */}
+      {/* ── User list / Archived users ── */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-        {loading && Array.from({ length: 5 }).map((_, i) => (
+        {actionError && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">{actionError}</div>}
+        {actionMessage && <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs">{actionMessage}</div>}
+        {showArchived && <div className="flex items-center justify-between mb-3"><div><h2 className="font-black text-sm">{lang === 'de' ? 'Archivierte Benutzer' : 'Archived Users'}</h2><p className="text-xs opacity-60">{archivedUsers.length} {lang === 'de' ? 'archiviert' : 'archived'}</p></div><button onClick={() => setShowArchived(false)} className="text-xs text-blue-500 hover:underline">{lang === 'de' ? 'Zurück zu Benutzern' : 'Back to users'}</button></div>}
+        {!showArchived && loading && Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className={cn('h-[64px] rounded-2xl border animate-pulse',
             dk ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-white border-slate-100')} />
         ))}
 
-        {!loading && dbError && (
+        {!showArchived && !loading && dbError && (
           <div className="p-5 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-start gap-3">
             <XCircle size={18} className="text-red-400 shrink-0 mt-0.5" />
             <div>
@@ -582,7 +676,7 @@ export default function UserManagement({ theme, lang, currentRole, toggleTheme, 
           </div>
         )}
 
-        {!loading && !dbError && filtered.length === 0 && (
+        {!showArchived && !loading && !dbError && filtered.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center border',
               dk ? 'bg-white/5 border-white/10' : 'bg-slate-100 border-slate-200')}>
@@ -599,7 +693,7 @@ export default function UserManagement({ theme, lang, currentRole, toggleTheme, 
           </div>
         )}
 
-        {!loading && !dbError && filtered.map(user => (
+        {!showArchived && !loading && !dbError && filtered.map(user => (
           <UserRow
             key={user.id}
             user={user}
@@ -609,14 +703,26 @@ export default function UserManagement({ theme, lang, currentRole, toggleTheme, 
             selectedRole={selectedRole[user.id] ?? (user.role as UserRole)}
             onDropdownChange={r => handleDropdownChange(user.id, r)}
             onApply={() => handleApplyClick(user)}
+            onSendResetEmail={() => handleSendResetEmail(user)}
             onGenerateRecoveryLink={() => handleGenerateRecoveryLink(user)}
+            onArchive={() => setArchiveTarget(user)}
             recoveryLoading={recoveryLoadingId === user.id}
+            sendLoading={sendLoadingId === user.id}
+            archiveLoading={archiveLoadingId === user.id}
           />
+        ))}
+        {showArchived && archivedUsers.length === 0 && <div className="py-16 text-center text-sm opacity-60">{lang === 'de' ? 'Keine archivierten Benutzer.' : 'No archived users.'}</div>}
+        {showArchived && archivedUsers.map(user => (
+          <div key={user.id} className={cn('flex items-center gap-3 px-4 py-3 rounded-2xl border', dk ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-white border-slate-100')}>
+            <div className="flex-1 min-w-0"><p className="font-bold text-sm truncate">{user.full_name || user.username || user.email}</p><p className="text-xs opacity-60 truncate">{user.email} · {lang === 'de' ? 'Archiviert' : 'Archived'}</p></div>
+            <RoleBadge role={user.role as UserRole} lang={lang} />
+            <button type="button" onClick={() => setRestoreTarget(user)} disabled={archiveLoadingId === user.id} title={lang === 'de' ? 'Wiederherstellen' : 'Restore'} className="p-2 rounded-xl border border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"><ArchiveRestore size={16}/></button>
+          </div>
         ))}
       </div>
 
       {/* Footer */}
-      {!loading && !dbError && (
+      {!showArchived && !loading && !dbError && (
         <div className={cn('shrink-0 border-t px-6 py-3 flex items-center justify-between',
           dk ? 'border-white/10 bg-[#0A1120]' : 'border-slate-200 bg-white')}>
           <p className={cn('text-xs', dk ? 'text-slate-500' : 'text-slate-400')}>
@@ -634,6 +740,25 @@ export default function UserManagement({ theme, lang, currentRole, toggleTheme, 
               {counts.pending} {lang === 'de' ? 'ausstehend' : 'pending'}
             </button>
           )}
+        </div>
+      )}
+
+      {archiveTarget && (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.72)' }}>
+          <div className={cn('w-full max-w-md rounded-2xl border p-5 shadow-2xl', dk ? 'bg-[#0D1625] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
+            <h3 className="font-black text-base mb-2">{lang === 'de' ? 'Benutzer archivieren?' : 'Archive this user?'}</h3>
+            <p className="text-sm opacity-70 mb-4">{lang === 'de' ? 'Das Pending-Konto wird aus der aktiven Benutzerliste entfernt und der Dashboard-Zugriff wird gesperrt. Sie können es später wiederherstellen.' : 'This Pending account will leave the active user list and dashboard access will be blocked. You can restore it later.'}</p>
+            <div className="flex gap-2"><button onClick={() => setArchiveTarget(null)} disabled={!!archiveLoadingId} className="flex-1 py-2.5 rounded-xl border text-sm">{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button><button onClick={confirmArchive} disabled={!!archiveLoadingId} className="flex-1 py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold">{lang === 'de' ? 'Archivieren' : 'Archive'}</button></div>
+          </div>
+        </div>
+      )}
+      {restoreTarget && (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.72)' }}>
+          <div className={cn('w-full max-w-md rounded-2xl border p-5 shadow-2xl', dk ? 'bg-[#0D1625] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900')}>
+            <h3 className="font-black text-base mb-2">{lang === 'de' ? 'Benutzer wiederherstellen?' : 'Restore this user?'}</h3>
+            <p className="text-sm opacity-70 mb-4">{lang === 'de' ? 'Das Konto wird wieder in die aktive Benutzerliste aufgenommen und behält seine Pending-Rolle.' : 'The account will return to the active user list and retain its Pending role.'}</p>
+            <div className="flex gap-2"><button onClick={() => setRestoreTarget(null)} disabled={!!archiveLoadingId} className="flex-1 py-2.5 rounded-xl border text-sm">{lang === 'de' ? 'Abbrechen' : 'Cancel'}</button><button onClick={confirmRestore} disabled={!!archiveLoadingId} className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold">{lang === 'de' ? 'Wiederherstellen' : 'Restore'}</button></div>
+          </div>
         </div>
       )}
 
