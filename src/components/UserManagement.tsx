@@ -625,11 +625,12 @@ export default function UserManagement({ theme, lang, currentRole, toggleTheme, 
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => { setShowArchived(v => !v); setActionError(''); setActionMessage(''); loadArchivedUsers(); }}
-              title={lang === 'de' ? 'Archivierte Benutzer' : 'Archived users'}
-              className={cn('relative p-2 rounded-xl transition-all', showArchived ? 'text-blue-500 bg-blue-500/10' : dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
-              <Archive size={16} />
-        
-            <button onClick={() => loadUsers(true)} disabled={refreshing}
+                title={lang === 'de' ? 'Archivierte Benutzer' : 'Archived users'}
+                className={cn('relative p-2 rounded-xl transition-all', showArchived ? 'text-blue-500 bg-blue-500/10' : dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
+                <Archive size={16} />
+              </button>
+              
+              <button onClick={() => loadUsers(true)} disabled={refreshing}
               className={cn('p-2 rounded-xl transition-all', dk ? 'hover:bg-white/10 text-slate-400' : 'hover:bg-slate-100 text-slate-500')}>
               <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
             </button>
