@@ -9,7 +9,7 @@ import MobileDashboard from './MobileDashboard'; // <--- NEW IMPORT
 import UserManagement from './components/UserManagement';
 import SuperAdminHome from './components/SuperAdminHome';
 import { cn } from './lib/utils';
-import { LogOut, Clock, RefreshCw, Lock } from 'lucide-react';
+import { LogOut, Clock, RefreshCw, Lock, Globe, Sun, Moon } from 'lucide-react';
 
 // --- NEW HOOK: The Traffic Cop ---
 function useMediaQuery(query: string): boolean {
@@ -314,9 +314,66 @@ export default function App() {
   );
 
   if (view === 'pending' || accessLevel?.role === 'pending') return (
-    <div className={cn('min-h-screen flex flex-col items-center justify-center p-8',
+    <div className={cn('min-h-screen flex flex-col p-4 sm:p-6',
       dk ? 'bg-[#020617] text-white' : 'bg-slate-100 text-slate-900')}>
-      {/* ... Pending State UI ... */}
+      <header className="w-full flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => handleSetLang(lang === 'de' ? 'en' : 'de')}
+          aria-label={lang === 'de' ? 'Switch language to English' : 'Sprache auf Deutsch umstellen'}
+          className={cn('inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors',
+            dk ? 'border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50')}>
+          <Globe size={16} /> {lang.toUpperCase()}
+        </button>
+        <button
+          type="button"
+          onClick={handleToggleTheme}
+          aria-label={dk ? (lang === 'de' ? 'Helles Design aktivieren' : 'Switch to light theme') : (lang === 'de' ? 'Dunkles Design aktivieren' : 'Switch to dark theme')}
+          className={cn('inline-flex items-center justify-center rounded-xl border p-2.5 transition-colors',
+            dk ? 'border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50')}>
+          {dk ? <Sun size={17} /> : <Moon size={17} />}
+        </button>
+        <button
+          type="button"
+          onClick={() => { void handleSignOut(); }}
+          className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-red-700">
+          <LogOut size={16} /> {lang === 'de' ? 'Abmelden' : 'Sign Out'}
+        </button>
+      </header>
+
+      <main className="flex flex-1 items-center justify-center py-10">
+        <section className={cn('w-full max-w-lg rounded-3xl border p-7 text-center shadow-2xl sm:p-9',
+          dk ? 'border-slate-800 bg-slate-900/90 shadow-black/30' : 'border-slate-200 bg-white shadow-slate-200/70')}>
+          <div className={cn('mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl',
+            dk ? 'bg-amber-400/10 text-amber-400' : 'bg-amber-50 text-amber-600')}>
+            <Clock size={31} />
+          </div>
+          <p className={cn('mb-2 text-xs font-extrabold uppercase tracking-[0.18em]',
+            dk ? 'text-amber-400' : 'text-amber-700')}>
+            {lang === 'de' ? 'Zugriffsebene: Ausstehend' : 'Access Level: Pending'}
+          </p>
+          <h1 className="mb-3 text-2xl font-black tracking-tight sm:text-3xl">
+            {lang === 'de' ? 'Ihr Konto wartet auf Freigabe' : 'Your account is awaiting approval'}
+          </h1>
+          <p className={cn('mx-auto max-w-md text-sm leading-7 sm:text-base',
+            dk ? 'text-slate-300' : 'text-slate-600')}>
+            {lang === 'de'
+              ? 'Ihr Konto wurde erstellt, aber ein Administrator muss Ihren Zugriff noch aktivieren. Bitte wenden Sie sich an Ihren Administrator. Diese Seite aktualisiert Ihren Zugriffsstatus automatisch.'
+              : 'Your account has been created, but an administrator still needs to activate your access. Please contact your administrator. This page checks your access status automatically.'}
+          </p>
+          <div className={cn('mt-7 flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-xs font-semibold',
+            dk ? 'bg-slate-800/80 text-slate-400' : 'bg-slate-50 text-slate-500')}>
+            <RefreshCw size={14} className="animate-spin" />
+            {lang === 'de' ? 'Warte auf Administratorfreigabe' : 'Waiting for administrator approval'}
+          </div>
+          <button
+            type="button"
+            onClick={() => { void handleSignOut(); }}
+            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-red-700">
+            <LogOut size={17} /> {lang === 'de' ? 'Abmelden' : 'Sign Out'}
+          </button>
+        </section>
+      </main>
     </div>
   );
 
