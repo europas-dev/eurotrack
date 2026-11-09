@@ -25,7 +25,7 @@ function useMediaQuery(query: string): boolean {
 }
 // ---------------------------------
 
-type View = 'landing' | 'login' | 'signup' | 'admin-login' | 'dashboard' | 'superadmin-home' | 'user-management' | 'pending';
+type View = 'landing' | 'login' | 'signup' | 'admin-login' | 'reset-password' | 'dashboard' | 'superadmin-home' | 'user-management' | 'pending';
 type Theme = string;
 type Language = 'de' | 'en';
 
@@ -86,10 +86,11 @@ export default function App() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const initDone = useRef(false);
   const signingOut = useRef(false);
-  const currentUser = useRef<string | null>(null); 
+  const currentUser = useRef<string | null>(null);
+  const passwordRecoveryInProgress = useRef(false); 
 
   const LIGHT_THEMES = ['light', 'airy-glass', 'soft-sand', 'mint-breeze', 'lavender-mist', 'corporate-blue'];
-  const isPublicView = ['landing', 'login', 'signup', 'admin-login'].includes(view);
+  const isPublicView = ['landing', 'login', 'signup', 'admin-login', 'reset-password'].includes(view);
   
   // Stop theme bleeding: Force public pages to standard light/dark
   const activeTheme = isPublicView 
@@ -117,15 +118,13 @@ export default function App() {
     persistView(v);
   }, []);
 
-    const applyRole = useCallback((role: string, persisted: View | null = null) => {
+  const applyRole = useCallback((role: string, persisted: View | null = null) => {
     if (role === 'superadmin') {
       const target = persisted ?? 'superadmin-home';
       setView(target);
     } else if (role === 'admin') {
-      // Admins can access Dashboard and User Management.
-      // Restore their last valid page after refresh.
-      const target = persisted ?? 'superadmin-home';
-      setView(target);
+      // Admins use the administrator home to access User Management.
+      setView('superadmin-home');
     } else if (role === 'pending') {
       setView('pending');
     } else {
@@ -185,7 +184,7 @@ export default function App() {
       
       const persisted = getPersistedView();
       try {
-        await resolveAccess(persisted);
+        if (!passwordRecoveryInProgress.current) await resolveAccess(persisted);
       } catch (err) {
         console.error("Session resolve error:", err);
         setView('landing');
@@ -198,7 +197,19 @@ export default function App() {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (cancelled || !initDone.current) return;
+      if (cancelled) return;
+
+      // Supabase emits PASSWORD_RECOVERY after a valid recovery link is exchanged.
+      // Handle it even during initial app boot, before the normal session resolver finishes.
+      if (event === 'PASSWORD_RECOVERY') {
+        passwordRecoveryInProgress.current = true;
+        setView('reset-password');
+        setLoading(false);
+        initDone.current = true;
+        return;
+      }
+
+      if (!initDone.current) return;
       
       if (event === 'SIGNED_IN' && session?.user) {
         if (currentUser.current === session.user.id) return; 
@@ -280,9 +291,9 @@ export default function App() {
     />
   );
 
-  if (view === 'login' || view === 'signup' || view === 'admin-login') return (
+  if (view === 'login' || view === 'signup' || view === 'admin-login' || view === 'reset-password') return (
     <Auth 
-      initialMode={view === 'signup' ? 'signup' : 'login'} 
+      initialMode={view === 'signup' ? 'signup' : view === 'reset-password' ? 'reset' : 'login'} 
       onBack={() => setView('landing')} 
       lang={lang} 
       theme={activeTheme as 'dark' | 'light'} 
@@ -312,7 +323,7 @@ export default function App() {
       <ErrorBoundary>
         <UserManagement
           theme={theme} lang={lang}
-          currentRole={accessLevel.role}
+          currentRole={(accessLevel?.role ?? 'admin') as 'admin' | 'superadmin'}
           toggleTheme={handleToggleTheme}
           setLang={handleSetLang}
           onSignOut={handleSignOut}
@@ -343,7 +354,7 @@ export default function App() {
               onToggleOfflineMode={handleToggleOffline}
               viewOnly={isViewOnly}
               accessLevel={accessLevel}
-              onSignOut={['superadmin', 'admin'].includes(accessLevel?.role ?? '') ? () => { clearPersistedView(); setView('superadmin-home'); } : handleSignOut}
+              onSignOut={accessLevel?.role === 'superadmin' ? () => { clearPersistedView(); setView('superadmin-home'); } : handleSignOut}
             />
           </ErrorBoundary>
         </div>
@@ -369,7 +380,7 @@ export default function App() {
             onToggleOfflineMode={handleToggleOffline}
             viewOnly={isViewOnly}
             accessLevel={accessLevel}
-            onSignOut={['superadmin', 'admin'].includes(accessLevel?.role ?? '') ? () => { clearPersistedView(); setView('superadmin-home'); } : handleSignOut}
+            onSignOut={accessLevel?.role === 'superadmin' ? () => { clearPersistedView(); setView('superadmin-home'); } : handleSignOut}
           />
         </ErrorBoundary>
       </div>
